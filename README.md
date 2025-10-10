@@ -46,16 +46,37 @@ tramites-mvp-panama/
 
 ## 🚀 Inicio Rápido
 
-### 1. Clonar el Repositorio
+### Opción 1: Script de Inicio Automático (Recomendado)
+
+```bash
+git clone https://github.com/juncid/tramites-mvp-panama.git
+cd tramites-mvp-panama
+./start.sh
+```
+
+### Opción 2: Usando Make (Recomendado para Desarrollo)
+
+```bash
+git clone https://github.com/juncid/tramites-mvp-panama.git
+cd tramites-mvp-panama
+make start
+```
+
+Ver todos los comandos disponibles:
+```bash
+make help
+```
+
+### Opción 3: Manual con Docker Compose
+
+#### 1. Clonar el Repositorio
 
 ```bash
 git clone https://github.com/juncid/tramites-mvp-panama.git
 cd tramites-mvp-panama
 ```
 
-### 2. Configurar Variables de Entorno
-
-Copia los archivos de ejemplo de variables de entorno:
+#### 2. Configurar Variables de Entorno
 
 ```bash
 # Backend
@@ -67,12 +88,10 @@ cp frontend/.env.example frontend/.env
 
 **Nota:** Las contraseñas predeterminadas son para desarrollo local. En producción, usa contraseñas seguras.
 
-### 3. Levantar los Servicios
-
-Ejecuta Docker Compose para iniciar todos los servicios:
+#### 3. Levantar los Servicios
 
 ```bash
-docker-compose up --build
+docker compose up --build -d
 ```
 
 Este comando:
@@ -82,7 +101,7 @@ Este comando:
 - Inicia el backend FastAPI en el puerto 8000
 - Inicia el frontend React en el puerto 3000
 
-### 4. Acceder a la Aplicación
+#### 4. Acceder a la Aplicación
 
 Una vez que todos los servicios estén en ejecución:
 
@@ -92,6 +111,33 @@ Una vez que todos los servicios estén en ejecución:
 - **Documentación API (ReDoc):** http://localhost:8000/redoc
 
 ## 🔧 Comandos Útiles
+
+### Usando Make (Recomendado)
+
+```bash
+# Ver todos los comandos disponibles
+make help
+
+# Iniciar servicios
+make start
+
+# Detener servicios
+make stop
+
+# Ver logs
+make logs
+
+# Ejecutar tests
+make test
+
+# Acceder a shells
+make backend-shell
+make frontend-shell
+make db-shell
+make redis-cli
+```
+
+### Usando Docker Compose Directamente
 
 ### Detener los Servicios
 
