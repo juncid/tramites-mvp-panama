@@ -21,6 +21,11 @@ services:
       timeout: 5s
       retries: 10
       start_period: 30s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   # Database Initializer
   db-init:
@@ -43,6 +48,43 @@ services:
     command: python /app/init_database.py
     restart: "no"
 
+  # Database Migrations (Alembic)
+  db-migrations:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: tramites-db-migrations
+    environment:
+      - DATABASE_HOST=sqlserver
+      - DATABASE_PORT=1433
+      - DATABASE_NAME=SIM_PANAMA
+      - DATABASE_USER=sa
+      - DATABASE_PASSWORD=YourStrong@Passw0rd
+    volumes:
+      - ./backend:/app
+    networks:
+      - tramites-network
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+    command: >
+      sh -c "
+        echo '🏥 Verificando salud de la base de datos...' &&
+        python /app/wait_for_db.py &&
+        echo '✅ Base de datos confirmada como operativa' &&
+        echo '' &&
+        echo '🔄 Aplicando migraciones de Alembic...' &&
+        alembic stamp head &&
+        echo '✅ Baseline establecido (alembic stamp head)' &&
+        alembic upgrade head &&
+        echo '✅ Migraciones aplicadas exitosamente' &&
+        echo '' &&
+        echo '📥 Cargando datos iniciales de catálogos PPSH...' &&
+        python /app/load_initial_data.py &&
+        echo '🎉 Sistema de inicialización completado exitosamente'
+      "
+    restart: "no"
+
   # Redis Cache
   redis:
     image: redis:7-alpine
@@ -59,6 +101,11 @@ services:
       interval: 5s
       timeout: 3s
       retries: 5
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "2"
 
   # FastAPI Backend
   backend:
@@ -89,15 +136,20 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-      db-init:
+      db-migrations:
         condition: service_completed_successfully
     command: >
       sh -c "
-        echo '⏳ Esperando a que la base de datos esté completamente lista...' &&
-        sleep 10 &&
+        echo '⏳ Esperando a que las migraciones se completen...' &&
+        sleep 5 &&
         echo '🚀 Iniciando aplicación FastAPI...' &&
         uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
       "
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
 
   # React Frontend
   frontend:
@@ -116,6 +168,32 @@ services:
       - tramites-network
     depends_on:
       - backend
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Dozzle - Visualizador de logs en tiempo real
+  dozzle:
+    image: amir20/dozzle:latest
+    container_name: tramites-dozzle
+    ports:
+      - "8080:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      - DOZZLE_LEVEL=info
+      - DOZZLE_TAILSIZE=300
+      - DOZZLE_FILTER=name=tramites-*
+      - DOZZLE_NO_ANALYTICS=true
+    networks:
+      - tramites-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
 
 networks:
   tramites-network:

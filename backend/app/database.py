@@ -25,6 +25,12 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 Base = declarative_base()
 
+def get_database_url() -> str:
+    """
+    Retorna la URL de conexión a la base de datos para Alembic
+    """
+    return SQLALCHEMY_DATABASE_URL
+
 def get_db():
     db = SessionLocal()
     try:

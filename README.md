@@ -338,3 +338,167 @@ Para preguntas o problemas, por favor crea un issue en el repositorio.
 - [ ] Tests automatizados completos
 - [ ] CI/CD pipeline
 - [ ] Documentación API extendida
+
+---
+
+## ✅ Sistema de Migraciones con Alembic
+
+**Estado:** � Totalmente Operacional
+
+### Implementación Completa
+
+El proyecto cuenta con un sistema de migraciones totalmente funcional usando Alembic para gestionar cambios en el esquema de la base de datos de forma versionada y controlada.
+
+#### Lo que está implementado y funcionando ✅
+
+1. **Configuración completa de Alembic:**
+   - `backend/alembic.ini` - Configuración principal
+   - `backend/alembic/env.py` - Integración con FastAPI y SQL Server
+   - `backend/alembic/versions/001_initial.py` - Migración inicial (baseline)
+
+2. **Verificación dinámica de base de datos:**
+   - `backend/wait_for_db.py` - Script que verifica el estado de la BD antes de ejecutar migraciones
+   - Verifica conexión, existencia de BD, tablas creadas y tablas críticas
+   - Reemplaza timers fijos por verificación activa (~7s vs 90s)
+
+3. **Carga robusta de datos iniciales:**
+   - `backend/load_initial_data.py` - Script idempotente para cargar catálogos PPSH
+   - Verifica si las tablas existen antes de intentar cargar
+   - No falla si las tablas no existen, simplemente lo omite
+
+4. **Integración en Docker Compose:**
+   - Servicio `db-migrations` ejecuta automáticamente:
+     - Verificación de base de datos lista
+     - `alembic stamp head` - Establece baseline
+     - `alembic upgrade head` - Aplica migraciones
+     - Carga de datos iniciales
+
+5. **Documentación completa:**
+   - `MIGRATIONS_GUIDE.md` - Guía técnica completa (2,500+ líneas)
+   - `MIGRATIONS_IMPLEMENTATION.md` - Resumen ejecutivo
+   - `DATABASE_HEALTH_CHECK.md` - Documentación del sistema de verificación
+   - `DATABASE_HEALTH_CHECK_SUMMARY.md` - Resumen del sistema de verificación
+   - `DATABASE_HEALTH_CHECK_EXAMPLES.md` - Ejemplos prácticos
+   - `DATABASE_HEALTH_CHECK_DIAGRAM.md` - Diagramas visuales
+   - `DATABASE_HEALTH_CHECK_INDEX.md` - Índice de navegación
+   - `OBSERVABILITY.md` - Sistema de observabilidad y logs
+
+6. **Sistema de Observabilidad (Fase 1):**
+   - **Dozzle** - Visualizador de logs en tiempo real (puerto 8080)
+   - **Rotación de logs** - Configurada en todos los servicios Docker
+   - **Sistema de métricas** - Endpoints `/metrics` con Redis
+   - **Monitor de logs** - Script `monitor_logs.py` para detección de errores
+
+### Resolución del Problema Anterior ✅
+
+**Problema identificado (Octubre 2025):**  
+Archivos de Alembic tenían permisos incorrectos (root:root) causando conflictos de caché en WSL/Docker.
+
+**Solución aplicada:**
+1. ✅ Cambio de permisos: `chown -R junci:junci backend/alembic/`
+2. ✅ Limpieza de caché Python: `find . -name '__pycache__' -exec rm -rf {} +`
+3. ✅ Sincronización de filesystem: `wsl sync`
+4. ✅ Reconstrucción de contenedores con configuración correcta
+5. ✅ Reintegración de Alembic en `docker-compose.yml`
+
+**Resultado:**
+```
+🔄 Aplicando migraciones de Alembic...
+INFO  [alembic.runtime.migration] Context impl MSSQLImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+✅ Baseline establecido (alembic stamp head)
+✅ Migraciones aplicadas exitosamente (alembic upgrade head)
+```
+
+### Uso del Sistema de Migraciones 🎯
+
+#### Crear nueva migración
+```bash
+# Generar migración automáticamente (detecta cambios en modelos)
+docker exec tramites-backend alembic revision --autogenerate -m "Add new field to users"
+
+# Crear migración vacía (para escribir SQL manualmente)
+docker exec tramites-backend alembic revision -m "Custom migration"
+```
+
+#### Aplicar migraciones
+```bash
+# Aplicar todas las migraciones pendientes
+docker exec tramites-backend alembic upgrade head
+
+# Aplicar hasta una versión específica
+docker exec tramites-backend alembic upgrade <revision_id>
+
+# Aplicar siguiente migración
+docker exec tramites-backend alembic upgrade +1
+```
+
+#### Rollback de migraciones
+```bash
+# Revertir última migración
+docker exec tramites-backend alembic downgrade -1
+
+# Revertir hasta una versión específica
+docker exec tramites-backend alembic downgrade <revision_id>
+
+# Revertir todas las migraciones
+docker exec tramites-backend alembic downgrade base
+```
+
+#### Ver estado de migraciones
+```bash
+# Ver estado actual
+docker exec tramites-backend alembic current
+
+# Ver historial completo
+docker exec tramites-backend alembic history
+
+# Ver migraciones pendientes
+docker exec tramites-backend alembic show head
+```
+
+### Beneficios del Sistema Actual 🚀
+
+1. **Migraciones versionadas:** Cada cambio en el esquema está versionado y documentado
+2. **Rollback seguro:** Posibilidad de revertir cambios si algo falla
+3. **Generación automática:** Alembic detecta cambios en modelos SQLAlchemy
+4. **Deploy confiable:** Cada ambiente puede estar en diferentes versiones
+5. **Auditoría completa:** Historial de todos los cambios en la base de datos
+6. **Trabajo en equipo:** Múltiples desarrolladores pueden gestionar cambios simultáneos
+
+### Observabilidad y Monitoreo 📊
+
+#### Visualizador de logs (Dozzle)
+```bash
+# Acceder a interfaz web
+http://localhost:8080
+```
+
+#### Métricas del sistema
+```bash
+# Ver todas las métricas
+curl http://localhost:8000/metrics
+
+# Ver métrica específica
+curl http://localhost:8000/metrics/http_requests_total
+```
+
+#### Monitor de logs automatizado
+```bash
+# Escaneo único
+docker exec tramites-backend python /app/monitor_logs.py once
+
+# Monitoreo continuo
+docker exec tramites-backend python /app/monitor_logs.py run
+
+# Ver estadísticas
+docker exec tramites-backend python /app/monitor_logs.py stats
+```
+
+### Referencias 📚
+
+- **Guías técnicas:** Ver `MIGRATIONS_GUIDE.md` para documentación completa
+- **Sistema de verificación:** Ver `DATABASE_HEALTH_CHECK_INDEX.md`
+- **Observabilidad:** Ver `OBSERVABILITY.md` para sistema de logs y métricas
+
+---
