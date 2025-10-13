@@ -21,7 +21,10 @@ async def get_tramites(skip: int = 0, limit: int = 100, db: Session = Depends(ge
         return json.loads(cached_data)
     
     # If not in cache, get from database
-    tramites = db.query(models.Tramite).filter(models.Tramite.activo == True).offset(skip).limit(limit).all()
+    # SQL Server requires ORDER BY when using OFFSET/LIMIT
+    tramites = db.query(models.Tramite).filter(
+        models.Tramite.activo == True
+    ).order_by(models.Tramite.id.desc()).offset(skip).limit(limit).all()
     
     # Cache the result
     redis.setex(cache_key, 300, json.dumps([

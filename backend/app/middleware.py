@@ -1,0 +1,188 @@
+"""
+Middleware de logging para la aplicación FastAPI
+Registra todas las peticiones HTTP con detalles completos
+"""
+
+import time
+import logging
+from typing import Callable
+from fastapi import Request, Response
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.types import ASGIApp
+import json
+from datetime import datetime
+
+# Configurar logger
+logger = logging.getLogger("app.middleware")
+
+class LoggerMiddleware(BaseHTTPMiddleware):
+    """
+    Middleware para logging de peticiones HTTP
+    Registra: método, ruta, status code, tiempo de respuesta, IP cliente
+    """
+    
+    def __init__(self, app: ASGIApp):
+        super().__init__(app)
+        self.logger = logging.getLogger("app.middleware.http")
+    
+    async def dispatch(self, request: Request, call_next: Callable) -> Response:
+        # Información de la petición
+        request_id = str(time.time())
+        client_host = request.client.host if request.client else "unknown"
+        method = request.method
+        url = str(request.url)
+        path = request.url.path
+        
+        # Timestamp de inicio
+        start_time = time.time()
+        
+        # Log de petición entrante
+        self.logger.info(
+            f"➡️  [{request_id}] {method} {path} - Cliente: {client_host}"
+        )
+        
+        # Procesar la petición
+        try:
+            response = await call_next(request)
+            
+            # Calcular tiempo de procesamiento
+            process_time = time.time() - start_time
+            
+            # Agregar headers personalizados
+            response.headers["X-Process-Time"] = str(process_time)
+            response.headers["X-Request-ID"] = request_id
+            
+            # Determinar nivel de log según status code
+            status_code = response.status_code
+            if status_code >= 500:
+                log_level = logging.ERROR
+                emoji = "❌"
+            elif status_code >= 400:
+                log_level = logging.WARNING
+                emoji = "⚠️ "
+            else:
+                log_level = logging.INFO
+                emoji = "✅"
+            
+            # Log de respuesta
+            self.logger.log(
+                log_level,
+                f"{emoji} [{request_id}] {method} {path} - "
+                f"Status: {status_code} - "
+                f"Tiempo: {process_time:.3f}s - "
+                f"Cliente: {client_host}"
+            )
+            
+            return response
+            
+        except Exception as e:
+            # Log de error
+            process_time = time.time() - start_time
+            self.logger.error(
+                f"💥 [{request_id}] {method} {path} - "
+                f"Error: {str(e)} - "
+                f"Tiempo: {process_time:.3f}s - "
+                f"Cliente: {client_host}",
+                exc_info=True
+            )
+            raise
+
+
+class RequestLoggingMiddleware(BaseHTTPMiddleware):
+    """
+    Middleware detallado para logging de peticiones
+    Incluye headers, query params y body (opcional)
+    """
+    
+    def __init__(self, app: ASGIApp, log_body: bool = False):
+        super().__init__(app)
+        self.log_body = log_body
+        self.logger = logging.getLogger("app.middleware.detailed")
+    
+    async def dispatch(self, request: Request, call_next: Callable) -> Response:
+        # Información detallada de la petición
+        request_info = {
+            "timestamp": datetime.utcnow().isoformat(),
+            "method": request.method,
+            "path": request.url.path,
+            "query_params": dict(request.query_params),
+            "client": {
+                "host": request.client.host if request.client else None,
+                "port": request.client.port if request.client else None
+            },
+            "headers": dict(request.headers)
+        }
+        
+        # Registrar body si está habilitado (solo para desarrollo)
+        if self.log_body and request.method in ["POST", "PUT", "PATCH"]:
+            try:
+                body = await request.body()
+                if body:
+                    try:
+                        request_info["body"] = json.loads(body.decode())
+                    except:
+                        request_info["body"] = body.decode()[:500]  # Limitar tamaño
+            except:
+                request_info["body"] = "<unable to read>"
+        
+        # Log de petición
+        self.logger.debug(f"Petición: {json.dumps(request_info, indent=2)}")
+        
+        # Procesar petición
+        start_time = time.time()
+        response = await call_next(request)
+        process_time = time.time() - start_time
+        
+        # Información de respuesta
+        response_info = {
+            "timestamp": datetime.utcnow().isoformat(),
+            "status_code": response.status_code,
+            "process_time": f"{process_time:.3f}s",
+            "headers": dict(response.headers)
+        }
+        
+        # Log de respuesta
+        self.logger.debug(f"Respuesta: {json.dumps(response_info, indent=2)}")
+        
+        return response
+
+
+def setup_logging(log_level: str = "INFO", log_file: str = None):
+    """
+    Configurar el sistema de logging
+    
+    Args:
+        log_level: Nivel de logging (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+        log_file: Ruta al archivo de log (opcional)
+    """
+    # Formato de log
+    log_format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    date_format = "%Y-%m-%d %H:%M:%S"
+    
+    # Configuración básica
+    logging.basicConfig(
+        level=getattr(logging, log_level.upper()),
+        format=log_format,
+        datefmt=date_format,
+        handlers=[
+            logging.StreamHandler()  # Console
+        ]
+    )
+    
+    # Agregar handler de archivo si se especifica
+    if log_file:
+        file_handler = logging.FileHandler(log_file, encoding='utf-8')
+        file_handler.setLevel(getattr(logging, log_level.upper()))
+        file_handler.setFormatter(
+            logging.Formatter(log_format, datefmt=date_format)
+        )
+        logging.getLogger().addHandler(file_handler)
+    
+    # Configurar loggers específicos
+    logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
+    logging.getLogger("uvicorn.error").setLevel(logging.INFO)
+    
+    logger.info("🔧 Sistema de logging configurado")
+    logger.info(f"   Nivel: {log_level}")
+    if log_file:
+        logger.info(f"   Archivo: {log_file}")

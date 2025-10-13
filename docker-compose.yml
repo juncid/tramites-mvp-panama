@@ -7,18 +7,41 @@ services:
       - ACCEPT_EULA=Y
       - SA_PASSWORD=YourStrong@Passw0rd
       - MSSQL_PID=Developer
+      - MSSQL_COLLATION=Modern_Spanish_CI_AS
     ports:
       - "1433:1433"
     volumes:
       - sqlserver-data:/var/opt/mssql
+      - ./backend/bbdd:/docker-entrypoint-initdb.d
     networks:
       - tramites-network
     healthcheck:
-      test: /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P YourStrong@Passw0rd -Q "SELECT 1" || exit 1
+      test: /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "YourStrong@Passw0rd" -Q "SELECT 1" -C -b -o /dev/null || exit 1
       interval: 10s
-      timeout: 3s
+      timeout: 5s
       retries: 10
-      start_period: 10s
+      start_period: 30s
+
+  # Database Initializer
+  db-init:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: tramites-db-init
+    environment:
+      - DATABASE_HOST=sqlserver
+      - DATABASE_PORT=1433
+      - DATABASE_USER=sa
+      - DATABASE_PASSWORD=YourStrong@Passw0rd
+    volumes:
+      - ./backend:/app
+    networks:
+      - tramites-network
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+    command: python /app/init_database.py
+    restart: "no"
 
   # Redis Cache
   redis:
@@ -46,16 +69,19 @@ services:
     environment:
       - DATABASE_HOST=sqlserver
       - DATABASE_PORT=1433
-      - DATABASE_NAME=tramites_db
+      - DATABASE_NAME=SIM_PANAMA
       - DATABASE_USER=sa
       - DATABASE_PASSWORD=YourStrong@Passw0rd
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - REDIS_DB=0
+      - LOG_LEVEL=INFO
+      - ENVIRONMENT=development
     ports:
       - "8000:8000"
     volumes:
       - ./backend:/app
+      - backend-logs:/app/logs
     networks:
       - tramites-network
     depends_on:
@@ -63,11 +89,13 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      db-init:
+        condition: service_completed_successfully
     command: >
       sh -c "
-        echo 'Waiting for SQL Server to be ready...' &&
-        sleep 15 &&
-        echo 'Starting FastAPI application...' &&
+        echo '⏳ Esperando a que la base de datos esté completamente lista...' &&
+        sleep 10 &&
+        echo '🚀 Iniciando aplicación FastAPI...' &&
         uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
       "
 
@@ -92,7 +120,12 @@ services:
 networks:
   tramites-network:
     driver: bridge
+    name: tramites-network
 
 volumes:
   sqlserver-data:
+    name: tramites-sqlserver-data
   redis-data:
+    name: tramites-redis-data
+  backend-logs:
+    name: tramites-backend-logs
