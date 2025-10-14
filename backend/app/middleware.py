@@ -15,10 +15,12 @@ from datetime import datetime
 # Configurar logger
 logger = logging.getLogger("app.middleware")
 
+
 class LoggerMiddleware(BaseHTTPMiddleware):
     """
     Middleware para logging de peticiones HTTP
     Registra: método, ruta, status code, tiempo de respuesta, IP cliente
+    También recolecta métricas si está disponible
     """
     
     def __init__(self, app: ASGIApp):
@@ -47,6 +49,7 @@ class LoggerMiddleware(BaseHTTPMiddleware):
             
             # Calcular tiempo de procesamiento
             process_time = time.time() - start_time
+            process_time_ms = process_time * 1000
             
             # Agregar headers personalizados
             response.headers["X-Process-Time"] = str(process_time)
@@ -73,6 +76,44 @@ class LoggerMiddleware(BaseHTTPMiddleware):
                 f"Cliente: {client_host}"
             )
             
+            # Recolectar métricas (si está disponible)
+            try:
+                from app.metrics import get_metrics
+                metrics = get_metrics()
+                if metrics:
+                    # Contador de requests
+                    metrics.increment(
+                        "http_requests_total",
+                        tags={
+                            "method": method,
+                            "endpoint": path,
+                            "status": str(status_code)
+                        }
+                    )
+                    
+                    # Timing de requests
+                    metrics.timing(
+                        "http_request_duration_ms",
+                        process_time_ms,
+                        tags={
+                            "method": method,
+                            "endpoint": path
+                        }
+                    )
+                    
+                    # Contador de errores si aplica
+                    if status_code >= 400:
+                        metrics.increment(
+                            "http_errors_total",
+                            tags={
+                                "method": method,
+                                "status": str(status_code)
+                            }
+                        )
+            except Exception as e:
+                # No fallar si hay error en métricas
+                self.logger.debug(f"Error recolectando métricas: {e}")
+            
             return response
             
         except Exception as e:
@@ -85,6 +126,23 @@ class LoggerMiddleware(BaseHTTPMiddleware):
                 f"Cliente: {client_host}",
                 exc_info=True
             )
+            
+            # Métrica de excepción
+            try:
+                from app.metrics import get_metrics
+                metrics = get_metrics()
+                if metrics:
+                    metrics.increment(
+                        "http_exceptions_total",
+                        tags={
+                            "method": method,
+                            "endpoint": path,
+                            "exception": type(e).__name__
+                        }
+                    )
+            except:
+                pass
+            
             raise
 
 
