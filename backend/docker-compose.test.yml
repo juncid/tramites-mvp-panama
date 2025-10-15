@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  # Servicio base para tests
+  test-runner:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    volumes:
+      - .:/app
+      - ./tests:/app/tests
+    environment:
+      - PYTHONPATH=/app
+      - ENVIRONMENT=test
+      - DATABASE_URL=sqlite:///./test.db
+      - REDIS_URL=redis://redis-test:6379
+    depends_on:
+      - redis-test
+    networks:
+      - test-network
+
+  # Tests unitarios específicos
+  test-unit:
+    extends: test-runner
+    command: pytest tests/ -k "unit" -v --tb=short
+
+  # Tests de integración específicos
+  test-integration:
+    extends: test-runner
+    command: pytest tests/ -k "integration" -v --tb=short
+
+  # Tests con cobertura
+  test-coverage:
+    extends: test-runner
+    command: pytest tests/ --cov=app --cov-report=term-missing --cov-report=html -v
+
+  # Redis para tests
+  redis-test:
+    image: redis:7-alpine
+    ports:
+      - "6382:6379"
+    networks:
+      - test-network
+    command: redis-server --appendonly yes
+    tmpfs:
+      - /data
+
+networks:
+  test-network:
+    driver: bridge
+
+volumes:
+  test-data:

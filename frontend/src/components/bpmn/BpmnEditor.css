@@ -1,0 +1,85 @@
+/* Estilos adicionales para el editor BPMN */
+.bpmn-editor-container {
+  height: 100%;
+  position: relative;
+  min-height: 600px; /* Aumentar altura mínima */
+  width: 100%;
+}
+
+.bpmn-editor-container .djs-container {
+  height: 100% !important;
+  width: 100% !important;
+  min-height: 600px;
+}
+
+.bpmn-properties-panel {
+  background: white;
+  border-left: 1px solid #ddd;
+  overflow-y: auto;
+  min-height: 600px; /* Aumentar altura mínima */
+  height: 100%;
+}
+
+/* Estilos para el drawer de herramientas */
+.bpmn-tools-drawer .MuiListItemButton-root {
+  border-radius: 8px;
+  margin: 4px 8px;
+  transition: all 0.2s ease-in-out;
+}
+
+.bpmn-tools-drawer .MuiListItemButton-root:hover {
+  background-color: rgba(25, 118, 210, 0.08);
+  transform: translateX(4px);
+}
+
+.bpmn-tools-drawer .MuiListItemIcon-root {
+  color: #1976d2;
+  min-width: 40px;
+}
+
+/* Estilos para el snackbar de notificaciones */
+.bpmn-snackbar .MuiAlert-root {
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* Estilos para botones de acción */
+.bpmn-action-button {
+  border-radius: 8px;
+  text-transform: none;
+  font-weight: 500;
+  padding: 8px 16px;
+  transition: all 0.2s ease-in-out;
+}
+
+.bpmn-action-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* Estilos para el header */
+.bpmn-header {
+  background: linear-gradient(135deg, #1976d2 0%, #1565c0 100%);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .bpmn-properties-panel {
+    width: 250px !important;
+  }
+
+  .bpmn-tools-drawer {
+    width: 280px !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .bpmn-properties-panel {
+    display: none;
+  }
+
+  .bpmn-tools-drawer {
+    width: 100vw !important;
+  }
+}

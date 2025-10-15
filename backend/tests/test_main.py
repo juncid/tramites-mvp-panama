@@ -21,13 +21,13 @@ def test_health_check():
 
 
 def test_api_docs():
-    """Test that API documentation is available"""
-    response = client.get("/docs")
+    """Test that API documentation is accessible"""
+    response = client.get("/api/docs")
     assert response.status_code == 200
 
 
 def test_openapi_json():
-    """Test that OpenAPI JSON is available"""
-    response = client.get("/openapi.json")
+    """Test that OpenAPI schema is accessible"""
+    response = client.get("/api/openapi.json")
     assert response.status_code == 200
     assert "openapi" in response.json()

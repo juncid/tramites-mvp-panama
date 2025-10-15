@@ -12,12 +12,10 @@ Siguiendo principios SOLID:
 
 from sqlalchemy import (
     Column, Integer, String, Date, DateTime, Boolean, 
-    Text, ForeignKey, BigInteger, LargeBinary, SmallInteger
+    Text, ForeignKey, BigInteger, LargeBinary
 )
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
-from datetime import datetime
-from typing import Optional
 
 from app.database import Base
 
@@ -131,6 +129,7 @@ class PPSHSolicitud(Base):
     historial = relationship("PPSHEstadoHistorial", back_populates="solicitud", cascade="all, delete-orphan")
     entrevistas = relationship("PPSHEntrevista", back_populates="solicitud", cascade="all, delete-orphan")
     comentarios = relationship("PPSHComentario", back_populates="solicitud", cascade="all, delete-orphan")
+    pagos = relationship("PPSHPago", back_populates="solicitud", cascade="all, delete-orphan")
 
 
 class PPSHSolicitante(Base):
@@ -171,15 +170,6 @@ class PPSHSolicitante(Base):
 
     # Relaciones
     solicitud = relationship("PPSHSolicitud", back_populates="solicitantes")
-
-    @property
-    def nombre_completo(self) -> str:
-        """Retorna el nombre completo de la persona"""
-        nombres = [self.primer_nombre, self.segundo_nombre]
-        apellidos = [self.primer_apellido, self.segundo_apellido]
-        nombre = " ".join(filter(None, nombres))
-        apellido = " ".join(filter(None, apellidos))
-        return f"{nombre} {apellido}".strip()
 
 
 class PPSHDocumento(Base):
@@ -282,3 +272,51 @@ class PPSHComentario(Base):
 
     # Relaciones
     solicitud = relationship("PPSHSolicitud", back_populates="comentarios")
+
+
+# ==========================================
+# NUEVOS MODELOS PARA SISTEMA DE PAGOS
+# ==========================================
+
+class PPSHConceptoPago(Base):
+    """Catálogo de conceptos de pago para trámites PPSH"""
+    __tablename__ = "PPSH_CONCEPTO_PAGO"
+
+    cod_concepto = Column(String(20), primary_key=True, index=True)
+    nom_concepto = Column(String(50), nullable=False)
+    monto_usd = Column(String(10))  # Decimal como string: "800.00"
+    descripcion = Column(String(200))
+    activo = Column(Boolean, nullable=False, default=True)
+    created_at = Column(DateTime, nullable=False, default=func.now())
+    created_by = Column(String(17))
+    updated_at = Column(DateTime, onupdate=func.now())
+    updated_by = Column(String(17))
+
+    # Relaciones
+    pagos = relationship("PPSHPago", back_populates="concepto")
+
+
+class PPSHPago(Base):
+    """Registro de pagos asociados a solicitudes PPSH"""
+    __tablename__ = "PPSH_PAGO"
+
+    id_pago = Column(Integer, primary_key=True, index=True)
+    id_solicitud = Column(Integer, ForeignKey('PPSH_SOLICITUD.id_solicitud'), nullable=False, index=True)
+    monto_usd = Column(String(10), nullable=False)  # Decimal como string: "800.00"
+    tipo_concepto = Column(String(30), ForeignKey('PPSH_CONCEPTO_PAGO.cod_concepto'), nullable=False, index=True)
+    estado_tesoreria = Column(String(20), nullable=False, default='PENDIENTE', index=True)
+    num_recibo = Column(String(50), index=True)
+    fecha_pago = Column(DateTime, index=True)
+    metodo_pago = Column(String(20), index=True)  # 'EFECTIVO', 'CHEQUE', 'TRANSFERENCIA'
+    banco_emisor = Column(String(50))
+    num_cheque = Column(String(20))
+    num_transferencia = Column(String(50))
+    observaciones = Column(String(500))
+    created_at = Column(DateTime, nullable=False, default=func.now())
+    created_by = Column(String(17))
+    updated_at = Column(DateTime, onupdate=func.now())
+    updated_by = Column(String(17))
+
+    # Relaciones
+    solicitud = relationship("PPSHSolicitud", back_populates="pagos")
+    concepto = relationship("PPSHConceptoPago", back_populates="pagos")
