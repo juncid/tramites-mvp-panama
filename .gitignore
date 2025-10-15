@@ -81,3 +81,5 @@ coverage/
 *.bak
 *.tmp
 .cache/
+*.Zone.Identifier
+*.Zone.Identifier
