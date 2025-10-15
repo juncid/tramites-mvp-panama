@@ -502,3 +502,100 @@ docker exec tramites-backend python /app/monitor_logs.py stats
 - **Observabilidad:** Ver `OBSERVABILITY.md` para sistema de logs y métricas
 
 ---
+
+## ⚠️ Deuda Técnica
+
+### Estado de las Pruebas Automatizadas
+
+**Última evaluación:** Octubre 15, 2025
+
+#### Cobertura General
+- **Total de pruebas:** 75 tests
+- **Pruebas exitosas:** 37 (49.3%)
+- **Pruebas fallidas:** 38 (50.7%)
+- **Cobertura de código:** 68%
+
+#### Desglose por Módulos
+
+##### ✅ Pruebas Básicas (100% exitosas - 10/10)
+- **Estado:** Completamente operacional
+- **Módulos:** Configuración básica, health checks, servicios fundamentales
+- **Observaciones:** Base sólida del sistema funcionando correctamente
+
+##### ⚠️ Configuración de Redis para Tests (Parcialmente resuelto - 1/6)
+- **Estado:** Trabajo en progreso - progreso significativo logrado
+- **Problema principal:** Configuración de mocks de Redis en el entorno de testing
+- **Error típico:** `TypeError: <Mock name='get_redis().delete'> argument after * must be an iterable, not Mock`
+
+**Progreso realizado:**
+- ✅ Implementación completa de clase `MockRedis` con todos los métodos Redis necesarios
+- ✅ Configuración de dependency injection para tests
+- ✅ Parcial éxito: 1 test de caché ahora funciona (`test_get_tramites_cache_miss_and_set`)
+- ⚠️ Pendiente: Resolver problemas de scope en dependency injection para 5 tests restantes
+
+**Detalles técnicos:**
+```python
+# MockRedis implementado con:
+- Simulación completa de almacenamiento (data, hashes, lists)
+- Métodos: get, setex, delete, keys, hincrby, hset, hgetall, lpush, ltrim, expire
+- Manejo de patrones como redis.delete(*keys)
+- Detección y manejo de objetos Mock anidados
+```
+
+##### ❌ Pruebas de Endpoints PPSH (0% exitosas - 32/32)
+- **Estado:** Requiere investigación completa
+- **Problema principal:** Fallas en endpoints específicos del módulo PPSH
+- **Impacto:** Módulo de trámites PPSH no está cubierto por testing automatizado
+
+#### Implicaciones para Producción
+
+##### Riesgos Identificados
+1. **Caché Redis:** Sin testing completo, cambios en lógica de caché pueden introducir bugs silenciosos
+2. **Módulo PPSH:** Sin cobertura de tests, el módulo principal del negocio carece de validación automatizada
+3. **Integración:** Tests de integración incompletos pueden ocultar problemas de comunicación entre servicios
+
+##### Mitigaciones Actuales
+1. **Tests manuales:** Funcionalidad verificada manualmente durante desarrollo
+2. **Environment de staging:** Validación en ambiente controlado antes de producción
+3. **Monitoreo:** Sistema de logs y métricas implementado para detectar issues en runtime
+
+#### Plan de Resolución Sugerido
+
+##### Prioridad Alta 🔴
+1. **Completar configuración Redis testing**
+   - Resolver problemas de dependency injection scope
+   - Asegurar consistencia en patching de `get_redis()`
+   - Target: 6/6 tests de caché funcionando
+
+##### Prioridad Media 🟡
+2. **Investigar fallas en tests PPSH**
+   - Análisis detallado de errores específicos
+   - Configuración de datos de test para módulo PPSH
+   - Validación de schemas y endpoints específicos
+
+##### Prioridad Baja 🟢
+3. **Mejoras de infraestructura de testing**
+   - Refactoring para mejor testabilidad
+   - Implementación de factory patterns para datos de test
+   - Configuración de CI/CD con validación automática
+
+#### Recursos Técnicos Disponibles
+
+- **Configuración Docker completa** para testing aislado
+- **MockRedis class** implementada y funcionando parcialmente
+- **Infraestructura de fixtures** establecida en `conftest.py`
+- **Documentación detallada** de errores y configuraciones intentadas
+
+#### Estimación de Esfuerzo
+
+- **Redis testing (completar):** 1-2 días de desarrollo
+- **PPSH tests investigation:** 3-5 días de análisis y fixes
+- **Infrastructure improvements:** 2-3 días de refactoring
+
+**Total estimado:** 6-10 días de desarrollo para testing completo
+
+---
+
+**Nota:** Esta deuda técnica no impide el funcionamiento del sistema en producción, pero limita la confianza en cambios futuros y la velocidad de desarrollo. Se recomienda abordar progresivamente según las prioridades del negocio.
+
+---

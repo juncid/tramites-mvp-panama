@@ -1,0 +1,51 @@
+version: '3.8'
+
+networks:
+  sim_network:
+    external: true
+    name: tramites-mvp-panama_sim_network
+
+services:
+  backend-blue-active:
+    image: tramites-mvp-panama-backend-blue:latest
+    container_name: sim_backend_blue_active
+    environment:
+      - DATABASE_URL=mssql+pyodbc://sa:SIM_Panama_2025!@sim_sqlserver_blue:1433/SIM_PANAMA?driver=ODBC+Driver+17+for+SQL+Server&TrustServerCertificate=yes
+      - REDIS_URL=redis://sim_redis_blue:6379/0
+      - ENVIRONMENT=blue-active
+      - LOG_LEVEL=INFO
+    ports:
+      - "8000:8000"  # BLUE ahora toma el puerto principal
+    depends_on:
+      - sqlserver-blue-ref
+      - redis-blue-ref
+    restart: unless-stopped
+    networks:
+      sim_network:
+        ipv4_address: 172.20.0.25
+    volumes:
+      - ./backend/logs:/app/logs
+    healthcheck:
+      test: curl -f http://localhost:8000/health || exit 1
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    labels:
+      - "environment=blue"
+      - "status=active"
+
+  # Referencias a servicios existentes
+  sqlserver-blue-ref:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: sim_sqlserver_blue
+    external_links:
+      - sim_sqlserver_blue
+    network_mode: "none"
+
+  redis-blue-ref:
+    image: redis:7-alpine
+    container_name: sim_redis_blue
+    external_links:
+      - sim_redis_blue
+    network_mode: "none"

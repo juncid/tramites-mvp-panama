@@ -1,0 +1,36 @@
+# Dockerfile para testing con Python compatible
+FROM python:3.11-slim
+
+# Establecer directorio de trabajo
+WORKDIR /app
+
+# Instalar dependencias del sistema
+RUN apt-get update && apt-get install -y \
+    gcc \
+    g++ \
+    unixodbc-dev \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copiar requirements
+COPY requirements.txt .
+COPY tests/requirements.txt tests/
+
+# Instalar dependencias Python principales
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Instalar dependencias de testing
+RUN pip install --no-cache-dir -r tests/requirements.txt
+
+# Copiar código fuente
+COPY . .
+
+# Variables de entorno para testing
+ENV ENVIRONMENT=test
+ENV DATABASE_URL=sqlite:///test.db
+ENV REDIS_URL=redis://redis:6379/15
+ENV LOG_LEVEL=WARNING
+ENV PYTHONPATH=/app
+
+# Comando por defecto para ejecutar tests
+CMD ["python", "-m", "pytest", "tests/", "-v"]
