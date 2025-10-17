@@ -425,12 +425,29 @@ async def subir_documento(
         # TODO: Guardar archivo en storage
         # storage_path = await save_to_storage(contents, archivo.filename, id_solicitud)
         
-        return DocumentoService.registrar_documento(
+        documento = DocumentoService.registrar_documento(
             db=db,
             id_solicitud=id_solicitud,
             documento_data=documento_data,
             tamano_bytes=tamano_bytes,
             uploaded_by=current_user["user_id"]
+        )
+        
+        # Convertir modelo a schema response para asegurar campos correctos
+        return DocumentoResponse(
+            id_documento=documento.id_documento,
+            id_solicitud=documento.id_solicitud,
+            cod_tipo_documento=documento.cod_tipo_documento,
+            tipo_documento_texto=documento.tipo_documento_texto,
+            nombre_archivo=documento.nombre_archivo,
+            extension=documento.extension,
+            tamano_bytes=documento.tamano_bytes,
+            estado_verificacion=documento.estado_verificacion,
+            verificado_por=documento.verificado_por,
+            fecha_verificacion=documento.fecha_verificacion,
+            uploaded_by=documento.uploaded_by,
+            uploaded_at=documento.uploaded_at,
+            observaciones=documento.observaciones
         )
     except PPSHNotFoundException as e:
         raise e
@@ -451,12 +468,29 @@ async def verificar_documento(
 ):
     """Verifica o rechaza un documento. Requiere permisos de analista."""
     try:
-        return DocumentoService.verificar_documento(
+        documento = DocumentoService.verificar_documento(
             db=db,
             id_documento=id_documento,
             estado=estado.value,
             verificado_por=current_user["user_id"],
             observaciones=observaciones
+        )
+        
+        # Convertir modelo a schema response para asegurar campos correctos
+        return DocumentoResponse(
+            id_documento=documento.id_documento,
+            id_solicitud=documento.id_solicitud,
+            cod_tipo_documento=documento.cod_tipo_documento,
+            tipo_documento_texto=documento.tipo_documento_texto,
+            nombre_archivo=documento.nombre_archivo,
+            extension=documento.extension,
+            tamano_bytes=documento.tamano_bytes,
+            estado_verificacion=documento.estado_verificacion,
+            verificado_por=documento.verificado_por,
+            fecha_verificacion=documento.fecha_verificacion,
+            uploaded_by=documento.uploaded_by,
+            uploaded_at=documento.uploaded_at,
+            observaciones=documento.observaciones
         )
     except PPSHNotFoundException as e:
         raise e
