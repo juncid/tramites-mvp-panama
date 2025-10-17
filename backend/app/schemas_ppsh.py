@@ -97,7 +97,10 @@ class TipoDocumentoResponse(BaseModel):
     es_obligatorio: bool
     descripcion: Optional[str]
     orden: Optional[int]
+    categoria: Optional[str]
     activo: bool
+    created_at: datetime
+    updated_at: Optional[datetime]
 
     class Config:
         from_attributes = True

@@ -49,8 +49,11 @@ class PPSHTipoDocumento(Base):
     es_obligatorio = Column(Boolean, nullable=False, default=False)
     descripcion = Column(String(300))
     orden = Column(Integer)
+    categoria = Column(String(20), nullable=True, index=True)
     activo = Column(Boolean, nullable=False, default=True)
     created_at = Column(DateTime, nullable=False, default=func.now())
+    updated_at = Column(DateTime, nullable=True, onupdate=func.now())
+    updated_by = Column(String(17))
 
     # Relaciones
     documentos = relationship("PPSHDocumento", back_populates="tipo_documento")
