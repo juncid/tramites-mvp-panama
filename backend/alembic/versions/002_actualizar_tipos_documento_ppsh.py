@@ -14,7 +14,7 @@ from datetime import datetime
 
 # revision identifiers
 revision = '002_actualizar_tipos_documento_ppsh'
-down_revision = '001_initial_ppsh_migration'
+down_revision = None
 branch_labels = None
 depends_on = None
 

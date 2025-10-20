@@ -25,7 +25,7 @@ def test_connection():
     print_section("TEST 1: Verificación de Conexión")
     
     try:
-        from app.config import settings
+        from app.infrastructure.config import settings
         
         # Construir connection string
         params = urllib.parse.quote_plus(

@@ -1,10 +1,10 @@
 from fastapi import FastAPI, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from app.database import engine, Base, SessionLocal
-from app.routes import router
-from app.middleware import LoggerMiddleware, setup_logging
-from app.config import settings
+from app.infrastructure.database import engine, Base, SessionLocal
+from app.routers.routers import router
+from app.utils.middleware import LoggerMiddleware, setup_logging
+from app.infrastructure.config import settings
 from sqlalchemy import text
 from datetime import datetime
 import logging
@@ -12,19 +12,26 @@ import os
 
 # Importar Redis para métricas
 try:
-    from app.redis_client import get_redis
-    from app.metrics import init_metrics, get_metrics
+    from app.infrastructure.redis_client import get_redis
+    from app.utils.metrics import init_metrics, get_metrics
     METRICS_AVAILABLE = True
 except ImportError:
     METRICS_AVAILABLE = False
 
 # Importar routers adicionales
 try:
-    from app.routes_ppsh import router as ppsh_router
+    from app.routers.routers_ppsh import router as ppsh_router
     PPSH_AVAILABLE = True
 except ImportError:
     PPSH_AVAILABLE = False
     ppsh_router = None
+
+try:
+    from app.routers.routers_workflow import router as workflow_router
+    WORKFLOW_AVAILABLE = True
+except ImportError:
+    WORKFLOW_AVAILABLE = False
+    workflow_router = None
 
 # Configurar logging
 log_file = os.path.join("logs", "app.log") if os.path.exists("logs") else None
@@ -90,6 +97,13 @@ if PPSH_AVAILABLE and ppsh_router:
 else:
     logger.warning("⚠️  Módulo PPSH no disponible")
 
+# Incluir router de Workflow si está disponible
+if WORKFLOW_AVAILABLE and workflow_router:
+    app.include_router(workflow_router, prefix="/api/v1")
+    logger.info("✅ Módulo Workflow Dinámico registrado en /api/v1/workflow")
+else:
+    logger.warning("⚠️  Módulo Workflow Dinámico no disponible")
+
 logger.info("🚀 Aplicación FastAPI inicializada")
 
 @app.get("/", tags=["Root"])
@@ -112,6 +126,12 @@ async def root():
         response["modules"]["ppsh"] = "✅ Disponible en /api/v1/ppsh"
     else:
         response["modules"]["ppsh"] = "❌ No disponible"
+    
+    # Agregar módulo Workflow si está disponible
+    if WORKFLOW_AVAILABLE:
+        response["modules"]["workflow"] = "✅ Disponible en /api/v1/workflow"
+    else:
+        response["modules"]["workflow"] = "❌ No disponible"
     
     return response
 
@@ -221,6 +241,14 @@ async def startup_event():
     logger.info(f"  Base de datos: {settings.database_name}")
     logger.info(f"  Host BD: {settings.database_host}:{settings.database_port}")
     logger.info(f"  Redis: {settings.redis_host}:{settings.redis_port}")
+    
+    # Módulos disponibles
+    logger.info("  Módulos activos:")
+    logger.info("    - Trámites: ✅")
+    if PPSH_AVAILABLE:
+        logger.info("    - PPSH: ✅")
+    if WORKFLOW_AVAILABLE:
+        logger.info("    - Workflow Dinámico: ✅")
     
     # Inicializar métricas si está disponible
     if METRICS_AVAILABLE:

@@ -256,6 +256,73 @@ def readonly_user() -> Dict[str, Any]:
 
 
 # ==========================================
+# PPSH CATALOGOS FIXTURES
+# ==========================================
+
+@pytest.fixture(scope="function")
+def setup_ppsh_catalogos(db_session):
+    """Crear datos de catálogo PPSH necesarios para tests"""
+    from app.models_ppsh import PPSHCausaHumanitaria, PPSHEstado
+    
+    # Crear causas humanitarias
+    causas = [
+        PPSHCausaHumanitaria(
+            cod_causa=1,
+            nombre_causa="Refugiado",
+            descripcion="Persona refugiada",
+            requiere_evidencia=True,
+            activo=True
+        ),
+        PPSHCausaHumanitaria(
+            cod_causa=2,
+            nombre_causa="Asilo Político",
+            descripcion="Persona solicitante de asilo",
+            requiere_evidencia=True,
+            activo=True
+        ),
+    ]
+    
+    # Crear estados
+    estados = [
+        PPSHEstado(
+            cod_estado="RECIBIDO",
+            nombre_estado="Recibido",
+            descripcion="Solicitud recibida",
+            orden=1,
+            color_hex="#3498db",
+            es_final=False,
+            activo=True
+        ),
+        PPSHEstado(
+            cod_estado="EN_REVISION",
+            nombre_estado="En Revisión",
+            descripcion="Solicitud en revisión",
+            orden=2,
+            color_hex="#f39c12",
+            es_final=False,
+            activo=True
+        ),
+        PPSHEstado(
+            cod_estado="APROBADO",
+            nombre_estado="Aprobado",
+            descripcion="Solicitud aprobada",
+            orden=3,
+            color_hex="#2ecc71",
+            es_final=True,
+            activo=True
+        ),
+    ]
+    
+    db_session.add_all(causas + estados)
+    db_session.commit()
+    
+    return {
+        "causas": causas,
+        "estados": estados
+    }
+
+
+# ==========================================
 # MOCK AUTHENTICATION
 # ==========================================
 
