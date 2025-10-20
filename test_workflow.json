@@ -1,0 +1,126 @@
+{
+  "codigo": "FLUJO_COMPLETO",
+  "nombre": "Flujo Completo de Prueba",
+  "descripcion": "Workflow completo con etapas y preguntas",
+  "estado": "ACTIVO",
+  "categoria": "Pruebas",
+  "perfiles_creadores": ["ADMIN"],
+  "etapas": [
+    {
+      "codigo": "INICIO",
+      "nombre": "Inicio del Proceso",
+      "descripcion": "Etapa inicial de registro",
+      "tipo_etapa": "ETAPA",
+      "orden": 1,
+      "es_etapa_inicial": true,
+      "es_etapa_final": false,
+      "perfiles_permitidos": ["CIUDADANO", "ABOGADO"],
+      "titulo_formulario": "Datos Personales",
+      "bajada_formulario": "Por favor complete sus datos personales",
+      "preguntas": [
+        {
+          "codigo": "NOMBRE",
+          "pregunta": "¿Cuál es su nombre completo?",
+          "tipo_pregunta": "RESPUESTA_TEXTO",
+          "orden": 1,
+          "es_obligatoria": true,
+          "validacion_regex": "^[a-zA-ZáéíóúÁÉÍÓÚñÑ ]+$",
+          "mensaje_validacion": "Solo se permiten letras y espacios",
+          "placeholder": "Juan Pérez García"
+        },
+        {
+          "codigo": "EMAIL",
+          "pregunta": "¿Cuál es su correo electrónico?",
+          "tipo_pregunta": "RESPUESTA_TEXTO",
+          "orden": 2,
+          "es_obligatoria": true,
+          "validacion_regex": "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$",
+          "mensaje_validacion": "Debe ser un correo electrónico válido",
+          "placeholder": "ejemplo@correo.com"
+        },
+        {
+          "codigo": "NACIONALIDAD",
+          "pregunta": "¿Cuál es su nacionalidad?",
+          "tipo_pregunta": "LISTA",
+          "orden": 3,
+          "es_obligatoria": true,
+          "opciones": ["Panameña", "Venezolana", "Colombiana", "Nicaragüense", "Otra"]
+        }
+      ]
+    },
+    {
+      "codigo": "DOCUMENTOS",
+      "nombre": "Carga de Documentos",
+      "descripcion": "Etapa de carga de documentos",
+      "tipo_etapa": "ETAPA",
+      "orden": 2,
+      "perfiles_permitidos": ["CIUDADANO", "ABOGADO"],
+      "titulo_formulario": "Documentos Requeridos",
+      "preguntas": [
+        {
+          "codigo": "PASAPORTE",
+          "pregunta": "Cargue copia de su pasaporte",
+          "tipo_pregunta": "CARGA_ARCHIVO",
+          "orden": 1,
+          "es_obligatoria": true,
+          "extensiones_permitidas": [".pdf", ".jpg", ".png"],
+          "tamano_maximo_mb": 5,
+          "texto_ayuda": "Debe ser una copia legible de todas las páginas"
+        }
+      ]
+    },
+    {
+      "codigo": "REVISION",
+      "nombre": "Revisión y Validación",
+      "descripcion": "Etapa de revisión por funcionario",
+      "tipo_etapa": "ETAPA",
+      "orden": 3,
+      "perfiles_permitidos": ["FUNCIONARIO", "ADMIN"],
+      "titulo_formulario": "Revisión de Solicitud",
+      "preguntas": [
+        {
+          "codigo": "APROBADO",
+          "pregunta": "¿Se aprueba la solicitud?",
+          "tipo_pregunta": "OPCIONES",
+          "orden": 1,
+          "es_obligatoria": true,
+          "opciones": ["SI", "NO"],
+          "permite_multiple": false
+        }
+      ]
+    },
+    {
+      "codigo": "FINALIZACION",
+      "nombre": "Finalización",
+      "descripcion": "Etapa final del proceso",
+      "tipo_etapa": "ETAPA",
+      "orden": 4,
+      "es_etapa_final": true,
+      "perfiles_permitidos": ["SISTEMA"]
+    }
+  ],
+  "conexiones": [
+    {
+      "etapa_origen_codigo": "INICIO",
+      "etapa_destino_codigo": "DOCUMENTOS",
+      "nombre": "Ir a Documentos",
+      "es_predeterminada": true
+    },
+    {
+      "etapa_origen_codigo": "DOCUMENTOS",
+      "etapa_destino_codigo": "REVISION",
+      "nombre": "Enviar a Revisión",
+      "es_predeterminada": true
+    },
+    {
+      "etapa_origen_codigo": "REVISION",
+      "etapa_destino_codigo": "FINALIZACION",
+      "nombre": "Finalizar",
+      "condicion": {
+        "pregunta": "APROBADO",
+        "valor": "SI"
+      },
+      "es_predeterminada": true
+    }
+  ]
+}

@@ -5,6 +5,7 @@ Registra todas las peticiones HTTP con detalles completos
 
 import time
 import logging
+import uuid
 from typing import Callable
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -28,12 +29,26 @@ class LoggerMiddleware(BaseHTTPMiddleware):
         self.logger = logging.getLogger("app.middleware.http")
     
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
-        # Información de la petición
-        request_id = str(time.time())
+        # Información de la petición con UUID único
+        request_id = str(uuid.uuid4())
         client_host = request.client.host if request.client else "unknown"
         method = request.method
         url = str(request.url)
         path = request.url.path
+        
+        # Capturar el body para logging en caso de error
+        request_body = None
+        if method in ["POST", "PUT", "PATCH"]:
+            try:
+                body_bytes = await request.body()
+                if body_bytes:
+                    request_body = body_bytes.decode('utf-8')
+                    # Reconstruir el request para que pueda ser leído nuevamente
+                    async def receive():
+                        return {"type": "http.request", "body": body_bytes}
+                    request._receive = receive
+            except Exception as e:
+                self.logger.debug(f"No se pudo leer el body: {e}")
         
         # Timestamp de inicio
         start_time = time.time()
@@ -76,6 +91,56 @@ class LoggerMiddleware(BaseHTTPMiddleware):
                 f"Cliente: {client_host}"
             )
             
+            # Si hay error, loguear detalles adicionales
+            if status_code >= 400:
+                error_details = {
+                    "request_id": request_id,
+                    "method": method,
+                    "path": path,
+                    "status_code": status_code,
+                    "client": client_host,
+                    "process_time": f"{process_time:.3f}s"
+                }
+                
+                # Incluir body de la request si está disponible
+                if request_body and method in ["POST", "PUT", "PATCH"]:
+                    try:
+                        error_details["request_body"] = json.loads(request_body)
+                    except:
+                        error_details["request_body"] = request_body[:1000] if len(request_body) > 1000 else request_body
+                
+                # Intentar leer el body de la respuesta para ver el error
+                try:
+                    from starlette.responses import StreamingResponse
+                    if not isinstance(response, StreamingResponse):
+                        # Leer el body de la respuesta
+                        response_body = b""
+                        async for chunk in response.body_iterator:
+                            response_body += chunk
+                        
+                        # Intentar parsear como JSON
+                        try:
+                            error_details["response_body"] = json.loads(response_body.decode())
+                        except:
+                            error_details["response_body"] = response_body.decode()[:500]
+                        
+                        # Reconstruir la respuesta
+                        from starlette.responses import Response
+                        response = Response(
+                            content=response_body,
+                            status_code=response.status_code,
+                            headers=dict(response.headers),
+                            media_type=response.media_type
+                        )
+                except Exception as e:
+                    error_details["response_read_error"] = str(e)
+                
+                # Log detallado del error
+                self.logger.log(
+                    log_level,
+                    f"📋 Detalles del error [{request_id}]:\n{json.dumps(error_details, indent=2, ensure_ascii=False)}"
+                )
+            
             # Recolectar métricas (si está disponible)
             try:
                 from app.metrics import get_metrics
@@ -117,13 +182,36 @@ class LoggerMiddleware(BaseHTTPMiddleware):
             return response
             
         except Exception as e:
-            # Log de error
+            # Log de error con detalles
             process_time = time.time() - start_time
+            error_details = {
+                "request_id": request_id,
+                "method": method,
+                "path": path,
+                "client": client_host,
+                "error_type": type(e).__name__,
+                "error_message": str(e),
+                "process_time": f"{process_time:.3f}s"
+            }
+            
+            # Incluir body si está disponible y es relevante
+            if request_body and method in ["POST", "PUT", "PATCH"]:
+                try:
+                    # Intentar parsear como JSON para mejor legibilidad
+                    error_details["request_body"] = json.loads(request_body)
+                except:
+                    # Si no es JSON válido, incluir como texto (truncado si es muy largo)
+                    error_details["request_body"] = request_body[:1000] if len(request_body) > 1000 else request_body
+            
+            # Log detallado del error
             self.logger.error(
                 f"💥 [{request_id}] {method} {path} - "
                 f"Error: {str(e)} - "
                 f"Tiempo: {process_time:.3f}s - "
-                f"Cliente: {client_host}",
+                f"Cliente: {client_host}"
+            )
+            self.logger.error(
+                f"Detalles del error:\n{json.dumps(error_details, indent=2, ensure_ascii=False)}",
                 exc_info=True
             )
             
@@ -158,8 +246,12 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         self.logger = logging.getLogger("app.middleware.detailed")
     
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
+        # Generar UUID único para la petición
+        request_id = str(uuid.uuid4())
+        
         # Información detallada de la petición
         request_info = {
+            "request_id": request_id,
             "timestamp": datetime.utcnow().isoformat(),
             "method": request.method,
             "path": request.url.path,
@@ -183,8 +275,8 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
             except:
                 request_info["body"] = "<unable to read>"
         
-        # Log de petición
-        self.logger.debug(f"Petición: {json.dumps(request_info, indent=2)}")
+        # Log de petición con request_id
+        self.logger.debug(f"[{request_id}] Petición: {json.dumps(request_info, indent=2)}")
         
         # Procesar petición
         start_time = time.time()
@@ -193,14 +285,15 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         
         # Información de respuesta
         response_info = {
+            "request_id": request_id,
             "timestamp": datetime.utcnow().isoformat(),
             "status_code": response.status_code,
             "process_time": f"{process_time:.3f}s",
             "headers": dict(response.headers)
         }
         
-        # Log de respuesta
-        self.logger.debug(f"Respuesta: {json.dumps(response_info, indent=2)}")
+        # Log de respuesta con request_id para correlación
+        self.logger.debug(f"[{request_id}] Respuesta: {json.dumps(response_info, indent=2)}")
         
         return response
 

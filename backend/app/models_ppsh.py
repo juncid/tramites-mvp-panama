@@ -173,6 +173,17 @@ class PPSHSolicitante(Base):
 
     # Relaciones
     solicitud = relationship("PPSHSolicitud", back_populates="solicitantes")
+    
+    @property
+    def nombre_completo(self) -> str:
+        """Genera el nombre completo del solicitante"""
+        nombres = [self.primer_nombre]
+        if self.segundo_nombre:
+            nombres.append(self.segundo_nombre)
+        nombres.append(self.primer_apellido)
+        if self.segundo_apellido:
+            nombres.append(self.segundo_apellido)
+        return " ".join(nombres)
 
 
 class PPSHDocumento(Base):
@@ -306,7 +317,8 @@ class PPSHPago(Base):
     id_pago = Column(Integer, primary_key=True, index=True)
     id_solicitud = Column(Integer, ForeignKey('PPSH_SOLICITUD.id_solicitud'), nullable=False, index=True)
     monto_usd = Column(String(10), nullable=False)  # Decimal como string: "800.00"
-    tipo_concepto = Column(String(30), ForeignKey('PPSH_CONCEPTO_PAGO.cod_concepto'), nullable=False, index=True)
+    # Debe coincidir con la longitud de PPSH_CONCEPTO_PAGO.cod_concepto (String(20))
+    tipo_concepto = Column(String(20), ForeignKey('PPSH_CONCEPTO_PAGO.cod_concepto'), nullable=False, index=True)
     estado_tesoreria = Column(String(20), nullable=False, default='PENDIENTE', index=True)
     num_recibo = Column(String(50), index=True)
     fecha_pago = Column(DateTime, index=True)

@@ -2,7 +2,20 @@
 
 Sistema de gestión de trámites desarrollado con FastAPI (Python) y React (TypeScript), utilizando MS SQL Server como base de datos principal y Redis para caché.
 
-## 📋 Requisitos Previos
+## � Últimas Actualizaciones
+
+**20 de Octubre de 2025** - Mejoras en Sistema de Workflows Dinámicos
+- ✨ **Creación de workflows completos en 1 petición** (antes: ~20 peticiones)
+- ✨ **UUID único** para trazabilidad completa de peticiones
+- ✨ **Logging mejorado** con captura automática de request/response body
+- ✨ **Uso de códigos** en lugar de IDs para referencias entre etapas
+- 🐛 Fixes de compatibilidad con MSSQL
+
+📖 **Documentación completa:** [docs/MEJORAS_LOGGING_Y_WORKFLOWS_2025-10-20.md](./docs/MEJORAS_LOGGING_Y_WORKFLOWS_2025-10-20.md)  
+📖 **Resumen ejecutivo:** [docs/RESUMEN_MEJORAS_2025-10-20.md](./docs/RESUMEN_MEJORAS_2025-10-20.md)  
+📖 **Ejemplos de uso:** [docs/ejemplos/](./docs/ejemplos/)
+
+## �📋 Requisitos Previos
 
 Para ejecutar este proyecto en tu entorno local, necesitas tener instalado:
 
@@ -568,10 +581,21 @@ docker exec tramites-backend python /app/monitor_logs.py stats
    - Target: 6/6 tests de caché funcionando
 
 ##### Prioridad Media 🟡
-2. **Investigar fallas en tests PPSH**
-   - Análisis detallado de errores específicos
-   - Configuración de datos de test para módulo PPSH
-   - Validación de schemas y endpoints específicos
+2. **Completar corrección tests PPSH** _(Actualizado: 2025-10-20)_
+   - **Estado actual:** 5/27 tests pasando (18.5%)
+   - **Problemas identificados:**
+     * 15 tests necesitan fixture `setup_ppsh_catalogos` (ya creado en conftest.py)
+     * Nombres de campos inconsistentes en assertions (`agencia` → `cod_agencia`)
+     * 6-8 tests con problemas de mock/lógica de datos
+     * 1 endpoint faltante: `/api/v1/ppsh/catalogos/paises`
+   - **Correcciones ya aplicadas:**
+     * ✅ Bug crítico SQLAlchemy en `services_ppsh.py` (selectinload.filter)
+     * ✅ Propiedad `nombre_completo` agregada a modelo PPSHSolicitante
+     * ✅ Estado inicial corregido: "RECEPCION" → "RECIBIDO"
+     * ✅ Nombres de modelos corregidos (7 correcciones)
+   - **Documentación:** Ver `backend/PPSH_TESTS_PROGRESS_REPORT.md`
+   - **Estimación:** 2-3 horas para alcanzar 80%+ cobertura
+   - **Scripts disponibles:** `fix_ppsh_tests_phase2.py` para correcciones automáticas
 
 ##### Prioridad Baja 🟢
 3. **Mejoras de infraestructura de testing**
@@ -584,15 +608,43 @@ docker exec tramites-backend python /app/monitor_logs.py stats
 - **Configuración Docker completa** para testing aislado
 - **MockRedis class** implementada y funcionando parcialmente
 - **Infraestructura de fixtures** establecida en `conftest.py`
-- **Documentación detallada** de errores y configuraciones intentadas
+  - ✨ **Nuevo:** `setup_ppsh_catalogos` fixture (PPSHCausaHumanitaria, PPSHEstado)
+- **Scripts de corrección automática:**
+  - `fix_ppsh_tests.py` - Primera fase (73 correcciones aplicadas)
+  - `fix_ppsh_tests_phase2.py` - Segunda fase (7 correcciones aplicadas)
+- **Documentación detallada:**
+  - `backend/PPSH_TESTS_PROGRESS_REPORT.md` - Reporte completo con análisis y plan
+  - `backend/PPSH_TESTS_ANALYSIS.md` - Categorización de errores
+  - `backend/PPSH_TESTS_FIX_GUIDE.md` - Guía de problemas y soluciones
+  - `backend/PPSH_TESTS_FINAL_REPORT.md` - Reporte detallado con action plan
 
 #### Estimación de Esfuerzo
 
 - **Redis testing (completar):** 1-2 días de desarrollo
-- **PPSH tests investigation:** 3-5 días de análisis y fixes
+- **PPSH tests (completar correcciones):** 2-3 horas _(análisis ya realizado)_
+- **Trámites tests (12/24 failing):** 1-2 días
+- **Integration tests (0/9 passing):** 2-3 días
 - **Infrastructure improvements:** 2-3 días de refactoring
 
-**Total estimado:** 6-10 días de desarrollo para testing completo
+**Total estimado actualizado:** 6-8 días de desarrollo para testing completo
+
+#### Estado Actual de Tests _(2025-10-20)_
+
+```
+Total: 130 tests
+✅ Pasando: 83 tests (63.8%)
+❌ Fallando: 47 tests (36.2%)
+
+Desglose por módulo:
+✅ Workflow routes:    30/30 (100%)
+✅ Workflow services:  17/18 (94.4%)
+✅ Upload documento:    6/6  (100%)
+✅ Basic functional:   10/10 (100%)
+⚠️  PPSH unit:          5/27 (18.5%) ← Deuda técnica principal
+⚠️  Trámites unit:    12/24 (50%)
+❌ Integration:         0/9  (0%)
+❌ Auth:                1/4  (25%)
+```
 
 ---
 
