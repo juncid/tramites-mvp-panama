@@ -19,12 +19,8 @@ from datetime import datetime, date
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
-from app.models_ppsh import (
-    PPSHSolicitud, PPSHSolicitante, PPSHDocumento,
-    PPSHEntrevista, PPSHComentario, PPSHEstado,
-    PPSHCausaHumanitaria, PPSHTipoDocumento
-)
-from app.schemas_ppsh import (
+from app.models import models_ppsh
+from app.schemas import (
     SolicitudCreate, SolicitanteCreate,
     DocumentoCreate, EntrevistaCreate
 )
@@ -41,26 +37,22 @@ class TestPPSHSolicitudesEndpoints:
         """Test: Admin puede ver todas las solicitudes"""
         # Arrange: Crear solicitudes en diferentes agencias
         solicitud1 = PPSHSolicitud(
-            id=1,
             num_expediente="PPSH-2025-001",
             tipo_solicitud="INDIVIDUAL",
             cod_causa_humanitaria=1,
             descripcion_caso="Caso test 1",
             cod_agencia="AGE01",
             cod_seccion="SEC01",
-            estado_actual="RECIBIDA",
-            created_at=datetime.now()
+            estado_actual="RECIBIDO"
         )
         solicitud2 = PPSHSolicitud(
-            id=2,
             num_expediente="PPSH-2025-002",
             tipo_solicitud="FAMILIAR",
             cod_causa_humanitaria=2,
             descripcion_caso="Caso test 2",
             cod_agencia="AGE02",
             cod_seccion="SEC02",
-            estado_actual="EN_REVISION",
-            created_at=datetime.now()
+            estado_actual="RECIBIDO"
         )
         db_session.add_all([solicitud1, solicitud2])
         db_session.commit()
@@ -78,25 +70,23 @@ class TestPPSHSolicitudesEndpoints:
     def test_get_solicitudes_filtered_by_agencia(self, client: TestClient, db_session: Session, analista_user):
         """Test: Usuario no admin solo ve solicitudes de su agencia"""
         # Arrange: Crear solicitudes en diferentes agencias
-        solicitud_misma_agencia = SolicitudPPSH(
+        solicitud_misma_agencia = PPSHSolicitud(
             num_expediente="PPSH-2025-001",
             tipo_solicitud="INDIVIDUAL",
             cod_causa_humanitaria=1,
             descripcion_caso="Mismo agencia",
             cod_agencia="AGE01",  # Misma agencia que analista_user
             cod_seccion="SEC01",
-            estado_actual="RECIBIDA",
-            fecha_creacion=datetime.now()
+            estado_actual="RECIBIDO"
         )
-        solicitud_otra_agencia = SolicitudPPSH(
+        solicitud_otra_agencia = PPSHSolicitud(
             num_expediente="PPSH-2025-002",
             tipo_solicitud="INDIVIDUAL",
             cod_causa_humanitaria=1,
             descripcion_caso="Otra agencia",
             cod_agencia="AGE99",  # Diferente agencia
             cod_seccion="SEC99",
-            estado_actual="RECIBIDA",
-            fecha_creacion=datetime.now()
+            estado_actual="RECIBIDO"
         )
         db_session.add_all([solicitud_misma_agencia, solicitud_otra_agencia])
         db_session.commit()
@@ -109,29 +99,26 @@ class TestPPSHSolicitudesEndpoints:
         assert response.status_code == 200
         data = response.json()
         assert data["total"] == 1
-        assert data["items"][0]["agencia"] == "AGE01"
+        assert len(data["items"]) == 1
+        assert data["items"][0]["cod_agencia"] == "AGE01"
 
     def test_get_solicitudes_with_filters(self, client: TestClient, db_session: Session, admin_user):
         """Test: Filtros en listado de solicitudes"""
         # Arrange: Crear solicitudes con diferentes estados
-        solicitud1 = SolicitudPPSH(
+        solicitud1 = PPSHSolicitud(
             num_expediente="PPSH-2025-001",
             tipo_solicitud="INDIVIDUAL",
-            estado_actual="RECIBIDA",
+            estado_actual="RECIBIDO",
             cod_causa_humanitaria=1,
             descripcion_caso="Caso 1",
-            cod_agencia="AGE01",
-            fecha_creacion=datetime.now()
-        )
-        solicitud2 = SolicitudPPSH(
+            cod_agencia="AGE01",        )
+        solicitud2 = PPSHSolicitud(
             num_expediente="PPSH-2025-002",
             tipo_solicitud="FAMILIAR",
-            estado_actual="APROBADA",
+            estado_actual="RECIBIDO",
             cod_causa_humanitaria=2,
             descripcion_caso="Caso 2",
-            cod_agencia="AGE01",
-            fecha_creacion=datetime.now()
-        )
+            cod_agencia="AGE01",        )
         db_session.add_all([solicitud1, solicitud2])
         db_session.commit()
 
@@ -158,7 +145,7 @@ class TestPPSHSolicitudesEndpoints:
     # TESTS POST /api/v1/ppsh/solicitudes/ (Crear solicitud)
     # ==========================================
 
-    def test_create_solicitud_success(self, client: TestClient, db_session: Session, analista_user):
+    def test_create_solicitud_success(self, client: TestClient, db_session: Session, analista_user, setup_ppsh_catalogos):
         """Test: Crear solicitud PPSH exitosamente"""
         # Arrange: Datos de solicitud válidos
         solicitud_data = {
@@ -194,9 +181,9 @@ class TestPPSHSolicitudesEndpoints:
         
         assert data["tipo_solicitud"] == "INDIVIDUAL"
         assert data["descripcion_caso"] == solicitud_data["descripcion_caso"]
-        assert data["estado_actual"] == "RECIBIDA"
-        assert data["agencia"] == analista_user["agencia"]
-        assert data["seccion"] == analista_user["seccion"]
+        assert data["estado_actual"] == "RECIBIDO"
+        assert data["cod_agencia"] == analista_user["agencia"]
+        assert data["cod_seccion"] == analista_user["seccion"]
         assert "num_expediente" in data
         assert data["num_expediente"].startswith("PPSH-")
         
@@ -235,15 +222,13 @@ class TestPPSHSolicitudesEndpoints:
     def test_create_solicitud_generates_unique_number(self, client: TestClient, db_session: Session, analista_user):
         """Test: Se genera número único de solicitud"""
         # Arrange: Crear solicitud existente
-        solicitud_existente = SolicitudPPSH(
+        solicitud_existente = PPSHSolicitud(
             num_expediente="PPSH-2025-001",
             tipo_solicitud="INDIVIDUAL",
             cod_causa_humanitaria=1,
             descripcion_caso="Existente",
             cod_agencia="AGE01",
-            estado_actual="RECIBIDA",
-            fecha_creacion=datetime.now()
-        )
+            estado_actual="RECIBIDO",        )
         db_session.add(solicitud_existente)
         db_session.commit()
 
@@ -277,17 +262,13 @@ class TestPPSHSolicitudesEndpoints:
     def test_get_solicitud_by_id_success(self, client: TestClient, db_session: Session, analista_user):
         """Test: Obtener solicitud por ID exitosamente"""
         # Arrange: Crear solicitud
-        solicitud = SolicitudPPSH(
-            id=1,
-            num_expediente="PPSH-2025-001",
+        solicitud = PPSHSolicitud(            num_expediente="PPSH-2025-001",
             tipo_solicitud="INDIVIDUAL",
             cod_causa_humanitaria=1,
             descripcion_caso="Caso detallado",
             cod_agencia="AGE01",
             cod_seccion="SEC01",
-            estado_actual="RECIBIDA",
-            fecha_creacion=datetime.now()
-        )
+            estado_actual="RECIBIDO",        )
         db_session.add(solicitud)
         db_session.commit()
 
@@ -314,16 +295,12 @@ class TestPPSHSolicitudesEndpoints:
     def test_get_solicitud_different_agencia_forbidden(self, client: TestClient, db_session: Session, analista_user):
         """Test: No puede ver solicitud de otra agencia"""
         # Arrange: Crear solicitud de otra agencia
-        solicitud = SolicitudPPSH(
-            id=1,
-            num_expediente="PPSH-2025-001",
+        solicitud = PPSHSolicitud(            num_expediente="PPSH-2025-001",
             tipo_solicitud="INDIVIDUAL",
             cod_causa_humanitaria=1,
             descripcion_caso="Otra agencia",
             cod_agencia="AGE99",  # Diferente a analista_user
-            estado_actual="RECIBIDA",
-            fecha_creacion=datetime.now()
-        )
+            estado_actual="RECIBIDO",        )
         db_session.add(solicitud)
         db_session.commit()
 
@@ -341,16 +318,12 @@ class TestPPSHSolicitudesEndpoints:
     def test_update_solicitud_success(self, client: TestClient, db_session: Session, analista_user):
         """Test: Actualizar solicitud exitosamente"""
         # Arrange: Crear solicitud
-        solicitud = SolicitudPPSH(
-            id=1,
-            num_expediente="PPSH-2025-001",
+        solicitud = PPSHSolicitud(            num_expediente="PPSH-2025-001",
             tipo_solicitud="INDIVIDUAL",
             cod_causa_humanitaria=1,
             descripcion_caso="Caso original",
             cod_agencia="AGE01",
-            estado_actual="RECIBIDA",
-            fecha_creacion=datetime.now()
-        )
+            estado_actual="RECIBIDO",        )
         db_session.add(solicitud)
         db_session.commit()
 
@@ -374,16 +347,12 @@ class TestPPSHSolicitudesEndpoints:
     def test_update_solicitud_state_transition(self, client: TestClient, db_session: Session, analista_user):
         """Test: Transición de estado de solicitud"""
         # Arrange: Crear solicitud en estado RECIBIDA
-        solicitud = SolicitudPPSH(
-            id=1,
-            num_expediente="PPSH-2025-001",
+        solicitud = PPSHSolicitud(            num_expediente="PPSH-2025-001",
             tipo_solicitud="INDIVIDUAL",
             cod_causa_humanitaria=1,
             descripcion_caso="Caso",
             cod_agencia="AGE01",
-            estado_actual="RECIBIDA",
-            fecha_creacion=datetime.now()
-        )
+            estado_actual="RECIBIDO",        )
         db_session.add(solicitud)
         db_session.commit()
 
@@ -406,18 +375,14 @@ class TestPPSHSolicitantesEndpoints:
     def test_get_solicitantes_by_solicitud(self, client: TestClient, db_session: Session, analista_user):
         """Test: Obtener solicitantes de una solicitud"""
         # Arrange: Crear solicitud con solicitantes
-        solicitud = SolicitudPPSH(
-            id=1,
-            num_expediente="PPSH-2025-001",
+        solicitud = PPSHSolicitud(            num_expediente="PPSH-2025-001",
             tipo_solicitud="FAMILIAR",
             cod_causa_humanitaria=1,
             descripcion_caso="Familia",
             cod_agencia="AGE01",
-            estado_actual="RECIBIDA",
-            fecha_creacion=datetime.now()
-        )
+            estado_actual="RECIBIDO",        )
         
-        solicitante1 = SolicitantePPSH(
+        solicitante1 = PPSHSolicitante(
             solicitud_id=1,
             es_titular=True,
             tipo_documento="PASAPORTE",
@@ -429,7 +394,7 @@ class TestPPSHSolicitantesEndpoints:
             cod_nacionalidad="VEN"
         )
         
-        solicitante2 = SolicitantePPSH(
+        solicitante2 = PPSHSolicitante(
             solicitud_id=1,
             es_titular=False,
             tipo_documento="CEDULA",
@@ -461,16 +426,12 @@ class TestPPSHSolicitantesEndpoints:
     def test_add_solicitante_to_solicitud(self, client: TestClient, db_session: Session, analista_user):
         """Test: Agregar solicitante a solicitud existente"""
         # Arrange: Crear solicitud
-        solicitud = SolicitudPPSH(
-            id=1,
-            num_expediente="PPSH-2025-001",
+        solicitud = PPSHSolicitud(            num_expediente="PPSH-2025-001",
             tipo_solicitud="FAMILIAR",
             cod_causa_humanitaria=1,
             descripcion_caso="Familia",
             cod_agencia="AGE01",
-            estado_actual="RECIBIDA",
-            fecha_creacion=datetime.now()
-        )
+            estado_actual="RECIBIDO",        )
         db_session.add(solicitud)
         db_session.commit()
 
@@ -504,16 +465,12 @@ class TestPPSHDocumentosEndpoints:
     def test_upload_documento_success(self, client: TestClient, db_session: Session, analista_user, sample_pdf_file):
         """Test: Subir documento exitosamente"""
         # Arrange: Crear solicitud
-        solicitud = SolicitudPPSH(
-            id=1,
-            num_expediente="PPSH-2025-001",
+        solicitud = PPSHSolicitud(            num_expediente="PPSH-2025-001",
             tipo_solicitud="INDIVIDUAL",
             cod_causa_humanitaria=1,
             descripcion_caso="Caso",
             cod_agencia="AGE01",
-            estado_actual="RECIBIDA",
-            fecha_creacion=datetime.now()
-        )
+            estado_actual="RECIBIDO",        )
         db_session.add(solicitud)
         db_session.commit()
 
@@ -548,16 +505,12 @@ class TestPPSHDocumentosEndpoints:
     def test_get_documentos_by_solicitud(self, client: TestClient, db_session: Session, analista_user):
         """Test: Obtener documentos de una solicitud"""
         # Arrange: Crear solicitud con documentos
-        solicitud = SolicitudPPSH(
-            id=1,
-            num_expediente="PPSH-2025-001",
+        solicitud = PPSHSolicitud(            num_expediente="PPSH-2025-001",
             tipo_solicitud="INDIVIDUAL",
             cod_agencia="AGE01",
-            estado_actual="RECIBIDA",
-            fecha_creacion=datetime.now()
-        )
+            estado_actual="RECIBIDO",        )
         
-        documento = DocumentoPPSH(
+        documento = PPSHDocumento(
             solicitud_id=1,
             cod_tipo_documento=1,
             nombre_archivo="pasaporte.pdf",
@@ -584,16 +537,10 @@ class TestPPSHDocumentosEndpoints:
     def test_delete_documento(self, client: TestClient, db_session: Session, analista_user):
         """Test: Eliminar documento"""
         # Arrange: Crear documento
-        solicitud = SolicitudPPSH(
-            id=1,
-            cod_agencia="AGE01",
-            estado_actual="RECIBIDA",
-            fecha_creacion=datetime.now()
-        )
+        solicitud = PPSHSolicitud(            cod_agencia="AGE01",
+            estado_actual="RECIBIDO",        )
         
-        documento = DocumentoPPSH(
-            id=1,
-            solicitud_id=1,
+        documento = PPSHDocumento(            solicitud_id=1,
             cod_tipo_documento=1,
             nombre_archivo="documento.pdf",
             ruta_archivo="/uploads/1/documento.pdf",
@@ -617,13 +564,9 @@ class TestPPSHEntrevistasEndpoints:
     def test_create_entrevista_success(self, client: TestClient, db_session: Session, analista_user):
         """Test: Crear entrevista exitosamente"""
         # Arrange: Crear solicitud
-        solicitud = SolicitudPPSH(
-            id=1,
-            num_expediente="PPSH-2025-001",
+        solicitud = PPSHSolicitud(            num_expediente="PPSH-2025-001",
             cod_agencia="AGE01",
-            estado_actual="EN_REVISION",
-            fecha_creacion=datetime.now()
-        )
+            estado_actual="RECIBIDO",        )
         db_session.add(solicitud)
         db_session.commit()
 
@@ -648,21 +591,15 @@ class TestPPSHEntrevistasEndpoints:
     def test_get_entrevistas_by_solicitud(self, client: TestClient, db_session: Session, analista_user):
         """Test: Obtener entrevistas de una solicitud"""
         # Arrange: Crear solicitud con entrevistas
-        solicitud = SolicitudPPSH(
-            id=1,
-            cod_agencia="AGE01",
-            estado_actual="EN_REVISION",
-            fecha_creacion=datetime.now()
-        )
+        solicitud = PPSHSolicitud(            cod_agencia="AGE01",
+            estado_actual="RECIBIDO",        )
         
-        entrevista = EntrevistaPPSH(
+        entrevista = PPSHEntrevista(
             solicitud_id=1,
             fecha_programada=datetime(2025, 10, 20, 10, 0),
             tipo_entrevista="INICIAL",
             modalidad="PRESENCIAL",
-            estado="PROGRAMADA",
-            fecha_creacion=datetime.now()
-        )
+            estado="PROGRAMADA",        )
         
         db_session.add_all([solicitud, entrevista])
         db_session.commit()
@@ -681,21 +618,13 @@ class TestPPSHEntrevistasEndpoints:
     def test_update_entrevista_resultado(self, client: TestClient, db_session: Session, analista_user):
         """Test: Actualizar resultado de entrevista"""
         # Arrange: Crear entrevista realizada
-        solicitud = SolicitudPPSH(
-            id=1,
-            cod_agencia="AGE01",
-            estado_actual="EN_REVISION",
-            fecha_creacion=datetime.now()
-        )
+        solicitud = PPSHSolicitud(            cod_agencia="AGE01",
+            estado_actual="RECIBIDO",        )
         
-        entrevista = EntrevistaPPSH(
-            id=1,
-            solicitud_id=1,
+        entrevista = PPSHEntrevista(            solicitud_id=1,
             fecha_programada=datetime(2025, 10, 15, 10, 0),
             tipo_entrevista="INICIAL",
-            estado="REALIZADA",
-            fecha_creacion=datetime.now()
-        )
+            estado="REALIZADA",        )
         
         db_session.add_all([solicitud, entrevista])
         db_session.commit()
@@ -723,12 +652,8 @@ class TestPPSHComentariosEndpoints:
     def test_add_comentario_success(self, client: TestClient, db_session: Session, analista_user):
         """Test: Agregar comentario exitosamente"""
         # Arrange: Crear solicitud
-        solicitud = SolicitudPPSH(
-            id=1,
-            cod_agencia="AGE01",
-            estado_actual="EN_REVISION",
-            fecha_creacion=datetime.now()
-        )
+        solicitud = PPSHSolicitud(            cod_agencia="AGE01",
+            estado_actual="RECIBIDO",        )
         db_session.add(solicitud)
         db_session.commit()
 
@@ -752,21 +677,15 @@ class TestPPSHComentariosEndpoints:
     def test_get_comentarios_by_solicitud(self, client: TestClient, db_session: Session, analista_user):
         """Test: Obtener comentarios de una solicitud"""
         # Arrange: Crear solicitud con comentarios
-        solicitud = SolicitudPPSH(
-            id=1,
-            cod_agencia="AGE01",
-            estado_actual="EN_REVISION",
-            fecha_creacion=datetime.now()
-        )
+        solicitud = PPSHSolicitud(            cod_agencia="AGE01",
+            estado_actual="RECIBIDO",        )
         
-        comentario = ComentarioPPSH(
+        comentario = PPSHComentario(
             solicitud_id=1,
             contenido="Comentario de prueba",
             es_interno=True,
             tipo_comentario="SEGUIMIENTO",
-            usuario_creacion="ANA001",
-            fecha_creacion=datetime.now()
-        )
+            usuario_creacion="ANA001",        )
         
         db_session.add_all([solicitud, comentario])
         db_session.commit()
@@ -827,13 +746,11 @@ class TestPPSHEstadisticasEndpoints:
         """Test: Estadísticas de dashboard para admin"""
         # Arrange: Crear datos de prueba
         solicitudes = [
-            SolicitudPPSH(
+            PPSHSolicitud(
                 num_expediente=f"PPSH-2025-{i:03d}",
                 tipo_solicitud="INDIVIDUAL",
-                estado_actual="RECIBIDA" if i % 2 == 0 else "APROBADA",
-                cod_agencia="AGE01",
-                fecha_creacion=datetime.now()
-            )
+                estado_actual="RECIBIDO" if i % 2 == 0 else "APROBADA",
+                cod_agencia="AGE01",            )
             for i in range(1, 6)  # 5 solicitudes
         ]
         db_session.add_all(solicitudes)
@@ -856,18 +773,14 @@ class TestPPSHEstadisticasEndpoints:
         """Test: Estadísticas filtradas por agencia para no admin"""
         # Arrange: Crear solicitudes en diferentes agencias
         solicitudes = [
-            SolicitudPPSH(
+            PPSHSolicitud(
                 num_expediente="PPSH-2025-001",
                 cod_agencia="AGE01",  # Misma agencia que analista
-                estado_actual="RECIBIDA",
-                fecha_creacion=datetime.now()
-            ),
-            SolicitudPPSH(
+                estado_actual="RECIBIDO",            ),
+            PPSHSolicitud(
                 num_expediente="PPSH-2025-002",
                 cod_agencia="AGE02",  # Diferente agencia
-                estado_actual="RECIBIDA",
-                fecha_creacion=datetime.now()
-            )
+                estado_actual="RECIBIDO",            )
         ]
         db_session.add_all(solicitudes)
         db_session.commit()

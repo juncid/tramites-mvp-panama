@@ -12,7 +12,17 @@
 **Líneas**: 367
 **Contenido**: Análisis comparativo, consolidación de avances, checklist de MVP
 
-Total de documentación en bitácoras: 1,063 líneas
+### 3. [2025-10-20: Resumen de Mejoras](./RESUMEN_MEJORAS_2025-10-20.md)
+**Fecha**: 20 de Octubre, 2025
+**Líneas**: 262
+**Contenido**: Resumen de mejoras implementadas en el proyecto
 
-**Última actualización**: 15 de Octubre, 2025
+### 4. [2025-10-20: Mejoras en Logging y Workflows](./MEJORAS_LOGGING_Y_WORKFLOWS_2025-10-20.md)
+**Fecha**: 20 de Octubre, 2025
+**Líneas**: 1003
+**Contenido**: Mejoras detalladas en logging y workflows del sistema
+
+Total de documentación en bitácoras: 2,328 líneas
+
+**Última actualización**: 20 de Octubre, 2025
 Generado por: GitHub Copilot

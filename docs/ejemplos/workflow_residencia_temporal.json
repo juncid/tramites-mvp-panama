@@ -1,0 +1,356 @@
+{
+  "codigo": "SOLICITUD_RESIDENCIA",
+  "nombre": "Solicitud de Residencia Temporal",
+  "descripcion": "Proceso completo para solicitar residencia temporal en Panamá",
+  "version": "1.0",
+  "estado": "ACTIVO",
+  "categoria": "Migracion",
+  "color_hex": "#2563EB",
+  "icono": "passport",
+  "requiere_autenticacion": true,
+  "es_publico": false,
+  "perfiles_creadores": ["CIUDADANO", "ABOGADO"],
+  "etapas": [
+    {
+      "codigo": "DATOS_PERSONALES",
+      "nombre": "Datos Personales",
+      "descripcion": "Registro de información personal del solicitante",
+      "tipo_etapa": "ETAPA",
+      "orden": 1,
+      "es_etapa_inicial": true,
+      "perfiles_permitidos": ["CIUDADANO", "ABOGADO"],
+      "titulo_formulario": "Información Personal",
+      "bajada_formulario": "Por favor complete sus datos personales con información verídica",
+      "tiempo_estimado_minutos": 15,
+      "preguntas": [
+        {
+          "codigo": "NOMBRE_COMPLETO",
+          "pregunta": "Nombre completo (según pasaporte)",
+          "tipo_pregunta": "RESPUESTA_TEXTO",
+          "orden": 1,
+          "es_obligatoria": true,
+          "validacion_regex": "^[a-zA-ZáéíóúÁÉÍÓÚñÑ ]{3,100}$",
+          "mensaje_validacion": "Solo letras y espacios, mínimo 3 caracteres",
+          "placeholder": "Juan Antonio Pérez García",
+          "texto_ayuda": "Escriba su nombre exactamente como aparece en su pasaporte"
+        },
+        {
+          "codigo": "FECHA_NACIMIENTO",
+          "pregunta": "Fecha de nacimiento",
+          "tipo_pregunta": "RESPUESTA_TEXTO",
+          "orden": 2,
+          "es_obligatoria": true,
+          "validacion_regex": "^\\d{4}-\\d{2}-\\d{2}$",
+          "mensaje_validacion": "Formato requerido: YYYY-MM-DD",
+          "placeholder": "1990-01-15",
+          "texto_ayuda": "Formato: año-mes-día (ejemplo: 1990-01-15)"
+        },
+        {
+          "codigo": "NACIONALIDAD",
+          "pregunta": "Nacionalidad",
+          "tipo_pregunta": "LISTA",
+          "orden": 3,
+          "es_obligatoria": true,
+          "opciones": [
+            "Venezolana",
+            "Colombiana",
+            "Nicaragüense",
+            "Cubana",
+            "Dominicana",
+            "Peruana",
+            "Argentina",
+            "Chilena",
+            "Española",
+            "Otra"
+          ],
+          "texto_ayuda": "Seleccione su nacionalidad actual"
+        },
+        {
+          "codigo": "EMAIL",
+          "pregunta": "Correo electrónico",
+          "tipo_pregunta": "RESPUESTA_TEXTO",
+          "orden": 4,
+          "es_obligatoria": true,
+          "validacion_regex": "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$",
+          "mensaje_validacion": "Ingrese un correo electrónico válido",
+          "placeholder": "ejemplo@correo.com",
+          "texto_ayuda": "Usaremos este correo para notificaciones importantes"
+        },
+        {
+          "codigo": "TELEFONO",
+          "pregunta": "Número de teléfono",
+          "tipo_pregunta": "RESPUESTA_TEXTO",
+          "orden": 5,
+          "es_obligatoria": true,
+          "validacion_regex": "^\\+?[0-9]{8,15}$",
+          "mensaje_validacion": "Ingrese un número de teléfono válido (8-15 dígitos)",
+          "placeholder": "+507 6123-4567",
+          "texto_ayuda": "Incluya código de país si es internacional"
+        }
+      ]
+    },
+    {
+      "codigo": "CARGA_DOCUMENTOS",
+      "nombre": "Documentos Requeridos",
+      "descripcion": "Carga de documentos obligatorios para la solicitud",
+      "tipo_etapa": "ETAPA",
+      "orden": 2,
+      "perfiles_permitidos": ["CIUDADANO", "ABOGADO"],
+      "titulo_formulario": "Carga de Documentos",
+      "bajada_formulario": "Adjunte los documentos requeridos en formato PDF o imagen",
+      "tiempo_estimado_minutos": 30,
+      "preguntas": [
+        {
+          "codigo": "PASAPORTE",
+          "pregunta": "Copia del pasaporte (todas las páginas)",
+          "tipo_pregunta": "CARGA_ARCHIVO",
+          "orden": 1,
+          "es_obligatoria": true,
+          "extensiones_permitidas": [".pdf", ".jpg", ".jpeg", ".png"],
+          "tamano_maximo_mb": 10,
+          "requiere_ocr": false,
+          "texto_ayuda": "Asegúrese de que el documento sea legible y esté vigente"
+        },
+        {
+          "codigo": "FOTO_RECIENTE",
+          "pregunta": "Fotografía reciente tipo pasaporte",
+          "tipo_pregunta": "CARGA_ARCHIVO",
+          "orden": 2,
+          "es_obligatoria": true,
+          "extensiones_permitidas": [".jpg", ".jpeg", ".png"],
+          "tamano_maximo_mb": 5,
+          "texto_ayuda": "Fondo blanco, tamaño 2x2 pulgadas, tomada en los últimos 6 meses"
+        },
+        {
+          "codigo": "ANTECEDENTES_PENALES",
+          "pregunta": "Certificado de antecedentes penales",
+          "tipo_pregunta": "CARGA_ARCHIVO",
+          "orden": 3,
+          "es_obligatoria": true,
+          "extensiones_permitidas": [".pdf"],
+          "tamano_maximo_mb": 10,
+          "texto_ayuda": "Debe ser apostillado o legalizado, con fecha de emisión no mayor a 3 meses"
+        },
+        {
+          "codigo": "CERTIFICADO_SALUD",
+          "pregunta": "Certificado médico de salud",
+          "tipo_pregunta": "CARGA_ARCHIVO",
+          "orden": 4,
+          "es_obligatoria": true,
+          "extensiones_permitidas": [".pdf"],
+          "tamano_maximo_mb": 5,
+          "texto_ayuda": "Emitido por médico panameño o del país de origen (apostillado)"
+        },
+        {
+          "codigo": "SOLVENCIA_ECONOMICA",
+          "pregunta": "Comprobante de solvencia económica",
+          "tipo_pregunta": "CARGA_ARCHIVO",
+          "orden": 5,
+          "es_obligatoria": true,
+          "extensiones_permitidas": [".pdf", ".jpg", ".png"],
+          "tamano_maximo_mb": 10,
+          "texto_ayuda": "Estado de cuenta bancario, carta de empleo o declaración de ingresos"
+        }
+      ]
+    },
+    {
+      "codigo": "REVISION_PRELIMINAR",
+      "nombre": "Revisión Preliminar",
+      "descripcion": "Verificación inicial de documentos por funcionario",
+      "tipo_etapa": "ETAPA",
+      "orden": 3,
+      "perfiles_permitidos": ["FUNCIONARIO"],
+      "titulo_formulario": "Revisión de Documentos",
+      "tiempo_estimado_minutos": 20,
+      "preguntas": [
+        {
+          "codigo": "DOCUMENTOS_COMPLETOS",
+          "pregunta": "¿Todos los documentos están completos y legibles?",
+          "tipo_pregunta": "OPCIONES",
+          "orden": 1,
+          "es_obligatoria": true,
+          "opciones": ["SI", "NO"],
+          "permite_multiple": false
+        },
+        {
+          "codigo": "OBSERVACIONES",
+          "pregunta": "Observaciones o documentos faltantes",
+          "tipo_pregunta": "RESPUESTA_PARRAFO",
+          "orden": 2,
+          "es_obligatoria": false,
+          "placeholder": "Detalle los documentos que faltan o necesitan corrección",
+          "mostrar_si": {
+            "pregunta": "DOCUMENTOS_COMPLETOS",
+            "valor": "NO"
+          }
+        }
+      ]
+    },
+    {
+      "codigo": "CORRECCION_DOCUMENTOS",
+      "nombre": "Corrección de Documentos",
+      "descripcion": "Etapa para subsanar observaciones",
+      "tipo_etapa": "ETAPA",
+      "orden": 4,
+      "perfiles_permitidos": ["CIUDADANO", "ABOGADO"],
+      "titulo_formulario": "Subsanación de Documentos",
+      "bajada_formulario": "Por favor cargue los documentos corregidos según las observaciones",
+      "tiempo_estimado_minutos": 15,
+      "preguntas": [
+        {
+          "codigo": "DOCUMENTOS_CORREGIDOS",
+          "pregunta": "Documentos corregidos o faltantes",
+          "tipo_pregunta": "CARGA_ARCHIVO",
+          "orden": 1,
+          "es_obligatoria": true,
+          "extensiones_permitidas": [".pdf", ".jpg", ".jpeg", ".png"],
+          "tamano_maximo_mb": 20,
+          "texto_ayuda": "Puede cargar múltiples archivos si es necesario"
+        },
+        {
+          "codigo": "COMENTARIOS_CORRECCION",
+          "pregunta": "Comentarios adicionales",
+          "tipo_pregunta": "RESPUESTA_PARRAFO",
+          "orden": 2,
+          "es_obligatoria": false,
+          "placeholder": "Explique las correcciones realizadas"
+        }
+      ]
+    },
+    {
+      "codigo": "REVISION_FINAL",
+      "nombre": "Revisión Final",
+      "descripcion": "Revisión final y decisión sobre la solicitud",
+      "tipo_etapa": "ETAPA",
+      "orden": 5,
+      "perfiles_permitidos": ["JEFE_DEPARTAMENTO", "ADMIN"],
+      "titulo_formulario": "Decisión Final",
+      "tiempo_estimado_minutos": 30,
+      "preguntas": [
+        {
+          "codigo": "DECISION_FINAL",
+          "pregunta": "Decisión sobre la solicitud",
+          "tipo_pregunta": "OPCIONES",
+          "orden": 1,
+          "es_obligatoria": true,
+          "opciones": ["APROBAR", "RECHAZAR", "REQUIERE_MAS_INFORMACION"],
+          "permite_multiple": false
+        },
+        {
+          "codigo": "MOTIVO_DECISION",
+          "pregunta": "Motivo de la decisión",
+          "tipo_pregunta": "RESPUESTA_PARRAFO",
+          "orden": 2,
+          "es_obligatoria": true,
+          "placeholder": "Explique brevemente la razón de su decisión"
+        },
+        {
+          "codigo": "NUMERO_RESOLUCION",
+          "pregunta": "Número de resolución (si aprueba)",
+          "tipo_pregunta": "RESPUESTA_TEXTO",
+          "orden": 3,
+          "es_obligatoria": false,
+          "validacion_regex": "^[A-Z0-9-]{5,20}$",
+          "mensaje_validacion": "Formato inválido de número de resolución",
+          "placeholder": "RES-2025-001234",
+          "mostrar_si": {
+            "pregunta": "DECISION_FINAL",
+            "valor": "APROBAR"
+          }
+        }
+      ]
+    },
+    {
+      "codigo": "APROBADO",
+      "nombre": "Solicitud Aprobada",
+      "descripcion": "La solicitud ha sido aprobada exitosamente",
+      "tipo_etapa": "ETAPA",
+      "orden": 6,
+      "es_etapa_final": true,
+      "perfiles_permitidos": ["SISTEMA"],
+      "titulo_formulario": "¡Felicitaciones!",
+      "bajada_formulario": "Su solicitud de residencia temporal ha sido aprobada"
+    },
+    {
+      "codigo": "RECHAZADO",
+      "nombre": "Solicitud Rechazada",
+      "descripcion": "La solicitud ha sido rechazada",
+      "tipo_etapa": "ETAPA",
+      "orden": 7,
+      "es_etapa_final": true,
+      "perfiles_permitidos": ["SISTEMA"],
+      "titulo_formulario": "Solicitud No Aprobada",
+      "bajada_formulario": "Su solicitud no ha sido aprobada. Puede iniciar un nuevo proceso."
+    }
+  ],
+  "conexiones": [
+    {
+      "etapa_origen_codigo": "DATOS_PERSONALES",
+      "etapa_destino_codigo": "CARGA_DOCUMENTOS",
+      "nombre": "Continuar a documentos",
+      "es_predeterminada": true
+    },
+    {
+      "etapa_origen_codigo": "CARGA_DOCUMENTOS",
+      "etapa_destino_codigo": "REVISION_PRELIMINAR",
+      "nombre": "Enviar a revisión",
+      "es_predeterminada": true
+    },
+    {
+      "etapa_origen_codigo": "REVISION_PRELIMINAR",
+      "etapa_destino_codigo": "REVISION_FINAL",
+      "nombre": "Aprobar revisión preliminar",
+      "condicion": {
+        "pregunta": "DOCUMENTOS_COMPLETOS",
+        "valor": "SI"
+      },
+      "es_predeterminada": true
+    },
+    {
+      "etapa_origen_codigo": "REVISION_PRELIMINAR",
+      "etapa_destino_codigo": "CORRECCION_DOCUMENTOS",
+      "nombre": "Requiere correcciones",
+      "condicion": {
+        "pregunta": "DOCUMENTOS_COMPLETOS",
+        "valor": "NO"
+      },
+      "es_predeterminada": false
+    },
+    {
+      "etapa_origen_codigo": "CORRECCION_DOCUMENTOS",
+      "etapa_destino_codigo": "REVISION_PRELIMINAR",
+      "nombre": "Reenviar a revisión",
+      "es_predeterminada": true
+    },
+    {
+      "etapa_origen_codigo": "REVISION_FINAL",
+      "etapa_destino_codigo": "APROBADO",
+      "nombre": "Aprobar solicitud",
+      "condicion": {
+        "pregunta": "DECISION_FINAL",
+        "valor": "APROBAR"
+      },
+      "es_predeterminada": true
+    },
+    {
+      "etapa_origen_codigo": "REVISION_FINAL",
+      "etapa_destino_codigo": "RECHAZADO",
+      "nombre": "Rechazar solicitud",
+      "condicion": {
+        "pregunta": "DECISION_FINAL",
+        "valor": "RECHAZAR"
+      },
+      "es_predeterminada": false
+    },
+    {
+      "etapa_origen_codigo": "REVISION_FINAL",
+      "etapa_destino_codigo": "CORRECCION_DOCUMENTOS",
+      "nombre": "Solicitar más información",
+      "condicion": {
+        "pregunta": "DECISION_FINAL",
+        "valor": "REQUIERE_MAS_INFORMACION"
+      },
+      "es_predeterminada": false
+    }
+  ]
+}

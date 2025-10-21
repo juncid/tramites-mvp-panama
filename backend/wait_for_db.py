@@ -6,7 +6,7 @@ Verifica la conexión y que las tablas base estén creadas.
 import sys
 import time
 import pyodbc
-from app.config import settings
+from app.infrastructure.config import settings
 
 def wait_for_database(max_attempts: int = 30, delay: int = 3) -> bool:
     """

@@ -1,0 +1,282 @@
+# ==========================================
+# DOCKER COMPOSE GREEN-BLUE DEPLOYMENT
+# Sistema de Trámites Migratorios de Panamá
+# Fecha: 2025-10-14
+# Estrategia: Zero-downtime migration
+# ==========================================
+
+version: '3.8'
+
+networks:
+  sim_network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+volumes:
+  # Volúmenes para ambiente GREEN (actual/producción)
+  sqlserver_data_green:
+  redis_data_green:
+  
+  # Volúmenes para ambiente BLUE (nuevo/migration)
+  sqlserver_data_blue:
+  redis_data_blue:
+
+services:
+  # ==========================================
+  # AMBIENTE GREEN (ACTUAL - PRODUCCIÓN)
+  # ==========================================
+  
+  sqlserver-green:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: sim_sqlserver_green
+    environment:
+      - ACCEPT_EULA=Y
+      - SA_PASSWORD=SIM_Panama_2025!
+      - MSSQL_PID=Express
+    ports:
+      - "1433:1433"  # Puerto actual de producción
+    volumes:
+      - sqlserver_data_green:/var/opt/mssql
+      - ../backend/bbdd:/var/opt/init-scripts:ro
+    restart: unless-stopped
+    networks:
+      sim_network:
+        ipv4_address: 172.20.0.10
+    healthcheck:
+      test: ["CMD", "/opt/mssql-tools18/bin/sqlcmd", "-S", "localhost", "-U", "sa", "-P", "SIM_Panama_2025!", "-C", "-Q", "SELECT 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    labels:
+      - "environment=green"
+      - "status=active"
+
+  redis-green:
+    image: redis:7-alpine
+    container_name: sim_redis_green
+    ports:
+      - "6379:6379"  # Puerto actual de producción
+    volumes:
+      - redis_data_green:/data
+    restart: unless-stopped
+    networks:
+      sim_network:
+        ipv4_address: 172.20.0.11
+    healthcheck:
+      test: redis-cli ping
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    labels:
+      - "environment=green"
+      - "status=active"
+
+  backend-green:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    container_name: sim_backend_green
+    environment:
+      - DATABASE_URL=mssql+pyodbc://sa:SIM_Panama_2025!@sqlserver-green:1433/SIM_PANAMA?driver=ODBC+Driver+17+for+SQL+Server&TrustServerCertificate=yes
+      - REDIS_URL=redis://redis-green:6379/0
+      - ENVIRONMENT=green
+      - LOG_LEVEL=INFO
+    ports:
+      - "8000:8000"  # Puerto actual de producción
+    depends_on:
+      sqlserver-green:
+        condition: service_healthy
+      redis-green:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      sim_network:
+        ipv4_address: 172.20.0.12
+    volumes:
+      - ../backend/logs:/app/logs
+    healthcheck:
+      test: curl -f http://localhost:8000/health || exit 1
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    labels:
+      - "environment=green"
+      - "status=active"
+
+  # ==========================================
+  # AMBIENTE BLUE (NUEVO - MIGRATION)
+  # ==========================================
+  
+  sqlserver-blue:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: sim_sqlserver_blue
+    environment:
+      - ACCEPT_EULA=Y
+      - SA_PASSWORD=SIM_Panama_2025!
+      - MSSQL_PID=Express
+    ports:
+      - "1434:1433"  # Puerto diferente para ambiente blue
+    volumes:
+      - sqlserver_data_blue:/var/opt/mssql
+      - ../backend/bbdd:/var/opt/init-scripts:ro
+    restart: unless-stopped
+    networks:
+      sim_network:
+        ipv4_address: 172.20.0.20
+    healthcheck:
+      test: ["CMD", "/opt/mssql-tools18/bin/sqlcmd", "-S", "localhost", "-U", "sa", "-P", "SIM_Panama_2025!", "-C", "-Q", "SELECT 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    labels:
+      - "environment=blue"
+      - "status=staging"
+
+  redis-blue:
+    image: redis:7-alpine
+    container_name: sim_redis_blue
+    ports:
+      - "6380:6379"  # Puerto diferente para ambiente blue
+    volumes:
+      - redis_data_blue:/data
+    restart: unless-stopped
+    networks:
+      sim_network:
+        ipv4_address: 172.20.0.21
+    healthcheck:
+      test: redis-cli ping
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    labels:
+      - "environment=blue"
+      - "status=staging"
+
+  backend-blue:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    container_name: sim_backend_blue
+    environment:
+      - DATABASE_URL=mssql+pyodbc://sa:SIM_Panama_2025!@sqlserver-blue:1433/SIM_PANAMA?driver=ODBC+Driver+17+for+SQL+Server&TrustServerCertificate=yes
+      - REDIS_URL=redis://redis-blue:6379/0
+      - ENVIRONMENT=blue
+      - LOG_LEVEL=DEBUG
+    ports:
+      - "8001:8000"  # Puerto diferente para ambiente blue
+    depends_on:
+      sqlserver-blue:
+        condition: service_healthy
+      redis-blue:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      sim_network:
+        ipv4_address: 172.20.0.22
+    volumes:
+      - ../backend/logs:/app/logs
+    healthcheck:
+      test: curl -f http://localhost:8000/health || exit 1
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    labels:
+      - "environment=blue"
+      - "status=staging"
+
+  # ==========================================
+  # SERVICIOS DE MIGRACIÓN Y UTILIDADES
+  # ==========================================
+
+  migration-service:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    container_name: sim_migration_service
+    environment:
+      - DATABASE_URL_GREEN=mssql+pyodbc://sa:SIM_Panama_2025!@sqlserver-green:1433/SIM_PANAMA?driver=ODBC+Driver+17+for+SQL+Server&TrustServerCertificate=yes
+      - DATABASE_URL_BLUE=mssql+pyodbc://sa:SIM_Panama_2025!@sqlserver-blue:1433/SIM_PANAMA?driver=ODBC+Driver+17+for+SQL+Server&TrustServerCertificate=yes
+      - MIGRATION_MODE=true
+      - LOG_LEVEL=DEBUG
+    depends_on:
+      sqlserver-green:
+        condition: service_healthy
+      sqlserver-blue:
+        condition: service_healthy
+    restart: "no"  # Solo se ejecuta manualmente
+    networks:
+      sim_network:
+        ipv4_address: 172.20.0.30
+    volumes:
+      - ../backend/logs:/app/logs
+      - ../backend/bbdd:/app/migrations
+    command: >
+      sh -c "
+        echo '🔄 Iniciando proceso de migración Green-Blue...' &&
+        echo '📋 Paso 1: Verificando ambiente Green...' &&
+        python wait_for_db.py --url=$$DATABASE_URL_GREEN &&
+        echo '📋 Paso 2: Copiando datos de Green a Blue...' &&
+        python migrate_green_to_blue.py &&
+        echo '📋 Paso 3: Aplicando migraciones de prioridad alta en Blue...' &&
+        python apply_priority_migrations.py --url=$$DATABASE_URL_BLUE &&
+        echo '📋 Paso 4: Verificando integridad en Blue...' &&
+        python verify_blue_environment.py &&
+        echo '✅ Migración completada. Blue está listo para activación.'
+      "
+    labels:
+      - "service=migration"
+      - "purpose=green-blue-deployment"
+
+  # Load Balancer / Proxy para switchover
+  nginx-proxy:
+    image: nginx:alpine
+    container_name: sim_nginx_proxy
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ../nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ../nginx/conf.d:/etc/nginx/conf.d:ro
+    depends_on:
+      - backend-green
+      - backend-blue
+    restart: unless-stopped
+    networks:
+      sim_network:
+        ipv4_address: 172.20.0.40
+    labels:
+      - "service=proxy"
+      - "purpose=load-balancer"
+
+  # ==========================================
+  # SERVICIOS DE MONITOREO
+  # ==========================================
+
+  health-monitor:
+    build:
+      context: ../monitoring
+      dockerfile: Dockerfile
+    container_name: sim_health_monitor
+    environment:
+      - GREEN_BACKEND_URL=http://backend-green:8000
+      - BLUE_BACKEND_URL=http://backend-blue:8000
+      - CHECK_INTERVAL=30
+      - ALERT_WEBHOOK_URL=${SLACK_WEBHOOK_URL:-}
+    depends_on:
+      - backend-green
+      - backend-blue
+    restart: unless-stopped
+    networks:
+      sim_network:
+        ipv4_address: 172.20.0.50
+    volumes:
+      - ../monitoring/logs:/app/logs
+    labels:
+      - "service=monitoring"
+      - "purpose=health-check"
