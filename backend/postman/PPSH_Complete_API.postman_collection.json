@@ -1034,7 +1034,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"comentario\": \"Nota interna: Contacté telefónicamente al solicitante para confirmar fecha de entrevista. Confirmó asistencia. Recordar preparar documentación de casos similares para comparación.\",\n  \"es_interno\": true,\n  \"tipo_comentario\": \"NOTA_ANALISTA\"\n}"
+              "raw": "{\n  \"comentario\": \"Nota interna: Contacté telefónicamente al solicitante para confirmar fecha de entrevista. Confirmó asistencia. Recordar preparar documentación de casos similares para comparación.\",\n  \"es_interno\": true\n}"
             },
             "url": {
               "raw": "{{base_url}}{{api_prefix}}/solicitudes/{{solicitud_id}}/comentarios",
@@ -1057,7 +1057,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"comentario\": \"Estimado solicitante, hemos recibido su documentación. La entrevista está programada para el 15 de noviembre a las 10:00 AM en nuestras oficinas. Por favor, llegar 15 minutos antes y traer documento de identidad original.\",\n  \"es_interno\": false,\n  \"tipo_comentario\": \"COMUNICACION_SOLICITANTE\",\n  \"es_notificacion\": true\n}"
+              "raw": "{\n  \"comentario\": \"Estimado solicitante, hemos recibido su documentación. La entrevista está programada para el 15 de noviembre a las 10:00 AM en nuestras oficinas. Por favor, llegar 15 minutos antes y traer documento de identidad original.\",\n  \"es_interno\": false\n}"
             },
             "url": {
               "raw": "{{base_url}}{{api_prefix}}/solicitudes/{{solicitud_id}}/comentarios",
