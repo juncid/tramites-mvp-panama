@@ -984,14 +984,14 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"fecha_realizada\": \"2025-11-20T14:15:00\",\n  \"asistio\": true,\n  \"resultado\": \"REQUIERE_SEGUIMIENTO\",\n  \"observaciones\": \"Entrevista realizada. Se detectaron algunas inconsistencias menores en las fechas declaradas que requieren verificación adicional. Solicitante mostró nerviosismo pero información general es consistente. Se requiere segunda entrevista de seguimiento y verificación de referencias adicionales.\",\n  \"requiere_segunda_entrevista\": true\n}"
+              "raw": "{\n  \"fecha_realizada\": \"2025-11-20T14:15:00\",\n  \"asistio\": true,\n  \"resultado\": \"FAVORABLE\",\n  \"observaciones\": \"Entrevista realizada. Se detectaron algunas inconsistencias menores en las fechas declaradas que requieren verificación adicional. Solicitante mostró nerviosismo pero información general es consistente. Se requiere segunda entrevista de seguimiento y verificación de referencias adicionales.\",\n  \"requiere_segunda_entrevista\": true\n}"
             },
             "url": {
               "raw": "{{base_url}}{{api_prefix}}/entrevistas/{{entrevista_id}}",
               "host": ["{{base_url}}{{api_prefix}}"],
               "path": ["entrevistas", "{{entrevista_id}}"]
             },
-            "description": "Registra resultado que requiere seguimiento adicional"
+            "description": "Registra resultado favorable con necesidad de seguimiento. Valores válidos para resultado: PENDIENTE, FAVORABLE, DESFAVORABLE"
           },
           "response": []
         }
