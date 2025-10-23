@@ -242,7 +242,7 @@ class SolicitudService:
                 joinedload(models_ppsh.PPSHSolicitud.estado),
                 selectinload(models_ppsh.PPSHSolicitud.solicitantes),
                 selectinload(models_ppsh.PPSHSolicitud.documentos),
-                selectinload(models_ppsh.PPSHSolicitud.historial_estados),
+                selectinload(models_ppsh.PPSHSolicitud.historial),
                 selectinload(models_ppsh.PPSHSolicitud.entrevistas),
                 selectinload(models_ppsh.PPSHSolicitud.comentarios)
             )
