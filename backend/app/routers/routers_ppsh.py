@@ -375,7 +375,7 @@ async def obtener_historial_estados(
         if not current_user.get("es_admin") and solicitud.user_id_asignado != current_user["user_id"]:
             raise PPSHPermissionException()
         
-        return solicitud.historial_estados
+        return solicitud.historial
     except PPSHNotFoundException as e:
         raise e
 
