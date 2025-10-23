@@ -1144,17 +1144,29 @@
                   "    pm.response.to.have.status(200);",
                   "});",
                   "",
-                  "pm.test(\"Estadísticas have required data\", function () {",
+                  "pm.test(\"Estadísticas have required fields\", function () {",
                   "    var jsonData = pm.response.json();",
                   "    pm.expect(jsonData).to.have.property('total_solicitudes');",
-                  "    pm.expect(jsonData).to.have.property('solicitudes_por_estado');",
-                  "    pm.expect(jsonData).to.have.property('solicitudes_por_prioridad');",
-                  "    pm.expect(jsonData).to.have.property('tiempo_promedio_procesamiento');",
+                  "    pm.expect(jsonData).to.have.property('solicitudes_activas');",
+                  "    pm.expect(jsonData).to.have.property('solicitudes_aprobadas');",
+                  "    pm.expect(jsonData).to.have.property('solicitudes_rechazadas');",
+                  "    pm.expect(jsonData).to.have.property('solicitudes_en_proceso');",
+                  "    pm.expect(jsonData).to.have.property('por_estado');",
                   "});",
                   "",
-                  "pm.test(\"Estado breakdown exists\", function () {",
+                  "pm.test(\"Por estado is array\", function () {",
                   "    var jsonData = pm.response.json();",
-                  "    pm.expect(jsonData.solicitudes_por_estado).to.be.an('object');",
+                  "    pm.expect(jsonData.por_estado).to.be.an('array');",
+                  "});",
+                  "",
+                  "pm.test(\"Estado entries have required fields\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    if (jsonData.por_estado.length > 0) {",
+                  "        var estado = jsonData.por_estado[0];",
+                  "        pm.expect(estado).to.have.property('cod_estado');",
+                  "        pm.expect(estado).to.have.property('nombre_estado');",
+                  "        pm.expect(estado).to.have.property('total_solicitudes');",
+                  "    }",
                   "});"
                 ],
                 "type": "text/javascript"
@@ -1169,7 +1181,7 @@
               "host": ["{{base_url}}{{api_prefix}}"],
               "path": ["estadisticas"]
             },
-            "description": "Obtiene estadísticas generales del sistema PPSH: totales, distribución por estado, tiempos promedio, etc."
+            "description": "Obtiene estadísticas generales del sistema PPSH.\n\n**Campos devueltos:**\n- `total_solicitudes`: Total de solicitudes en el sistema\n- `solicitudes_activas`: Solicitudes en estados activos\n- `solicitudes_aprobadas`: Total aprobadas\n- `solicitudes_rechazadas`: Total rechazadas\n- `solicitudes_en_proceso`: En revisión/evaluación\n- `promedio_dias_procesamiento`: Tiempo promedio en días\n- `por_estado`: Array con estadísticas por cada estado (cod_estado, nombre_estado, total_solicitudes, promedio_dias, color_hex)"
           },
           "response": []
         }
