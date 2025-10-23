@@ -197,6 +197,64 @@ Una vez que todos los servicios estén en ejecución:
 - **Documentación API (Swagger):** http://localhost:8000/docs
 - **Documentación API (ReDoc):** http://localhost:8000/redoc
 
+## 🧪 Testing Automatizado de API
+
+### Ejecutar Tests con Datos de Prueba Completos
+
+El proyecto incluye un sistema automatizado de testing que carga datos de prueba completos:
+
+#### Windows PowerShell (Recomendado)
+```powershell
+# Ejecutar suite completa de tests
+.\test-api.ps1 run
+
+# Verificar datos de prueba
+.\test-api.ps1 verify
+
+# Recargar datos de prueba
+.\test-api.ps1 reload
+
+# Ver estado de servicios
+.\test-api.ps1 status
+
+# Abrir reportes en navegador
+.\test-api.ps1 reports
+
+# Limpiar ambiente
+.\test-api.ps1 clean
+```
+
+#### Linux/Mac
+```bash
+# Ejecutar suite completa de tests
+docker-compose -f docker-compose.api-tests.yml up --abort-on-container-exit
+
+# Limpiar después
+docker-compose -f docker-compose.api-tests.yml down
+```
+
+### Datos de Prueba Incluidos
+
+El script `load_test_data.py` carga automáticamente:
+
+- ✅ **27 Catálogos PPSH**: 7 causas humanitarias, 8 tipos de documento, 9 estados, 3 conceptos de pago
+- ✅ **6 Registros de Ejemplo**: 3 solicitantes + 3 solicitudes PPSH con diferentes estados
+- ✅ **2 Workflows Completos**: Workflow PPSH (5 etapas) + Workflow General (3 etapas)
+
+### Reportes de Tests
+
+Una vez ejecutados los tests:
+- **Reportes HTML**: http://localhost:8080
+- **Ubicación**: `./test-reports/`
+  - `ppsh-report.html`
+  - `workflow-report.html`
+  - `tramites-report.html`
+
+### Documentación de Testing
+
+- 📖 [Guía Completa de Testing](./LOAD_TEST_DATA_GUIDE.md)
+- 📖 [Información de Base de Datos de Test](./DATABASE_TEST_INFO.md)
+
 ## 🔧 Comandos Útiles
 
 ### Usando Make (Recomendado)

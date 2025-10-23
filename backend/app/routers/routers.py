@@ -25,19 +25,19 @@ async def get_tramites(skip: int = 0, limit: int = 100, db: Session = Depends(ge
     # If not in cache, get from database
     # SQL Server requires ORDER BY when using OFFSET/LIMIT
     tramites = db.query(Tramite).filter(
-        Tramite.activo == True
+        Tramite.IND_ACTIVO == True
     ).order_by(Tramite.id.desc()).offset(skip).limit(limit).all()
     
     # Cache the result
     redis.setex(cache_key, 300, json.dumps([
         {
             "id": t.id,
-            "titulo": t.titulo,
-            "descripcion": t.descripcion,
-            "estado": t.estado,
-            "activo": t.activo,
-            "created_at": t.created_at.isoformat(),
-            "updated_at": t.updated_at.isoformat() if t.updated_at else None
+            "titulo": t.NOM_TITULO,
+            "descripcion": t.DESCRIPCION,
+            "estado": t.COD_ESTADO,
+            "activo": t.IND_ACTIVO,
+            "created_at": t.FEC_CREA_REG.isoformat(),
+            "updated_at": t.FEC_MODIF_REG.isoformat() if t.FEC_MODIF_REG else None
         } for t in tramites
     ]))
     
@@ -48,7 +48,7 @@ async def get_tramite(tramite_id: int, db: Session = Depends(get_db)):
     """Get a specific tramite by ID"""
     tramite = db.query(Tramite).filter(
         Tramite.id == tramite_id,
-        Tramite.activo == True
+        Tramite.IND_ACTIVO == True
     ).first()
     
     if not tramite:
@@ -87,7 +87,7 @@ async def update_tramite(
     
     db_tramite = db.query(Tramite).filter(
         Tramite.id == tramite_id,
-        Tramite.activo == True
+        Tramite.IND_ACTIVO == True
     ).first()
     
     if not db_tramite:
@@ -117,7 +117,7 @@ async def delete_tramite(tramite_id: int, db: Session = Depends(get_db)):
     
     db_tramite = db.query(Tramite).filter(
         Tramite.id == tramite_id,
-        Tramite.activo == True
+        Tramite.IND_ACTIVO == True
     ).first()
     
     if not db_tramite:

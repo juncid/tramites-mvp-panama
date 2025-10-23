@@ -1,0 +1,19 @@
+# Dependencias para MkDocs - Sitio de Documentación
+# Instalar con: pip install -r requirements-docs.txt
+
+# MkDocs core
+mkdocs>=1.5.3
+mkdocs-material>=9.4.0
+
+# Plugins
+mkdocs-minify-plugin>=0.7.1
+mkdocs-git-revision-date-localized-plugin>=1.2.1
+
+# Extensiones de Markdown
+pymdown-extensions>=10.3
+markdown>=3.5
+
+# Búsqueda mejorada
+mkdocs-material[imaging]>=9.4.0
+
+# Para servir el sitio localmente (mkdocs serve está incluido en mkdocs)

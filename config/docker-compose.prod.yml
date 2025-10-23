@@ -15,7 +15,7 @@ services:
       - tramites-network
     restart: unless-stopped
     healthcheck:
-      test: /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P ${SQL_PASSWORD} -Q "SELECT 1" || exit 1
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P $$SA_PASSWORD -C -Q 'SELECT 1'"]
       interval: 10s
       timeout: 3s
       retries: 10
@@ -81,6 +81,18 @@ services:
       - tramites-network
     depends_on:
       - backend
+    restart: unless-stopped
+
+  # MkDocs Documentation (Production)
+  mkdocs:
+    build:
+      context: ..
+      dockerfile: Dockerfile.mkdocs
+    container_name: tramites-mkdocs-prod
+    ports:
+      - "8001:8000"
+    networks:
+      - tramites-network
     restart: unless-stopped
 
 networks:

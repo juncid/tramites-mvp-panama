@@ -160,8 +160,8 @@ class TestTramitesBasic:
         db_session.refresh(tramite)
         
         assert tramite.id is not None
-        assert tramite.titulo == "Test Directo"
-        assert tramite.activo is True
+        assert tramite.NOM_TITULO == "Test Directo"
+        assert tramite.IND_ACTIVO is True
 
 
 class TestBasicIntegration:

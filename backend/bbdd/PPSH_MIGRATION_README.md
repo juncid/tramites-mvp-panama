@@ -133,7 +133,7 @@ if __name__ == '__main__':
 Ejecutar:
 ```bash
 cd backend
-python migrate_ppsh.py
+python scripts/migrate_ppsh.py
 ```
 
 ## 📊 Tablas Creadas

@@ -45,7 +45,7 @@ services:
     depends_on:
       sqlserver:
         condition: service_healthy
-    command: python /app/init_database.py
+    command: python /app/scripts/init_database.py
     restart: "no"
 
   # Database Migrations (Alembic)
@@ -70,7 +70,7 @@ services:
     command: >
       sh -c "
         echo '🏥 Verificando salud de la base de datos...' &&
-        python /app/wait_for_db.py &&
+        python /app/scripts/wait_for_db.py &&
         echo '✅ Base de datos confirmada como operativa' &&
         echo '' &&
         echo '🔄 Aplicando migraciones de Alembic...' &&
@@ -79,9 +79,7 @@ services:
         alembic upgrade head &&
         echo '✅ Migraciones aplicadas exitosamente' &&
         echo '' &&
-        echo '📥 Cargando datos iniciales de catálogos PPSH...' &&
-        python /app/load_initial_data.py &&
-        echo '🎉 Sistema de inicialización completado exitosamente'
+        echo '🎉 Sistema de migraciones completado exitosamente'
       "
     restart: "no"
 
@@ -194,6 +192,26 @@ services:
       interval: 10s
       timeout: 5s
       retries: 3
+
+  # MkDocs - Documentación del proyecto
+  mkdocs:
+    build:
+      context: .
+      dockerfile: Dockerfile.mkdocs
+    container_name: tramites-mkdocs
+    ports:
+      - "8002:8000"
+    volumes:
+      - ./docs-site:/docs
+      - ./mkdocs.yml:/mkdocs.yml:ro
+    networks:
+      - tramites-network
+    command: serve --dev-addr=0.0.0.0:8000
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "2"
 
 networks:
   tramites-network:
