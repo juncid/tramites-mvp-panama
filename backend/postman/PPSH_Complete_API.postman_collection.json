@@ -895,7 +895,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"fecha_entrevista\": \"2025-11-15T10:00:00\",\n  \"lugar\": \"Oficina de Migración - Sala de Entrevistas 2\",\n  \"entrevistador\": \"Lic. Roberto Martínez - Analista PPSH\",\n  \"modalidad\": \"PRESENCIAL\",\n  \"observaciones_previas\": \"Preparar expediente completo. Solicitante requiere intérprete de lenguaje de señas.\",\n  \"requiere_interprete\": true,\n  \"idioma_interprete\": \"Lenguaje de Señas\"\n}"
+              "raw": "{\n  \"fecha_programada\": \"2025-11-15T10:00:00\",\n  \"lugar\": \"Oficina de Migración - Sala de Entrevistas 2\",\n  \"entrevistador_user_id\": \"ANALISTA001\",\n  \"observaciones\": \"Preparar expediente completo. Solicitante requiere intérprete de lenguaje de señas.\"\n}"
             },
             "url": {
               "raw": "{{base_url}}{{api_prefix}}/solicitudes/{{solicitud_id}}/entrevistas",
@@ -918,7 +918,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"fecha_entrevista\": \"2025-11-20T14:00:00\",\n  \"lugar\": \"Videoconferencia\",\n  \"entrevistador\": \"Lic. Carmen López - Analista Senior\",\n  \"modalidad\": \"VIRTUAL\",\n  \"link_videollamada\": \"https://meet.google.com/abc-defg-hij\",\n  \"observaciones_previas\": \"Entrevista virtual programada por solicitud del abogado representante. Verificar conexión 15 minutos antes.\"\n}"
+              "raw": "{\n  \"fecha_programada\": \"2025-11-20T14:00:00\",\n  \"lugar\": \"Videoconferencia\",\n  \"entrevistador_user_id\": \"ANALISTA002\",\n  \"observaciones\": \"Entrevista virtual programada por solicitud del abogado representante. Verificar conexión 15 minutos antes.\"\n}"
             },
             "url": {
               "raw": "{{base_url}}{{api_prefix}}/solicitudes/{{solicitud_id}}/entrevistas",
@@ -961,7 +961,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"estado_entrevista\": \"REALIZADA\",\n  \"fecha_realizacion\": \"2025-11-15T10:30:00\",\n  \"resultado\": \"FAVORABLE\",\n  \"notas_entrevistador\": \"Entrevista realizada satisfactoriamente. Solicitante respondió todas las preguntas de manera coherente y consistente con la documentación presentada. Se confirma situación de riesgo en país de origen. Actitud colaborativa. Se recomienda APROBACIÓN de la solicitud.\",\n  \"duracion_minutos\": 45,\n  \"asistieron_todos\": true\n}"
+              "raw": "{\n  \"fecha_realizada\": \"2025-11-15T10:30:00\",\n  \"asistio\": true,\n  \"resultado\": \"FAVORABLE\",\n  \"observaciones\": \"Entrevista realizada satisfactoriamente. Solicitante respondió todas las preguntas de manera coherente y consistente con la documentación presentada. Se confirma situación de riesgo en país de origen. Actitud colaborativa. Se recomienda APROBACIÓN de la solicitud.\",\n  \"requiere_segunda_entrevista\": false\n}"
             },
             "url": {
               "raw": "{{base_url}}{{api_prefix}}/entrevistas/{{entrevista_id}}",
@@ -984,7 +984,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"estado_entrevista\": \"REALIZADA\",\n  \"fecha_realizacion\": \"2025-11-20T14:15:00\",\n  \"resultado\": \"REQUIERE_SEGUIMIENTO\",\n  \"notas_entrevistador\": \"Entrevista realizada. Se detectaron algunas inconsistencias menores en las fechas declaradas que requieren verificación adicional. Solicitante mostró nerviosismo pero información general es consistente. Se requiere segunda entrevista de seguimiento y verificación de referencias adicionales.\",\n  \"duracion_minutos\": 60,\n  \"asistieron_todos\": true,\n  \"requiere_segunda_entrevista\": true\n}"
+              "raw": "{\n  \"fecha_realizada\": \"2025-11-20T14:15:00\",\n  \"asistio\": true,\n  \"resultado\": \"REQUIERE_SEGUIMIENTO\",\n  \"observaciones\": \"Entrevista realizada. Se detectaron algunas inconsistencias menores en las fechas declaradas que requieren verificación adicional. Solicitante mostró nerviosismo pero información general es consistente. Se requiere segunda entrevista de seguimiento y verificación de referencias adicionales.\",\n  \"requiere_segunda_entrevista\": true\n}"
             },
             "url": {
               "raw": "{{base_url}}{{api_prefix}}/entrevistas/{{entrevista_id}}",
