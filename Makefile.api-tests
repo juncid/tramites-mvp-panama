@@ -1,0 +1,207 @@
+.PHONY: help test-api test-api-up test-api-down test-api-logs test-api-clean test-api-reports clean-reports
+
+# ===========================================================================
+# Makefile para Testing Automatizado de API
+# Sistema de Trámites Migratorios de Panamá
+# ===========================================================================
+
+# Variables
+COMPOSE_FILE := docker-compose.api-tests.yml
+REPORT_DIR := ./test-reports
+
+# Colors
+CYAN := \033[0;36m
+GREEN := \033[0;32m
+YELLOW := \033[1;33m
+RED := \033[0;31m
+NC := \033[0m # No Color
+
+# Default target
+help:
+	@echo ""
+	@echo "$(CYAN)╔═══════════════════════════════════════════════════════════════════╗$(NC)"
+	@echo "$(CYAN)║                                                                   ║$(NC)"
+	@echo "$(CYAN)║       🧪 SUITE DE TESTING AUTOMATIZADO DE API                    ║$(NC)"
+	@echo "$(CYAN)║       Sistema de Trámites Migratorios de Panamá                  ║$(NC)"
+	@echo "$(CYAN)║                                                                   ║$(NC)"
+	@echo "$(CYAN)╚═══════════════════════════════════════════════════════════════════╝$(NC)"
+	@echo ""
+	@echo "$(GREEN)Comandos disponibles:$(NC)"
+	@echo ""
+	@echo "  $(CYAN)make test-api$(NC)          - Ejecutar suite completa de tests"
+	@echo "  $(CYAN)make test-api-up$(NC)       - Levantar servicios de testing"
+	@echo "  $(CYAN)make test-api-down$(NC)     - Detener servicios de testing"
+	@echo "  $(CYAN)make test-api-logs$(NC)     - Ver logs de los tests"
+	@echo "  $(CYAN)make test-api-reports$(NC)  - Abrir reportes en navegador"
+	@echo "  $(CYAN)make test-api-clean$(NC)    - Limpiar todo (contenedores + reportes)"
+	@echo "  $(CYAN)make clean-reports$(NC)     - Limpiar solo reportes"
+	@echo ""
+	@echo "$(YELLOW)Ejemplos de uso:$(NC)"
+	@echo "  make test-api              # Ejecutar todos los tests"
+	@echo "  make test-api-logs         # Ver logs durante ejecución"
+	@echo "  make test-api-reports      # Abrir reportes HTML"
+	@echo ""
+
+# ===========================================================================
+# Test Commands
+# ===========================================================================
+
+test-api: clean-reports
+	@echo "$(CYAN)═══════════════════════════════════════════════════════════$(NC)"
+	@echo "$(CYAN)🧪 Iniciando Suite de Tests de API$(NC)"
+	@echo "$(CYAN)═══════════════════════════════════════════════════════════$(NC)"
+	@echo ""
+	@mkdir -p $(REPORT_DIR)
+	@echo "$(GREEN)✅ Directorio de reportes preparado$(NC)"
+	@echo ""
+	@echo "$(YELLOW)⏳ Levantando servicios y ejecutando tests...$(NC)"
+	@docker-compose -f $(COMPOSE_FILE) up --abort-on-container-exit --exit-code-from newman-api-tests && \
+		echo "" && \
+		echo "$(GREEN)✅ Tests completados exitosamente$(NC)" && \
+		$(MAKE) test-api-summary || \
+		(echo "" && echo "$(RED)❌ Tests fallaron - revisar logs$(NC)" && exit 1)
+	@$(MAKE) test-api-down
+
+test-api-up:
+	@echo "$(CYAN)🚀 Levantando servicios de testing...$(NC)"
+	@mkdir -p $(REPORT_DIR)
+	@docker-compose -f $(COMPOSE_FILE) up -d
+	@echo "$(GREEN)✅ Servicios levantados$(NC)"
+	@echo ""
+	@echo "$(YELLOW)💡 Usa 'make test-api-logs' para ver logs$(NC)"
+	@echo "$(YELLOW)💡 Usa 'make test-api-down' para detener servicios$(NC)"
+
+test-api-down:
+	@echo "$(YELLOW)⏬ Deteniendo servicios de testing...$(NC)"
+	@docker-compose -f $(COMPOSE_FILE) down -v
+	@echo "$(GREEN)✅ Servicios detenidos$(NC)"
+
+test-api-logs:
+	@echo "$(CYAN)📋 Mostrando logs de tests (Ctrl+C para salir)...$(NC)"
+	@docker-compose -f $(COMPOSE_FILE) logs -f newman-api-tests
+
+test-api-reports:
+	@echo "$(CYAN)📊 Abriendo reportes...$(NC)"
+	@if [ -f "$(REPORT_DIR)/ppsh-report.html" ]; then \
+		open $(REPORT_DIR)/ppsh-report.html 2>/dev/null || xdg-open $(REPORT_DIR)/ppsh-report.html 2>/dev/null || echo "$(YELLOW)Abre manualmente: $(REPORT_DIR)/ppsh-report.html$(NC)"; \
+	fi
+	@if [ -f "$(REPORT_DIR)/workflow-report.html" ]; then \
+		open $(REPORT_DIR)/workflow-report.html 2>/dev/null || xdg-open $(REPORT_DIR)/workflow-report.html 2>/dev/null || echo "$(YELLOW)Abre manualmente: $(REPORT_DIR)/workflow-report.html$(NC)"; \
+	fi
+	@if [ -f "$(REPORT_DIR)/tramites-report.html" ]; then \
+		open $(REPORT_DIR)/tramites-report.html 2>/dev/null || xdg-open $(REPORT_DIR)/tramites-report.html 2>/dev/null || echo "$(YELLOW)Abre manualmente: $(REPORT_DIR)/tramites-report.html$(NC)"; \
+	fi
+	@echo "$(GREEN)✅ Reportes abiertos en el navegador$(NC)"
+	@echo ""
+	@echo "$(YELLOW)💡 También puedes visitar http://localhost:8080$(NC)"
+
+test-api-summary:
+	@echo ""
+	@echo "$(CYAN)═══════════════════════════════════════════════════════════$(NC)"
+	@echo "$(CYAN)📊 Resumen de Tests$(NC)"
+	@echo "$(CYAN)═══════════════════════════════════════════════════════════$(NC)"
+	@if [ -f "$(REPORT_DIR)/ppsh-results.json" ]; then \
+		total=$$(jq '.run.stats.tests.total' $(REPORT_DIR)/ppsh-results.json 2>/dev/null || echo "N/A"); \
+		failed=$$(jq '.run.stats.tests.failed' $(REPORT_DIR)/ppsh-results.json 2>/dev/null || echo "N/A"); \
+		echo "📋 PPSH API: $$total tests, $$failed fallidos"; \
+	fi
+	@if [ -f "$(REPORT_DIR)/workflow-results.json" ]; then \
+		total=$$(jq '.run.stats.tests.total' $(REPORT_DIR)/workflow-results.json 2>/dev/null || echo "N/A"); \
+		failed=$$(jq '.run.stats.tests.failed' $(REPORT_DIR)/workflow-results.json 2>/dev/null || echo "N/A"); \
+		echo "📋 Workflow API: $$total tests, $$failed fallidos"; \
+	fi
+	@if [ -f "$(REPORT_DIR)/tramites-results.json" ]; then \
+		total=$$(jq '.run.stats.tests.total' $(REPORT_DIR)/tramites-results.json 2>/dev/null || echo "N/A"); \
+		failed=$$(jq '.run.stats.tests.failed' $(REPORT_DIR)/tramites-results.json 2>/dev/null || echo "N/A"); \
+		echo "📋 Trámites Base API: $$total tests, $$failed fallidos"; \
+	fi
+	@echo ""
+	@echo "$(GREEN)📊 Reportes disponibles en: $(REPORT_DIR)$(NC)"
+	@echo "   - ppsh-report.html"
+	@echo "   - workflow-report.html"
+	@echo "   - tramites-report.html"
+	@echo ""
+	@echo "$(YELLOW)💡 Usa 'make test-api-reports' para abrir reportes$(NC)"
+
+# ===========================================================================
+# Cleanup Commands
+# ===========================================================================
+
+clean-reports:
+	@echo "$(YELLOW)🗑️  Limpiando reportes anteriores...$(NC)"
+	@rm -rf $(REPORT_DIR)/*
+	@mkdir -p $(REPORT_DIR)
+	@echo "$(GREEN)✅ Reportes limpiados$(NC)"
+
+test-api-clean: test-api-down clean-reports
+	@echo "$(YELLOW)🗑️  Limpiando volúmenes...$(NC)"
+	@docker volume rm tramites-test-db-data 2>/dev/null || true
+	@docker volume rm tramites-test-redis-data 2>/dev/null || true
+	@docker volume rm tramites-test-uploads 2>/dev/null || true
+	@echo "$(GREEN)✅ Limpieza completa$(NC)"
+
+# ===========================================================================
+# Development & Debugging
+# ===========================================================================
+
+test-api-shell:
+	@echo "$(CYAN)🐚 Abriendo shell en contenedor de backend...$(NC)"
+	@docker-compose -f $(COMPOSE_FILE) exec backend-test sh
+
+test-api-db:
+	@echo "$(CYAN)💾 Conectando a base de datos de testing...$(NC)"
+	@docker-compose -f $(COMPOSE_FILE) exec db-test /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P 'TestP@ssw0rd2025!'
+
+test-api-redis:
+	@echo "$(CYAN)🔴 Conectando a Redis de testing...$(NC)"
+	@docker-compose -f $(COMPOSE_FILE) exec redis-test redis-cli
+
+# ===========================================================================
+# Quick Tests (Solo módulos específicos)
+# ===========================================================================
+
+test-ppsh:
+	@echo "$(CYAN)📋 Ejecutando solo tests de PPSH...$(NC)"
+	@docker run --rm --network tramites-test-network \
+		-v $$(pwd)/backend:/etc/newman \
+		-v $$(pwd)/test-reports:/etc/newman/reports \
+		postman/newman:6-alpine \
+		run /etc/newman/PPSH_Complete_API.postman_collection.json \
+		--global-var "base_url=http://backend-test:8000" \
+		--delay-request 200 \
+		-r cli,htmlextra \
+		--reporter-htmlextra-export /etc/newman/reports/ppsh-quick.html
+
+test-workflow:
+	@echo "$(CYAN)📋 Ejecutando solo tests de Workflow...$(NC)"
+	@docker run --rm --network tramites-test-network \
+		-v $$(pwd)/backend:/etc/newman \
+		-v $$(pwd)/test-reports:/etc/newman/reports \
+		postman/newman:6-alpine \
+		run /etc/newman/Workflow_API_Tests.postman_collection.json \
+		--global-var "base_url=http://backend-test:8000" \
+		--delay-request 200 \
+		-r cli,htmlextra \
+		--reporter-htmlextra-export /etc/newman/reports/workflow-quick.html
+
+test-tramites:
+	@echo "$(CYAN)📋 Ejecutando solo tests de Trámites Base...$(NC)"
+	@docker run --rm --network tramites-test-network \
+		-v $$(pwd)/backend:/etc/newman \
+		-v $$(pwd)/test-reports:/etc/newman/reports \
+		postman/newman:6-alpine \
+		run /etc/newman/Tramites_Base_API.postman_collection.json \
+		--global-var "base_url=http://backend-test:8000" \
+		--delay-request 200 \
+		-r cli,htmlextra \
+		--reporter-htmlextra-export /etc/newman/reports/tramites-quick.html
+
+# ===========================================================================
+# CI/CD Integration
+# ===========================================================================
+
+test-api-ci:
+	@echo "$(CYAN)🤖 Ejecutando tests en modo CI...$(NC)"
+	@mkdir -p $(REPORT_DIR)
+	@docker-compose -f $(COMPOSE_FILE) up --abort-on-container-exit --exit-code-from newman-api-tests
+	@docker-compose -f $(COMPOSE_FILE) down -v
