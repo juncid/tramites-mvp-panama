@@ -42,6 +42,10 @@ newman run postman/PPSH_Complete_API.postman_collection.json \
   --reporter-html-export reports/ppsh-tests.html
 ```
 
+**📚 Documentación adicional:**
+- 📝 [Ejemplos de Requests PPSH](PPSH_REQUEST_EXAMPLES.md) - Formato correcto para crear solicitudes
+- 📊 [Guía de Datos de Prueba](PPSH_TEST_DATA_GUIDE.md) - Uso de las 5 solicitudes de ejemplo (IDs 6-10)
+
 ---
 
 ### 3. PPSH_Upload_Tests.postman_collection.json
@@ -196,7 +200,7 @@ Cada colección utiliza las siguientes variables base:
 
 | Variable | Descripción | Valor Desarrollo | Valor Producción |
 |----------|-------------|------------------|------------------|
-| `base_url` | URL base del servidor API | `http://localhost:8000` | `https://api.tramites.gob.pa` |
+| `base_url` | URL base del servidor API | `http://localhost:8000` | `https://api.tramites.com` |
 | `api_prefix` | Prefijo de la ruta API | `/api/v1` | `/api/v1` |
 
 ---
