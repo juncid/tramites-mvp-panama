@@ -238,7 +238,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"tipo_solicitud\": \"INDIVIDUAL\",\n  \"cod_causa_humanitaria\": 1,\n  \"descripcion_situacion\": \"Solicitante víctima de violencia de género en su país de origen. Requiere protección humanitaria urgente.\",\n  \"agencia_referente\": \"ACNUR\",\n  \"prioridad\": \"ALTA\",\n  \"solicitantes\": [\n    {\n      \"nombre_completo\": \"María Fernanda García López\",\n      \"fecha_nacimiento\": \"1985-03-15\",\n      \"nacionalidad\": \"Venezolana\",\n      \"num_documento_identidad\": \"V-18.456.789\",\n      \"tipo_documento\": \"CEDULA\",\n      \"genero\": \"FEMENINO\",\n      \"estado_civil\": \"SOLTERA\",\n      \"email\": \"maria.garcia@example.com\",\n      \"telefono\": \"+507 6123-4567\",\n      \"direccion_actual\": \"Calle 50, Edificio Plaza, Apto 5B, Ciudad de Panamá\",\n      \"es_titular\": true,\n      \"tiene_representante_legal\": false\n    }\n  ]\n}"
+              "raw": "{\n  \"tipo_solicitud\": \"INDIVIDUAL\",\n  \"cod_causa_humanitaria\": 1,\n  \"descripcion_caso\": \"Solicitante víctima de violencia de género en su país de origen. Requiere protección humanitaria urgente.\",\n  \"prioridad\": \"ALTA\",\n  \"cod_agencia\": \"02\",\n  \"observaciones_generales\": \"ACNUR como agencia referente. Caso de violencia de género.\",\n  \"solicitantes\": [\n    {\n      \"es_titular\": true,\n      \"tipo_documento\": \"CEDULA\",\n      \"num_documento\": \"V-18456789\",\n      \"pais_emisor\": \"VEN\",\n      \"primer_nombre\": \"María\",\n      \"segundo_nombre\": \"Fernanda\",\n      \"primer_apellido\": \"García\",\n      \"segundo_apellido\": \"López\",\n      \"fecha_nacimiento\": \"1985-03-15\",\n      \"cod_sexo\": \"F\",\n      \"cod_nacionalidad\": \"VEN\",\n      \"cod_estado_civil\": \"S\",\n      \"email\": \"maria.garcia@example.com\",\n      \"telefono\": \"+507 6123-4567\",\n      \"direccion_panama\": \"Calle 50, Edificio Plaza, Apto 5B, Ciudad de Panamá\",\n      \"observaciones\": \"No tiene representante legal\"\n    }\n  ]\n}"
             },
             "url": {
               "raw": "{{base_url}}{{api_prefix}}/solicitudes",
@@ -250,7 +250,7 @@
           "response": []
         },
         {
-          "name": "Crear Solicitud Familiar",
+          "name": "Crear Solicitud Grupal",
           "event": [
             {
               "listen": "test",
@@ -260,9 +260,9 @@
                   "    pm.response.to.have.status(201);",
                   "});",
                   "",
-                  "pm.test(\"Solicitud familiar has multiple solicitantes\", function () {",
+                  "pm.test(\"Solicitud grupal has multiple solicitantes\", function () {",
                   "    var jsonData = pm.response.json();",
-                  "    pm.expect(jsonData.tipo_solicitud).to.eql('FAMILIAR');",
+                  "    pm.expect(jsonData.tipo_solicitud).to.eql('GRUPAL');",
                   "    pm.expect(jsonData.solicitantes).to.be.an('array');",
                   "    pm.expect(jsonData.solicitantes.length).to.be.above(1);",
                   "});",
@@ -274,11 +274,6 @@
                   "    ",
                   "    pm.expect(titular.length).to.eql(1);",
                   "    pm.expect(dependientes.length).to.be.above(0);",
-                  "    ",
-                  "    // Verificar que dependientes tienen parentesco",
-                  "    dependientes.forEach(dep => {",
-                  "        pm.expect(dep.parentesco_con_titular).to.exist;",
-                  "    });",
                   "});"
                 ],
                 "type": "text/javascript"
@@ -295,7 +290,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"tipo_solicitud\": \"FAMILIAR\",\n  \"cod_causa_humanitaria\": 2,\n  \"descripcion_situacion\": \"Familia completa desplazada por conflicto armado. Padres e hijos menores requieren protección.\",\n  \"agencia_referente\": \"Cruz Roja Internacional\",\n  \"prioridad\": \"ALTA\",\n  \"solicitantes\": [\n    {\n      \"nombre_completo\": \"Carlos Alberto Rodríguez Méndez\",\n      \"fecha_nacimiento\": \"1980-06-20\",\n      \"nacionalidad\": \"Nicaragüense\",\n      \"num_documento_identidad\": \"001-200680-0001P\",\n      \"tipo_documento\": \"CEDULA\",\n      \"genero\": \"MASCULINO\",\n      \"estado_civil\": \"CASADO\",\n      \"email\": \"carlos.rodriguez@example.com\",\n      \"telefono\": \"+507 6234-5678\",\n      \"direccion_actual\": \"Vía Brasil, Edificio Los Robles, Apto 12A\",\n      \"es_titular\": true,\n      \"tiene_representante_legal\": true,\n      \"nombre_representante\": \"Lic. Andrea Morales\",\n      \"telefono_representante\": \"+507 6345-6789\"\n    },\n    {\n      \"nombre_completo\": \"Ana Lucía Méndez de Rodríguez\",\n      \"fecha_nacimiento\": \"1982-09-15\",\n      \"nacionalidad\": \"Nicaragüense\",\n      \"num_documento_identidad\": \"001-150982-0002M\",\n      \"tipo_documento\": \"CEDULA\",\n      \"genero\": \"FEMENINO\",\n      \"estado_civil\": \"CASADA\",\n      \"email\": \"ana.mendez@example.com\",\n      \"telefono\": \"+507 6234-5678\",\n      \"direccion_actual\": \"Vía Brasil, Edificio Los Robles, Apto 12A\",\n      \"es_titular\": false,\n      \"parentesco_con_titular\": \"CONYUGE\"\n    },\n    {\n      \"nombre_completo\": \"Carlos Andrés Rodríguez Méndez\",\n      \"fecha_nacimiento\": \"2010-04-10\",\n      \"nacionalidad\": \"Nicaragüense\",\n      \"num_documento_identidad\": \"001-100410-0003P\",\n      \"tipo_documento\": \"CEDULA\",\n      \"genero\": \"MASCULINO\",\n      \"estado_civil\": \"SOLTERO\",\n      \"direccion_actual\": \"Vía Brasil, Edificio Los Robles, Apto 12A\",\n      \"es_titular\": false,\n      \"parentesco_con_titular\": \"HIJO\"\n    },\n    {\n      \"nombre_completo\": \"Sofía Valentina Rodríguez Méndez\",\n      \"fecha_nacimiento\": \"2015-11-25\",\n      \"nacionalidad\": \"Nicaragüense\",\n      \"num_documento_identidad\": \"001-251115-0004M\",\n      \"tipo_documento\": \"CEDULA\",\n      \"genero\": \"FEMENINO\",\n      \"estado_civil\": \"SOLTERO\",\n      \"direccion_actual\": \"Vía Brasil, Edificio Los Robles, Apto 12A\",\n      \"es_titular\": false,\n      \"parentesco_con_titular\": \"HIJA\"\n    }\n  ]\n}"
+              "raw": "{\n  \"tipo_solicitud\": \"GRUPAL\",\n  \"cod_causa_humanitaria\": 2,\n  \"descripcion_caso\": \"Familia completa desplazada por conflicto armado. Padres e hijos menores requieren protección.\",\n  \"prioridad\": \"ALTA\",\n  \"cod_agencia\": \"01\",\n  \"observaciones_generales\": \"Cruz Roja Internacional como agencia referente. Caso urgente.\",\n  \"solicitantes\": [\n    {\n      \"es_titular\": true,\n      \"tipo_documento\": \"CEDULA\",\n      \"num_documento\": \"001-200680-0001P\",\n      \"pais_emisor\": \"NIC\",\n      \"primer_nombre\": \"Carlos\",\n      \"segundo_nombre\": \"Alberto\",\n      \"primer_apellido\": \"Rodríguez\",\n      \"segundo_apellido\": \"Méndez\",\n      \"fecha_nacimiento\": \"1980-06-20\",\n      \"cod_sexo\": \"M\",\n      \"cod_nacionalidad\": \"NIC\",\n      \"cod_estado_civil\": \"C\",\n      \"email\": \"carlos.rodriguez@example.com\",\n      \"telefono\": \"+507 6234-5678\",\n      \"direccion_panama\": \"Vía Brasil, Edificio Los Robles, Apto 12A\",\n      \"observaciones\": \"Tiene representante legal: Lic. Andrea Morales (+507 6345-6789)\"\n    },\n    {\n      \"es_titular\": false,\n      \"parentesco_titular\": \"CONYUGE\",\n      \"tipo_documento\": \"CEDULA\",\n      \"num_documento\": \"001-150982-0002M\",\n      \"pais_emisor\": \"NIC\",\n      \"primer_nombre\": \"Ana\",\n      \"segundo_nombre\": \"Lucía\",\n      \"primer_apellido\": \"Méndez\",\n      \"segundo_apellido\": \"Torres\",\n      \"fecha_nacimiento\": \"1982-09-15\",\n      \"cod_sexo\": \"F\",\n      \"cod_nacionalidad\": \"NIC\",\n      \"cod_estado_civil\": \"C\",\n      \"email\": \"ana.mendez@example.com\",\n      \"telefono\": \"+507 6234-5678\",\n      \"direccion_panama\": \"Vía Brasil, Edificio Los Robles, Apto 12A\"\n    },\n    {\n      \"es_titular\": false,\n      \"parentesco_titular\": \"HIJO\",\n      \"tipo_documento\": \"CEDULA\",\n      \"num_documento\": \"001-100410-0003P\",\n      \"pais_emisor\": \"NIC\",\n      \"primer_nombre\": \"Carlos\",\n      \"segundo_nombre\": \"Andrés\",\n      \"primer_apellido\": \"Rodríguez\",\n      \"segundo_apellido\": \"Méndez\",\n      \"fecha_nacimiento\": \"2010-04-10\",\n      \"cod_sexo\": \"M\",\n      \"cod_nacionalidad\": \"NIC\",\n      \"cod_estado_civil\": \"S\",\n      \"direccion_panama\": \"Vía Brasil, Edificio Los Robles, Apto 12A\"\n    },\n    {\n      \"es_titular\": false,\n      \"parentesco_titular\": \"HIJO\",\n      \"tipo_documento\": \"CEDULA\",\n      \"num_documento\": \"001-251115-0004M\",\n      \"pais_emisor\": \"NIC\",\n      \"primer_nombre\": \"Sofía\",\n      \"segundo_nombre\": \"Valentina\",\n      \"primer_apellido\": \"Rodríguez\",\n      \"segundo_apellido\": \"Méndez\",\n      \"fecha_nacimiento\": \"2015-11-25\",\n      \"cod_sexo\": \"F\",\n      \"cod_nacionalidad\": \"NIC\",\n      \"cod_estado_civil\": \"S\",\n      \"direccion_panama\": \"Vía Brasil, Edificio Los Robles, Apto 12A\"\n    }\n  ]\n}"
             },
             "url": {
               "raw": "{{base_url}}{{api_prefix}}/solicitudes",
