@@ -471,6 +471,7 @@
                   "pm.test(\"Solicitud updated successfully\", function () {",
                   "    var jsonData = pm.response.json();",
                   "    pm.expect(jsonData.prioridad).to.eql('URGENTE');",
+                  "    pm.expect(jsonData.descripcion_caso).to.include('ACTUALIZADO');",
                   "});"
                 ],
                 "type": "text/javascript"
@@ -487,14 +488,14 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"prioridad\": \"URGENTE\",\n  \"descripcion_situacion\": \"ACTUALIZADO: Situación de riesgo inminente. Requiere atención inmediata.\",\n  \"observaciones\": \"Caso escalado por recomendación de ACNUR\"\n}"
+              "raw": "{\n  \"prioridad\": \"URGENTE\",\n  \"descripcion_caso\": \"ACTUALIZADO: Situación de riesgo inminente. Requiere atención inmediata.\",\n  \"observaciones_generales\": \"Caso escalado por recomendación de ACNUR. Se requiere respuesta prioritaria.\"\n}"
             },
             "url": {
               "raw": "{{base_url}}{{api_prefix}}/solicitudes/{{solicitud_id}}",
               "host": ["{{base_url}}{{api_prefix}}"],
               "path": ["solicitudes", "{{solicitud_id}}"]
             },
-            "description": "Actualiza los datos de una solicitud existente"
+            "description": "Actualiza los datos de una solicitud existente. Campos actualizables: prioridad, descripcion_caso, observaciones_generales, fecha_limite_respuesta, requiere_atencion_especial, motivo_atencion_especial, cod_causa_humanitaria, user_id_asignado, fecha_asignacion, tipo_dictamen, detalle_dictamen, observaciones_dictamen"
           },
           "response": []
         }
