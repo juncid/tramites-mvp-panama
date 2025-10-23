@@ -1,0 +1,890 @@
+{
+  "info": {
+    "_postman_id": "sim-ft-complete-api-2025",
+    "name": "SIM_FT - API Completa",
+    "description": "Colección completa de todos los endpoints del módulo SIM_FT (Sistema Integrado de Migración - Funcionalidades Transversales) del Sistema de Trámites Migratorios de Panamá.\n\n**Incluye:**\n- Tipos de Trámites (Catálogo maestro)\n- Estatus (Estados de trámites)\n- Conclusiones (Resultados finales)\n- Prioridades (Niveles de urgencia)\n- Pasos (Definición de pasos del proceso)\n- Flujo de Pasos (Asociación pasos-trámites)\n- Usuarios y Secciones (Asignaciones)\n- Trámites SIM_FT (Gestión completa)\n- Pasos de Trámites (Seguimiento detallado)\n- Cierre de Trámites (Finalización)\n- Estadísticas (Reportes y métricas)\n\n**Autor:** Sistema de Trámites MVP Panamá\n**Fecha:** 2025-10-23\n**Versión:** 1.0.0",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8000",
+      "type": "string"
+    },
+    {
+      "key": "api_prefix",
+      "value": "/api/v1/sim-ft",
+      "type": "string"
+    },
+    {
+      "key": "cod_tramite",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "num_annio",
+      "value": "2025",
+      "type": "string"
+    },
+    {
+      "key": "num_tramite",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "num_registro",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "num_paso",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Tipos de Trámites",
+      "item": [
+        {
+          "name": "Listar Tipos de Trámites",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Response is array\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.be.an('array');",
+                  "});",
+                  "",
+                  "if (pm.response.json().length > 0) {",
+                  "    pm.collectionVariables.set(\"cod_tramite\", pm.response.json()[0].cod_tramite);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/tramites-tipos",
+              "host": ["{{base_url}}{{api_prefix}}"],
+              "path": ["tramites-tipos"]
+            },
+            "description": "Obtiene todos los tipos de trámites disponibles en el sistema SIM_FT"
+          },
+          "response": []
+        },
+        {
+          "name": "Obtener Tipo de Trámite por Código",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Has required fields\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('cod_tramite');",
+                  "    pm.expect(jsonData).to.have.property('nombre_tramite');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/tramites-tipos/{{cod_tramite}}",
+              "host": ["{{base_url}}{{api_prefix}}"],
+              "path": ["tramites-tipos", "{{cod_tramite}}"]
+            },
+            "description": "Obtiene un tipo de trámite específico por su código"
+          },
+          "response": []
+        },
+        {
+          "name": "Crear Tipo de Trámite",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.collectionVariables.set(\"cod_tramite\", pm.response.json().cod_tramite);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cod_tramite\": \"VISA_TUR\",\n  \"nombre_tramite\": \"Visa de Turista\",\n  \"descripcion\": \"Solicitud de visa de turista para extranjeros\",\n  \"activo\": true,\n  \"requiere_entrevista\": false,\n  \"dias_vigencia\": 90\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/tramites-tipos",
+              "host": ["{{base_url}}{{api_prefix}}"],
+              "path": ["tramites-tipos"]
+            },
+            "description": "Crea un nuevo tipo de trámite en el catálogo"
+          },
+          "response": []
+        },
+        {
+          "name": "Actualizar Tipo de Trámite",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre_tramite\": \"Visa de Turista - Actualizado\",\n  \"descripcion\": \"Solicitud de visa de turista para extranjeros con nueva documentación\",\n  \"dias_vigencia\": 180\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/tramites-tipos/{{cod_tramite}}",
+              "host": ["{{base_url}}{{api_prefix}}"],
+              "path": ["tramites-tipos", "{{cod_tramite}}"]
+            },
+            "description": "Actualiza un tipo de trámite existente"
+          },
+          "response": []
+        },
+        {
+          "name": "Eliminar Tipo de Trámite",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/tramites-tipos/{{cod_tramite}}",
+              "host": ["{{base_url}}{{api_prefix}}"],
+              "path": ["tramites-tipos", "{{cod_tramite}}"]
+            },
+            "description": "Elimina un tipo de trámite (soft delete)"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "2. Estatus",
+      "item": [
+        {
+          "name": "Listar Estatus",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/estatus",
+              "host": ["{{base_url}}{{api_prefix}}"],
+              "path": ["estatus"]
+            },
+            "description": "Obtiene todos los estados disponibles para trámites"
+          },
+          "response": []
+        },
+        {
+          "name": "Obtener Estatus por Código",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/estatus/RECIBIDO",
+              "host": ["{{base_url}}{{api_prefix}}"],
+              "path": ["estatus", "RECIBIDO"]
+            },
+            "description": "Obtiene un estatus específico por su código"
+          },
+          "response": []
+        },
+        {
+          "name": "Crear Estatus",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cod_estatus\": \"EN_PROCESO\",\n  \"nombre_estatus\": \"En Proceso\",\n  \"descripcion\": \"Trámite en proceso de revisión\",\n  \"color\": \"#FFA500\",\n  \"activo\": true\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/estatus",
+              "host": ["{{base_url}}{{api_prefix}}"],
+              "path": ["estatus"]
+            },
+            "description": "Crea un nuevo estatus"
+          },
+          "response": []
+        },
+        {
+          "name": "Actualizar Estatus",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre_estatus\": \"En Proceso de Revisión\",\n  \"color\": \"#FF8C00\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/estatus/EN_PROCESO",
+              "host": ["{{base_url}}{{api_prefix}}"],
+              "path": ["estatus", "EN_PROCESO"]
+            },
+            "description": "Actualiza un estatus existente"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "3. Conclusiones",
+      "item": [
+        {
+          "name": "Listar Conclusiones",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/conclusiones",
+              "host": ["{{base_url}}{{api_prefix}}"],
+              "path": ["conclusiones"]
+            },
+            "description": "Obtiene todas las conclusiones posibles para trámites"
+          },
+          "response": []
+        },
+        {
+          "name": "Crear Conclusión",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cod_conclusion\": \"APROBADO\",\n  \"nombre_conclusion\": \"Aprobado\",\n  \"descripcion\": \"Trámite aprobado satisfactoriamente\",\n  \"activo\": true\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/conclusiones",
+              "host": ["{{base_url}}{{api_prefix}}"],
+              "path": ["conclusiones"]
+            },
+            "description": "Crea una nueva conclusión"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "4. Prioridades",
+      "item": [
+        {
+          "name": "Listar Prioridades",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/prioridades",
+              "host": ["{{base_url}}{{api_prefix}}"],
+              "path": ["prioridades"]
+            },
+            "description": "Obtiene todas las prioridades disponibles"
+          },
+          "response": []
+        },
+        {
+          "name": "Crear Prioridad",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cod_prioridad\": \"ALTA\",\n  \"nombre_prioridad\": \"Alta Prioridad\",\n  \"nivel\": 1,\n  \"dias_limite\": 5,\n  \"color\": \"#FF0000\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/prioridades",
+              "host": ["{{base_url}}{{api_prefix}}"],
+              "path": ["prioridades"]
+            },
+            "description": "Crea una nueva prioridad"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "5. Pasos",
+      "item": [
+        {
+          "name": "Listar Pasos",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/pasos?cod_tramite={{cod_tramite}}",
+              "host": ["{{base_url}}{{api_prefix}}"],
+              "path": ["pasos"],
+              "query": [
+                {
+                  "key": "cod_tramite",
+                  "value": "{{cod_tramite}}"
+                }
+              ]
+            },
+            "description": "Obtiene todos los pasos, opcionalmente filtrados por tipo de trámite"
+          },
+          "response": []
+        },
+        {
+          "name": "Obtener Paso Específico",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/pasos/{{cod_tramite}}/1",
+              "host": ["{{base_url}}{{api_prefix}}"],
+              "path": ["pasos", "{{cod_tramite}}", "1"]
+            },
+            "description": "Obtiene un paso específico por código de trámite y número de paso"
+          },
+          "response": []
+        },
+        {
+          "name": "Crear Paso",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cod_tramite\": \"{{cod_tramite}}\",\n  \"num_paso\": 1,\n  \"nombre_paso\": \"Recepción de Documentos\",\n  \"descripcion\": \"Recepción y validación de documentos iniciales\",\n  \"requiere_revision\": true,\n  \"dias_estimados\": 2\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/pasos",
+              "host": ["{{base_url}}{{api_prefix}}"],
+              "path": ["pasos"]
+            },
+            "description": "Crea un nuevo paso"
+          },
+          "response": []
+        },
+        {
+          "name": "Actualizar Paso",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre_paso\": \"Recepción y Verificación de Documentos\",\n  \"dias_estimados\": 3\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/pasos/{{cod_tramite}}/1",
+              "host": ["{{base_url}}{{api_prefix}}"],
+              "path": ["pasos", "{{cod_tramite}}", "1"]
+            },
+            "description": "Actualiza un paso existente"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "6. Flujo de Pasos",
+      "item": [
+        {
+          "name": "Listar Flujo de Pasos",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/flujo-pasos?cod_tramite={{cod_tramite}}",
+              "host": ["{{base_url}}{{api_prefix}}"],
+              "path": ["flujo-pasos"],
+              "query": [
+                {
+                  "key": "cod_tramite",
+                  "value": "{{cod_tramite}}"
+                }
+              ]
+            },
+            "description": "Obtiene el flujo de pasos asociados a trámites"
+          },
+          "response": []
+        },
+        {
+          "name": "Crear Asociación Flujo-Paso",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cod_tramite\": \"{{cod_tramite}}\",\n  \"num_paso\": 1,\n  \"orden\": 1,\n  \"obligatorio\": true,\n  \"cod_seccion_responsable\": \"MIGRACION\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/flujo-pasos",
+              "host": ["{{base_url}}{{api_prefix}}"],
+              "path": ["flujo-pasos"]
+            },
+            "description": "Asocia un paso a un tipo de trámite en el flujo"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "7. Usuarios y Secciones",
+      "item": [
+        {
+          "name": "Listar Usuarios-Secciones",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/usuarios-secciones?cod_seccion=MIGRACION",
+              "host": ["{{base_url}}{{api_prefix}}"],
+              "path": ["usuarios-secciones"],
+              "query": [
+                {
+                  "key": "cod_seccion",
+                  "value": "MIGRACION"
+                }
+              ]
+            },
+            "description": "Obtiene asignaciones de usuarios a secciones"
+          },
+          "response": []
+        },
+        {
+          "name": "Crear Asignación Usuario-Sección",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cod_usuario\": \"USER001\",\n  \"cod_seccion\": \"MIGRACION\",\n  \"activo\": true,\n  \"es_responsable\": false\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/usuarios-secciones",
+              "host": ["{{base_url}}{{api_prefix}}"],
+              "path": ["usuarios-secciones"]
+            },
+            "description": "Asigna un usuario a una sección"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "8. Trámites SIM_FT",
+      "item": [
+        {
+          "name": "Listar Trámites",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.json().length > 0) {",
+                  "    var tramite = pm.response.json()[0];",
+                  "    pm.collectionVariables.set(\"num_annio\", tramite.num_annio);",
+                  "    pm.collectionVariables.set(\"num_tramite\", tramite.num_tramite);",
+                  "    pm.collectionVariables.set(\"num_registro\", tramite.num_registro);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/tramites?cod_tramite={{cod_tramite}}&cod_estatus=RECIBIDO&skip=0&limit=10",
+              "host": ["{{base_url}}{{api_prefix}}"],
+              "path": ["tramites"],
+              "query": [
+                {
+                  "key": "cod_tramite",
+                  "value": "{{cod_tramite}}"
+                },
+                {
+                  "key": "cod_estatus",
+                  "value": "RECIBIDO"
+                },
+                {
+                  "key": "skip",
+                  "value": "0"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            },
+            "description": "Obtiene trámites con filtros opcionales"
+          },
+          "response": []
+        },
+        {
+          "name": "Obtener Trámite por ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/tramites/{{num_annio}}/{{num_tramite}}/{{num_registro}}",
+              "host": ["{{base_url}}{{api_prefix}}"],
+              "path": ["tramites", "{{num_annio}}", "{{num_tramite}}", "{{num_registro}}"]
+            },
+            "description": "Obtiene un trámite específico por año, número y registro"
+          },
+          "response": []
+        },
+        {
+          "name": "Crear Trámite",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    var tramite = pm.response.json();",
+                  "    pm.collectionVariables.set(\"num_annio\", tramite.num_annio);",
+                  "    pm.collectionVariables.set(\"num_tramite\", tramite.num_tramite);",
+                  "    pm.collectionVariables.set(\"num_registro\", tramite.num_registro);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cod_tramite\": \"{{cod_tramite}}\",\n  \"num_identificacion\": \"8-888-8888\",\n  \"nombre_solicitante\": \"Juan Pérez\",\n  \"apellido_solicitante\": \"González\",\n  \"email\": \"juan.perez@example.com\",\n  \"telefono\": \"+507-6000-0000\",\n  \"cod_prioridad\": \"NORMAL\",\n  \"observaciones\": \"Trámite iniciado por portal web\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/tramites",
+              "host": ["{{base_url}}{{api_prefix}}"],
+              "path": ["tramites"]
+            },
+            "description": "Crea un nuevo trámite en SIM_FT"
+          },
+          "response": []
+        },
+        {
+          "name": "Actualizar Trámite",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cod_estatus\": \"EN_PROCESO\",\n  \"email\": \"juan.perez.nuevo@example.com\",\n  \"observaciones\": \"Actualizado - documentación adicional recibida\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/tramites/{{num_annio}}/{{num_tramite}}/{{num_registro}}",
+              "host": ["{{base_url}}{{api_prefix}}"],
+              "path": ["tramites", "{{num_annio}}", "{{num_tramite}}", "{{num_registro}}"]
+            },
+            "description": "Actualiza un trámite existente"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "9. Pasos de Trámites",
+      "item": [
+        {
+          "name": "Listar Pasos del Trámite",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.json().length > 0) {",
+                  "    pm.collectionVariables.set(\"num_paso\", pm.response.json()[0].num_paso);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/tramites/{{num_annio}}/{{num_tramite}}/pasos",
+              "host": ["{{base_url}}{{api_prefix}}"],
+              "path": ["tramites", "{{num_annio}}", "{{num_tramite}}", "pasos"]
+            },
+            "description": "Obtiene todos los pasos ejecutados de un trámite"
+          },
+          "response": []
+        },
+        {
+          "name": "Obtener Paso del Trámite",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/tramites/{{num_annio}}/{{num_tramite}}/{{num_paso}}/{{num_registro}}",
+              "host": ["{{base_url}}{{api_prefix}}"],
+              "path": ["tramites", "{{num_annio}}", "{{num_tramite}}", "{{num_paso}}", "{{num_registro}}"]
+            },
+            "description": "Obtiene un paso específico de un trámite"
+          },
+          "response": []
+        },
+        {
+          "name": "Registrar Paso del Trámite",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"num_paso\": 1,\n  \"cod_usuario\": \"USER001\",\n  \"cod_seccion\": \"MIGRACION\",\n  \"observaciones\": \"Documentos recibidos y verificados\",\n  \"resultado\": \"APROBADO\",\n  \"documentos_adjuntos\": []\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/tramites/{{num_annio}}/{{num_tramite}}/pasos",
+              "host": ["{{base_url}}{{api_prefix}}"],
+              "path": ["tramites", "{{num_annio}}", "{{num_tramite}}", "pasos"]
+            },
+            "description": "Registra la ejecución de un paso en el trámite"
+          },
+          "response": []
+        },
+        {
+          "name": "Actualizar Paso del Trámite",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"observaciones\": \"Actualizado - documentación completa verificada\",\n  \"resultado\": \"APROBADO_CON_OBSERVACIONES\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/tramites/{{num_annio}}/{{num_tramite}}/{{num_paso}}/{{num_registro}}",
+              "host": ["{{base_url}}{{api_prefix}}"],
+              "path": ["tramites", "{{num_annio}}", "{{num_tramite}}", "{{num_paso}}", "{{num_registro}}"]
+            },
+            "description": "Actualiza un paso registrado del trámite"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "10. Cierre de Trámites",
+      "item": [
+        {
+          "name": "Cerrar Trámite",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cod_conclusion\": \"APROBADO\",\n  \"observaciones_cierre\": \"Trámite completado satisfactoriamente. Todos los requisitos cumplidos.\",\n  \"usuario_cierre\": \"USER001\",\n  \"documentos_finales\": []\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/tramites/{{num_annio}}/{{num_tramite}}/{{num_registro}}/cierre",
+              "host": ["{{base_url}}{{api_prefix}}"],
+              "path": ["tramites", "{{num_annio}}", "{{num_tramite}}", "{{num_registro}}", "cierre"]
+            },
+            "description": "Cierra un trámite con una conclusión final"
+          },
+          "response": []
+        },
+        {
+          "name": "Obtener Información de Cierre",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/tramites/{{num_annio}}/{{num_tramite}}/{{num_registro}}/cierre",
+              "host": ["{{base_url}}{{api_prefix}}"],
+              "path": ["tramites", "{{num_annio}}", "{{num_tramite}}", "{{num_registro}}", "cierre"]
+            },
+            "description": "Obtiene la información de cierre de un trámite"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "11. Estadísticas",
+      "item": [
+        {
+          "name": "Trámites por Estado",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/estadisticas/tramites-por-estado?fecha_inicio=2025-01-01&fecha_fin=2025-12-31",
+              "host": ["{{base_url}}{{api_prefix}}"],
+              "path": ["estadisticas", "tramites-por-estado"],
+              "query": [
+                {
+                  "key": "fecha_inicio",
+                  "value": "2025-01-01"
+                },
+                {
+                  "key": "fecha_fin",
+                  "value": "2025-12-31"
+                }
+              ]
+            },
+            "description": "Obtiene estadísticas de trámites agrupados por estado"
+          },
+          "response": []
+        },
+        {
+          "name": "Trámites por Tipo",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/estadisticas/tramites-por-tipo?fecha_inicio=2025-01-01&fecha_fin=2025-12-31",
+              "host": ["{{base_url}}{{api_prefix}}"],
+              "path": ["estadisticas", "tramites-por-tipo"],
+              "query": [
+                {
+                  "key": "fecha_inicio",
+                  "value": "2025-01-01"
+                },
+                {
+                  "key": "fecha_fin",
+                  "value": "2025-12-31"
+                }
+              ]
+            },
+            "description": "Obtiene estadísticas de trámites agrupados por tipo"
+          },
+          "response": []
+        },
+        {
+          "name": "Tiempo Promedio de Trámites",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/estadisticas/tiempo-promedio?cod_tramite={{cod_tramite}}",
+              "host": ["{{base_url}}{{api_prefix}}"],
+              "path": ["estadisticas", "tiempo-promedio"],
+              "query": [
+                {
+                  "key": "cod_tramite",
+                  "value": "{{cod_tramite}}"
+                }
+              ]
+            },
+            "description": "Obtiene el tiempo promedio de procesamiento por tipo de trámite"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Health Check SIM_FT",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/health",
+          "host": ["{{base_url}}"],
+          "path": ["health"]
+        },
+        "description": "Verifica el estado de salud del módulo SIM_FT"
+      },
+      "response": []
+    }
+  ]
+}

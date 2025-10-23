@@ -342,32 +342,174 @@ Puedes conectarte a la base de datos usando cualquier cliente SQL:
 - **Puerto:** 1433
 - **Usuario:** sa
 - **Contraseña:** YourStrong@Passw0rd
-- **Base de datos:** tramites_db
+- **Base de datos:** SIM_PANAMA
+
+### Esquema de Base de Datos
+
+El sistema utiliza MS SQL Server con la base de datos **`SIM_PANAMA`** organizada en los siguientes módulos:
+
+#### 📋 Módulo PPSH (Permisos de Protección y Stateless Humanitarios)
+
+**Tablas principales:**
+- **`PPSHSolicitante`** - Datos personales del solicitante (nombre, apellidos, documentos de identidad)
+- **`PPSHSolicitud`** - Solicitud PPSH completa con documentación y estado
+- **`PPSHSolicitudDocumento`** - Documentos adjuntos a la solicitud
+
+**Catálogos:**
+- **`PPSHCausaHumanitaria`** - Causas humanitarias reconocidas (persecución, violencia, etc.)
+- **`PPSHEstado`** - Estados del proceso (RECIBIDO, EN_REVISION, APROBADO, etc.)
+- **`PPSHTipoDocumento`** - Tipos de identificación aceptados (PASAPORTE, CEDULA, etc.)
+- **`PPSHConceptoPago`** - Conceptos de pago y tarifas
+- **`PPSHPais`** - Catálogo de países
+- **`PPSHAgencia`** - Agencias de procesamiento
+
+#### 🔄 Módulo Workflow (Gestión de Procesos)
+
+**Tablas principales:**
+- **`Workflow`** - Definición de procesos de negocio
+- **`WorkflowEtapa`** - Etapas del proceso con orden y configuración
+- **`WorkflowTransicion`** - Transiciones permitidas entre etapas
+- **`WorkflowInstancia`** - Instancias activas de workflows
+- **`WorkflowInstanciaHistorial`** - Historial de cambios y transiciones
+
+#### 📝 Módulo Trámites (Gestión General)
+
+**Tablas principales:**
+- **`Tramite`** - Gestión general de trámites
+- **`TramiteDocumento`** - Documentos adjuntos a trámites
+- **`TramiteHistorial`** - Auditoría de cambios en trámites
+
+#### 🗄️ Módulo SIM_FT (Funcionalidades Transversales)
+
+**Tablas de soporte:**
+- **`TipoDocumento`** - Tipos de documentos del sistema
+- **`EstadoDocumento`** - Estados de documentos
+- **`Auditoria`** - Registro de auditoría general
+
+### Relaciones Principales
+
+```
+PPSHSolicitante (1) ──→ (N) PPSHSolicitud
+PPSHSolicitud (1) ──→ (N) PPSHSolicitudDocumento
+PPSHSolicitud (N) ──→ (1) PPSHCausaHumanitaria
+PPSHSolicitud (N) ──→ (1) PPSHEstado
+
+Workflow (1) ──→ (N) WorkflowEtapa
+Workflow (1) ──→ (N) WorkflowTransicion
+Workflow (1) ──→ (N) WorkflowInstancia
+WorkflowInstancia (1) ──→ (N) WorkflowInstanciaHistorial
+```
+
+### Documentación Completa
+
+📖 **Diccionario de Datos Completo:** [DICCIONARIO_DATOS_COMPLETO.md](./docs/DICCIONARIO_DATOS_COMPLETO.md)  
+📖 **Scripts SQL:** [backend/sql/](./backend/sql/)  
+📖 **Migraciones Alembic:** [backend/alembic/versions/](./backend/alembic/versions/)
 
 ### Crear Base de Datos Manualmente (Opcional)
 
-La base de datos se crea automáticamente, pero si necesitas crearla manualmente:
+La base de datos se crea automáticamente mediante migraciones Alembic, pero si necesitas crearla manualmente:
 
 ```bash
-docker-compose exec sqlserver /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P 'YourStrong@Passw0rd' -Q "CREATE DATABASE tramites_db"
+docker-compose exec sqlserver /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P 'YourStrong@Passw0rd' -Q "CREATE DATABASE SIM_PANAMA"
 ```
 
 ## 🔑 API Endpoints
 
+### Documentación Interactiva
+
+Una vez que el backend esté en ejecución, accede a la documentación interactiva:
+
+- **Swagger UI:** http://localhost:8000/docs
+- **ReDoc:** http://localhost:8000/redoc
+
 ### Endpoints Principales
 
-#### Salud del Sistema
+#### 🏥 Salud del Sistema
 - `GET /` - Información general de la API
-- `GET /health` - Estado de salud
+- `GET /health` - Estado de salud del sistema
+- `GET /metrics` - Métricas de rendimiento (Redis)
 
-#### Trámites
+#### 📋 Módulo PPSH (Permisos de Protección y Stateless Humanitarios)
+
+**Solicitantes:**
+- `GET /api/v1/ppsh/solicitantes` - Listar todos los solicitantes
+- `GET /api/v1/ppsh/solicitantes/{id}` - Obtener un solicitante específico
+- `POST /api/v1/ppsh/solicitantes` - Crear nuevo solicitante
+- `PUT /api/v1/ppsh/solicitantes/{id}` - Actualizar solicitante
+- `DELETE /api/v1/ppsh/solicitantes/{id}` - Eliminar solicitante (soft delete)
+
+**Solicitudes:**
+- `GET /api/v1/ppsh/solicitudes` - Listar todas las solicitudes
+- `GET /api/v1/ppsh/solicitudes/{id}` - Obtener solicitud específica
+- `POST /api/v1/ppsh/solicitudes` - Crear nueva solicitud
+- `PUT /api/v1/ppsh/solicitudes/{id}` - Actualizar solicitud
+- `PATCH /api/v1/ppsh/solicitudes/{id}/estado` - Cambiar estado de solicitud
+- `DELETE /api/v1/ppsh/solicitudes/{id}` - Eliminar solicitud (soft delete)
+
+**Catálogos:**
+- `GET /api/v1/ppsh/catalogos/causas-humanitarias` - Listar causas humanitarias
+- `GET /api/v1/ppsh/catalogos/estados` - Listar estados de solicitud
+- `GET /api/v1/ppsh/catalogos/tipos-documento` - Listar tipos de documento
+- `GET /api/v1/ppsh/catalogos/conceptos-pago` - Listar conceptos de pago
+- `GET /api/v1/ppsh/catalogos/paises` - Listar países
+- `GET /api/v1/ppsh/catalogos/agencias` - Listar agencias
+
+**Documentos:**
+- `POST /api/v1/ppsh/solicitudes/{id}/documentos` - Subir documento adjunto
+- `GET /api/v1/ppsh/solicitudes/{id}/documentos` - Listar documentos de solicitud
+- `DELETE /api/v1/ppsh/documentos/{id}` - Eliminar documento
+
+#### 🔄 Módulo Workflows
+
+**Workflows:**
+- `GET /api/v1/workflows` - Listar todos los workflows
+- `GET /api/v1/workflows/{id}` - Obtener workflow específico
+- `POST /api/v1/workflows` - Crear workflow completo (con etapas y transiciones)
+- `PUT /api/v1/workflows/{id}` - Actualizar workflow
+- `DELETE /api/v1/workflows/{id}` - Eliminar workflow
+
+**Etapas:**
+- `GET /api/v1/workflows/{workflow_id}/etapas` - Listar etapas del workflow
+- `POST /api/v1/workflows/{workflow_id}/etapas` - Agregar etapa
+- `PUT /api/v1/workflows/etapas/{id}` - Actualizar etapa
+- `DELETE /api/v1/workflows/etapas/{id}` - Eliminar etapa
+
+**Transiciones:**
+- `GET /api/v1/workflows/{workflow_id}/transiciones` - Listar transiciones
+- `POST /api/v1/workflows/{workflow_id}/transiciones` - Crear transición
+- `DELETE /api/v1/workflows/transiciones/{id}` - Eliminar transición
+
+**Instancias:**
+- `POST /api/v1/workflows/{workflow_id}/instancias` - Iniciar nueva instancia
+- `GET /api/v1/workflows/instancias/{id}` - Obtener estado de instancia
+- `POST /api/v1/workflows/instancias/{id}/avanzar` - Avanzar a siguiente etapa
+- `GET /api/v1/workflows/instancias/{id}/historial` - Ver historial de cambios
+
+#### 📝 Módulo Trámites (General)
+
 - `GET /api/v1/tramites` - Listar todos los trámites
 - `GET /api/v1/tramites/{id}` - Obtener un trámite específico
 - `POST /api/v1/tramites` - Crear un nuevo trámite
 - `PUT /api/v1/tramites/{id}` - Actualizar un trámite
 - `DELETE /api/v1/tramites/{id}` - Eliminar un trámite (soft delete)
 
+### Parámetros de Consulta Comunes
+
+La mayoría de endpoints de listado soportan:
+- `skip` - Número de registros a omitir (paginación)
+- `limit` - Número máximo de registros a retornar
+- `sort_by` - Campo por el cual ordenar
+- `order` - Dirección del ordenamiento (asc/desc)
+
+**Ejemplo:**
+```bash
+GET /api/v1/ppsh/solicitudes?skip=0&limit=10&sort_by=fecha_creacion&order=desc
+```
+
 ### Ejemplo de Uso con cURL
+
+#### Crear un Trámite Simple
 
 ```bash
 # Crear un trámite
@@ -382,6 +524,287 @@ curl -X POST http://localhost:8000/api/v1/tramites \
 # Listar trámites
 curl http://localhost:8000/api/v1/tramites
 ```
+
+## 📝 Ejemplos Prácticos de Uso
+
+### Ejemplo 1: Crear una Solicitud PPSH Completa
+
+#### Paso 1: Crear un Solicitante
+
+```bash
+curl -X POST http://localhost:8000/api/v1/ppsh/solicitantes \
+  -H "Content-Type: application/json" \
+  -d '{
+    "nombre": "Juan Carlos",
+    "apellido1": "Pérez",
+    "apellido2": "González",
+    "tipo_documento": "PASAPORTE",
+    "numero_documento": "N123456789",
+    "nacionalidad": "VE",
+    "fecha_nacimiento": "1990-01-15",
+    "sexo": "M",
+    "email": "juan.perez@example.com",
+    "telefono": "+507-6000-0000"
+  }'
+```
+
+**Respuesta:**
+```json
+{
+  "id": 1,
+  "nombre_completo": "Juan Carlos Pérez González",
+  "numero_documento": "N123456789",
+  "mensaje": "Solicitante creado exitosamente"
+}
+```
+
+#### Paso 2: Crear una Solicitud PPSH
+
+```bash
+curl -X POST http://localhost:8000/api/v1/ppsh/solicitudes \
+  -H "Content-Type: application/json" \
+  -d '{
+    "id_solicitante": 1,
+    "tipo_solicitud": "PPSH",
+    "id_causa_humanitaria": 1,
+    "motivo_solicitud": "Persecución política en país de origen",
+    "id_agencia": 1,
+    "observaciones": "Caso urgente - documentación completa adjunta"
+  }'
+```
+
+**Respuesta:**
+```json
+{
+  "id": 1,
+  "numero_solicitud": "PPSH-2025-001",
+  "estado": "RECIBIDO",
+  "fecha_creacion": "2025-10-23T10:30:00",
+  "solicitante": {
+    "nombre_completo": "Juan Carlos Pérez González"
+  }
+}
+```
+
+#### Paso 3: Subir Documentos Adjuntos
+
+```bash
+curl -X POST http://localhost:8000/api/v1/ppsh/solicitudes/1/documentos \
+  -H "Content-Type: multipart/form-data" \
+  -F "file=@pasaporte.pdf" \
+  -F "tipo_documento=PASAPORTE" \
+  -F "descripcion=Copia de pasaporte vigente"
+```
+
+### Ejemplo 2: Crear un Workflow con Múltiples Etapas
+
+```bash
+curl -X POST http://localhost:8000/api/v1/workflows \
+  -H "Content-Type: application/json" \
+  -d '{
+    "nombre": "Proceso PPSH Completo",
+    "descripcion": "Workflow para tramitación de solicitudes PPSH",
+    "activo": true,
+    "etapas": [
+      {
+        "codigo": "RECEPCION",
+        "nombre": "Recepción de Documentos",
+        "descripcion": "Recepción y validación inicial",
+        "orden": 1,
+        "requiere_aprobacion": false
+      },
+      {
+        "codigo": "REVISION",
+        "nombre": "Revisión Legal",
+        "descripcion": "Análisis legal de la solicitud",
+        "orden": 2,
+        "requiere_aprobacion": true
+      },
+      {
+        "codigo": "APROBACION",
+        "nombre": "Aprobación Directiva",
+        "descripcion": "Aprobación final por directiva",
+        "orden": 3,
+        "requiere_aprobacion": true
+      },
+      {
+        "codigo": "EMISION",
+        "nombre": "Emisión de Documento",
+        "descripcion": "Emisión del permiso aprobado",
+        "orden": 4,
+        "requiere_aprobacion": false
+      }
+    ],
+    "transiciones": [
+      {
+        "etapa_origen_codigo": "RECEPCION",
+        "etapa_destino_codigo": "REVISION",
+        "nombre": "Pasar a Revisión",
+        "condicion": null
+      },
+      {
+        "etapa_origen_codigo": "REVISION",
+        "etapa_destino_codigo": "APROBACION",
+        "nombre": "Aprobar Revisión",
+        "condicion": null
+      },
+      {
+        "etapa_origen_codigo": "APROBACION",
+        "etapa_destino_codigo": "EMISION",
+        "nombre": "Aprobar y Emitir",
+        "condicion": null
+      }
+    ]
+  }'
+```
+
+**Respuesta:**
+```json
+{
+  "id": 1,
+  "nombre": "Proceso PPSH Completo",
+  "total_etapas": 4,
+  "total_transiciones": 3,
+  "mensaje": "Workflow creado exitosamente"
+}
+```
+
+### Ejemplo 3: Iniciar y Avanzar una Instancia de Workflow
+
+#### Iniciar Instancia
+
+```bash
+curl -X POST http://localhost:8000/api/v1/workflows/1/instancias \
+  -H "Content-Type: application/json" \
+  -d '{
+    "referencia_tipo": "PPSH_SOLICITUD",
+    "referencia_id": 1,
+    "datos_contexto": {
+      "solicitante": "Juan Carlos Pérez",
+      "numero_solicitud": "PPSH-2025-001"
+    }
+  }'
+```
+
+#### Avanzar a Siguiente Etapa
+
+```bash
+curl -X POST http://localhost:8000/api/v1/workflows/instancias/1/avanzar \
+  -H "Content-Type: application/json" \
+  -d '{
+    "comentario": "Documentación verificada y completa",
+    "usuario_responsable": "admin@migracion.gob.pa"
+  }'
+```
+
+### Ejemplo 4: Consultar Catálogos
+
+```bash
+# Listar causas humanitarias disponibles
+curl http://localhost:8000/api/v1/ppsh/catalogos/causas-humanitarias
+
+# Listar estados de solicitud
+curl http://localhost:8000/api/v1/ppsh/catalogos/estados
+
+# Listar tipos de documento aceptados
+curl http://localhost:8000/api/v1/ppsh/catalogos/tipos-documento
+```
+
+### Ejemplo 5: Búsqueda y Filtrado
+
+```bash
+# Buscar solicitudes por estado
+curl "http://localhost:8000/api/v1/ppsh/solicitudes?estado=RECIBIDO&limit=10"
+
+# Buscar solicitantes por nacionalidad
+curl "http://localhost:8000/api/v1/ppsh/solicitantes?nacionalidad=VE&limit=20"
+
+# Obtener workflows activos
+curl "http://localhost:8000/api/v1/workflows?activo=true"
+```
+
+### 📖 Más Ejemplos
+
+Para ejemplos más avanzados y casos de uso específicos, consulta:
+- **Documentación de ejemplos:** [docs/ejemplos/](./docs/ejemplos/)
+- **Swagger UI interactivo:** http://localhost:8000/docs
+- **Colecciones de Postman:** [backend/postman/](./backend/postman/)
+
+## 📮 Colecciones Postman
+
+El proyecto incluye colecciones completas de Postman para probar todos los endpoints de la API.
+
+### 📦 Colecciones Disponibles
+
+| Colección | Endpoints | Descripción |
+|-----------|-----------|-------------|
+| **PPSH_Complete_API.json** | ~36 requests | API completa del módulo PPSH (Permisos de Protección y Stateless Humanitarios) |
+| **Workflow_API_Tests.json** | ~30 requests | API completa del sistema de Workflows dinámicos |
+| **SIM_FT_Complete_API.json** | ~35 requests | API completa del módulo SIM_FT (Sistema Integrado de Migración) |
+| **Tramites_Base_API.json** | ~5 requests | API básica de gestión de trámites |
+| **PPSH_Upload_Tests.json** | Tests | Pruebas específicas para carga de documentos |
+
+### 🚀 Uso de Colecciones
+
+#### Importar en Postman Desktop
+
+1. Abrir Postman
+2. Click en "Import"
+3. Seleccionar archivo `.json` desde `backend/postman/`
+4. Click en "Import"
+
+#### Ejecutar con Newman (CLI)
+
+```bash
+# Instalar Newman
+npm install -g newman
+
+# Ejecutar una colección
+newman run backend/postman/PPSH_Complete_API.postman_collection.json
+
+# Ejecutar con reportes HTML
+newman run backend/postman/PPSH_Complete_API.postman_collection.json \
+  --reporters cli,htmlextra \
+  --reporter-htmlextra-export reports/api-test-report.html
+```
+
+#### Ejecutar Todas las Colecciones (PowerShell)
+
+```powershell
+# Ejecutar todas las colecciones de Postman
+Get-ChildItem backend\postman\*_API*.json | ForEach-Object {
+  Write-Host "Ejecutando: $($_.Name)" -ForegroundColor Cyan
+  newman run $_.FullName
+}
+```
+
+### 📊 Cobertura de Endpoints
+
+| Módulo | Endpoints Backend | Cobertura Postman | Estado |
+|--------|-------------------|-------------------|--------|
+| PPSH | 18 endpoints | ✅ 100% | Completo |
+| Workflows | 24 endpoints | ✅ 100% | Completo |
+| SIM_FT | 35 endpoints | ✅ 100% | Completo |
+| Trámites Base | 5 endpoints | ✅ 100% | Completo |
+| **TOTAL** | **82 endpoints** | **✅ 100%** | **Completo** |
+
+### 📝 Variables de Entorno
+
+Configura las siguientes variables en Postman:
+
+```json
+{
+  "base_url": "http://localhost:8000",
+  "api_version": "v1",
+  "token": ""
+}
+```
+
+### 📚 Documentación Adicional
+
+- **README de Postman:** [backend/postman/README.md](./backend/postman/README.md)
+- **Comandos Newman:** Guía completa en README de Postman
+- **Documentación interactiva:** http://localhost:8000/docs
 
 ## 🧪 Testing
 

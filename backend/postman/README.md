@@ -31,7 +31,7 @@ newman run postman/Tramites_Base_API.postman_collection.json \
 - Causas humanitarias
 - Reportes y estadísticas
 
-**Endpoints:** ~50+ endpoints
+**Endpoints:** ~36 requests  
 **Pruebas:** Validaciones automáticas incluidas
 
 **Uso:**
@@ -74,13 +74,50 @@ newman run postman/PPSH_Upload_Tests.postman_collection.json \
 - Respuestas y validaciones
 - Historial y auditoría
 
-**Endpoints:** ~30+ endpoints
+**Endpoints:** ~30 requests
 
 **Uso:**
 ```bash
 newman run postman/Workflow_API_Tests.postman_collection.json \
   --environment postman/env-dev.json
 ```
+
+---
+
+### 5. SIM_FT_Complete_API.postman_collection.json ⭐ **NUEVO**
+**Descripción:** API completa del módulo SIM_FT (Sistema Integrado de Migración - Funcionalidades Transversales).
+
+**Incluye:**
+- **Tipos de Trámites** - Catálogo maestro (5 endpoints)
+- **Estatus** - Estados de trámites (4 endpoints)
+- **Conclusiones** - Resultados finales (2 endpoints)
+- **Prioridades** - Niveles de urgencia (2 endpoints)
+- **Pasos** - Definición de pasos del proceso (4 endpoints)
+- **Flujo de Pasos** - Asociación pasos-trámites (2 endpoints)
+- **Usuarios y Secciones** - Asignaciones (2 endpoints)
+- **Trámites SIM_FT** - Gestión completa (4 endpoints)
+- **Pasos de Trámites** - Seguimiento detallado (4 endpoints)
+- **Cierre de Trámites** - Finalización (2 endpoints)
+- **Estadísticas** - Reportes y métricas (3 endpoints)
+
+**Endpoints:** ~35 requests  
+**Fecha de creación:** 23 de Octubre de 2025  
+**Versión:** 1.0.0
+
+**Uso:**
+```bash
+newman run postman/SIM_FT_Complete_API.postman_collection.json \
+  --environment postman/env-dev.json \
+  --reporters cli,htmlextra \
+  --reporter-htmlextra-export reports/sim-ft-report.html
+```
+
+**Características especiales:**
+- ✅ Variables automáticas (cod_tramite, num_annio, num_tramite, etc.)
+- ✅ Tests de validación incluidos
+- ✅ Ejemplos de datos realistas
+- ✅ Documentación completa en cada request
+- ✅ Flujo completo de trabajo (crear → listar → actualizar → cerrar)
 
 ---
 
