@@ -701,8 +701,8 @@ class EntrevistaService:
 # SERVICIO DE COMENTARIOS
 # ==========================================
 
-class ComentarioService:
-    """Servicio para manejar comentarios"""
+class PPSHComentarioService:
+    """Servicio para manejar comentarios de PPSH"""
     
     @staticmethod
     def crear_comentario(

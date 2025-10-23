@@ -20,7 +20,7 @@ from datetime import date
 from app.infrastructure import get_db
 from app.services import (
     SolicitudService, DocumentoService, EntrevistaService,
-    ComentarioService, CatalogoService,
+    PPSHComentarioService, CatalogoService,
     PPSHNotFoundException, PPSHBusinessException, PPSHPermissionException
 )
 from app.schemas import (
@@ -568,7 +568,7 @@ async def crear_comentario(
 ):
     """Agrega un comentario (interno o público) a una solicitud"""
     try:
-        return ComentarioService.crear_comentario(
+        return PPSHComentarioService.crear_comentario(
             db=db,
             id_solicitud=id_solicitud,
             comentario_data=comentario,
@@ -597,7 +597,7 @@ async def listar_comentarios(
         if solicitud.user_id_asignado != current_user["user_id"]:
             incluir_internos = False
     
-    return ComentarioService.listar_comentarios(
+    return PPSHComentarioService.listar_comentarios(
         db=db,
         id_solicitud=id_solicitud,
         incluir_internos=incluir_internos
