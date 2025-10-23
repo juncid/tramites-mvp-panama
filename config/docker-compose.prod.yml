@@ -83,17 +83,17 @@ services:
       - backend
     restart: unless-stopped
 
-  # MkDocs Documentation (Production)
-  mkdocs:
-    build:
-      context: ..
-      dockerfile: Dockerfile.mkdocs
-    container_name: tramites-mkdocs-prod
-    ports:
-      - "8001:8000"
-    networks:
-      - tramites-network
-    restart: unless-stopped
+  # MkDocs Documentation (Production) - DESACTIVADO - Contenido con alucinaciones
+  # mkdocs:
+  #   build:
+  #     context: ..
+  #     dockerfile: Dockerfile.mkdocs
+  #   container_name: tramites-mkdocs-prod
+  #   ports:
+  #     - "8001:8000"
+  #   networks:
+  #     - tramites-network
+  #   restart: unless-stopped
 
 networks:
   tramites-network:

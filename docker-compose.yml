@@ -193,25 +193,25 @@ services:
       timeout: 5s
       retries: 3
 
-  # MkDocs - Documentación del proyecto
-  mkdocs:
-    build:
-      context: .
-      dockerfile: Dockerfile.mkdocs
-    container_name: tramites-mkdocs
-    ports:
-      - "8002:8000"
-    volumes:
-      - ./docs-site:/docs
-      - ./mkdocs.yml:/mkdocs.yml:ro
-    networks:
-      - tramites-network
-    command: serve --dev-addr=0.0.0.0:8000
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "5m"
-        max-file: "2"
+  # MkDocs - Documentación del proyecto (DESACTIVADO - Contenido con alucinaciones)
+  # mkdocs:
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile.mkdocs
+  #   container_name: tramites-mkdocs
+  #   ports:
+  #     - "8002:8000"
+  #   volumes:
+  #     - ./docs-site:/docs
+  #     - ./mkdocs.yml:/mkdocs.yml:ro
+  #   networks:
+  #     - tramites-network
+  #   command: serve --dev-addr=0.0.0.0:8000
+  #   logging:
+  #     driver: "json-file"
+  #     options:
+  #       max-size: "5m"
+  #       max-file: "2"
 
 networks:
   tramites-network:
