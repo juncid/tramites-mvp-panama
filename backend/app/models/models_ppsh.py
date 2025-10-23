@@ -33,8 +33,8 @@ class PPSHCausaHumanitaria(Base):
     descripcion = Column(String(500))
     requiere_evidencia = Column(Boolean, nullable=False, default=True)
     activo = Column(Boolean, nullable=False, default=True)
-    FEC_CREA_REG = Column(DateTime, nullable=False, default=func.now())
-    ID_USUAR_CREA = Column(String(17))
+    created_at = Column(DateTime, nullable=False, default=func.now())
+    created_by = Column(String(17))
 
     # Relaciones
     solicitudes = relationship("PPSHSolicitud", back_populates="causa_humanitaria")
@@ -49,12 +49,8 @@ class PPSHTipoDocumento(Base):
     es_obligatorio = Column(Boolean, nullable=False, default=False)
     descripcion = Column(String(300))
     orden = Column(Integer)
-    categoria = Column(String(20), nullable=True, index=True)
     activo = Column(Boolean, nullable=False, default=True)
-    FEC_CREA_REG = Column(DateTime, nullable=False, default=func.now())
-    FEC_MODIF_REG = Column(DateTime, onupdate=func.now())
-    ID_USUAR_CREA = Column(String(17))
-    ID_USUAR_MODIF = Column(String(17))
+    created_at = Column(DateTime, nullable=False, default=func.now())
 
     # Relaciones
     documentos = relationship("PPSHDocumento", back_populates="tipo_documento")
@@ -116,10 +112,8 @@ class PPSHSolicitud(Base):
     fecha_resolucion = Column(Date)
     fecha_vencimiento_permiso = Column(Date)
     activo = Column(Boolean, nullable=False, default=True)
-    FEC_CREA_REG = Column(DateTime, nullable=False, default=func.now())
-    ID_USUAR_CREA = Column(String(17))
-    FEC_MODIF_REG = Column(DateTime, onupdate=func.now())
-    ID_USUAR_MODIF = Column(String(17))
+    created_at = Column(DateTime, nullable=False, default=func.now())
+    created_by = Column(String(17))
 
     # Relaciones
     causa_humanitaria = relationship("PPSHCausaHumanitaria", back_populates="solicitudes")
@@ -167,10 +161,8 @@ class PPSHSolicitante(Base):
     foto = Column(LargeBinary)
     observaciones = Column(String(500))
     activo = Column(Boolean, nullable=False, default=True)
-    FEC_CREA_REG = Column(DateTime, nullable=False, default=func.now())
-    ID_USUAR_CREA = Column(String(17))
-    FEC_MODIF_REG = Column(DateTime, onupdate=func.now())
-    ID_USUAR_MODIF = Column(String(17))
+    created_at = Column(DateTime, nullable=False, default=func.now())
+    created_by = Column(String(17))
 
     # Relaciones
     solicitud = relationship("PPSHSolicitud", back_populates="solicitantes")
@@ -264,10 +256,8 @@ class PPSHEntrevista(Base):
     observaciones = Column(String(2000))
     acta_entrevista = Column(Text)
     requiere_segunda_entrevista = Column(Boolean, nullable=False, default=False)
-    FEC_CREA_REG = Column(DateTime, nullable=False, default=func.now())
-    ID_USUAR_CREA = Column(String(17))
-    FEC_MODIF_REG = Column(DateTime, onupdate=func.now())
-    ID_USUAR_MODIF = Column(String(17))
+    created_at = Column(DateTime, nullable=False, default=func.now())
+    created_by = Column(String(17))
 
     # Relaciones
     solicitud = relationship("PPSHSolicitud", back_populates="entrevistas")
@@ -302,10 +292,8 @@ class PPSHConceptoPago(Base):
     monto_usd = Column(String(10))  # Decimal como string: "800.00"
     descripcion = Column(String(200))
     activo = Column(Boolean, nullable=False, default=True)
-    FEC_CREA_REG = Column(DateTime, nullable=False, default=func.now())
-    ID_USUAR_CREA = Column(String(17))
-    FEC_MODIF_REG = Column(DateTime, onupdate=func.now())
-    ID_USUAR_MODIF = Column(String(17))
+    created_at = Column(DateTime, nullable=False, default=func.now())
+    created_by = Column(String(17))
 
     # Relaciones
     pagos = relationship("PPSHPago", back_populates="concepto")
@@ -328,10 +316,8 @@ class PPSHPago(Base):
     num_cheque = Column(String(20))
     num_transferencia = Column(String(50))
     observaciones = Column(String(500))
-    FEC_CREA_REG = Column(DateTime, nullable=False, default=func.now())
-    ID_USUAR_CREA = Column(String(17))
-    FEC_MODIF_REG = Column(DateTime, onupdate=func.now())
-    ID_USUAR_MODIF = Column(String(17))
+    created_at = Column(DateTime, nullable=False, default=func.now())
+    created_by = Column(String(17))
 
     # Relaciones
     solicitud = relationship("PPSHSolicitud", back_populates="pagos")
