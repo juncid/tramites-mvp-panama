@@ -10,10 +10,10 @@ Documentación completa de la estructura de base de datos del Sistema de Trámit
 |-----------|-------|
 | **Base de Datos** | SQL Server 2019 |
 | **Esquema Principal** | `dbo` |
-| **Total de Tablas** | 30 tablas principales |
-| **Total de Índices** | ~87 índices |
-| **Versión** | 1.0 |
-| **Última Actualización** | 22 de Octubre, 2025 |
+| **Total de Tablas** | 41 tablas principales |
+| **Total de Índices** | ~100 índices |
+| **Versión** | 1.1 |
+| **Última Actualización** | 23 de Octubre, 2025 |
 
 ---
 
@@ -78,7 +78,33 @@ Sistema dinámico de flujos de trabajo configurables.
 
 ---
 
-### 4. Seguridad y Catálogos
+### 4. Módulo SIM_FT (Sistema de Flujo de Trámites)
+
+Sistema de gestión de flujo de trámites con seguimiento paso a paso.
+
+| Tabla | Descripción |
+|-------|-------------|
+| `SIM_FT_ESTATUS` | Catálogo de estados de trámites |
+| `SIM_FT_CONCLUSION` | Tipos de conclusión de trámites |
+| `SIM_FT_PRIORIDAD` | Niveles de prioridad |
+| `SIM_FT_PASOS` | Definición de pasos genéricos |
+| `SIM_FT_PASOXTRAM` | Configuración de flujo por trámite |
+| `SIM_FT_USUA_SEC` | Asignación usuarios-secciones |
+| `SIM_FT_TRAMITE_E` | Encabezado de trámites |
+| `SIM_FT_TRAMITE_D` | Detalle de pasos ejecutados |
+| `SIM_FT_TRAMITE_CIERRE` | Registro de cierre |
+| `SIM_FT_DEPENDTE_CIERRE` | Dependientes en cierre |
+
+**Total: 10 tablas** con sistema completo de seguimiento de trámites paso a paso.
+
+!!! success "Nuevo Módulo - Octubre 2025"
+    Sistema recién implementado para trazabilidad completa de trámites.
+
+[Ver Detalles →](modulo-sim-ft.md){ .md-button }
+
+---
+
+### 5. Seguridad y Catálogos
 
 Tablas de soporte, seguridad y datos maestros.
 
@@ -127,9 +153,10 @@ Tablas de soporte, seguridad y datos maestros.
 
 ```mermaid
 pie title "Tablas por Módulo"
+    "SIM_FT" : 10
+    "Catálogos" : 9
     "PPSH" : 8
     "Workflows" : 7
-    "Catálogos" : 9
     "Seguridad" : 4
     "Trámites Base" : 1
     "Auditoría" : 1
@@ -139,19 +166,19 @@ pie title "Tablas por Módulo"
 
 | Tipo | Cantidad | Descripción |
 |------|----------|-------------|
-| **1:N (One-to-Many)** | 18 | Relaciones padre-hijo |
-| **N:M (Many-to-Many)** | 1 | Usuarios ↔ Roles |
-| **Lookup/Catalog** | 9 | Tablas de referencia |
+| **1:N (One-to-Many)** | 25 | Relaciones padre-hijo |
+| **N:M (Many-to-Many)** | 2 | Usuarios ↔ Roles, Usuarios ↔ Secciones |
+| **Lookup/Catalog** | 12 | Tablas de referencia (incluyendo SIM_FT_*) |
 
 ### Índices y Constraints
 
 | Elemento | Cantidad |
 |----------|----------|
-| Primary Keys (Clustered) | 30 |
-| Unique Constraints | 12 |
-| Foreign Keys | 25 |
-| Performance Indexes | 20 |
-| **Total de Índices** | **~87** |
+| Primary Keys (Clustered) | 41 |
+| Unique Constraints | 15 |
+| Foreign Keys | 32 |
+| Performance Indexes | 25 |
+| **Total de Índices** | **~113** |
 
 [Ver Detalles →](indices-constraints.md){ .md-button }
 
@@ -194,6 +221,14 @@ pie title "Tablas por Módulo"
     SIM_GE_PAIS
     SIM_GE_SEXO
     (prefijo SIM_GE_ + UPPER_CASE)
+    ```
+
+=== "SIM_FT"
+    ```
+    SIM_FT_ESTATUS
+    SIM_FT_TRAMITE_E
+    SIM_FT_TRAMITE_D
+    (prefijo SIM_FT_ + UPPER_CASE)
     ```
 
 ### Campos Estándar

@@ -899,7 +899,171 @@ GO
 
 ---
 
-## 8. Checklist de Mantenimiento
+## 8. Scripts Específicos SIM_FT {#sim_ft}
+
+### 8.1. Limpieza de Trámites Antiguos
+
+```sql
+-- ============================================
+-- Script: Limpieza de Trámites SIM_FT Antiguos
+-- Frecuencia: Mensual
+-- Retención: 5 años
+-- ============================================
+
+-- Archivar trámites antiguos antes de eliminar
+BEGIN TRANSACTION;
+
+-- 1. Crear tablas de archivo si no existen
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'SIM_FT_TRAMITE_E_HISTORICO')
+BEGIN
+    SELECT * INTO SIM_FT_TRAMITE_E_HISTORICO FROM SIM_FT_TRAMITE_E WHERE 1=0;
+END
+
+-- 2. Mover trámites mayores a 5 años
+INSERT INTO SIM_FT_TRAMITE_E_HISTORICO
+SELECT * FROM SIM_FT_TRAMITE_E
+WHERE NUM_ANNIO < YEAR(GETDATE()) - 5
+  AND IND_ESTATUS = 'CO'; -- Solo completados
+
+-- 3. Eliminar detalles archivados
+DELETE d
+FROM SIM_FT_TRAMITE_D d
+INNER JOIN SIM_FT_TRAMITE_E_HISTORICO h 
+  ON d.NUM_ANNIO = h.NUM_ANNIO 
+  AND d.NUM_TRAMITE = h.NUM_TRAMITE;
+
+-- 4. Eliminar encabezados archivados
+DELETE e
+FROM SIM_FT_TRAMITE_E e
+WHERE NUM_ANNIO < YEAR(GETDATE()) - 5
+  AND IND_ESTATUS = 'CO';
+
+COMMIT;
+
+-- Reporte de limpieza
+SELECT 
+    'SIM_FT_TRAMITE_E' as Tabla,
+    COUNT(*) as Registros_Activos
+FROM SIM_FT_TRAMITE_E
+UNION ALL
+SELECT 
+    'SIM_FT_TRAMITE_E_HISTORICO',
+    COUNT(*)
+FROM SIM_FT_TRAMITE_E_HISTORICO;
+```
+
+### 8.2. Actualizar Contadores de Hits
+
+```sql
+-- ============================================
+-- Script: Actualizar Hits de Trámites
+-- Descripción: Recalcular contador de accesos
+-- ============================================
+
+UPDATE e
+SET HITS_TRAMITE = (
+    SELECT COUNT(*)
+    FROM sc_log l
+    WHERE l.tabla_afectada = 'SIM_FT_TRAMITE_E'
+      AND l.operacion = 'SELECT'
+      AND l.registro_id = CONCAT(e.NUM_ANNIO, '-', e.NUM_TRAMITE, '-', e.NUM_REGISTRO)
+      AND l.fecha_hora >= e.FEC_INI_TRAMITE
+)
+FROM SIM_FT_TRAMITE_E e
+WHERE e.IND_ESTATUS IN ('EP', 'PE')
+  AND e.NUM_ANNIO = YEAR(GETDATE());
+```
+
+### 8.3. Análisis de Trámites Atrasados
+
+```sql
+-- ============================================
+-- Script: Análisis de Trámites Atrasados SIM_FT
+-- Descripción: Identificar cuellos de botella
+-- ============================================
+
+WITH TramitesAtrasados AS (
+    SELECT 
+        e.NUM_ANNIO,
+        e.NUM_TRAMITE,
+        e.COD_TRAMITE,
+        d.NUM_PASO,
+        p.NOM_DESCRIPCION as PASO_ACTUAL,
+        d.ID_USUAR_RESP as USUARIO_RESPONSABLE,
+        u.NOMBRE_USUARIO,
+        sec.NOM_SECCION,
+        DATEDIFF(DAY, d.FEC_ACTUALIZA, GETDATE()) as DIAS_EN_PASO,
+        DATEDIFF(DAY, e.FEC_INI_TRAMITE, GETDATE()) as DIAS_TOTALES,
+        pri.NOM_PRIORIDAD
+    FROM SIM_FT_TRAMITE_E e
+    INNER JOIN SIM_FT_TRAMITE_D d 
+      ON e.NUM_ANNIO = d.NUM_ANNIO 
+      AND e.NUM_TRAMITE = d.NUM_TRAMITE
+      AND d.IND_ESTATUS = 'EP'
+    LEFT JOIN SIM_FT_PASOS p 
+      ON d.COD_TRAMITE = p.COD_TRAMITE 
+      AND d.NUM_PASO = p.NUM_PASO
+    LEFT JOIN SEG_TB_USUARIOS u ON d.ID_USUAR_RESP = u.ID_USUARIO
+    LEFT JOIN SIM_GE_SECCION sec ON d.COD_SECCION = sec.COD_SECCION
+    LEFT JOIN SIM_FT_PRIORIDAD pri ON e.IND_PRIORIDAD = pri.COD_PRIORIDAD
+    WHERE e.IND_ESTATUS IN ('PE', 'EP')
+      AND DATEDIFF(DAY, d.FEC_ACTUALIZA, GETDATE()) > 15 -- Más de 15 días
+)
+SELECT 
+    COD_TRAMITE,
+    NUM_PASO,
+    PASO_ACTUAL,
+    NOM_SECCION,
+    COUNT(*) as TRAMITES_ATRASADOS,
+    AVG(DIAS_EN_PASO) as PROMEDIO_DIAS,
+    MAX(DIAS_EN_PASO) as MAX_DIAS
+FROM TramitesAtrasados
+GROUP BY COD_TRAMITE, NUM_PASO, PASO_ACTUAL, NOM_SECCION
+ORDER BY TRAMITES_ATRASADOS DESC, PROMEDIO_DIAS DESC;
+```
+
+### 8.4. Optimización de Índices SIM_FT
+
+```sql
+-- ============================================
+-- Script: Optimización de Índices SIM_FT
+-- Frecuencia: Semanal
+-- ============================================
+
+-- Reorganizar índices fragmentados (5-30%)
+ALTER INDEX IX_SIM_FT_TRAMITE_E_Estatus ON SIM_FT_TRAMITE_E REORGANIZE;
+ALTER INDEX IX_SIM_FT_TRAMITE_D_Usuario ON SIM_FT_TRAMITE_D REORGANIZE;
+
+-- Rebuild índices muy fragmentados (>30%)
+ALTER INDEX ALL ON SIM_FT_TRAMITE_E REBUILD WITH (ONLINE = ON);
+ALTER INDEX ALL ON SIM_FT_TRAMITE_D REBUILD WITH (ONLINE = ON);
+
+-- Actualizar estadísticas
+UPDATE STATISTICS SIM_FT_TRAMITE_E WITH FULLSCAN;
+UPDATE STATISTICS SIM_FT_TRAMITE_D WITH FULLSCAN;
+UPDATE STATISTICS SIM_FT_PASOS WITH FULLSCAN;
+UPDATE STATISTICS SIM_FT_PASOXTRAM WITH FULLSCAN;
+
+-- Reporte de fragmentación
+SELECT 
+    OBJECT_NAME(ips.object_id) AS TableName,
+    i.name AS IndexName,
+    ips.index_type_desc,
+    ips.avg_fragmentation_in_percent,
+    ips.page_count
+FROM sys.dm_db_index_physical_stats(
+    DB_ID(), NULL, NULL, NULL, 'LIMITED'
+) ips
+INNER JOIN sys.indexes i ON ips.object_id = i.object_id 
+  AND ips.index_id = i.index_id
+WHERE OBJECT_NAME(ips.object_id) LIKE 'SIM_FT%'
+  AND ips.avg_fragmentation_in_percent > 5
+ORDER BY ips.avg_fragmentation_in_percent DESC;
+```
+
+---
+
+## 9. Checklist de Mantenimiento
 
 ### Checklist Diario
 
@@ -908,6 +1072,7 @@ GO
 - [ ] Verificar espacio en disco > 20% libre
 - [ ] Revisar jobs fallidos
 - [ ] Verificar replicación (si aplica)
+- [ ] Revisar trámites SIM_FT atrasados
 
 ### Checklist Semanal
 

@@ -207,6 +207,7 @@ nav:
     - Módulo Trámites: database/modulo-tramites.md
     - Módulo PPSH: database/modulo-ppsh.md
     - Módulo Workflows: database/modulo-workflows.md
+    - Módulo SIM_FT: database/modulo-sim-ft.md
     - Seguridad y Catálogos: database/seguridad-catalogos.md
     - Índices y Constraints: database/indices-constraints.md
     - Scripts de Mantenimiento: database/scripts.md
