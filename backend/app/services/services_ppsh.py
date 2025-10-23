@@ -207,7 +207,7 @@ class SolicitudService:
             historial = models_ppsh.PPSHEstadoHistorial(
                 id_solicitud=solicitud.id_solicitud,
                 estado_anterior=None,
-                estado_nuevo="RECEPCION",
+                estado_nuevo="RECIBIDO",
                 fecha_cambio=datetime.now(),
                 user_id=user_id,
                 observaciones="Solicitud creada",
