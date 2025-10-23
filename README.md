@@ -790,15 +790,57 @@ Get-ChildItem backend\postman\*_API*.json | ForEach-Object {
 
 ### 📝 Variables de Entorno
 
-Configura las siguientes variables en Postman:
+#### Opción 1: Variables en las Colecciones (Incluidas)
 
-```json
+Todas las colecciones ya incluyen sus variables predefinidas. Al importarlas en Postman, estarán listas para usar.
+
+#### Opción 2: Archivos de Entorno (Recomendado)
+
+El proyecto incluye archivos de entorno predefinidos en `backend/postman/`:
+
+```bash
+# Desarrollo Local
+backend/postman/env-dev.json
 {
   "base_url": "http://localhost:8000",
-  "api_version": "v1",
-  "token": ""
+  "api_prefix": "/api/v1",
+  "username": "admin",
+  "password": "admin123"
 }
+
+# Staging
+backend/postman/env-staging.json
+{
+  "base_url": "https://staging.tramites.gob.pa",
+  "api_prefix": "/api/v1"
+}
+
+# Producción (ejemplo - NO commitear con datos reales)
+backend/postman/env-prod.json.example
 ```
+
+**Importar entorno en Postman:**
+1. Click en "Environments" → "Import"
+2. Seleccionar `backend/postman/env-dev.json`
+3. Activar el entorno importado
+
+**Usar con Newman:**
+```bash
+newman run backend/postman/PPSH_Complete_API.postman_collection.json \
+  --environment backend/postman/env-dev.json
+```
+
+#### Variables por Colección
+
+| Colección | Variables Automáticas | Variables Requeridas |
+|-----------|----------------------|---------------------|
+| **Tramites_Base_API** | `tramite_id` | Ninguna |
+| **PPSH_Complete_API** | `solicitud_id`, `num_expediente`, `solicitante_id` | Ninguna |
+| **PPSH_Upload_Tests** | Ninguna | `solicitud_id` (existente) |
+| **Workflow_API_Tests** | `workflow_id`, `etapa_id`, `instancia_id` | Ninguna |
+| **SIM_FT_Complete_API** | `cod_tramite`, `num_annio`, `num_tramite` | Ninguna |
+
+**📖 Documentación completa de variables:** [backend/postman/README.md#variables](./backend/postman/README.md#-variables-de-entorno-y-colección)
 
 ### 📚 Documentación Adicional
 

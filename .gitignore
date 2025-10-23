@@ -42,6 +42,11 @@ env/
 .env.local
 .env.*.local
 
+# Postman environments with sensitive data
+backend/postman/env-prod.json
+backend/postman/*-prod.json
+backend/postman/*.secret.json
+
 # Node
 node_modules/
 npm-debug.log*

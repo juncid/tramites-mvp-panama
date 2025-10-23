@@ -188,32 +188,267 @@ Get-ChildItem postman\*.json | ForEach-Object {
 
 ---
 
-## 📊 Variables de Entorno
+## 📊 Variables de Entorno y Colección
 
-### Desarrollo Local
+### Variables Globales (Todas las Colecciones)
+
+Cada colección utiliza las siguientes variables base:
+
+| Variable | Descripción | Valor Desarrollo | Valor Producción |
+|----------|-------------|------------------|------------------|
+| `base_url` | URL base del servidor API | `http://localhost:8000` | `https://api.tramites.gob.pa` |
+| `api_prefix` | Prefijo de la ruta API | `/api/v1` | `/api/v1` |
+
+---
+
+### Variables por Colección
+
+#### 1. **Tramites_Base_API.postman_collection.json**
+
 ```json
 {
-  "baseUrl": "http://localhost:8000",
-  "apiVersion": "v1",
-  "token": ""
+  "base_url": "http://localhost:8000",
+  "api_prefix": "/api/v1",
+  "tramite_id": ""
 }
 ```
 
-### Testing
+**Variables automáticas:**
+- `tramite_id` - Se genera automáticamente al crear un trámite (usado en GET, PUT, DELETE)
+
+---
+
+#### 2. **PPSH_Complete_API.postman_collection.json**
+
 ```json
 {
-  "baseUrl": "http://localhost:8001",
-  "apiVersion": "v1",
-  "token": ""
+  "base_url": "http://localhost:8000",
+  "api_prefix": "/api/v1/ppsh",
+  "solicitud_id": "",
+  "solicitante_id": "",
+  "num_expediente": "",
+  "documento_id": ""
 }
 ```
 
-### Staging
+**Variables automáticas:**
+- `solicitud_id` - ID de solicitud PPSH creada
+- `solicitante_id` - ID del solicitante registrado
+- `num_expediente` - Número de expediente generado (formato: PPSH-YYYY-NNNN)
+- `documento_id` - ID del documento cargado
+
+**Variables manuales requeridas:**
+- Ninguna (todas se generan en el flujo)
+
+---
+
+#### 3. **PPSH_Upload_Tests.postman_collection.json**
+
 ```json
 {
-  "baseUrl": "https://staging.tramites.gob.pa",
-  "apiVersion": "v1",
-  "token": ""
+  "base_url": "http://localhost:8000",
+  "solicitud_id": "123"
+}
+```
+
+**Variables manuales requeridas:**
+- `solicitud_id` - ID de solicitud PPSH existente (debe crearse primero con PPSH_Complete_API)
+
+**Nota:** Esta colección requiere archivos de prueba en `backend/postman/test-files/`:
+- `sample.pdf` (PDF válido < 10MB)
+- `sample.jpg` (Imagen JPG válida)
+- `invalid.txt` (Archivo de texto para prueba de validación)
+
+---
+
+#### 4. **Workflow_API_Tests.postman_collection.json**
+
+```json
+{
+  "base_url": "http://localhost:8000",
+  "api_prefix": "/api/v1/workflow",
+  "workflow_id": "",
+  "etapa_id": "",
+  "pregunta_id": "",
+  "conexion_id": "",
+  "instancia_id": ""
+}
+```
+
+**Variables automáticas:**
+- `workflow_id` - ID del workflow creado
+- `etapa_id` - ID de la etapa del workflow
+- `pregunta_id` - ID de la pregunta dinámica
+- `conexion_id` - ID de la conexión entre etapas
+- `instancia_id` - ID de la instancia de workflow ejecutándose
+
+---
+
+#### 5. **SIM_FT_Complete_API.postman_collection.json** ⭐
+
+```json
+{
+  "base_url": "http://localhost:8000",
+  "api_prefix": "/api/v1/sim-ft",
+  "cod_tramite": "",
+  "num_annio": "",
+  "num_tramite": "",
+  "num_registro": "",
+  "num_paso": ""
+}
+```
+
+**Variables automáticas:**
+- `cod_tramite` - Código del tipo de trámite (ej: "NAT", "RES", "VIS")
+- `num_annio` - Año del trámite (ej: 2025)
+- `num_tramite` - Número correlativo del trámite
+- `num_registro` - Número de registro único
+- `num_paso` - Número del paso en el flujo
+
+**Nota:** Todas las variables se generan automáticamente al ejecutar los endpoints en orden.
+
+---
+
+### 🔧 Configuración de Variables en Postman
+
+#### Opción 1: Variables de Colección (Recomendado para pruebas locales)
+
+Las variables ya están incluidas en cada archivo `.json`. Al importar, Postman las carga automáticamente.
+
+#### Opción 2: Environment (Recomendado para múltiples entornos)
+
+Crear archivo `env-dev.json`:
+
+```json
+{
+  "id": "dev-environment",
+  "name": "Development",
+  "values": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8000",
+      "enabled": true
+    },
+    {
+      "key": "api_version",
+      "value": "v1",
+      "enabled": true
+    },
+    {
+      "key": "auth_token",
+      "value": "",
+      "enabled": true
+    }
+  ]
+}
+```
+
+Crear archivo `env-prod.json`:
+
+```json
+{
+  "id": "prod-environment",
+  "name": "Production",
+  "values": [
+    {
+      "key": "base_url",
+      "value": "https://api.tramites.gob.pa",
+      "enabled": true
+    },
+    {
+      "key": "api_version",
+      "value": "v1",
+      "enabled": true
+    },
+    {
+      "key": "auth_token",
+      "value": "{{SECURE_TOKEN}}",
+      "enabled": true
+    }
+  ]
+}
+```
+
+#### Opción 3: Newman CLI con variables
+
+```bash
+# Usando archivo de entorno
+newman run PPSH_Complete_API.postman_collection.json \
+  --environment env-dev.json
+
+# Sobrescribiendo variables específicas
+newman run SIM_FT_Complete_API.postman_collection.json \
+  --env-var "base_url=http://localhost:9000" \
+  --env-var "api_prefix=/api/v2/sim-ft"
+
+# Usando archivo de variables globales
+newman run Workflow_API_Tests.postman_collection.json \
+  --globals globals.json
+```
+
+---
+
+### 📝 Ejemplo Práctico: Ejecutar Colección SIM_FT
+
+```bash
+# 1. Sin variables adicionales (usa las predefinidas)
+newman run SIM_FT_Complete_API.postman_collection.json
+
+# 2. Con entorno personalizado
+newman run SIM_FT_Complete_API.postman_collection.json \
+  --environment env-staging.json
+
+# 3. Con variables inline
+newman run SIM_FT_Complete_API.postman_collection.json \
+  --env-var "base_url=http://192.168.1.100:8000"
+
+# 4. Con reporte HTML
+newman run SIM_FT_Complete_API.postman_collection.json \
+  --environment env-dev.json \
+  --reporters htmlextra \
+  --reporter-htmlextra-export reports/sim-ft-$(date +%Y%m%d).html
+```
+
+---
+
+### 🔐 Variables Sensibles (Autenticación)
+
+Para colecciones que requieren autenticación:
+
+```json
+{
+  "auth_token": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "username": "admin",
+  "password": "admin123",
+  "api_key": "your-api-key-here"
+}
+```
+
+**⚠️ IMPORTANTE:**
+- **NO** commitear variables con tokens reales en Git
+- Usar variables de entorno del sistema: `{{$env:API_TOKEN}}`
+- En CI/CD, usar secrets del pipeline
+
+---
+
+### 🎯 Variables Dinámicas de Postman
+
+Postman provee variables dinámicas útiles:
+
+| Variable | Ejemplo | Descripción |
+|----------|---------|-------------|
+| `{{$guid}}` | `a5f1c3e7-...` | GUID único |
+| `{{$timestamp}}` | `1635789012` | Timestamp Unix actual |
+| `{{$randomInt}}` | `42` | Entero aleatorio 0-1000 |
+| `{{$randomEmail}}` | `john@email.com` | Email aleatorio |
+| `{{$randomFirstName}}` | `María` | Nombre aleatorio |
+
+**Uso en requests:**
+```json
+{
+  "email": "{{$randomEmail}}",
+  "created_at": "{{$timestamp}}",
+  "transaction_id": "{{$guid}}"
 }
 ```
 
