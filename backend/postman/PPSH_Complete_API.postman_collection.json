@@ -598,7 +598,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"estado_nuevo\": \"APROBADO\",\n  \"observaciones\": \"Solicitud aprobada después de revisión completa y entrevista satisfactoria.\",\n  \"tipo_dictamen\": \"APROBACION\",\n  \"detalle_dictamen\": \"Cumple todos los requisitos establecidos. Se recomienda emisión de permiso por 2 años.\"\n}"
+              "raw": "{\n  \"estado_nuevo\": \"APROBADO\",\n  \"observaciones\": \"Solicitud aprobada después de revisión completa y entrevista satisfactoria.\",\n  \"es_dictamen\": true,\n  \"tipo_dictamen\": \"FAVORABLE\",\n  \"dictamen_detalle\": \"Cumple todos los requisitos establecidos. Se recomienda emisión de permiso por 2 años.\"\n}"
             },
             "url": {
               "raw": "{{base_url}}{{api_prefix}}/solicitudes/{{solicitud_id}}/cambiar-estado",
@@ -621,7 +621,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"estado_nuevo\": \"RECHAZADO\",\n  \"observaciones\": \"Solicitud rechazada por inconsistencias en documentación.\",\n  \"tipo_dictamen\": \"RECHAZO\",\n  \"detalle_dictamen\": \"No se pudo verificar la autenticidad de los documentos presentados. Documentación insuficiente para comprobar situación de riesgo.\"\n}"
+              "raw": "{\n  \"estado_nuevo\": \"RECHAZADO\",\n  \"observaciones\": \"Solicitud rechazada por inconsistencias en documentación.\",\n  \"es_dictamen\": true,\n  \"tipo_dictamen\": \"DESFAVORABLE\",\n  \"dictamen_detalle\": \"No se pudo verificar la autenticidad de los documentos presentados. Documentación insuficiente para comprobar situación de riesgo.\"\n}"
             },
             "url": {
               "raw": "{{base_url}}{{api_prefix}}/solicitudes/{{solicitud_id}}/cambiar-estado",
