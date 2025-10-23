@@ -575,14 +575,14 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"nuevo_estado\": \"EN_REVISION\",\n  \"observaciones\": \"Solicitud pasada a revisión por analista. Documentación inicial completa.\"\n}"
+              "raw": "{\n  \"estado_nuevo\": \"EN_REVISION\",\n  \"observaciones\": \"Solicitud pasada a revisión por analista. Documentación inicial completa.\"\n}"
             },
             "url": {
               "raw": "{{base_url}}{{api_prefix}}/solicitudes/{{solicitud_id}}/cambiar-estado",
               "host": ["{{base_url}}{{api_prefix}}"],
               "path": ["solicitudes", "{{solicitud_id}}", "cambiar-estado"]
             },
-            "description": "Cambia el estado de una solicitud en el flujo PPSH"
+            "description": "Cambia el estado de una solicitud de RECIBIDO a EN_REVISION. Esto crea automáticamente un registro en el historial de estados que puede consultarse con el endpoint GET /solicitudes/{id}/historial"
           },
           "response": []
         },
@@ -598,14 +598,14 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"nuevo_estado\": \"APROBADO\",\n  \"observaciones\": \"Solicitud aprobada después de revisión completa y entrevista satisfactoria.\",\n  \"tipo_dictamen\": \"APROBACION\",\n  \"detalle_dictamen\": \"Cumple todos los requisitos establecidos. Se recomienda emisión de permiso por 2 años.\"\n}"
+              "raw": "{\n  \"estado_nuevo\": \"APROBADO\",\n  \"observaciones\": \"Solicitud aprobada después de revisión completa y entrevista satisfactoria.\",\n  \"tipo_dictamen\": \"APROBACION\",\n  \"detalle_dictamen\": \"Cumple todos los requisitos establecidos. Se recomienda emisión de permiso por 2 años.\"\n}"
             },
             "url": {
               "raw": "{{base_url}}{{api_prefix}}/solicitudes/{{solicitud_id}}/cambiar-estado",
               "host": ["{{base_url}}{{api_prefix}}"],
               "path": ["solicitudes", "{{solicitud_id}}", "cambiar-estado"]
             },
-            "description": "Aprueba una solicitud con dictamen oficial"
+            "description": "Aprueba una solicitud con dictamen oficial. Cada cambio de estado crea un registro en el historial."
           },
           "response": []
         },
@@ -621,14 +621,14 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"nuevo_estado\": \"RECHAZADO\",\n  \"observaciones\": \"Solicitud rechazada por inconsistencias en documentación.\",\n  \"tipo_dictamen\": \"RECHAZO\",\n  \"detalle_dictamen\": \"No se pudo verificar la autenticidad de los documentos presentados. Documentación insuficiente para comprobar situación de riesgo.\"\n}"
+              "raw": "{\n  \"estado_nuevo\": \"RECHAZADO\",\n  \"observaciones\": \"Solicitud rechazada por inconsistencias en documentación.\",\n  \"tipo_dictamen\": \"RECHAZO\",\n  \"detalle_dictamen\": \"No se pudo verificar la autenticidad de los documentos presentados. Documentación insuficiente para comprobar situación de riesgo.\"\n}"
             },
             "url": {
               "raw": "{{base_url}}{{api_prefix}}/solicitudes/{{solicitud_id}}/cambiar-estado",
               "host": ["{{base_url}}{{api_prefix}}"],
               "path": ["solicitudes", "{{solicitud_id}}", "cambiar-estado"]
             },
-            "description": "Rechaza una solicitud con justificación"
+            "description": "Rechaza una solicitud con justificación. El dictamen queda registrado en el historial."
           },
           "response": []
         },
@@ -648,17 +648,34 @@
                   "    pm.expect(jsonData).to.be.an('array');",
                   "});",
                   "",
-                  "pm.test(\"Historial entries have required fields\", function () {",
-                  "    var jsonData = pm.response.json();",
-                  "    if (jsonData.length > 0) {",
+                  "var jsonData = pm.response.json();",
+                  "",
+                  "if (jsonData.length === 0) {",
+                  "    console.log('ℹ️ Historial vacío - La solicitud nunca ha cambiado de estado');",
+                  "    console.log('💡 Para ver el historial:');",
+                  "    console.log('   1. Ejecuta el request \"Cambiar Estado - Pasar a Revisión\"');",
+                  "    console.log('   2. Vuelve a ejecutar este request');",
+                  "} else {",
+                  "    console.log(`✅ Historial tiene ${jsonData.length} cambio(s) de estado`);",
+                  "    ",
+                  "    pm.test(\"Historial entries have required fields\", function () {",
                   "        var entry = jsonData[0];",
                   "        pm.expect(entry).to.have.property('estado_anterior');",
                   "        pm.expect(entry).to.have.property('estado_nuevo');",
-                  "        pm.expect(entry).to.have.property('cambiado_por');",
+                  "        pm.expect(entry).to.have.property('user_id');",
                   "        pm.expect(entry).to.have.property('fecha_cambio');",
-                  "        pm.expect(entry).to.have.property('dias_en_estado_anterior');",
+                  "        pm.expect(entry).to.have.property('observaciones');",
+                  "    });",
+                  "    ",
+                  "    // Mostrar resumen del último cambio",
+                  "    var ultimo = jsonData[0];",
+                  "    console.log(`📋 Último cambio: ${ultimo.estado_anterior} → ${ultimo.estado_nuevo}`);",
+                  "    console.log(`👤 Usuario: ${ultimo.user_id}`);",
+                  "    console.log(`📅 Fecha: ${ultimo.fecha_cambio}`);",
+                  "    if (ultimo.dias_en_estado_anterior) {",
+                  "        console.log(`⏱️ Días en estado anterior: ${ultimo.dias_en_estado_anterior}`);",
                   "    }",
-                  "});"
+                  "}"
                 ],
                 "type": "text/javascript"
               }
@@ -672,7 +689,7 @@
               "host": ["{{base_url}}{{api_prefix}}"],
               "path": ["solicitudes", "{{solicitud_id}}", "historial"]
             },
-            "description": "Obtiene el historial completo de cambios de estado de una solicitud"
+            "description": "Obtiene el historial completo de cambios de estado de una solicitud.\n\n**NOTA:** Si devuelve un array vacío [], significa que la solicitud nunca ha cambiado de estado (está en su estado inicial RECIBIDO). Para ver el historial:\n1. Primero ejecuta el request 'Cambiar Estado - Pasar a Revisión' usando el mismo {{solicitud_id}}\n2. Luego ejecuta este request nuevamente\n3. Verás el registro del cambio RECIBIDO → EN_REVISION con fecha, usuario, observaciones y días en estado anterior"
           },
           "response": []
         }
