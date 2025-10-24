@@ -5,6 +5,7 @@ Endpoints API REST para gestión de trámites migratorios
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, or_, desc, func
+from sqlalchemy.exc import IntegrityError
 from typing import List, Optional
 from datetime import datetime
 import json
@@ -206,11 +207,18 @@ async def get_estatus_by_id(cod_estatus: str, db: Session = Depends(get_db)):
 @router.post("/estatus", response_model=SimFtEstatusResponse, status_code=status.HTTP_201_CREATED)
 async def create_estatus(estatus: SimFtEstatusCreate, db: Session = Depends(get_db)):
     """Crear un nuevo estado"""
-    db_estatus = SimFtEstatus(**estatus.model_dump())
-    db.add(db_estatus)
-    db.commit()
-    db.refresh(db_estatus)
-    return db_estatus
+    try:
+        db_estatus = SimFtEstatus(**estatus.model_dump())
+        db.add(db_estatus)
+        db.commit()
+        db.refresh(db_estatus)
+        return db_estatus
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"El estatus con código '{estatus.COD_ESTATUS}' ya existe"
+        )
 
 
 @router.put("/estatus/{cod_estatus}", response_model=SimFtEstatusResponse)
@@ -263,11 +271,18 @@ async def get_conclusiones(
 @router.post("/conclusiones", response_model=SimFtConclusionResponse, status_code=status.HTTP_201_CREATED)
 async def create_conclusion(conclusion: SimFtConclusionCreate, db: Session = Depends(get_db)):
     """Crear una nueva conclusión"""
-    db_conclusion = SimFtConclusion(**conclusion.model_dump())
-    db.add(db_conclusion)
-    db.commit()
-    db.refresh(db_conclusion)
-    return db_conclusion
+    try:
+        db_conclusion = SimFtConclusion(**conclusion.model_dump())
+        db.add(db_conclusion)
+        db.commit()
+        db.refresh(db_conclusion)
+        return db_conclusion
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"La conclusión con código '{conclusion.COD_CONCLUSION}' ya existe"
+        )
 
 
 # ============================================================================
@@ -293,11 +308,18 @@ async def get_prioridades(
 @router.post("/prioridades", response_model=SimFtPrioridadResponse, status_code=status.HTTP_201_CREATED)
 async def create_prioridad(prioridad: SimFtPrioridadCreate, db: Session = Depends(get_db)):
     """Crear una nueva prioridad"""
-    db_prioridad = SimFtPrioridad(**prioridad.model_dump())
-    db.add(db_prioridad)
-    db.commit()
-    db.refresh(db_prioridad)
-    return db_prioridad
+    try:
+        db_prioridad = SimFtPrioridad(**prioridad.model_dump())
+        db.add(db_prioridad)
+        db.commit()
+        db.refresh(db_prioridad)
+        return db_prioridad
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"La prioridad con código '{prioridad.COD_PRIORIDAD}' ya existe"
+        )
 
 
 # ============================================================================
@@ -530,7 +552,22 @@ async def get_tramites(
     limit: int = 100,
     db: Session = Depends(get_db)
 ):
-    """Obtener trámites (encabezados)"""
+    """Obtener trámites (encabezados) con cache de Redis"""
+    redis = get_redis()
+    
+    # Generar cache key basado en todos los parámetros
+    cache_key = f"sim_ft:tramites:{num_annio}:{cod_tramite}:{ind_estatus}:{ind_prioridad}:{skip}:{limit}"
+    if fecha_desde:
+        cache_key += f":{fecha_desde.isoformat()}"
+    if fecha_hasta:
+        cache_key += f":{fecha_hasta.isoformat()}"
+    
+    # Intentar obtener del cache
+    cached_data = redis.get(cache_key)
+    if cached_data:
+        return json.loads(cached_data)
+    
+    # Si no está en cache, consultar BD
     query = db.query(SimFtTramiteE)
     
     if num_annio:
@@ -551,10 +588,31 @@ async def get_tramites(
     if fecha_hasta:
         query = query.filter(SimFtTramiteE.FEC_INI_TRAMITE <= fecha_hasta)
     
-    return query.order_by(
+    tramites = query.order_by(
         desc(SimFtTramiteE.NUM_ANNIO),
         desc(SimFtTramiteE.NUM_TRAMITE)
     ).offset(skip).limit(limit).all()
+    
+    # Cachear resultado (5 minutos)
+    redis.setex(cache_key, 300, json.dumps([
+        {
+            "NUM_ANNIO": t.NUM_ANNIO,
+            "NUM_TRAMITE": t.NUM_TRAMITE,
+            "COD_TRAMITE": t.COD_TRAMITE,
+            "NUM_REGISTRO": t.NUM_REGISTRO,
+            "FEC_INI_TRAMITE": t.FEC_INI_TRAMITE.isoformat() if t.FEC_INI_TRAMITE else None,
+            "FEC_FIN_TRAMITE": t.FEC_FIN_TRAMITE.isoformat() if t.FEC_FIN_TRAMITE else None,
+            "IND_ESTATUS": t.IND_ESTATUS,
+            "IND_PRIORIDAD": t.IND_PRIORIDAD,
+            "HITS_TRAMITE": t.HITS_TRAMITE,
+            "OBS_OBSERVA": t.OBS_OBSERVA,
+            "FEC_ACTUALIZA": t.FEC_ACTUALIZA.isoformat() if t.FEC_ACTUALIZA else None,
+            "IND_CONCLUSION": t.IND_CONCLUSION,
+            "ID_USUARIO_CREA": t.ID_USUARIO_CREA
+        } for t in tramites
+    ]))
+    
+    return tramites
 
 
 @router.get("/tramites/{num_annio}/{num_tramite}/{num_registro}", response_model=SimFtTramiteEResponse)
@@ -564,7 +622,18 @@ async def get_tramite(
     num_registro: int,
     db: Session = Depends(get_db)
 ):
-    """Obtener un trámite específico"""
+    """Obtener un trámite específico con cache"""
+    redis = get_redis()
+    
+    # Build cache key
+    cache_key = f"sim_ft:tramite:{num_annio}:{num_tramite}:{num_registro}"
+    
+    # Try to get from cache
+    cached_data = redis.get(cache_key)
+    if cached_data:
+        return json.loads(cached_data)
+    
+    # Query database
     tramite = db.query(SimFtTramiteE).filter(
         and_(
             SimFtTramiteE.NUM_ANNIO == num_annio,
@@ -579,6 +648,27 @@ async def get_tramite(
             detail=f"Trámite {num_annio}-{num_tramite}-{num_registro} no encontrado"
         )
     
+    # Cache result
+    redis.setex(
+        cache_key,
+        300,  # 5 minutes
+        json.dumps({
+            "NUM_ANNIO": tramite.NUM_ANNIO,
+            "NUM_TRAMITE": tramite.NUM_TRAMITE,
+            "COD_TRAMITE": tramite.COD_TRAMITE,
+            "NUM_REGISTRO": tramite.NUM_REGISTRO,
+            "FEC_INI_TRAMITE": tramite.FEC_INI_TRAMITE.isoformat() if tramite.FEC_INI_TRAMITE else None,
+            "FEC_FIN_TRAMITE": tramite.FEC_FIN_TRAMITE.isoformat() if tramite.FEC_FIN_TRAMITE else None,
+            "IND_ESTATUS": tramite.IND_ESTATUS,
+            "IND_PRIORIDAD": tramite.IND_PRIORIDAD,
+            "HITS_TRAMITE": tramite.HITS_TRAMITE,
+            "OBS_OBSERVA": tramite.OBS_OBSERVA,
+            "FEC_ACTUALIZA": tramite.FEC_ACTUALIZA.isoformat() if tramite.FEC_ACTUALIZA else None,
+            "IND_CONCLUSION": tramite.IND_CONCLUSION,
+            "ID_USUARIO_CREA": tramite.ID_USUARIO_CREA
+        })
+    )
+    
     return tramite
 
 
@@ -587,7 +677,9 @@ async def create_tramite(
     tramite: SimFtTramiteECreate,
     db: Session = Depends(get_db)
 ):
-    """Crear un nuevo trámite"""
+    """Crear un nuevo trámite e invalidar cache"""
+    redis = get_redis()
+    
     # Verificar que existe el tipo de trámite
     tipo_exists = db.query(SimFtTramites).filter(
         SimFtTramites.COD_TRAMITE == tramite.COD_TRAMITE
@@ -613,6 +705,11 @@ async def create_tramite(
     db.commit()
     db.refresh(db_tramite)
     
+    # Invalidar cache de trámites
+    keys = redis.keys("sim_ft:tramites:*")
+    if keys:
+        redis.delete(*keys)
+    
     return db_tramite
 
 
@@ -624,7 +721,9 @@ async def update_tramite(
     tramite_update: SimFtTramiteEUpdate,
     db: Session = Depends(get_db)
 ):
-    """Actualizar un trámite"""
+    """Actualizar un trámite e invalidar cache"""
+    redis = get_redis()
+    
     db_tramite = db.query(SimFtTramiteE).filter(
         and_(
             SimFtTramiteE.NUM_ANNIO == num_annio,
@@ -642,6 +741,16 @@ async def update_tramite(
     update_data = tramite_update.model_dump(exclude_unset=True)
     for field, value in update_data.items():
         setattr(db_tramite, field, value)
+    
+    db.commit()
+    db.refresh(db_tramite)
+    
+    # Invalidar cache de trámites
+    keys = redis.keys("sim_ft:tramites:*")
+    if keys:
+        redis.delete(*keys)
+    
+    return db_tramite
     
     db_tramite.FEC_ACTUALIZA = datetime.now()
     db.commit()
