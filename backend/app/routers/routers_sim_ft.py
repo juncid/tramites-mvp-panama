@@ -793,20 +793,27 @@ async def create_tramite_paso(
     paso_data['NUM_TRAMITE'] = num_tramite
     paso_data['NUM_ACTIVIDAD'] = (max_actividad or 0) + 1
     
-    db_paso = SimFtTramiteD(**paso_data)
-    db.add(db_paso)
-    db.commit()
-    db.refresh(db_paso)
-    
-    # Actualizar el trámite
-    tramite_exists.FEC_ACTUALIZA = datetime.now()
-    # Inicializar HITS_TRAMITE si es None
-    if tramite_exists.HITS_TRAMITE is None:
-        tramite_exists.HITS_TRAMITE = 0
-    tramite_exists.HITS_TRAMITE += 1
-    db.commit()
-    
-    return db_paso
+    try:
+        db_paso = SimFtTramiteD(**paso_data)
+        db.add(db_paso)
+        db.commit()
+        db.refresh(db_paso)
+        
+        # Actualizar el trámite
+        tramite_exists.FEC_ACTUALIZA = datetime.now()
+        # Inicializar HITS_TRAMITE si es None
+        if tramite_exists.HITS_TRAMITE is None:
+            tramite_exists.HITS_TRAMITE = 0
+        tramite_exists.HITS_TRAMITE += 1
+        db.commit()
+        
+        return db_paso
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"El paso {paso.NUM_PASO} con registro {paso.NUM_REGISTRO} ya existe para el trámite {num_annio}-{num_tramite}. Use PUT para actualizar."
+        )
 
 
 @router.put("/tramites/{num_annio}/{num_tramite}/{num_paso}/{num_registro}", response_model=SimFtTramiteDResponse)
