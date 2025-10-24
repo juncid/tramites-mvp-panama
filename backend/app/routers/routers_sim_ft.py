@@ -767,7 +767,7 @@ async def update_tramite(
 async def get_tramite_pasos(
     num_annio: int,
     num_tramite: int,
-    num_registro: Optional[int] = None,
+    num_registro: Optional[int] = Query(None, description="Número de registro del trámite"),
     db: Session = Depends(get_db)
 ):
     """Obtener los pasos de un trámite"""
