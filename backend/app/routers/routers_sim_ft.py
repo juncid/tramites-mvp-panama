@@ -2,7 +2,7 @@
 Routers para el Sistema Integrado de Migración SIM_FT_*
 Endpoints API REST para gestión de trámites migratorios
 """
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query, Path
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, or_, desc, func
 from sqlalchemy.exc import IntegrityError
@@ -615,62 +615,6 @@ async def get_tramites(
     return tramites
 
 
-@router.get("/tramites/{num_annio}/{num_tramite}/{num_registro}", response_model=SimFtTramiteEResponse)
-async def get_tramite(
-    num_annio: int,
-    num_tramite: int,
-    num_registro: int,
-    db: Session = Depends(get_db)
-):
-    """Obtener un trámite específico con cache"""
-    redis = get_redis()
-    
-    # Build cache key
-    cache_key = f"sim_ft:tramite:{num_annio}:{num_tramite}:{num_registro}"
-    
-    # Try to get from cache
-    cached_data = redis.get(cache_key)
-    if cached_data:
-        return json.loads(cached_data)
-    
-    # Query database
-    tramite = db.query(SimFtTramiteE).filter(
-        and_(
-            SimFtTramiteE.NUM_ANNIO == num_annio,
-            SimFtTramiteE.NUM_TRAMITE == num_tramite,
-            SimFtTramiteE.NUM_REGISTRO == num_registro
-        )
-    ).first()
-    
-    if not tramite:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Trámite {num_annio}-{num_tramite}-{num_registro} no encontrado"
-        )
-    
-    # Cache result
-    redis.setex(
-        cache_key,
-        300,  # 5 minutes
-        json.dumps({
-            "NUM_ANNIO": tramite.NUM_ANNIO,
-            "NUM_TRAMITE": tramite.NUM_TRAMITE,
-            "COD_TRAMITE": tramite.COD_TRAMITE,
-            "NUM_REGISTRO": tramite.NUM_REGISTRO,
-            "FEC_INI_TRAMITE": tramite.FEC_INI_TRAMITE.isoformat() if tramite.FEC_INI_TRAMITE else None,
-            "FEC_FIN_TRAMITE": tramite.FEC_FIN_TRAMITE.isoformat() if tramite.FEC_FIN_TRAMITE else None,
-            "IND_ESTATUS": tramite.IND_ESTATUS,
-            "IND_PRIORIDAD": tramite.IND_PRIORIDAD,
-            "HITS_TRAMITE": tramite.HITS_TRAMITE,
-            "OBS_OBSERVA": tramite.OBS_OBSERVA,
-            "FEC_ACTUALIZA": tramite.FEC_ACTUALIZA.isoformat() if tramite.FEC_ACTUALIZA else None,
-            "IND_CONCLUSION": tramite.IND_CONCLUSION,
-            "ID_USUARIO_CREA": tramite.ID_USUARIO_CREA
-        })
-    )
-    
-    return tramite
-
 
 @router.post("/tramites", response_model=SimFtTramiteEResponse, status_code=status.HTTP_201_CREATED)
 async def create_tramite(
@@ -896,6 +840,63 @@ async def update_tramite_paso(
     db.refresh(db_paso)
     
     return db_paso
+
+
+@router.get("/tramites/{num_annio}/{num_tramite}/{num_registro}", response_model=SimFtTramiteEResponse)
+async def get_tramite(
+    num_annio: int,
+    num_tramite: int,
+    num_registro: int,
+    db: Session = Depends(get_db)
+):
+    """Obtener un trámite específico con cache"""
+    redis = get_redis()
+    
+    # Build cache key
+    cache_key = f"sim_ft:tramite:{num_annio}:{num_tramite}:{num_registro}"
+    
+    # Try to get from cache
+    cached_data = redis.get(cache_key)
+    if cached_data:
+        return json.loads(cached_data)
+    
+    # Query database
+    tramite = db.query(SimFtTramiteE).filter(
+        and_(
+            SimFtTramiteE.NUM_ANNIO == num_annio,
+            SimFtTramiteE.NUM_TRAMITE == num_tramite,
+            SimFtTramiteE.NUM_REGISTRO == num_registro
+        )
+    ).first()
+    
+    if not tramite:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Trámite {num_annio}-{num_tramite}-{num_registro} no encontrado"
+        )
+    
+    # Cache result
+    redis.setex(
+        cache_key,
+        300,  # 5 minutes
+        json.dumps({
+            "NUM_ANNIO": tramite.NUM_ANNIO,
+            "NUM_TRAMITE": tramite.NUM_TRAMITE,
+            "COD_TRAMITE": tramite.COD_TRAMITE,
+            "NUM_REGISTRO": tramite.NUM_REGISTRO,
+            "FEC_INI_TRAMITE": tramite.FEC_INI_TRAMITE.isoformat() if tramite.FEC_INI_TRAMITE else None,
+            "FEC_FIN_TRAMITE": tramite.FEC_FIN_TRAMITE.isoformat() if tramite.FEC_FIN_TRAMITE else None,
+            "IND_ESTATUS": tramite.IND_ESTATUS,
+            "IND_PRIORIDAD": tramite.IND_PRIORIDAD,
+            "HITS_TRAMITE": tramite.HITS_TRAMITE,
+            "OBS_OBSERVA": tramite.OBS_OBSERVA,
+            "FEC_ACTUALIZA": tramite.FEC_ACTUALIZA.isoformat() if tramite.FEC_ACTUALIZA else None,
+            "IND_CONCLUSION": tramite.IND_CONCLUSION,
+            "ID_USUARIO_CREA": tramite.ID_USUARIO_CREA
+        })
+    )
+    
+    return tramite
 
 
 # ============================================================================
