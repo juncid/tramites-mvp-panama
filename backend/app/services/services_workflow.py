@@ -137,10 +137,12 @@ class WorkflowService:
         limit: int = 100,
         estado: Optional[str] = None,
         categoria: Optional[str] = None,
-        activo: bool = True
+        activo: Optional[bool] = None
     ) -> List[Dict[str, Any]]:
         """Lista workflows con filtros"""
-        query = db.query(models.Workflow).filter(models.Workflow.activo == activo)
+        query = db.query(models.Workflow)
+        if activo is not None:
+            query = query.filter(models.Workflow.activo == activo)
         
         if estado:
             query = query.filter(models.Workflow.estado == estado)

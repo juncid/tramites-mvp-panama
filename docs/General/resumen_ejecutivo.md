@@ -52,21 +52,28 @@ Facilitar la gestión, seguimiento y control de trámites administrativos median
 
 ## 📊 Funcionalidades Implementadas
 
-### ✅ Gestión Completa de Trámites (CRUD)
+### ✅ Sistema SIM_FT (Sistema Integrado de Migración)
 
-#### API REST Endpoints
-- `GET /api/v1/tramites` - Listar todos los trámites
-- `GET /api/v1/tramites/{id}` - Obtener trámite específico
-- `POST /api/v1/tramites` - Crear nuevo trámite
-- `PUT /api/v1/tramites/{id}` - Actualizar trámite
-- `DELETE /api/v1/tramites/{id}` - Eliminar trámite (soft delete)
+#### API REST Endpoints (Oficiales)
+- `GET /api/v1/sim-ft/tramites` - Listar trámites con filtros
+- `GET /api/v1/sim-ft/tramites/{año}/{num}/{reg}` - Obtener trámite específico
+- `POST /api/v1/sim-ft/tramites` - Crear nuevo trámite
+- `PUT /api/v1/sim-ft/tramites/{año}/{num}/{reg}` - Actualizar trámite
+- `POST /api/v1/sim-ft/tramites/{id}/cierre` - Cerrar trámite formalmente
+
+#### Módulos Disponibles
+- **Tipos de Trámites** - Catálogo maestro de trámites disponibles
+- **Gestión de Trámites** - CRUD completo con composite keys
+- **Pasos de Trámites** - Seguimiento detallado del flujo
+- **Cierre de Trámites** - Finalización formal con conclusiones
+- **Estadísticas** - Reportes y métricas del sistema
 
 #### Características Técnicas
-- **Paginación** en listados
-- **Cache con Redis** (TTL de 5 minutos)
-- **Soft Delete** (no elimina físicamente los registros)
-- **Timestamps automáticos** (created_at, updated_at)
-- **Validación de datos** con Pydantic
+- **Paginación avanzada** con múltiples filtros
+- **Redis Cache** (TTL 5 min) - Mejora 16x en consultas individuales
+- **Composite Keys** (año/tramite/registro) para robustez
+- **Timestamps automáticos** (FEC_CREA_REG, FEC_ACTUALIZA)
+- **Validación de datos** con Pydantic v2
 - **Documentación automática** con OpenAPI/Swagger
 
 ### 🎨 Interfaz Web Moderna

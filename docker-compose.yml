@@ -83,6 +83,39 @@ services:
       "
     restart: "no"
 
+  # Database Seeder (Test Data)
+  db-seed:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: tramites-db-seed
+    environment:
+      - DATABASE_HOST=sqlserver
+      - DATABASE_PORT=1433
+      - DATABASE_NAME=SIM_PANAMA
+      - DATABASE_USER=sa
+      - DATABASE_PASSWORD=YourStrong@Passw0rd
+    volumes:
+      - ./backend:/app
+    networks:
+      - tramites-network
+    depends_on:
+      db-migrations:
+        condition: service_completed_successfully
+    profiles:
+      - seed
+      - dev
+    command: >
+      sh -c "
+        echo '🌱 Iniciando carga de datos de prueba...' &&
+        echo '' &&
+        python /app/scripts/seed_test_data.py --all &&
+        echo '' &&
+        echo '🎉 Datos de prueba cargados exitosamente' &&
+        echo '📋 Ahora puede probar las colecciones Postman en: backend/postman/'
+      "
+    restart: "no"
+
   # Redis Cache
   redis:
     image: redis:7-alpine
@@ -134,15 +167,14 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-      db-migrations:
-        condition: service_completed_successfully
-    command: >
-      sh -c "
-        echo '⏳ Esperando a que las migraciones se completen...' &&
-        sleep 5 &&
-        echo '🚀 Iniciando aplicación FastAPI...' &&
-        uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --timeout-keep-alive 300 --limit-max-requests 0
-      "
+    command: ["python3", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--timeout-keep-alive", "300"]
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import requests; requests.get('http://localhost:8000/health', timeout=2)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
     logging:
       driver: "json-file"
       options:

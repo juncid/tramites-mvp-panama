@@ -60,9 +60,9 @@ Representa la plantilla del proceso completo.
 
 | Campo | Tipo | Descripción |
 |-------|------|-------------|
-| id | Integer | ID único |
-| codigo | String(50) | Código único (ej: "PPSH") |
-| nombre | String(255) | Nombre del proceso |
+| id | Integer | ID único (PK auto-incremental para relaciones en BD) |
+| codigo | String(50) | **Código único de negocio** (ej: "PPSH") - Ver nota abajo |
+| nombre | String(255) | Nombre del proceso (descriptivo para UI) |
 | descripcion | Text | Descripción detallada |
 | version | String(20) | Versión del workflow |
 | estado | Enum | BORRADOR, ACTIVO, INACTIVO, ARCHIVADO |
@@ -73,15 +73,49 @@ Representa la plantilla del proceso completo.
 | requiere_autenticacion | Boolean | Si requiere login |
 | es_publico | Boolean | Si es visible públicamente |
 
+> **📋 Nota sobre Códigos vs IDs:**
+> 
+> El sistema usa **códigos descriptivos** (strings únicos) en lugar de IDs numéricos de tablas de referencia por las siguientes razones:
+> 
+> 1. **Legibilidad del código:** `if (codigo === "INICIO")` es más claro que `if (id === 5)`
+> 2. **Portabilidad:** Los códigos son constantes entre ambientes (dev/test/prod), los IDs auto-incrementales pueden variar
+> 3. **Configuración declarativa:** Permite definir workflows en JSON/YAML sin conocer IDs de base de datos
+> 4. **Referencias en lógica de negocio:** Las condiciones de transición usan códigos legibles
+> 5. **Debugging más fácil:** Los logs muestran "Error en etapa INICIO" en lugar de "Error en etapa 523"
+> 
+> **Estructura de identificadores:**
+> - `id` → Optimización de BD, relaciones FK (1, 2, 1003...)
+> - `codigo` → Lógica de negocio, referencias portables ("FLUJO_COMPLETO", "INICIO", "APROBADO")
+> - `nombre` → Interfaz de usuario ("Flujo Completo de Prueba")
+> 
+> **Ejemplo de uso en condiciones:**
+> ```json
+> {
+>   "condicion": {
+>     "pregunta": "APROBADO",      // ← Código legible
+>     "valor": "SI"
+>   }
+> }
+> ```
+> En lugar de:
+> ```json
+> {
+>   "condicion": {
+>     "pregunta_id": 47,           // ← ¿Qué pregunta es la 47?
+>     "valor": "SI"
+>   }
+> }
+> ```
+
 ##### **WorkflowEtapa**
 Representa un nodo/paso en el workflow.
 
 | Campo | Tipo | Descripción |
 |-------|------|-------------|
-| id | Integer | ID único |
+| id | Integer | ID único (PK auto-incremental) |
 | workflow_id | Integer | FK a Workflow |
-| codigo | String(50) | Código único en el workflow |
-| nombre | String(255) | Nombre de la etapa |
+| codigo | String(50) | **Código único de negocio** en el workflow (ej: "INICIO", "DOCUMENTOS") |
+| nombre | String(255) | Nombre de la etapa (descriptivo para UI) |
 | tipo_etapa | Enum | ETAPA, COMPUERTA, PRESENCIAL |
 | orden | Integer | Orden de la etapa |
 | posicion_x, posicion_y | Integer | Posición en diagrama visual |
@@ -95,14 +129,35 @@ Representa un nodo/paso en el workflow.
 | tiempo_estimado_minutos | Integer | Tiempo estimado |
 | reglas_transicion | JSON | Reglas condicionales |
 
+> **💡 Uso de códigos en etapas:**
+> Las etapas usan `codigo` para referencias en conexiones y lógica de transición.
+> Permite crear workflows completos sin conocer los IDs que serán asignados en BD.
+> 
+> **Ejemplo - Crear workflow con conexiones:**
+> ```json
+> {
+>   "codigo": "FLUJO_PPSH",
+>   "etapas": [
+>     {"codigo": "INICIO", "nombre": "Registro Inicial"},
+>     {"codigo": "DOCUMENTOS", "nombre": "Carga de Documentos"}
+>   ],
+>   "conexiones": [
+>     {
+>       "etapa_origen_codigo": "INICIO",       // ← Usa códigos
+>       "etapa_destino_codigo": "DOCUMENTOS"   // ← No IDs
+>     }
+>   ]
+> }
+> ```
+
 ##### **WorkflowPregunta**
 Representa un campo/pregunta en el formulario de una etapa.
 
 | Campo | Tipo | Descripción |
 |-------|------|-------------|
-| id | Integer | ID único |
+| id | Integer | ID único (PK auto-incremental) |
 | etapa_id | Integer | FK a WorkflowEtapa |
-| codigo | String(50) | Código único en la etapa |
+| codigo | String(50) | **Código único de negocio** en la etapa (ej: "NOMBRE", "EMAIL", "APROBADO") |
 | pregunta | Text | Texto de la pregunta |
 | tipo_pregunta | Enum | Ver tipos abajo |
 | orden | Integer | Orden de aparición |
@@ -119,6 +174,21 @@ Representa un campo/pregunta en el formulario de una etapa.
 | mostrar_si | JSON | Condiciones para mostrar |
 | validacion_regex | String(500) | Regex de validación |
 | mensaje_validacion | String(500) | Mensaje de error |
+
+> **🎯 Uso de códigos en preguntas:**
+> Los códigos de preguntas permiten referirse a ellas en condiciones de transición y lógica de negocio.
+> 
+> **Ejemplo - Condición de transición:**
+> ```json
+> {
+>   "nombre": "Aprobar si cumple requisitos",
+>   "condicion": {
+>     "pregunta": "APROBADO",    // ← Código de pregunta
+>     "valor": "SI"
+>   }
+> }
+> ```
+> Sin códigos, sería imposible definir esta lógica al crear el workflow porque los IDs aún no existen.
 
 **Tipos de Pregunta Soportados:**
 1. `RESPUESTA_TEXTO` - Campo de texto corto

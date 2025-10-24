@@ -1,8 +1,8 @@
 {
   "info": {
     "_postman_id": "tramites-base-api-2025",
-    "name": "Trámites Base - API",
-    "description": "Colección de endpoints del módulo base de Trámites del Sistema de Trámites Migratorios de Panamá.\n\n**Funcionalidades:**\n- CRUD completo de trámites\n- Caché con Redis\n- Paginación\n\n**Autor:** Sistema de Trámites MVP Panamá\n**Fecha:** 2025-10-21\n**Versión:** 1.0.0",
+    "name": "⚠️ Trámites Base - API (DEPRECADO)",
+    "description": "⚠️ **COLECCIÓN DEPRECADA** ⚠️\n\n**Esta colección usa endpoints legacy que están marcados como deprecados.**\n\n🔴 **NO USAR PARA NUEVOS DESARROLLOS**\n\n✅ **USAR EN SU LUGAR:** \n- Colección: `SIM_FT - API Completa`\n- Endpoints: `/api/v1/sim-ft/tramites`\n- Ventajas: \n  - Composite keys (mayor robustez)\n  - Más filtros disponibles\n  - Redis caching optimizado\n  - Sistema oficial y mantenido\n\n---\n\n**Funcionalidades Legacy (solo compatibilidad):**\n- CRUD completo de trámites (tabla TRAMITE)\n- Caché con Redis\n- Paginación\n\n**Diferencias con SIM_FT:**\n- PK simple (id) vs composite (año/tramite/registro)\n- Tabla TRAMITE vs SIM_FT_TRAMITE_E\n- Soft delete vs cierre formal\n\n**Timeline de Migración:**\n- Fase actual: Endpoints deprecados pero funcionales\n- Próxima fase: Eliminación de endpoints legacy\n- Acción requerida: Migrar a SIM_FT antes del 2025-12-01\n\n**Autor:** Sistema de Trámites MVP Panamá\n**Fecha:** 2025-10-24\n**Versión:** 1.0.0 (DEPRECATED)\n**Estado:** ⛔ DEPRECADO - Migrar a SIM_FT",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -44,11 +44,11 @@
               "    if (jsonData.length > 0) {",
               "        var tramite = jsonData[0];",
               "        pm.expect(tramite).to.have.property('id');",
-              "        pm.expect(tramite).to.have.property('titulo');",
-              "        pm.expect(tramite).to.have.property('descripcion');",
-              "        pm.expect(tramite).to.have.property('estado');",
-              "        pm.expect(tramite).to.have.property('activo');",
-              "        pm.expect(tramite).to.have.property('created_at');",
+              "        pm.expect(tramite).to.have.property('NOM_TITULO');",
+              "        pm.expect(tramite).to.have.property('DESCRIPCION');",
+              "        pm.expect(tramite).to.have.property('COD_ESTADO');",
+              "        pm.expect(tramite).to.have.property('IND_ACTIVO');",
+              "        pm.expect(tramite).to.have.property('FEC_CREA_REG');",
               "        ",
               "        // Guardar primer ID para otros tests",
               "        pm.collectionVariables.set('tramite_id', tramite.id);",
@@ -69,8 +69,12 @@
         "header": [],
         "url": {
           "raw": "{{base_url}}{{api_prefix}}/tramites?skip=0&limit=20",
-          "host": ["{{base_url}}{{api_prefix}}"],
-          "path": ["tramites"],
+          "host": [
+            "{{base_url}}{{api_prefix}}"
+          ],
+          "path": [
+            "tramites"
+          ],
           "query": [
             {
               "key": "skip",
@@ -113,8 +117,12 @@
         "header": [],
         "url": {
           "raw": "{{base_url}}{{api_prefix}}/tramites?skip=20&limit=20",
-          "host": ["{{base_url}}{{api_prefix}}"],
-          "path": ["tramites"],
+          "host": [
+            "{{base_url}}{{api_prefix}}"
+          ],
+          "path": [
+            "tramites"
+          ],
           "query": [
             {
               "key": "skip",
@@ -144,10 +152,10 @@
               "pm.test(\"Trámite has complete data\", function () {",
               "    var jsonData = pm.response.json();",
               "    pm.expect(jsonData).to.have.property('id');",
-              "    pm.expect(jsonData).to.have.property('titulo');",
-              "    pm.expect(jsonData).to.have.property('descripcion');",
-              "    pm.expect(jsonData).to.have.property('estado');",
-              "    pm.expect(jsonData).to.have.property('activo');",
+              "    pm.expect(jsonData).to.have.property('NOM_TITULO');",
+              "    pm.expect(jsonData).to.have.property('DESCRIPCION');",
+              "    pm.expect(jsonData).to.have.property('COD_ESTADO');",
+              "    pm.expect(jsonData).to.have.property('IND_ACTIVO');",
               "    pm.expect(jsonData.activo).to.eql(true);",
               "});"
             ],
@@ -160,8 +168,13 @@
         "header": [],
         "url": {
           "raw": "{{base_url}}{{api_prefix}}/tramites/{{tramite_id}}",
-          "host": ["{{base_url}}{{api_prefix}}"],
-          "path": ["tramites", "{{tramite_id}}"]
+          "host": [
+            "{{base_url}}{{api_prefix}}"
+          ],
+          "path": [
+            "tramites",
+            "{{tramite_id}}"
+          ]
         },
         "description": "Obtiene los detalles completos de un trámite específico por su ID"
       },
@@ -192,8 +205,13 @@
         "header": [],
         "url": {
           "raw": "{{base_url}}{{api_prefix}}/tramites/999999",
-          "host": ["{{base_url}}{{api_prefix}}"],
-          "path": ["tramites", "999999"]
+          "host": [
+            "{{base_url}}{{api_prefix}}"
+          ],
+          "path": [
+            "tramites",
+            "999999"
+          ]
         },
         "description": "Intenta obtener un trámite que no existe. Debe retornar 404."
       },
@@ -244,8 +262,12 @@
         },
         "url": {
           "raw": "{{base_url}}{{api_prefix}}/tramites",
-          "host": ["{{base_url}}{{api_prefix}}"],
-          "path": ["tramites"]
+          "host": [
+            "{{base_url}}{{api_prefix}}"
+          ],
+          "path": [
+            "tramites"
+          ]
         },
         "description": "Crea un nuevo trámite en el sistema. Automáticamente invalida el caché de listados."
       },
@@ -285,8 +307,12 @@
         },
         "url": {
           "raw": "{{base_url}}{{api_prefix}}/tramites",
-          "host": ["{{base_url}}{{api_prefix}}"],
-          "path": ["tramites"]
+          "host": [
+            "{{base_url}}{{api_prefix}}"
+          ],
+          "path": [
+            "tramites"
+          ]
         },
         "description": "Crea un trámite de tipo visa de turista"
       },
@@ -326,8 +352,12 @@
         },
         "url": {
           "raw": "{{base_url}}{{api_prefix}}/tramites",
-          "host": ["{{base_url}}{{api_prefix}}"],
-          "path": ["tramites"]
+          "host": [
+            "{{base_url}}{{api_prefix}}"
+          ],
+          "path": [
+            "tramites"
+          ]
         },
         "description": "Intenta crear un trámite sin el campo obligatorio 'titulo'. Debe retornar error 422."
       },
@@ -372,8 +402,13 @@
         },
         "url": {
           "raw": "{{base_url}}{{api_prefix}}/tramites/{{tramite_id}}",
-          "host": ["{{base_url}}{{api_prefix}}"],
-          "path": ["tramites", "{{tramite_id}}"]
+          "host": [
+            "{{base_url}}{{api_prefix}}"
+          ],
+          "path": [
+            "tramites",
+            "{{tramite_id}}"
+          ]
         },
         "description": "Actualiza los datos de un trámite existente. Invalida el caché automáticamente."
       },
@@ -413,8 +448,13 @@
         },
         "url": {
           "raw": "{{base_url}}{{api_prefix}}/tramites/{{tramite_id}}",
-          "host": ["{{base_url}}{{api_prefix}}"],
-          "path": ["tramites", "{{tramite_id}}"]
+          "host": [
+            "{{base_url}}{{api_prefix}}"
+          ],
+          "path": [
+            "tramites",
+            "{{tramite_id}}"
+          ]
         },
         "description": "Actualiza solo un campo del trámite (actualización parcial)"
       },
@@ -454,8 +494,13 @@
         },
         "url": {
           "raw": "{{base_url}}{{api_prefix}}/tramites/999999",
-          "host": ["{{base_url}}{{api_prefix}}"],
-          "path": ["tramites", "999999"]
+          "host": [
+            "{{base_url}}{{api_prefix}}"
+          ],
+          "path": [
+            "tramites",
+            "999999"
+          ]
         },
         "description": "Intenta actualizar un trámite inexistente. Debe retornar 404."
       },
@@ -485,8 +530,13 @@
         "header": [],
         "url": {
           "raw": "{{base_url}}{{api_prefix}}/tramites/{{tramite_id}}",
-          "host": ["{{base_url}}{{api_prefix}}"],
-          "path": ["tramites", "{{tramite_id}}"]
+          "host": [
+            "{{base_url}}{{api_prefix}}"
+          ],
+          "path": [
+            "tramites",
+            "{{tramite_id}}"
+          ]
         },
         "description": "Realiza un soft delete del trámite (establece activo=false). El trámite no se elimina físicamente de la BD."
       },
@@ -517,8 +567,13 @@
         "header": [],
         "url": {
           "raw": "{{base_url}}{{api_prefix}}/tramites/999999",
-          "host": ["{{base_url}}{{api_prefix}}"],
-          "path": ["tramites", "999999"]
+          "host": [
+            "{{base_url}}{{api_prefix}}"
+          ],
+          "path": [
+            "tramites",
+            "999999"
+          ]
         },
         "description": "Intenta eliminar un trámite que no existe. Debe retornar 404."
       },
@@ -550,8 +605,13 @@
         "header": [],
         "url": {
           "raw": "{{base_url}}{{api_prefix}}/tramites/{{tramite_id}}",
-          "host": ["{{base_url}}{{api_prefix}}"],
-          "path": ["tramites", "{{tramite_id}}"]
+          "host": [
+            "{{base_url}}{{api_prefix}}"
+          ],
+          "path": [
+            "tramites",
+            "{{tramite_id}}"
+          ]
         },
         "description": "Verifica que un trámite eliminado (soft delete) ya no aparezca en las consultas"
       },

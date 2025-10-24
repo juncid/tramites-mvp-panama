@@ -96,10 +96,10 @@ class Workflow(Base):
     
     # Auditoría
     activo = Column(Boolean, nullable=False, default=True)
-    FEC_CREA_REG = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
-    ID_USUAR_CREA = Column(String(17), index=True)
-    FEC_MODIF_REG = Column(DateTime(timezone=True), onupdate=func.now())
-    ID_USUAR_MODIF = Column(String(17))
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    created_by = Column(String(17))
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    updated_by = Column(String(17))
     
     # Relaciones
     etapas = relationship("WorkflowEtapa", back_populates="workflow", cascade="all, delete-orphan", order_by="WorkflowEtapa.orden")

@@ -9,7 +9,7 @@ Author: Sistema de Trámites MVP Panamá
 Date: 2025-10-20
 """
 
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, validator, ConfigDict
 from typing import Optional, List, Dict, Any, Union
 from datetime import datetime
 from enum import Enum
@@ -124,8 +124,7 @@ class WorkflowPreguntaResponse(WorkflowPreguntaBase):
     updated_at: Optional[datetime]
     updated_by: Optional[str]
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # ==========================================
@@ -194,8 +193,7 @@ class WorkflowEtapaResponse(WorkflowEtapaBase):
     updated_at: Optional[datetime]
     updated_by: Optional[str]
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # ==========================================
@@ -240,8 +238,7 @@ class WorkflowConexionResponse(WorkflowConexionBase):
     created_at: datetime
     created_by: Optional[str]
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # ==========================================
@@ -295,8 +292,7 @@ class WorkflowResponse(WorkflowBase):
     updated_at: Optional[datetime]
     updated_by: Optional[str]
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class WorkflowListResponse(BaseModel):
@@ -313,8 +309,7 @@ class WorkflowListResponse(BaseModel):
     total_etapas: int = 0
     total_instancias: int = 0
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # ==========================================
@@ -354,8 +349,7 @@ class WorkflowRespuestaResponse(WorkflowRespuestaBase):
     updated_at: Optional[datetime]
     updated_by: Optional[str]
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # ==========================================
@@ -391,8 +385,7 @@ class WorkflowRespuestaEtapaResponse(WorkflowRespuestaEtapaBase):
     created_at: datetime
     updated_at: Optional[datetime]
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # ==========================================
@@ -438,8 +431,7 @@ class WorkflowInstanciaResponse(WorkflowInstanciaBase):
     updated_at: Optional[datetime]
     updated_by: Optional[str]
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class WorkflowInstanciaDetalleResponse(WorkflowInstanciaResponse):
@@ -448,8 +440,7 @@ class WorkflowInstanciaDetalleResponse(WorkflowInstanciaResponse):
     etapa_actual: Optional[WorkflowEtapaResponse]
     respuestas_etapa: List[WorkflowRespuestaEtapaResponse] = []
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # ==========================================
@@ -481,8 +472,7 @@ class WorkflowHistorialResponse(BaseModel):
     created_at: datetime
     created_by: str
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # ==========================================
@@ -508,8 +498,7 @@ class WorkflowComentarioResponse(BaseModel):
     created_at: datetime
     created_by: str
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # ==========================================

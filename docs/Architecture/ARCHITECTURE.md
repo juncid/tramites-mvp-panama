@@ -27,12 +27,15 @@
 ┌─────────────────────────────────────────────────────────────────────┐
 │                   BACKEND - FastAPI/Python                           │
 │  ┌──────────────────────────────────────────────────────────────┐   │
-│  │  Endpoints REST API:                                          │   │
-│  │  • GET    /api/v1/tramites          (Listar)                 │   │
-│  │  • GET    /api/v1/tramites/{id}     (Detalle)                │   │
-│  │  • POST   /api/v1/tramites          (Crear)                  │   │
-│  │  • PUT    /api/v1/tramites/{id}     (Actualizar)             │   │
-│  │  • DELETE /api/v1/tramites/{id}     (Eliminar)               │   │
+│  │  Endpoints REST API (SIM_FT - Sistema Oficial):               │   │
+│  │  • GET    /api/v1/sim-ft/tramites                    (Lista) │   │
+│  │  • GET    /api/v1/sim-ft/tramites/{año}/{num}/{reg}  (Ver)   │   │
+│  │  • POST   /api/v1/sim-ft/tramites                    (Crear) │   │
+│  │  • PUT    /api/v1/sim-ft/tramites/{año}/{num}/{reg}  (Editar)│   │
+│  │  • POST   /api/v1/sim-ft/tramites/{id}/cierre        (Cerrar)│   │
+│  │                                                               │   │
+│  │  ⚠️ Legacy (DEPRECADOS - No usar):                            │   │
+│  │  • /api/v1/tramites/*  → Migrar a /api/v1/sim-ft/tramites    │   │
 │  │                                                               │   │
 │  │  Características:                                             │   │
 │  │  • FastAPI + Uvicorn                                         │   │
@@ -52,18 +55,17 @@
 │  ┌────────────────────┐  │          │  ┌────────────────────────┐  │
 │  │ Base de Datos:     │  │          │  │ Cache Layer:           │  │
 │  │                    │  │          │  │                        │  │
-│  │ • tramites_db      │  │          │  │ • Query caching        │  │
-│  │ • Tabla: tramites  │  │          │  │ • TTL: 5 minutos       │  │
-│  │                    │  │          │  │ • AOF persistence      │  │
-│  │ Columnas:          │  │          │  │                        │  │
-│  │ - id               │  │          │  │ Keys Pattern:          │  │
-│  │ - titulo           │  │          │  │ - tramites:skip:limit  │  │
-│  │ - descripcion      │  │          │  └────────────────────────┘  │
-│  │ - estado           │  │          │                              │
-│  │ - activo           │  │          │   Container: tramites-redis  │
-│  │ - created_at       │  │          └──────────────────────────────┘
-│  │ - updated_at       │  │
-│  └────────────────────┘  │
+│  │ SIM_PANAMA         │  │          │  │ • Query caching        │  │
+│  │                    │  │          │  │ • TTL: 5 minutos       │  │
+│  │ Tablas SIM_FT:     │  │          │  │ • AOF persistence      │  │
+│  │ - SIM_FT_TRAMITE_E │  │          │  │                        │  │
+│  │ - SIM_FT_TRAMITES  │  │          │  │ Keys Pattern:          │  │
+│  │ - SIM_FT_ESTATUS   │  │          │  │ - sim_ft:tramites:*    │  │
+│  │ - SIM_FT_TRAMITE_D │  │          │  │ - sim_ft:tramite:*     │  │
+│  │                    │  │          │  └────────────────────────┘  │
+│  │ Legacy (DEPRECADO):│  │          │                              │
+│  │ - TRAMITE          │  │          │   Container: tramites-redis  │
+│  └────────────────────┘  │          └──────────────────────────────┘
 │                          │
 │  Features:               │
 │  • Health checks         │
@@ -90,35 +92,35 @@
 
 ## Flujo de Datos
 
-### 1. Crear un Trámite
+### 1. Crear un Trámite (Sistema SIM_FT)
 
 ```
 Usuario
    │
    │ 1. Completa formulario
-   │    (titulo, descripcion, estado)
+   │    (COD_TRAMITE, IND_ESTATUS, observaciones)
    ▼
-Frontend (App.tsx)
+Frontend (React)
    │
-   │ 2. POST /api/v1/tramites
-   │    { titulo, descripcion, estado }
+   │ 2. POST /api/v1/sim-ft/tramites
+   │    { NUM_ANNIO, NUM_TRAMITE, COD_TRAMITE, etc. }
    ▼
-Backend (routes.py)
+Backend (routers_sim_ft.py)
    │
-   ├─→ 3. Validación (schemas.py)
-   │      TramiteCreate schema
+   ├─→ 3. Validación (schemas_sim_ft.py)
+   │      SimFtTramiteECreate schema
    │
-   ├─→ 4. Crear modelo (models.py)
-   │      Tramite object
+   ├─→ 4. Crear modelo (models_sim_ft.py)
+   │      SimFtTramiteE object
    │
    ├─→ 5. Guardar en DB (database.py)
    │      SQLAlchemy commit
    │
    ├─→ 6. Invalidar cache (redis_client.py)
-   │      DELETE keys "tramites:*"
+   │      DELETE keys "sim_ft:tramites:*"
    │
    └─→ 7. Retornar respuesta
-          TramiteResponse
+          SimFtTramiteEResponse
 
 Frontend
    │
@@ -128,32 +130,32 @@ Frontend
 Usuario ve nuevo trámite
 ```
 
-### 2. Listar Trámites (Con Cache)
+### 2. Listar Trámites SIM_FT (Con Redis Cache)
 
 ```
 Usuario
    │
    │ 1. Navega a página
    ▼
-Frontend (App.tsx)
+Frontend (React)
    │
-   │ 2. GET /api/v1/tramites
+   │ 2. GET /api/v1/sim-ft/tramites?num_annio=2025
    ▼
-Backend (routes.py)
+Backend (routers_sim_ft.py)
    │
    ├─→ 3. Verificar cache (redis_client.py)
-   │      GET "tramites:0:100"
+   │      GET "sim_ft:tramites:2025:None:None:None:0:10"
    │      
-   │   ┌─→ Cache HIT
-   │   │   └─→ Retornar datos cached
+   │   ┌─→ Cache HIT (~5-50ms)
+   │   │   └─→ Retornar datos cached (JSON)
    │   │
-   │   └─→ Cache MISS
+   │   └─→ Cache MISS (~100-500ms)
    │       │
    │       ├─→ 4. Query DB (database.py)
-   │       │      SELECT * FROM tramites
+   │       │      SELECT * FROM SIM_FT_TRAMITE_E
    │       │
    │       ├─→ 5. Guardar en cache (redis_client.py)
-   │       │      SET "tramites:0:100" TTL=300
+   │       │      SETEX "sim_ft:tramites:..." 300 JSON
    │       │
    │       └─→ 6. Retornar datos
    │
@@ -167,26 +169,26 @@ Frontend
 Usuario ve lista de trámites
 ```
 
-### 3. Actualizar Estado
+### 3. Actualizar Trámite SIM_FT (con Invalidación de Cache)
 
 ```
 Usuario
    │
-   │ 1. Selecciona nuevo estado
+   │ 1. Modifica estatus/observaciones
    ▼
-Frontend (App.tsx)
+Frontend (React)
    │
-   │ 2. PUT /api/v1/tramites/{id}
-   │    { estado: "completado" }
+   │ 2. PUT /api/v1/sim-ft/tramites/2025/8/1
+   │    { IND_ESTATUS: "02", OBS_OBSERVA: "..." }
    ▼
-Backend (routes.py)
+Backend (routers_sim_ft.py)
    │
    ├─→ 3. Buscar trámite (database.py)
-   │      SELECT WHERE id = {id}
+   │      SELECT WHERE NUM_ANNIO=2025 AND NUM_TRAMITE=8
    │
-   ├─→ 4. Actualizar (models.py)
-   │      tramite.estado = "completado"
-   │      tramite.updated_at = now()
+   ├─→ 4. Actualizar (models_sim_ft.py)
+   │      tramite.IND_ESTATUS = "02"
+   │      tramite.FEC_ACTUALIZA = now()
    │
    ├─→ 5. Commit (database.py)
    │      SQLAlchemy commit

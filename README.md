@@ -486,13 +486,22 @@ Una vez que el backend esté en ejecución, accede a la documentación interacti
 - `POST /api/v1/workflows/instancias/{id}/avanzar` - Avanzar a siguiente etapa
 - `GET /api/v1/workflows/instancias/{id}/historial` - Ver historial de cambios
 
-#### 📝 Módulo Trámites (General)
+#### 🏛️ Sistema SIM_FT (Oficial - Sistema Integrado de Migración)
 
-- `GET /api/v1/tramites` - Listar todos los trámites
-- `GET /api/v1/tramites/{id}` - Obtener un trámite específico
-- `POST /api/v1/tramites` - Crear un nuevo trámite
-- `PUT /api/v1/tramites/{id}` - Actualizar un trámite
-- `DELETE /api/v1/tramites/{id}` - Eliminar un trámite (soft delete)
+**Trámites (con Redis Cache - 16x más rápido):**
+- `GET /api/v1/sim-ft/tramites` - Listar trámites con filtros múltiples
+- `GET /api/v1/sim-ft/tramites/{año}/{num}/{reg}` - Obtener trámite específico
+- `POST /api/v1/sim-ft/tramites` - Crear nuevo trámite
+- `PUT /api/v1/sim-ft/tramites/{año}/{num}/{reg}` - Actualizar trámite
+- `POST /api/v1/sim-ft/tramites/{año}/{num}/{reg}/cierre` - Cerrar trámite
+
+**Catálogos:**
+- `GET /api/v1/sim-ft/tramites-tipos` - Tipos de trámites
+- `GET /api/v1/sim-ft/estatus` - Estados disponibles
+- `GET /api/v1/sim-ft/prioridades` - Niveles de prioridad
+- `GET /api/v1/sim-ft/conclusiones` - Tipos de conclusión
+
+**⚠️ Nota:** Endpoints legacy `/api/v1/tramites/*` deprecados. Usar SIM_FT.
 
 ### Parámetros de Consulta Comunes
 
@@ -502,17 +511,24 @@ La mayoría de endpoints de listado soportan:
 - `sort_by` - Campo por el cual ordenar
 - `order` - Dirección del ordenamiento (asc/desc)
 
+**SIM_FT - Filtros adicionales:**
+- `num_annio` - Año del trámite
+- `cod_tramite` - Código del tipo de trámite
+- `ind_estatus` - Estado del trámite
+- `ind_prioridad` - Nivel de prioridad
+- `fecha_desde` / `fecha_hasta` - Rango de fechas
+
 **Ejemplo:**
 ```bash
-GET /api/v1/ppsh/solicitudes?skip=0&limit=10&sort_by=fecha_creacion&order=desc
+GET /api/v1/sim-ft/tramites?num_annio=2025&ind_estatus=A&skip=0&limit=10
 ```
 
 ### Ejemplo de Uso con cURL
 
-#### Crear un Trámite Simple
+#### Crear un Trámite SIM_FT
 
 ```bash
-# Crear un trámite
+# Crear un trámite en sistema oficial
 curl -X POST http://localhost:8000/api/v1/tramites \
   -H "Content-Type: application/json" \
   -d '{
