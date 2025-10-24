@@ -800,6 +800,9 @@ async def create_tramite_paso(
     
     # Actualizar el trámite
     tramite_exists.FEC_ACTUALIZA = datetime.now()
+    # Inicializar HITS_TRAMITE si es None
+    if tramite_exists.HITS_TRAMITE is None:
+        tramite_exists.HITS_TRAMITE = 0
     tramite_exists.HITS_TRAMITE += 1
     db.commit()
     
