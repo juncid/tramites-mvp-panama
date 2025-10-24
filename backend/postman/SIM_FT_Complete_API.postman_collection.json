@@ -142,7 +142,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"cod_tramite\": \"VISA_TUR\",\n  \"nombre_tramite\": \"Visa de Turista\",\n  \"descripcion\": \"Solicitud de visa de turista para extranjeros\",\n  \"activo\": true,\n  \"requiere_entrevista\": false,\n  \"dias_vigencia\": 90\n}"
+              "raw": "{\n  \"COD_TRAMITE\": \"VISA_TUR\",\n  \"DESC_TRAMITE\": \"Visa de Turista - Solicitud y renovación para extranjeros\",\n  \"PAG_TRAMITE\": \"https://migracion.gob.pa/visa-turista\",\n  \"IND_ACTIVO\": \"S\"\n}"
             },
             "url": {
               "raw": "{{base_url}}{{api_prefix}}/tramites-tipos",
@@ -165,7 +165,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"nombre_tramite\": \"Visa de Turista - Actualizado\",\n  \"descripcion\": \"Solicitud de visa de turista para extranjeros con nueva documentación\",\n  \"dias_vigencia\": 180\n}"
+              "raw": "{\n  \"DESC_TRAMITE\": \"Visa de Turista - Solicitud actualizada\",\n  \"PAG_TRAMITE\": \"https://migracion.gob.pa/visa-turista-nuevo\",\n  \"IND_ACTIVO\": \"S\"\n}"
             },
             "url": {
               "raw": "{{base_url}}{{api_prefix}}/tramites-tipos/{{cod_tramite}}",
@@ -215,9 +215,9 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{base_url}}{{api_prefix}}/estatus/RECIBIDO",
+              "raw": "{{base_url}}{{api_prefix}}/estatus/01",
               "host": ["{{base_url}}{{api_prefix}}"],
-              "path": ["estatus", "RECIBIDO"]
+              "path": ["estatus", "01"]
             },
             "description": "Obtiene un estatus específico por su código"
           },
@@ -235,7 +235,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"cod_estatus\": \"EN_PROCESO\",\n  \"nombre_estatus\": \"En Proceso\",\n  \"descripcion\": \"Trámite en proceso de revisión\",\n  \"color\": \"#FFA500\",\n  \"activo\": true\n}"
+              "raw": "{\n  \"COD_ESTATUS\": \"11\",\n  \"NOM_ESTATUS\": \"Entregado\",\n  \"IND_ACTIVO\": \"S\"\n}"
             },
             "url": {
               "raw": "{{base_url}}{{api_prefix}}/estatus",
@@ -258,12 +258,12 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"nombre_estatus\": \"En Proceso de Revisión\",\n  \"color\": \"#FF8C00\"\n}"
+              "raw": "{\n  \"NOM_ESTATUS\": \"En Proceso de Revisión\",\n  \"IND_ACTIVO\": \"S\"\n}"
             },
             "url": {
-              "raw": "{{base_url}}{{api_prefix}}/estatus/EN_PROCESO",
+              "raw": "{{base_url}}{{api_prefix}}/estatus/11",
               "host": ["{{base_url}}{{api_prefix}}"],
-              "path": ["estatus", "EN_PROCESO"]
+              "path": ["estatus", "11"]
             },
             "description": "Actualiza un estatus existente"
           },
@@ -300,7 +300,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"cod_conclusion\": \"APROBADO\",\n  \"nombre_conclusion\": \"Aprobado\",\n  \"descripcion\": \"Trámite aprobado satisfactoriamente\",\n  \"activo\": true\n}"
+              "raw": "{\n  \"COD_CONCLUSION\": \"SU\",\n  \"NOM_CONCLUSION\": \"Suspendido\",\n  \"IND_ACTIVO\": \"S\"\n}"
             },
             "url": {
               "raw": "{{base_url}}{{api_prefix}}/conclusiones",
@@ -342,7 +342,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"cod_prioridad\": \"ALTA\",\n  \"nombre_prioridad\": \"Alta Prioridad\",\n  \"nivel\": 1,\n  \"dias_limite\": 5,\n  \"color\": \"#FF0000\"\n}"
+              "raw": "{\n  \"COD_PRIORIDAD\": \"5\",\n  \"NOM_PRIORIDAD\": \"Muy Baja\",\n  \"IND_ACTIVO\": \"S\"\n}"
             },
             "url": {
               "raw": "{{base_url}}{{api_prefix}}/prioridades",
@@ -404,7 +404,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"cod_tramite\": \"{{cod_tramite}}\",\n  \"num_paso\": 1,\n  \"nombre_paso\": \"Recepción de Documentos\",\n  \"descripcion\": \"Recepción y validación de documentos iniciales\",\n  \"requiere_revision\": true,\n  \"dias_estimados\": 2\n}"
+              "raw": "{\n  \"COD_TRAMITE\": \"{{cod_tramite}}\",\n  \"NUM_PASO\": 6,\n  \"NOM_DESCRIPCION\": \"Entrega de Documentos\",\n  \"IND_ACTIVO\": \"S\"\n}"
             },
             "url": {
               "raw": "{{base_url}}{{api_prefix}}/pasos",
@@ -427,7 +427,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"nombre_paso\": \"Recepción y Verificación de Documentos\",\n  \"dias_estimados\": 3\n}"
+              "raw": "{\n  \"NOM_DESCRIPCION\": \"Recepción y Verificación de Documentos\",\n  \"IND_ACTIVO\": \"S\"\n}"
             },
             "url": {
               "raw": "{{base_url}}{{api_prefix}}/pasos/{{cod_tramite}}/1",
@@ -475,7 +475,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"cod_tramite\": \"{{cod_tramite}}\",\n  \"num_paso\": 1,\n  \"orden\": 1,\n  \"obligatorio\": true,\n  \"cod_seccion_responsable\": \"MIGRACION\"\n}"
+              "raw": "{\n  \"COD_TRAMITE\": \"{{cod_tramite}}\",\n  \"NUM_PASO\": 6,\n  \"COD_SECCION\": \"0101\",\n  \"ID_PASO_SGTE\": null,\n  \"IND_ACTIVO\": \"S\"\n}"
             },
             "url": {
               "raw": "{{base_url}}{{api_prefix}}/flujo-pasos",
@@ -523,7 +523,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"cod_usuario\": \"USER001\",\n  \"cod_seccion\": \"MIGRACION\",\n  \"activo\": true,\n  \"es_responsable\": false\n}"
+              "raw": "{\n  \"ID_USUARIO\": \"USR008\",\n  \"COD_SECCION\": \"0101\",\n  \"COD_AGENCIA\": \"01\",\n  \"IND_ACTIVO\": \"S\"\n}"
             },
             "url": {
               "raw": "{{base_url}}{{api_prefix}}/usuarios-secciones",
@@ -629,7 +629,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"cod_tramite\": \"{{cod_tramite}}\",\n  \"num_identificacion\": \"8-888-8888\",\n  \"nombre_solicitante\": \"Juan Pérez\",\n  \"apellido_solicitante\": \"González\",\n  \"email\": \"juan.perez@example.com\",\n  \"telefono\": \"+507-6000-0000\",\n  \"cod_prioridad\": \"NORMAL\",\n  \"observaciones\": \"Trámite iniciado por portal web\"\n}"
+              "raw": "{\n  \"NUM_ANNIO\": 2025,\n  \"NUM_TRAMITE\": 100,\n  \"NUM_REGISTRO\": 100,\n  \"COD_TRAMITE\": \"{{cod_tramite}}\",\n  \"IND_ESTATUS\": \"01\",\n  \"IND_PRIORIDAD\": \"3\",\n  \"OBS_OBSERVA\": \"Trámite de prueba creado desde Postman\"\n}"
             },
             "url": {
               "raw": "{{base_url}}{{api_prefix}}/tramites",
@@ -652,7 +652,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"cod_estatus\": \"EN_PROCESO\",\n  \"email\": \"juan.perez.nuevo@example.com\",\n  \"observaciones\": \"Actualizado - documentación adicional recibida\"\n}"
+              "raw": "{\n  \"IND_ESTATUS\": \"02\",\n  \"IND_PRIORIDAD\": \"2\",\n  \"OBS_OBSERVA\": \"Actualizado - en proceso de revisión\"\n}"
             },
             "url": {
               "raw": "{{base_url}}{{api_prefix}}/tramites/{{num_annio}}/{{num_tramite}}/{{num_registro}}",
@@ -721,7 +721,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"num_paso\": 1,\n  \"cod_usuario\": \"USER001\",\n  \"cod_seccion\": \"MIGRACION\",\n  \"observaciones\": \"Documentos recibidos y verificados\",\n  \"resultado\": \"APROBADO\",\n  \"documentos_adjuntos\": []\n}"
+              "raw": "{\n  \"NUM_ANNIO\": 2025,\n  \"NUM_TRAMITE\": 100,\n  \"NUM_PASO\": 1,\n  \"NUM_REGISTRO\": 100,\n  \"COD_TRAMITE\": \"{{cod_tramite}}\",\n  \"COD_SECCION\": \"0101\",\n  \"COD_AGENCIA\": \"01\",\n  \"ID_USUAR_RESP\": \"USR001\",\n  \"OBS_OBSERVACION\": \"Documentos recibidos y verificados\",\n  \"IND_ESTATUS\": \"10\"\n}"
             },
             "url": {
               "raw": "{{base_url}}{{api_prefix}}/tramites/{{num_annio}}/{{num_tramite}}/pasos",
@@ -744,7 +744,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"observaciones\": \"Actualizado - documentación completa verificada\",\n  \"resultado\": \"APROBADO_CON_OBSERVACIONES\"\n}"
+              "raw": "{\n  \"OBS_OBSERVACION\": \"Actualizado - documentación completa verificada\",\n  \"IND_ESTATUS\": \"10\",\n  \"IND_CONCLUSION\": \"AP\"\n}"
             },
             "url": {
               "raw": "{{base_url}}{{api_prefix}}/tramites/{{num_annio}}/{{num_tramite}}/{{num_paso}}/{{num_registro}}",
@@ -772,7 +772,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"cod_conclusion\": \"APROBADO\",\n  \"observaciones_cierre\": \"Trámite completado satisfactoriamente. Todos los requisitos cumplidos.\",\n  \"usuario_cierre\": \"USER001\",\n  \"documentos_finales\": []\n}"
+              "raw": "{\n  \"NUM_ANNIO\": 2025,\n  \"NUM_TRAMITE\": 100,\n  \"NUM_REGISTRO\": 100,\n  \"FEC_CIERRE\": \"2025-10-23T12:00:00\",\n  \"ID_USUARIO_CIERRE\": \"USR003\",\n  \"OBS_CIERRE\": \"Trámite completado satisfactoriamente. Todos los requisitos cumplidos.\",\n  \"COD_CONCLUSION\": \"AP\"\n}"
             },
             "url": {
               "raw": "{{base_url}}{{api_prefix}}/tramites/{{num_annio}}/{{num_tramite}}/{{num_registro}}/cierre",
