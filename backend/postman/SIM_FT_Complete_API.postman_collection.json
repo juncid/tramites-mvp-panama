@@ -1401,9 +1401,12 @@
               "script": {
                 "exec": [
                   "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
-                  "pm.test(\"Tiene estadísticas\", () => {",
-                  "    const stats = pm.response.json();",
-                  "    pm.expect(stats.total_tramites).to.be.at.least(3);",
+                  "pm.test(\"Tiene estadísticas de PERM_TEMP\", () => {",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response.estadisticas).to.be.an('array');",
+                  "    const permTemp = response.estadisticas.find(s => s.tipo_tramite === 'PERM_TEMP');",
+                  "    pm.expect(permTemp).to.not.be.undefined;",
+                  "    pm.expect(permTemp.total).to.be.at.least(3);",
                   "});"
                 ]
               }
@@ -1413,9 +1416,9 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{base_url}}{{api_prefix}}/estadisticas?cod_tramite=PERM_TEMP",
+              "raw": "{{base_url}}{{api_prefix}}/estadisticas/tramites-por-tipo?cod_tramite=PERM_TEMP",
               "host": ["{{base_url}}{{api_prefix}}"],
-              "path": ["estadisticas"],
+              "path": ["estadisticas", "tramites-por-tipo"],
               "query": [
                 {
                   "key": "cod_tramite",
