@@ -1291,13 +1291,13 @@
               "listen": "test",
               "script": {
                 "exec": [
-                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Status 201\", () => pm.response.to.have.status(201));",
                   "pm.test(\"Tiene conclusión AP (Aprobado)\", () => {",
                   "    const cierre = pm.response.json();",
-                  "    pm.expect(cierre.IND_CONCLUSION).to.equal('AP');",
+                  "    pm.expect(cierre.COD_CONCLUSION).to.equal('AP');",
                   "});",
-                  "pm.test(\"Tiene fecha de finalización\", () => {",
-                  "    pm.expect(pm.response.json().FEC_FIN_TRAMITE).to.not.be.null;",
+                  "pm.test(\"Tiene fecha de cierre\", () => {",
+                  "    pm.expect(pm.response.json().FEC_CIERRE).to.not.be.null;",
                   "});"
                 ]
               }
@@ -1313,7 +1313,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"IND_CONCLUSION\": \"AP\",\n  \"OBS_CONCLUSION\": \"Permiso temporal aprobado. Documentación completa y cumple requisitos.\"\n}"
+              "raw": "{\n  \"COD_CONCLUSION\": \"AP\",\n  \"OBS_CIERRE\": \"Permiso temporal aprobado. Documentación completa y cumple requisitos.\"\n}"
             },
             "url": {
               "raw": "{{base_url}}{{api_prefix}}/tramites/2025/5002/1/cierre",

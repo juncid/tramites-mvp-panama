@@ -959,14 +959,16 @@ async def cerrar_tramite(
     cierre_data['NUM_ANNIO'] = num_annio
     cierre_data['NUM_TRAMITE'] = num_tramite
     cierre_data['NUM_REGISTRO'] = num_registro
+    cierre_data['FEC_CIERRE'] = datetime.now()
+    cierre_data['ID_USUARIO_CIERRE'] = cierre.ID_USUARIO_CREA or 'SYSTEM'
     
     db_cierre = SimFtTramiteCierre(**cierre_data)
     db.add(db_cierre)
     
     # Actualizar el trámite
-    tramite.FEC_FIN_TRAMITE = cierre.FEC_CIERRE
+    tramite.FEC_FIN_TRAMITE = cierre_data['FEC_CIERRE']
     tramite.IND_CONCLUSION = cierre.COD_CONCLUSION
-    tramite.IND_ESTATUS = '07'  # Completado
+    tramite.IND_ESTATUS = '10'  # Finalizado (era '07' pero según test debe ser '10')
     tramite.FEC_ACTUALIZA = datetime.now()
     
     db.commit()

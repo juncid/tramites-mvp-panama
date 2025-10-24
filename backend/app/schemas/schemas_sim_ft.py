@@ -354,7 +354,7 @@ class SimFtTramiteCierreBase(BaseModel):
     ID_USUARIO_CIERRE: str = Field(..., max_length=17)
 
 
-class SimFtTramiteCierreCreate(SimFtTramiteCierreBase):
+class SimFtTramiteCierreCreate(BaseModel):
     """Schema para crear un cierre de trámite"""
     OBS_CIERRE: Optional[str] = None
     COD_CONCLUSION: Optional[str] = Field(None, max_length=2)
