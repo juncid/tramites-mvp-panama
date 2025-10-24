@@ -1210,7 +1210,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"NUM_PASO\": 3,\n  \"IND_ESTATUS\": \"02\",\n  \"OBS_OBSERVA\": \"Evaluación legal iniciada - Revisando documentación jurídica\"\n}"
+              "raw": "{\n  \"NUM_PASO\": 3,\n  \"NUM_REGISTRO\": 1,\n  \"COD_TRAMITE\": \"PERM_TEMP\",\n  \"IND_ESTATUS\": \"02\",\n  \"OBS_OBSERVACION\": \"Evaluación legal iniciada - Revisando documentación jurídica\"\n}"
             },
             "url": {
               "raw": "{{base_url}}{{api_prefix}}/tramites/{{num_annio}}/{{num_tramite}}/pasos",
@@ -1369,7 +1369,7 @@
                   "    const pasos = pm.response.json();",
                   "    const paso6 = pasos.find(p => p.NUM_PASO === 6);",
                   "    pm.expect(paso6).to.not.be.undefined;",
-                  "    pm.expect(paso6.OBS_OBSERVA).to.include('emitido');",
+                  "    pm.expect(paso6.OBS_OBSERVACION).to.include('emitido');",
                   "});"
                 ]
               }

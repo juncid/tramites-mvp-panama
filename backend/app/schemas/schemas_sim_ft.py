@@ -298,8 +298,11 @@ class SimFtTramiteDBase(BaseModel):
     COD_TRAMITE: str = Field(..., max_length=10)
 
 
-class SimFtTramiteDCreate(SimFtTramiteDBase):
-    """Schema para crear un detalle de paso"""
+class SimFtTramiteDCreate(BaseModel):
+    """Schema para crear un detalle de paso (campos desde URL no requeridos en body)"""
+    NUM_PASO: int = Field(..., ge=1)
+    NUM_REGISTRO: int = Field(..., ge=1)
+    COD_TRAMITE: str = Field(..., max_length=10)
     NUM_ACTIVIDAD: Optional[int] = None
     COD_SECCION: Optional[str] = Field(None, max_length=4)
     COD_AGENCIA: Optional[str] = Field(None, max_length=4)
