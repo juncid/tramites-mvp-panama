@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "sim-ft-complete-api-2025",
     "name": "SIM_FT - API Completa",
-    "description": "Colección completa de todos los endpoints del módulo SIM_FT (Sistema Integrado de Migración - Funcionalidades Transversales) del Sistema de Trámites Migratorios de Panamá.\n\n**Incluye:**\n- Tipos de Trámites (Catálogo maestro)\n- Estatus (Estados de trámites)\n- Conclusiones (Resultados finales)\n- Prioridades (Niveles de urgencia)\n- Pasos (Definición de pasos del proceso)\n- Flujo de Pasos (Asociación pasos-trámites)\n- Usuarios y Secciones (Asignaciones)\n- Trámites SIM_FT (Gestión completa)\n- Pasos de Trámites (Seguimiento detallado)\n- Cierre de Trámites (Finalización)\n- Estadísticas (Reportes y métricas)\n\n**Autor:** Sistema de Trámites MVP Panamá\n**Fecha:** 2025-10-23\n**Versión:** 1.0.0",
+    "description": "Colección completa de todos los endpoints del módulo SIM_FT (Sistema Integrado de Migración - Funcionalidades Transversales) del Sistema de Trámites Migratorios de Panamá.\n\n**Incluye:**\n- Tipos de Trámites (Catálogo maestro)\n- Estatus (Estados de trámites)\n- Conclusiones (Resultados finales)\n- Prioridades (Niveles de urgencia)\n- Pasos (Definición de pasos del proceso)\n- Flujo de Pasos (Asociación pasos-trámites)\n- Usuarios y Secciones (Asignaciones)\n- Trámites SIM_FT (Gestión completa con Redis Caching)\n- Pasos de Trámites (Seguimiento detallado)\n- Cierre de Trámites (Finalización)\n- Estadísticas (Reportes y métricas)\n- **🎯 EJEMPLOS CON DATOS DE PRUEBA: PERM_TEMP** (Carpeta 12)\n\n**🚀 NUEVO - Redis Caching:**\n- GET /tramites: Cache con TTL 5 minutos\n- GET /tramites/{id}: Cache individual por trámite\n- POST/PUT: Invalidación automática de cache\n\n**🧪 DATOS DE PRUEBA INCLUIDOS:**\n- Tipo: PERM_TEMP (Permiso Temporal)\n- Trámites: 5001 (paso 2), 5002 (paso 4), 5003 (finalizado)\n- 6 pasos configurados (Recepción → Emisión)\n- Flujo completo end-to-end\n- Ver: backend/sql/README_SIM_FT_TEST_DATA.md\n\n**⚠️ DEPRECADOS:**\nLos endpoints legacy /tramites están deprecados.\nUsar exclusivamente /sim-ft/tramites\n\n**Autor:** Sistema de Trámites MVP Panamá\n**Fecha:** 2025-10-24\n**Versión:** 2.1.0",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -18,8 +18,9 @@
     },
     {
       "key": "cod_tramite",
-      "value": "",
-      "type": "string"
+      "value": "PERM_TEMP",
+      "type": "string",
+      "description": "Código del trámite de prueba (PERM_TEMP = Permiso Temporal)"
     },
     {
       "key": "num_annio",
@@ -28,18 +29,21 @@
     },
     {
       "key": "num_tramite",
-      "value": "",
-      "type": "string"
+      "value": "5001",
+      "type": "string",
+      "description": "Número de trámite de prueba (5001, 5002, 5003)"
     },
     {
       "key": "num_registro",
-      "value": "",
-      "type": "string"
+      "value": "1",
+      "type": "string",
+      "description": "Número de registro (siempre 1 para datos de prueba)"
     },
     {
       "key": "num_paso",
-      "value": "",
-      "type": "string"
+      "value": "3",
+      "type": "string",
+      "description": "Número de paso (1-6 para PERM_TEMP)"
     }
   ],
   "item": [
@@ -540,18 +544,43 @@
       "name": "8. Trámites SIM_FT",
       "item": [
         {
-          "name": "Listar Trámites",
+          "name": "Listar Trámites (con Cache)",
           "event": [
             {
               "listen": "test",
               "script": {
                 "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Response is array\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.be.an('array');",
+                  "});",
+                  "",
+                  "pm.test(\"Response time is acceptable\", function () {",
+                  "    // Primera llamada: DB query (~100-500ms)",
+                  "    // Segunda llamada: Cache (~5-50ms)",
+                  "    pm.expect(pm.response.responseTime).to.be.below(1000);",
+                  "});",
+                  "",
                   "if (pm.response.json().length > 0) {",
                   "    var tramite = pm.response.json()[0];",
-                  "    pm.collectionVariables.set(\"num_annio\", tramite.num_annio);",
-                  "    pm.collectionVariables.set(\"num_tramite\", tramite.num_tramite);",
-                  "    pm.collectionVariables.set(\"num_registro\", tramite.num_registro);",
-                  "}"
+                  "    pm.collectionVariables.set(\"num_annio\", tramite.NUM_ANNIO);",
+                  "    pm.collectionVariables.set(\"num_tramite\", tramite.NUM_TRAMITE);",
+                  "    pm.collectionVariables.set(\"num_registro\", tramite.NUM_REGISTRO);",
+                  "    ",
+                  "    pm.test(\"Tramite has required fields\", function () {",
+                  "        pm.expect(tramite).to.have.property('NUM_ANNIO');",
+                  "        pm.expect(tramite).to.have.property('NUM_TRAMITE');",
+                  "        pm.expect(tramite).to.have.property('COD_TRAMITE');",
+                  "        pm.expect(tramite).to.have.property('IND_ESTATUS');",
+                  "    });",
+                  "}",
+                  "",
+                  "console.log(\"✅ Datos cacheados en Redis con TTL 5 minutos\");",
+                  "console.log(\"🔑 Cache Key: sim_ft:tramites:{num_annio}:{cod}:{status}:...\");"
                 ],
                 "type": "text/javascript"
               }
@@ -561,34 +590,92 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{base_url}}{{api_prefix}}/tramites?cod_tramite={{cod_tramite}}&cod_estatus=RECIBIDO&skip=0&limit=10",
+              "raw": "{{base_url}}{{api_prefix}}/tramites?num_annio={{num_annio}}&skip=0&limit=10",
               "host": ["{{base_url}}{{api_prefix}}"],
               "path": ["tramites"],
               "query": [
                 {
-                  "key": "cod_tramite",
-                  "value": "{{cod_tramite}}"
+                  "key": "num_annio",
+                  "value": "{{num_annio}}",
+                  "description": "Año del trámite (parte de la PK)"
                 },
                 {
-                  "key": "cod_estatus",
-                  "value": "RECIBIDO"
+                  "key": "cod_tramite",
+                  "value": "{{cod_tramite}}",
+                  "description": "Código del tipo de trámite",
+                  "disabled": true
+                },
+                {
+                  "key": "ind_estatus",
+                  "value": "A",
+                  "description": "Estatus del trámite (A=Activo, C=Cerrado, etc.)",
+                  "disabled": true
+                },
+                {
+                  "key": "ind_prioridad",
+                  "value": "1",
+                  "description": "Prioridad (1=Alta, 2=Media, 3=Baja)",
+                  "disabled": true
+                },
+                {
+                  "key": "fecha_desde",
+                  "value": "2025-01-01",
+                  "description": "Fecha inicio (YYYY-MM-DD)",
+                  "disabled": true
+                },
+                {
+                  "key": "fecha_hasta",
+                  "value": "2025-12-31",
+                  "description": "Fecha fin (YYYY-MM-DD)",
+                  "disabled": true
                 },
                 {
                   "key": "skip",
-                  "value": "0"
+                  "value": "0",
+                  "description": "Offset para paginación"
                 },
                 {
                   "key": "limit",
-                  "value": "10"
+                  "value": "10",
+                  "description": "Límite de resultados (max 100)"
                 }
               ]
             },
-            "description": "Obtiene trámites con filtros opcionales"
+            "description": "**Obtiene trámites con filtros opcionales y caching**\n\n✅ **Redis Cache:** Activado\n- **TTL:** 300 segundos (5 minutos)\n- **Cache Key:** `sim_ft:tramites:{num_annio}:{cod_tramite}:{ind_estatus}:{ind_prioridad}:{skip}:{limit}:{fecha_desde}:{fecha_hasta}`\n\n📌 **Filtros Disponibles:**\n- `num_annio`: Año del trámite\n- `cod_tramite`: Código del tipo de trámite\n- `ind_estatus`: Estado del trámite\n- `ind_prioridad`: Nivel de prioridad\n- `fecha_desde/hasta`: Rango de fechas\n- `skip/limit`: Paginación\n\n🔄 **Invalidación:** Cache se borra al crear/actualizar trámites"
           },
           "response": []
         },
         {
-          "name": "Obtener Trámite por ID",
+          "name": "Obtener Trámite por ID (con Cache)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Response has tramite data\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('NUM_ANNIO');",
+                  "    pm.expect(jsonData).to.have.property('NUM_TRAMITE');",
+                  "    pm.expect(jsonData).to.have.property('NUM_REGISTRO');",
+                  "    pm.expect(jsonData).to.have.property('COD_TRAMITE');",
+                  "});",
+                  "",
+                  "pm.test(\"Response time with cache\", function () {",
+                  "    // Con cache debe ser muy rápido",
+                  "    pm.expect(pm.response.responseTime).to.be.below(500);",
+                  "});",
+                  "",
+                  "console.log(\"✅ Trámite individual cacheado\");",
+                  "console.log(\"🔑 Cache Key: sim_ft:tramite:\" + pm.collectionVariables.get(\"num_annio\") + \":\" + pm.collectionVariables.get(\"num_tramite\") + \":\" + pm.collectionVariables.get(\"num_registro\"));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "request": {
             "method": "GET",
             "header": [],
@@ -597,22 +684,36 @@
               "host": ["{{base_url}}{{api_prefix}}"],
               "path": ["tramites", "{{num_annio}}", "{{num_tramite}}", "{{num_registro}}"]
             },
-            "description": "Obtiene un trámite específico por año, número y registro"
+            "description": "**Obtiene un trámite específico con caching individual**\n\n✅ **Redis Cache:** Activado\n- **TTL:** 300 segundos (5 minutos)\n- **Cache Key:** `sim_ft:tramite:{num_annio}:{num_tramite}:{num_registro}`\n\n📌 **Parámetros (Composite Key):**\n- `num_annio`: Año del trámite (ej: 2025)\n- `num_tramite`: Número secuencial del trámite\n- `num_registro`: Número de registro\n\n🔄 **Invalidación:** Cache se borra al actualizar este trámite o crear/actualizar cualquier trámite"
           },
           "response": []
         },
         {
-          "name": "Crear Trámite",
+          "name": "Crear Trámite (Invalida Cache)",
           "event": [
             {
               "listen": "test",
               "script": {
                 "exec": [
+                  "pm.test(\"Status code is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test(\"Response has tramite data\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('NUM_ANNIO');",
+                  "    pm.expect(jsonData).to.have.property('NUM_TRAMITE');",
+                  "    pm.expect(jsonData).to.have.property('NUM_REGISTRO');",
+                  "});",
+                  "",
                   "if (pm.response.code === 201) {",
                   "    var tramite = pm.response.json();",
-                  "    pm.collectionVariables.set(\"num_annio\", tramite.num_annio);",
-                  "    pm.collectionVariables.set(\"num_tramite\", tramite.num_tramite);",
-                  "    pm.collectionVariables.set(\"num_registro\", tramite.num_registro);",
+                  "    pm.collectionVariables.set(\"num_annio\", tramite.NUM_ANNIO);",
+                  "    pm.collectionVariables.set(\"num_tramite\", tramite.NUM_TRAMITE);",
+                  "    pm.collectionVariables.set(\"num_registro\", tramite.NUM_REGISTRO);",
+                  "    ",
+                  "    console.log(\"✅ Trámite creado: \" + tramite.NUM_ANNIO + \"-\" + tramite.NUM_TRAMITE + \"-\" + tramite.NUM_REGISTRO);",
+                  "    console.log(\"🗑️ Cache invalidado: redis.keys('sim_ft:tramites:*') eliminados\");",
                   "}"
                 ],
                 "type": "text/javascript"
@@ -629,19 +730,40 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"NUM_ANNIO\": 2025,\n  \"NUM_TRAMITE\": 100,\n  \"NUM_REGISTRO\": 100,\n  \"COD_TRAMITE\": \"{{cod_tramite}}\",\n  \"IND_ESTATUS\": \"01\",\n  \"IND_PRIORIDAD\": \"3\",\n  \"OBS_OBSERVA\": \"Trámite de prueba creado desde Postman\"\n}"
+              "raw": "{\n  \"NUM_ANNIO\": 2025,\n  \"NUM_TRAMITE\": 100,\n  \"NUM_REGISTRO\": 100,\n  \"COD_TRAMITE\": \"{{cod_tramite}}\",\n  \"IND_ESTATUS\": \"01\",\n  \"IND_PRIORIDAD\": \"3\",\n  \"OBS_OBSERVA\": \"Trámite de prueba - Cache Invalidation Test\"\n}"
             },
             "url": {
               "raw": "{{base_url}}{{api_prefix}}/tramites",
               "host": ["{{base_url}}{{api_prefix}}"],
               "path": ["tramites"]
             },
-            "description": "Crea un nuevo trámite en SIM_FT"
+            "description": "**Crea un nuevo trámite e invalida el cache**\n\n🗑️ **Cache Invalidation:** Automático\n- Elimina todas las claves `sim_ft:tramites:*`\n- Elimina todas las claves `sim_ft:tramite:*`\n- Pattern: `redis.keys()` + `redis.delete(*keys)`\n\n📌 **Campos Requeridos:**\n- `NUM_ANNIO`: Año del trámite (parte de PK)\n- `NUM_TRAMITE`: Número del trámite (parte de PK)\n- `NUM_REGISTRO`: Registro (parte de PK)\n- `COD_TRAMITE`: Código del tipo de trámite (FK)\n- `IND_ESTATUS`: Código de estatus (FK)\n\n📌 **Campos Opcionales:**\n- `IND_PRIORIDAD`: Prioridad (1-5)\n- `OBS_OBSERVA`: Observaciones\n- `FEC_INI_TRAMITE`: Fecha inicio\n- `ID_USUARIO_CREA`: Usuario creador\n\n⚡ **Nota:** Después de crear, las próximas consultas GET reconstruirán el cache"
           },
           "response": []
         },
         {
-          "name": "Actualizar Trámite",
+          "name": "Actualizar Trámite (Invalida Cache)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Response has updated data\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('FEC_ACTUALIZA');",
+                  "});",
+                  "",
+                  "console.log(\"✅ Trámite actualizado\");",
+                  "console.log(\"🗑️ Cache invalidado: Todas las claves sim_ft:tramites:* eliminadas\");"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "request": {
             "method": "PUT",
             "header": [
@@ -652,14 +774,14 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"IND_ESTATUS\": \"02\",\n  \"IND_PRIORIDAD\": \"2\",\n  \"OBS_OBSERVA\": \"Actualizado - en proceso de revisión\"\n}"
+              "raw": "{\n  \"IND_ESTATUS\": \"02\",\n  \"IND_PRIORIDAD\": \"2\",\n  \"OBS_OBSERVA\": \"Actualizado - en proceso de revisión (Cache Invalidation Test)\"\n}"
             },
             "url": {
               "raw": "{{base_url}}{{api_prefix}}/tramites/{{num_annio}}/{{num_tramite}}/{{num_registro}}",
               "host": ["{{base_url}}{{api_prefix}}"],
               "path": ["tramites", "{{num_annio}}", "{{num_tramite}}", "{{num_registro}}"]
             },
-            "description": "Actualiza un trámite existente"
+            "description": "**Actualiza un trámite existente e invalida el cache**\n\n🗑️ **Cache Invalidation:** Automático\n- Elimina todas las claves de cache de trámites\n- Asegura consistencia de datos después de update\n\n📌 **Campos Actualizables:**\n- `IND_ESTATUS`: Cambiar estado del trámite\n- `IND_PRIORIDAD`: Ajustar prioridad\n- `OBS_OBSERVA`: Actualizar observaciones\n- `FEC_FIN_TRAMITE`: Establecer fecha de finalización\n- `IND_CONCLUSION`: Marcar tipo de conclusión\n\n⚡ **Nota:** \n- Solo incluir campos a actualizar (partial update con Pydantic v2)\n- `FEC_ACTUALIZA` se actualiza automáticamente\n- Cache se reconstruirá en próxima consulta GET"
           },
           "response": []
         }
@@ -867,6 +989,423 @@
               ]
             },
             "description": "Obtiene el tiempo promedio de procesamiento por tipo de trámite"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "12. 🎯 EJEMPLOS: Flujo PERM_TEMP (Datos de Prueba)",
+      "description": "Carpeta con ejemplos completos usando los datos de prueba PERM_TEMP.\n\n**Prerequisito**: Cargar datos con `backend/sql/seed_sim_ft_test_data.sql`\n\n**Datos disponibles:**\n- Tipo: PERM_TEMP (Permiso Temporal)\n- Trámite 5001: En paso 2 (Verificación)\n- Trámite 5002: En paso 4 (Aprobación)\n- Trámite 5003: Finalizado (Aprobado)\n\n**Flujo sugerido:**\n1. Consultar catálogos (pasos, flujo)\n2. Ver listado de trámites PERM_TEMP\n3. Consultar detalle de trámite 5001\n4. Ver historial de pasos\n5. Avanzar trámite al paso 3\n6. Consultar estadísticas",
+      "item": [
+        {
+          "name": "1. Ver Pasos de PERM_TEMP",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Tiene 6 pasos\", () => {",
+                  "    const pasos = pm.response.json();",
+                  "    pm.expect(pasos).to.have.lengthOf(6);",
+                  "});",
+                  "pm.test(\"Paso 1 es Recepción\", () => {",
+                  "    const paso1 = pm.response.json()[0];",
+                  "    pm.expect(paso1.NOM_DESCRIPCION).to.include('Recepción');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/pasos?cod_tramite=PERM_TEMP",
+              "host": ["{{base_url}}{{api_prefix}}"],
+              "path": ["pasos"],
+              "query": [
+                {
+                  "key": "cod_tramite",
+                  "value": "PERM_TEMP",
+                  "description": "Permiso Temporal - 6 pasos"
+                }
+              ]
+            },
+            "description": "Consulta los 6 pasos configurados para el trámite PERM_TEMP:\n1. Recepción de Solicitud\n2. Verificación de Documentos\n3. Evaluación Legal\n4. Aprobación Directiva\n5. Verificación de Pago\n6. Emisión de Permiso"
+          },
+          "response": []
+        },
+        {
+          "name": "2. Ver Flujo de PERM_TEMP",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Tiene 6 configuraciones de flujo\", () => {",
+                  "    pm.expect(pm.response.json()).to.have.lengthOf(6);",
+                  "});",
+                  "pm.test(\"Paso 1 va a paso 2\", () => {",
+                  "    const flujo1 = pm.response.json().find(f => f.NUM_PASO === 1);",
+                  "    pm.expect(flujo1.ID_PASO_SGTE).to.equal(2);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/flujo-pasos?cod_tramite=PERM_TEMP",
+              "host": ["{{base_url}}{{api_prefix}}"],
+              "path": ["flujo-pasos"],
+              "query": [
+                {
+                  "key": "cod_tramite",
+                  "value": "PERM_TEMP"
+                }
+              ]
+            },
+            "description": "Consulta el flujo secuencial configurado:\n- Paso 1 → 2 → 3 → 4 → 5 → 6 → FIN\n- Cada paso tiene asignada una sección (0101-0106)"
+          },
+          "response": []
+        },
+        {
+          "name": "3. Listar Trámites PERM_TEMP",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Tiene al menos 3 trámites\", () => {",
+                  "    pm.expect(pm.response.json().length).to.be.at.least(3);",
+                  "});",
+                  "pm.test(\"Trámite 5001 existe\", () => {",
+                  "    const tramites = pm.response.json();",
+                  "    const t5001 = tramites.find(t => t.NUM_TRAMITE === 5001);",
+                  "    pm.expect(t5001).to.not.be.undefined;",
+                  "    pm.expect(t5001.COD_TRAMITE).to.equal('PERM_TEMP');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/tramites?cod_tramite=PERM_TEMP",
+              "host": ["{{base_url}}{{api_prefix}}"],
+              "path": ["tramites"],
+              "query": [
+                {
+                  "key": "cod_tramite",
+                  "value": "PERM_TEMP"
+                }
+              ]
+            },
+            "description": "Lista los 3 trámites de prueba:\n- 5001: En Revisión (paso 2)\n- 5002: En Evaluación (paso 4)\n- 5003: Finalizado (Aprobado)"
+          },
+          "response": []
+        },
+        {
+          "name": "4. Detalle Trámite 5001 (En Revisión)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Es trámite 5001\", () => {",
+                  "    const t = pm.response.json();",
+                  "    pm.expect(t.NUM_TRAMITE).to.equal(5001);",
+                  "    pm.expect(t.COD_TRAMITE).to.equal('PERM_TEMP');",
+                  "});",
+                  "pm.test(\"Está en estado 02 (En Revisión)\", () => {",
+                  "    pm.expect(pm.response.json().IND_ESTATUS).to.equal('02');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/tramites/{{num_annio}}/{{num_tramite}}/{{num_registro}}",
+              "host": ["{{base_url}}{{api_prefix}}"],
+              "path": ["tramites", "{{num_annio}}", "{{num_tramite}}", "{{num_registro}}"]
+            },
+            "description": "Consulta detalle completo del trámite 5001:\n- Solicitante: Juan Rodríguez\n- Pasaporte: P123456\n- Estado: 02 (En Revisión)\n- Prioridad: 2 (Alta)\n- Actualmente en paso 2 de 6"
+          },
+          "response": []
+        },
+        {
+          "name": "5. Historial de Pasos Trámite 5001",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Tiene 2 pasos registrados\", () => {",
+                  "    pm.expect(pm.response.json()).to.have.lengthOf(2);",
+                  "});",
+                  "pm.test(\"Último paso es el 2\", () => {",
+                  "    const pasos = pm.response.json();",
+                  "    const ultimoPaso = pasos[pasos.length - 1];",
+                  "    pm.expect(ultimoPaso.NUM_PASO).to.equal(2);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/tramites/{{num_annio}}/{{num_tramite}}/pasos",
+              "host": ["{{base_url}}{{api_prefix}}"],
+              "path": ["tramites", "{{num_annio}}", "{{num_tramite}}", "pasos"]
+            },
+            "description": "Consulta el historial de pasos ejecutados del trámite 5001:\n- Paso 1: Recepción (hace 5 días)\n- Paso 2: Verificación (hace 3 días) - ACTUAL"
+          },
+          "response": []
+        },
+        {
+          "name": "6. Avanzar Trámite 5001 a Paso 3",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 201 Created\", () => pm.response.to.have.status(201));",
+                  "pm.test(\"Paso 3 creado\", () => {",
+                  "    const detalle = pm.response.json();",
+                  "    pm.expect(detalle.NUM_PASO).to.equal(3);",
+                  "    pm.expect(detalle.IND_ESTATUS).to.equal('02');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"NUM_PASO\": 3,\n  \"IND_ESTATUS\": \"02\",\n  \"OBS_OBSERVA\": \"Evaluación legal iniciada - Revisando documentación jurídica\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/tramites/{{num_annio}}/{{num_tramite}}/pasos",
+              "host": ["{{base_url}}{{api_prefix}}"],
+              "path": ["tramites", "{{num_annio}}", "{{num_tramite}}", "pasos"]
+            },
+            "description": "Avanza el trámite 5001 del paso 2 al paso 3 (Evaluación Legal).\n\n**IMPORTANTE**: Este es un endpoint POST que crea un nuevo registro en el historial.\n\nDespués de ejecutar:\n1. Volver a consultar historial (request #5)\n2. Verificar que ahora tiene 3 pasos\n3. El último paso debe ser el paso 3"
+          },
+          "response": []
+        },
+        {
+          "name": "7. Detalle Trámite 5002 (En Evaluación)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Es trámite 5002\", () => {",
+                  "    pm.expect(pm.response.json().NUM_TRAMITE).to.equal(5002);",
+                  "});",
+                  "pm.test(\"Está en estado 04 (En Evaluación)\", () => {",
+                  "    pm.expect(pm.response.json().IND_ESTATUS).to.equal('04');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/tramites/2025/5002/1",
+              "host": ["{{base_url}}{{api_prefix}}"],
+              "path": ["tramites", "2025", "5002", "1"]
+            },
+            "description": "Consulta trámite 5002:\n- Solicitante: María González\n- Pasaporte: V987654\n- Estado: 04 (En Evaluación)\n- Prioridad: 1 (Urgente)\n- En paso 4 de 6 (Aprobación Directiva)"
+          },
+          "response": []
+        },
+        {
+          "name": "8. Historial Trámite 5002 (4 pasos)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Tiene 4 pasos\", () => {",
+                  "    pm.expect(pm.response.json()).to.have.lengthOf(4);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/tramites/2025/5002/pasos",
+              "host": ["{{base_url}}{{api_prefix}}"],
+              "path": ["tramites", "2025", "5002", "pasos"]
+            },
+            "description": "Historial completo hasta el paso 4:\n1. Recepción OK\n2. Documentos verificados\n3. Evaluación legal completada\n4. Esperando aprobación directiva (ACTUAL)"
+          },
+          "response": []
+        },
+        {
+          "name": "9. Cerrar Trámite 5002 (Aprobado)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Tiene conclusión AP (Aprobado)\", () => {",
+                  "    const cierre = pm.response.json();",
+                  "    pm.expect(cierre.IND_CONCLUSION).to.equal('AP');",
+                  "});",
+                  "pm.test(\"Tiene fecha de finalización\", () => {",
+                  "    pm.expect(pm.response.json().FEC_FIN_TRAMITE).to.not.be.null;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"IND_CONCLUSION\": \"AP\",\n  \"OBS_CONCLUSION\": \"Permiso temporal aprobado. Documentación completa y cumple requisitos.\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/tramites/2025/5002/1/cierre",
+              "host": ["{{base_url}}{{api_prefix}}"],
+              "path": ["tramites", "2025", "5002", "1", "cierre"]
+            },
+            "description": "Finaliza el trámite 5002 con conclusión APROBADO.\n\n**IMPORTANTE**: Este endpoint:\n- Actualiza IND_CONCLUSION a 'AP'\n- Establece FEC_FIN_TRAMITE con la fecha actual\n- Cambia IND_ESTATUS a '10' (Finalizado)\n\nDespués de ejecutar, consultar nuevamente el trámite 5002 para ver los cambios."
+          },
+          "response": []
+        },
+        {
+          "name": "10. Detalle Trámite 5003 (Finalizado)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Está finalizado\", () => {",
+                  "    const t = pm.response.json();",
+                  "    pm.expect(t.IND_ESTATUS).to.equal('10');",
+                  "    pm.expect(t.IND_CONCLUSION).to.equal('AP');",
+                  "    pm.expect(t.FEC_FIN_TRAMITE).to.not.be.null;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/tramites/2025/5003/1",
+              "host": ["{{base_url}}{{api_prefix}}"],
+              "path": ["tramites", "2025", "5003", "1"]
+            },
+            "description": "Ejemplo de trámite completado:\n- Solicitante: Pedro Martínez\n- Pasaporte: N456789\n- Estado: 10 (Finalizado)\n- Conclusión: AP (Aprobado)\n- Completó los 6 pasos en 19 días"
+          },
+          "response": []
+        },
+        {
+          "name": "11. Historial Completo Trámite 5003 (6 pasos)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Tiene los 6 pasos completos\", () => {",
+                  "    pm.expect(pm.response.json()).to.have.lengthOf(6);",
+                  "});",
+                  "pm.test(\"Último paso es Emisión\", () => {",
+                  "    const pasos = pm.response.json();",
+                  "    const paso6 = pasos.find(p => p.NUM_PASO === 6);",
+                  "    pm.expect(paso6).to.not.be.undefined;",
+                  "    pm.expect(paso6.OBS_OBSERVA).to.include('emitido');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/tramites/2025/5003/pasos",
+              "host": ["{{base_url}}{{api_prefix}}"],
+              "path": ["tramites", "2025", "5003", "pasos"]
+            },
+            "description": "Historial completo del flujo:\n1. Recepción (hace 20 días)\n2. Verificación OK (hace 18 días)\n3. Evaluación legal OK (hace 15 días)\n4. Aprobado por director (hace 10 días)\n5. Pago verificado (hace 5 días)\n6. Permiso emitido (hace 1 día)\n\n**Ideal para entender el flujo completo end-to-end**"
+          },
+          "response": []
+        },
+        {
+          "name": "12. Estadísticas de PERM_TEMP",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Tiene estadísticas\", () => {",
+                  "    const stats = pm.response.json();",
+                  "    pm.expect(stats.total_tramites).to.be.at.least(3);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/estadisticas?cod_tramite=PERM_TEMP",
+              "host": ["{{base_url}}{{api_prefix}}"],
+              "path": ["estadisticas"],
+              "query": [
+                {
+                  "key": "cod_tramite",
+                  "value": "PERM_TEMP"
+                }
+              ]
+            },
+            "description": "Estadísticas específicas de trámites PERM_TEMP:\n- Total de trámites\n- Distribución por estado\n- Distribución por prioridad\n- Trámites finalizados vs en proceso"
           },
           "response": []
         }
