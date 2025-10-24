@@ -141,7 +141,7 @@ services:
         echo '⏳ Esperando a que las migraciones se completen...' &&
         sleep 5 &&
         echo '🚀 Iniciando aplicación FastAPI...' &&
-        uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+        uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --timeout-keep-alive 300 --limit-max-requests 0
       "
     logging:
       driver: "json-file"

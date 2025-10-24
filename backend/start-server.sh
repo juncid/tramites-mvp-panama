@@ -32,5 +32,12 @@ echo "Presiona Ctrl+C para detener el servidor"
 echo "═══════════════════════════════════════════════════════════"
 echo ""
 
-# Iniciar el servidor
-python3 -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+# Iniciar el servidor con configuración para archivos grandes
+# --timeout-keep-alive: Timeout para conexiones keep-alive (segundos)
+# --limit-max-requests: Límite de requests antes de reiniciar worker (0 = sin límite)
+python3 -m uvicorn app.main:app \
+    --host 0.0.0.0 \
+    --port 8000 \
+    --reload \
+    --timeout-keep-alive 300 \
+    --limit-max-requests 0
