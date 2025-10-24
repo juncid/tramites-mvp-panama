@@ -23,15 +23,30 @@ Este directorio contiene scripts SQL para cargar datos de prueba completos que p
 
 ### Trámites de Ejemplo
 
-| Trámite | Año-Num-Reg | Estado | Solicitante | Descripción |
-|---------|-------------|--------|-------------|-------------|
-| 1 | 2025-5001-1 | 02 (En Revisión) | Juan Rodríguez | En paso 2 de 6 |
-| 2 | 2025-5002-1 | 04 (En Evaluación) | María González | En paso 4 de 6 |
-| 3 | 2025-5003-1 | 10 (Finalizado) | Pedro Martínez | Completado - APROBADO |
+| Trámite | Año-Num-Reg | Estado | Prioridad | Conclusión | Días | Descripción |
+|---------|-------------|--------|-----------|------------|------|-------------|
+| 1 | 2025-5001-1 | 02 (En Revisión) | Media (2) | - | 5 | Juan Rodríguez - En paso 2 |
+| 2 | 2025-5002-1 | 04 (En Evaluación) | Alta (1) | AP | 10 | María González - En paso 4 |
+| 3 | 2025-5003-1 | 10 (Finalizado) | Media (2) | AP | 19 | Pedro Martínez - APROBADO |
+| 4 | 2025-5004-1 | 01 (Recién Ingresado) | Baja (3) | - | 2 | Ana Silva - Recién ingresado |
+| 5 | 2025-5005-1 | 10 (Finalizado) | Alta (1) | AP | 25 | Carlos Méndez - APROBADO |
+| 6 | 2025-5006-1 | 10 (Finalizado) | Media (2) | RE | 12 | Laura Torres - RECHAZADO |
+
+**Distribución por Estado:**
+- Estado 01 (Recién Ingresado): 1 trámite
+- Estado 02 (En Revisión): 1 trámite
+- Estado 04 (En Evaluación): 1 trámite
+- Estado 10 (Finalizado): 3 trámites
+
+**Estadísticas:**
+- Total trámites: 6
+- Finalizados: 3 (50%)
+- Tiempo promedio finalización: ~18 días
+- Aprobados: 3 | Rechazados: 1
 
 ## 🚀 Carga de Datos
 
-### Opción 1: Script SQL Directo
+### Script Principal (Primera Vez)
 
 ```powershell
 # Copiar script al contenedor
@@ -43,11 +58,19 @@ docker exec -i tramites-sqlserver /opt/mssql-tools18/bin/sqlcmd `
     -i /var/opt/mssql/backup/seed_sim_ft_test_data.sql
 ```
 
-### Opción 2: Script PowerShell (futuro)
+### Actualización de Datos (Estadísticas)
 
 ```powershell
-.\load-sim-ft-test-data.ps1
+# Copiar script de actualización
+docker cp backend/sql/update_sim_ft_test_data.sql tramites-sqlserver:/var/opt/mssql/backup/
+
+# Ejecutar actualización
+docker exec -i tramites-sqlserver /opt/mssql-tools18/bin/sqlcmd `
+    -S localhost -U sa -P 'YourStrong@Passw0rd' -C `
+    -i /var/opt/mssql/backup/update_sim_ft_test_data.sql
 ```
+
+**Nota:** El script de actualización agrega 3 trámites adicionales (5004, 5005, 5006) y actualiza estados para mejorar las estadísticas.
 
 ## 🧪 Pruebas de Endpoints
 
@@ -83,11 +106,14 @@ curl "http://localhost:8000/api/v1/sim-ft/tramites/2025/5001/pasos"
 ### 3. Estadísticas
 
 ```bash
-# Estadísticas generales
-curl "http://localhost:8000/api/v1/sim-ft/estadisticas"
+# Estadísticas por tipo de trámite
+curl "http://localhost:8000/api/v1/sim-ft/estadisticas/tramites-por-tipo"
 
 # Estadísticas por estado
-curl "http://localhost:8000/api/v1/sim-ft/estadisticas?cod_estatus=02"
+curl "http://localhost:8000/api/v1/sim-ft/estadisticas/tramites-por-estado"
+
+# Tiempo promedio de procesamiento (PERM_TEMP)
+curl "http://localhost:8000/api/v1/sim-ft/estadisticas/tiempo-promedio?cod_tramite=PERM_TEMP"
 ```
 
 ### 4. Modificación de Trámites
@@ -119,8 +145,8 @@ curl -X POST "http://localhost:8000/api/v1/sim-ft/tramites/2025/5002/1/cierre" \
 - ✅ **6 Pasos del proceso** (workflow completo)
 - ✅ **6 Configuraciones de flujo** (secuencia paso a paso)
 - ✅ **7 Asignaciones** usuario-sección (ADMIN y TEST_USER)
-- ✅ **3 Trámites de ejemplo** (diferentes estados)
-- ✅ **12 Registros de detalles** (historial de pasos ejecutados)
+- ✅ **6 Trámites de ejemplo** (diferentes estados y prioridades)
+- ✅ **12+ Registros de detalles** (historial de pasos ejecutados)
 
 ### Tablas Populadas
 
@@ -129,8 +155,8 @@ SIM_FT_TRAMITES       → 1 registro  (tipo PERM_TEMP)
 SIM_FT_PASOS          → 6 registros (pasos 1-6)
 SIM_FT_PASOXTRAM      → 6 registros (flujo de proceso)
 SIM_FT_USUA_SEC       → 7 registros (asignaciones)
-SIM_FT_TRAMITE_E      → 3 registros (encabezados de trámites)
-SIM_FT_TRAMITE_D      → 12 registros (detalles/historial)
+SIM_FT_TRAMITE_E      → 6 registros (encabezados de trámites)
+SIM_FT_TRAMITE_D      → 12+ registros (detalles/historial)
 ```
 
 ## 🎯 Casos de Uso Cubiertos
