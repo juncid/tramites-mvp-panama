@@ -68,9 +68,9 @@
           ]
         },
         "url": {
-          "raw": "{{base_url}}/ppsh/solicitudes/{{solicitud_id}}/documentos",
+          "raw": "{{base_url}}/api/v1/ppsh/solicitudes/{{solicitud_id}}/documentos",
           "host": ["{{base_url}}"],
-          "path": ["ppsh", "solicitudes", "{{solicitud_id}}", "documentos"]
+          "path": ["api", "v1", "ppsh", "solicitudes", "{{solicitud_id}}", "documentos"]
         }
       }
     },
@@ -114,7 +114,7 @@
           ]
         },
         "url": {
-          "raw": "{{base_url}}/ppsh/solicitudes/{{solicitud_id}}/documentos"
+          "raw": "{{base_url}}/api/v1/ppsh/solicitudes/{{solicitud_id}}/documentos"
         }
       }
     },
@@ -153,7 +153,7 @@
           ]
         },
         "url": {
-          "raw": "{{base_url}}/ppsh/solicitudes/{{solicitud_id}}/documentos"
+          "raw": "{{base_url}}/api/v1/ppsh/solicitudes/{{solicitud_id}}/documentos"
         }
       }
     },
@@ -193,7 +193,7 @@
           ]
         },
         "url": {
-          "raw": "{{base_url}}/ppsh/solicitudes/99999/documentos"
+          "raw": "{{base_url}}/api/v1/ppsh/solicitudes/99999/documentos"
         }
       }
     },
@@ -219,7 +219,7 @@
       "request": {
         "method": "PATCH",
         "url": {
-          "raw": "{{base_url}}/ppsh/documentos/{{last_document_id}}/verificar?estado=VERIFICADO&observaciones=Documento válido y completo"
+          "raw": "{{base_url}}/api/v1/ppsh/documentos/{{last_document_id}}/verificar?estado=VERIFICADO&observaciones=Documento válido y completo"
         }
       }
     },
@@ -254,7 +254,7 @@
       "request": {
         "method": "GET",
         "url": {
-          "raw": "{{base_url}}/ppsh/catalogos/tipos-documento"
+          "raw": "{{base_url}}/api/v1/ppsh/catalogos/tipos-documento"
         }
       }
     }
