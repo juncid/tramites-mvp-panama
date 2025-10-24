@@ -1169,9 +1169,15 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{base_url}}{{api_prefix}}/tramites/{{num_annio}}/{{num_tramite}}/pasos",
+              "raw": "{{base_url}}{{api_prefix}}/tramites/{{num_annio}}/{{num_tramite}}/pasos?num_registro={{num_registro}}",
               "host": ["{{base_url}}{{api_prefix}}"],
-              "path": ["tramites", "{{num_annio}}", "{{num_tramite}}", "pasos"]
+              "path": ["tramites", "{{num_annio}}", "{{num_tramite}}", "pasos"],
+              "query": [
+                {
+                  "key": "num_registro",
+                  "value": "{{num_registro}}"
+                }
+              ]
             },
             "description": "Consulta el historial de pasos ejecutados del trámite 5001:\n- Paso 1: Recepción (hace 5 días)\n- Paso 2: Verificación (hace 3 días) - ACTUAL"
           },
@@ -1264,9 +1270,15 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{base_url}}{{api_prefix}}/tramites/2025/5002/pasos",
+              "raw": "{{base_url}}{{api_prefix}}/tramites/2025/5002/pasos?num_registro=1",
               "host": ["{{base_url}}{{api_prefix}}"],
-              "path": ["tramites", "2025", "5002", "pasos"]
+              "path": ["tramites", "2025", "5002", "pasos"],
+              "query": [
+                {
+                  "key": "num_registro",
+                  "value": "1"
+                }
+              ]
             },
             "description": "Historial completo hasta el paso 4:\n1. Recepción OK\n2. Documentos verificados\n3. Evaluación legal completada\n4. Esperando aprobación directiva (ACTUAL)"
           },
@@ -1367,9 +1379,15 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{base_url}}{{api_prefix}}/tramites/2025/5003/pasos",
+              "raw": "{{base_url}}{{api_prefix}}/tramites/2025/5003/pasos?num_registro=1",
               "host": ["{{base_url}}{{api_prefix}}"],
-              "path": ["tramites", "2025", "5003", "pasos"]
+              "path": ["tramites", "2025", "5003", "pasos"],
+              "query": [
+                {
+                  "key": "num_registro",
+                  "value": "1"
+                }
+              ]
             },
             "description": "Historial completo del flujo:\n1. Recepción (hace 20 días)\n2. Verificación OK (hace 18 días)\n3. Evaluación legal OK (hace 15 días)\n4. Aprobado por director (hace 10 días)\n5. Pago verificado (hace 5 días)\n6. Permiso emitido (hace 1 día)\n\n**Ideal para entender el flujo completo end-to-end**"
           },
