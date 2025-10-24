@@ -1394,7 +1394,7 @@
           "response": []
         },
         {
-          "name": "12. Estadísticas de PERM_TEMP",
+          "name": "12. Estadísticas por Tipo de Trámite",
           "event": [
             {
               "listen": "test",
@@ -1416,17 +1416,74 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{base_url}}{{api_prefix}}/estadisticas/tramites-por-tipo?cod_tramite=PERM_TEMP",
+              "raw": "{{base_url}}{{api_prefix}}/estadisticas/tramites-por-tipo",
               "host": ["{{base_url}}{{api_prefix}}"],
-              "path": ["estadisticas", "tramites-por-tipo"],
+              "path": ["estadisticas", "tramites-por-tipo"]
+            },
+            "description": "Estadísticas de trámites agrupados por tipo.\n\n**Retorna**: Array con total de trámites por cada COD_TRAMITE.\n\n**Parámetros opcionales**:\n- num_annio: Filtrar por año específico"
+          },
+          "response": []
+        },
+        {
+          "name": "13. Estadísticas por Estado",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Tiene distribución por estados\", () => {",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response.estadisticas).to.be.an('array');",
+                  "    pm.expect(response.estadisticas.length).to.be.at.least(1);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/estadisticas/tramites-por-estado",
+              "host": ["{{base_url}}{{api_prefix}}"],
+              "path": ["estadisticas", "tramites-por-estado"]
+            },
+            "description": "Estadísticas de trámites agrupados por estado (IND_ESTATUS).\n\n**Retorna**: Array con total de trámites por cada estado.\n\n**Parámetros opcionales**:\n- cod_tramite: Filtrar por tipo de trámite\n- num_annio: Filtrar por año"
+          },
+          "response": []
+        },
+        {
+          "name": "14. Tiempo Promedio de Procesamiento",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Tiene datos de tiempo promedio\", () => {",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response).to.have.property('tiempo_promedio_dias');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/estadisticas/tiempo-promedio?cod_tramite={{cod_tramite}}",
+              "host": ["{{base_url}}{{api_prefix}}"],
+              "path": ["estadisticas", "tiempo-promedio"],
               "query": [
                 {
                   "key": "cod_tramite",
-                  "value": "PERM_TEMP"
+                  "value": "{{cod_tramite}}"
                 }
               ]
             },
-            "description": "Estadísticas específicas de trámites PERM_TEMP:\n- Total de trámites\n- Distribución por estado\n- Distribución por prioridad\n- Trámites finalizados vs en proceso"
+            "description": "Tiempo promedio de procesamiento de trámites finalizados.\n\n**Retorna**: Días promedio entre FEC_INI_TRAMITE y FEC_FIN_TRAMITE.\n\n**Parámetros opcionales**:\n- cod_tramite: Filtrar por tipo de trámite\n- num_annio: Filtrar por año"
           },
           "response": []
         }
