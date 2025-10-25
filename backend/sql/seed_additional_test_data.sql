@@ -17,8 +17,76 @@ PRINT '';
 -- ============================================================================
 PRINT '📋 PARTE 1/4 - Solicitantes PPSH adicionales...';
 
+-- ============================================================================
+-- PARTE 1: SOLICITUDES PPSH PRIMERO (para obtener IDs)
+-- ============================================================================
+PRINT '📋 PARTE 1/4 - Crear Solicitudes PPSH...';
+
+-- Solicitudes con diferentes estados
+DECLARE @solicitudes_temp TABLE (
+    num_exp VARCHAR(50),
+    tipo_sol VARCHAR(20),
+    causa_id INT,
+    descripcion TEXT,
+    estado VARCHAR(20),
+    dias INT
+);
+
+INSERT INTO @solicitudes_temp VALUES
+    ('PPSH-2025-ADD-001', 'PPSH', 1, 'Persecución política por activismo en Venezuela', 'RECIBIDO', 2),
+    ('PPSH-2025-ADD-002', 'PPSH', 2, 'Amenazas por orientación política en Cuba', 'EN_REVISION', 5),
+    ('PPSH-2025-ADD-003', 'PROTECCION_HUMANITARIA', 3, 'Violencia de género - amenazas de muerte', 'EN_REVISION', 7),
+    ('PPSH-2025-ADD-004', 'PPSH', 4, 'Persecución por pertenecer a minoría étnica', 'DOCUMENTOS_INCOMPLETOS', 10),
+    ('PPSH-2025-ADD-005', 'PPSH', 1, 'Amenazas por trabajo como periodista', 'EN_ENTREVISTA', 12),
+    ('PPSH-2025-ADD-006', 'PROTECCION_HUMANITARIA', 5, 'Violencia doméstica extrema - riesgo de vida', 'APROBADO', 15),
+    ('PPSH-2025-ADD-007', 'PPSH', 2, 'Persecución por activismo sindical', 'RECHAZADO', 20),
+    ('PPSH-2025-ADD-008', 'PPSH', 1, 'Amenazas por denuncia de corrupción', 'RECIBIDO', 1),
+    ('PPSH-2025-ADD-009', 'PPSH', 6, 'Persecución religiosa', 'EN_REVISION', 4),
+    ('PPSH-2025-ADD-010', 'PROTECCION_HUMANITARIA', 3, 'Violencia de pandillas - testigo protegido', 'EN_ENTREVISTA', 8);
+
+DECLARE @num_exp VARCHAR(50), @tipo VARCHAR(20), @causa INT, @desc TEXT, @estado VARCHAR(20), @dias INT;
+DECLARE @solicitud_ids TABLE (num_exp VARCHAR(50), id_solicitud INT);
+
+DECLARE sol_cursor CURSOR FOR 
+    SELECT num_exp, tipo_sol, causa_id, descripcion, estado, dias FROM @solicitudes_temp;
+
+OPEN sol_cursor;
+FETCH NEXT FROM sol_cursor INTO @num_exp, @tipo, @causa, @desc, @estado, @dias;
+
+WHILE @@FETCH_STATUS = 0
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM PPSH_SOLICITUD WHERE num_expediente = @num_exp)
+    BEGIN
+        INSERT INTO PPSH_SOLICITUD (
+            num_expediente, tipo_solicitud, cod_causa_humanitaria,
+            descripcion_caso, estado_actual, fecha_solicitud,
+            created_by, created_at
+        ) VALUES (
+            @num_exp, @tipo, @causa, @desc, @estado,
+            DATEADD(DAY, -@dias, CAST(GETDATE() AS DATE)), 'ADMIN', GETDATE()
+        );
+        
+        INSERT INTO @solicitud_ids (num_exp, id_solicitud)
+        SELECT @num_exp, SCOPE_IDENTITY();
+        
+        PRINT '  ✅ Solicitud: ' + @num_exp + ' - Estado: ' + @estado;
+    END
+    FETCH NEXT FROM sol_cursor INTO @num_exp, @tipo, @causa, @desc, @estado, @dias;
+END
+
+CLOSE sol_cursor;
+DEALLOCATE sol_cursor;
+GO
+
+-- ============================================================================
+-- PARTE 2: SOLICITANTES PPSH (10 casos)
+-- ============================================================================
+PRINT '';
+PRINT '� PARTE 2/4 - Solicitantes PPSH adicionales...';
+
 -- Solicitantes de diferentes nacionalidades y situaciones
 DECLARE @solicitantes TABLE (
+    num_exp VARCHAR(50),
     primer_nombre VARCHAR(100),
     primer_apellido VARCHAR(100),
     segundo_apellido VARCHAR(100),
@@ -32,124 +100,49 @@ DECLARE @solicitantes TABLE (
 );
 
 INSERT INTO @solicitantes VALUES
-    ('Carlos', 'Ramírez', 'Sánchez', 'PASAPORTE', 'VE8765432', 'VE', '1985-03-15', 'M', 'carlos.ramirez@example.com', '+507-6100-0001'),
-    ('Ana', 'Morales', 'Torres', 'PASAPORTE', 'CU1234567', 'CU', '1990-07-22', 'F', 'ana.morales@example.com', '+507-6100-0002'),
-    ('José', 'Fernández', 'López', 'PASAPORTE', 'NI9876543', 'NI', '1978-11-30', 'M', 'jose.fernandez@example.com', '+507-6100-0003'),
-    ('Lucía', 'Castillo', 'Ruiz', 'PASAPORTE', 'HN2345678', 'HN', '1995-05-18', 'F', 'lucia.castillo@example.com', '+507-6100-0004'),
-    ('Miguel', 'Díaz', 'Gómez', 'CEDULA', 'CO34567890', 'CO', '1982-09-25', 'M', 'miguel.diaz@example.com', '+507-6100-0005'),
-    ('Elena', 'Vargas', 'Medina', 'PASAPORTE', 'VE5432109', 'VE', '1988-01-12', 'F', 'elena.vargas@example.com', '+507-6100-0006'),
-    ('Roberto', 'Gutiérrez', 'Silva', 'PASAPORTE', 'NI6543210', 'NI', '1975-12-08', 'M', 'roberto.gutierrez@example.com', '+507-6100-0007'),
-    ('Patricia', 'Herrera', 'Ortiz', 'CEDULA', 'VE7654321', 'VE', '1992-04-20', 'F', 'patricia.herrera@example.com', '+507-6100-0008'),
-    ('Fernando', 'Ramos', 'Castro', 'PASAPORTE', 'CU8765432', 'CU', '1980-06-14', 'M', 'fernando.ramos@example.com', '+507-6100-0009'),
-    ('Gabriela', 'Mendoza', 'Pérez', 'PASAPORTE', 'HN9876543', 'HN', '1993-08-05', 'F', 'gabriela.mendoza@example.com', '+507-6100-0010');
+    ('PPSH-2025-ADD-001', 'Carlos', 'Ramírez', 'Sánchez', 'PASAPORTE', 'VE8765432', 'VE', '1985-03-15', 'M', 'carlos.ramirez@example.com', '+507-6100-0001'),
+    ('PPSH-2025-ADD-002', 'Ana', 'Morales', 'Torres', 'PASAPORTE', 'CU1234567', 'CU', '1990-07-22', 'F', 'ana.morales@example.com', '+507-6100-0002'),
+    ('PPSH-2025-ADD-003', 'José', 'Fernández', 'López', 'PASAPORTE', 'NI9876543', 'NI', '1978-11-30', 'M', 'jose.fernandez@example.com', '+507-6100-0003'),
+    ('PPSH-2025-ADD-004', 'Lucía', 'Castillo', 'Ruiz', 'PASAPORTE', 'HN2345678', 'HN', '1995-05-18', 'F', 'lucia.castillo@example.com', '+507-6100-0004'),
+    ('PPSH-2025-ADD-005', 'Miguel', 'Díaz', 'Gómez', 'CEDULA', 'CO34567890', 'CO', '1982-09-25', 'M', 'miguel.diaz@example.com', '+507-6100-0005'),
+    ('PPSH-2025-ADD-006', 'Elena', 'Vargas', 'Medina', 'PASAPORTE', 'VE5432109', 'VE', '1988-01-12', 'F', 'elena.vargas@example.com', '+507-6100-0006'),
+    ('PPSH-2025-ADD-007', 'Roberto', 'Gutiérrez', 'Silva', 'PASAPORTE', 'NI6543210', 'NI', '1975-12-08', 'M', 'roberto.gutierrez@example.com', '+507-6100-0007'),
+    ('PPSH-2025-ADD-008', 'Patricia', 'Herrera', 'Ortiz', 'CEDULA', 'VE7654321', 'VE', '1992-04-20', 'F', 'patricia.herrera@example.com', '+507-6100-0008'),
+    ('PPSH-2025-ADD-009', 'Fernando', 'Ramos', 'Castro', 'PASAPORTE', 'CU8765432', 'CU', '1980-06-14', 'M', 'fernando.ramos@example.com', '+507-6100-0009'),
+    ('PPSH-2025-ADD-010', 'Gabriela', 'Mendoza', 'Pérez', 'PASAPORTE', 'HN9876543', 'HN', '1993-08-05', 'F', 'gabriela.mendoza@example.com', '+507-6100-0010');
 
--- Insertar solicitantes
-DECLARE @nom VARCHAR(100), @ap1 VARCHAR(100), @ap2 VARCHAR(100), @tdoc VARCHAR(20), 
-        @ndoc VARCHAR(50), @nac VARCHAR(3), @fnac DATE, @sex CHAR(1), @email VARCHAR(100), @tel VARCHAR(20);
+DECLARE @num_exp_sol VARCHAR(50), @nom VARCHAR(100), @ap1 VARCHAR(100), @ap2 VARCHAR(100), @tdoc VARCHAR(20), 
+        @ndoc VARCHAR(50), @nac VARCHAR(3), @fnac DATE, @sex CHAR(1), @email VARCHAR(100), @tel VARCHAR(20), @id_sol INT;
 
-DECLARE sol_cursor CURSOR FOR 
-    SELECT primer_nombre, primer_apellido, segundo_apellido, tipo_doc, num_doc, nacionalidad, fecha_nac, sexo, email, telefono 
+DECLARE solicitante_cursor CURSOR FOR 
+    SELECT num_exp, primer_nombre, primer_apellido, segundo_apellido, tipo_doc, num_doc, nacionalidad, fecha_nac, sexo, email, telefono 
     FROM @solicitantes;
 
-OPEN sol_cursor;
-FETCH NEXT FROM sol_cursor INTO @nom, @ap1, @ap2, @tdoc, @ndoc, @nac, @fnac, @sex, @email, @tel;
+OPEN solicitante_cursor;
+FETCH NEXT FROM solicitante_cursor INTO @num_exp_sol, @nom, @ap1, @ap2, @tdoc, @ndoc, @nac, @fnac, @sex, @email, @tel;
 
 WHILE @@FETCH_STATUS = 0
 BEGIN
-    IF NOT EXISTS (SELECT 1 FROM PPSH_SOLICITANTE WHERE num_documento = @ndoc)
+    -- Obtener ID de la solicitud
+    SELECT @id_sol = id_solicitud FROM PPSH_SOLICITUD WHERE num_expediente = @num_exp_sol;
+    
+    IF @id_sol IS NOT NULL AND NOT EXISTS (SELECT 1 FROM PPSH_SOLICITANTE WHERE num_documento = @ndoc)
     BEGIN
         INSERT INTO PPSH_SOLICITANTE (
-            primer_nombre, primer_apellido, segundo_apellido, tipo_documento, num_documento,
+            id_solicitud, es_titular, primer_nombre, primer_apellido, segundo_apellido, tipo_documento, num_documento,
             cod_nacionalidad, fecha_nacimiento, cod_sexo,
             email, telefono, created_by, created_at
         ) VALUES (
-            @nom, @ap1, @ap2, @tdoc, @ndoc, @nac, @fnac, @sex,
+            @id_sol, 1, @nom, @ap1, @ap2, @tdoc, @ndoc, @nac, @fnac, @sex,
             @email, @tel, 'ADMIN', GETDATE()
         );
-        PRINT '  ✅ ' + @nom + ' ' + @ap1 + ' (' + @ndoc + ')';
+        PRINT '  ✅ ' + @nom + ' ' + @ap1 + ' (' + @ndoc + ') -> ' + @num_exp_sol;
     END
-    FETCH NEXT FROM sol_cursor INTO @nom, @ap1, @ap2, @tdoc, @ndoc, @nac, @fnac, @sex, @email, @tel;
+    FETCH NEXT FROM solicitante_cursor INTO @num_exp_sol, @nom, @ap1, @ap2, @tdoc, @ndoc, @nac, @fnac, @sex, @email, @tel;
 END
 
-CLOSE sol_cursor;
-DEALLOCATE sol_cursor;
-GO
-
--- ============================================================================
--- PARTE 2: SOLICITUDES PPSH ADICIONALES (10 casos)
--- ============================================================================
-PRINT '';
-PRINT '📝 PARTE 2/4 - Solicitudes PPSH adicionales...';
-
--- Obtener IDs de solicitantes para crear solicitudes
-DECLARE @solicitudes TABLE (
-    num_doc VARCHAR(50),
-    tipo_sol VARCHAR(20),
-    causa_id INT,
-    motivo TEXT,
-    estado VARCHAR(20),
-    dias_atras INT
-);
-
-INSERT INTO @solicitudes VALUES
-    ('VE8765432', 'PPSH', 1, 'Persecución política por activismo en Venezuela', 'RECIBIDO', 2),
-    ('CU1234567', 'PPSH', 2, 'Amenazas por orientación política en Cuba', 'EN_REVISION', 5),
-    ('NI9876543', 'PROTECCION', 3, 'Violencia de género - amenazas de muerte', 'EN_REVISION', 7),
-    ('HN2345678', 'PPSH', 4, 'Persecución por pertenecer a minoría étnica', 'DOCUMENTOS_INCOMPLETOS', 10),
-    ('CO34567890', 'PPSH', 1, 'Amenazas por trabajo como periodista', 'EN_ENTREVISTA', 12),
-    ('VE5432109', 'PROTECCION', 5, 'Violencia doméstica extrema - riesgo de vida', 'APROBADO', 15),
-    ('NI6543210', 'PPSH', 2, 'Persecución por activismo sindical', 'RECHAZADO', 20),
-    ('VE7654321', 'PPSH', 1, 'Amenazas por denuncia de corrupción', 'RECIBIDO', 1),
-    ('CU8765432', 'PPSH', 6, 'Persecución religiosa', 'EN_REVISION', 4),
-    ('HN9876543', 'PROTECCION', 3, 'Violencia de pandillas - testigo protegido', 'EN_ENTREVISTA', 8);
-
--- Insertar solicitudes
-DECLARE @ndoc VARCHAR(50), @tipo VARCHAR(20), @causa INT, @motivo TEXT, @estado VARCHAR(20), @dias INT, @sol_id INT;
-DECLARE solic_cursor CURSOR FOR 
-    SELECT num_doc, tipo_sol, causa_id, motivo, estado, dias_atras FROM @solicitudes;
-
-OPEN solic_cursor;
-FETCH NEXT FROM solic_cursor INTO @ndoc, @tipo, @causa, @motivo, @estado, @dias;
-
-WHILE @@FETCH_STATUS = 0
-BEGIN
-    -- Obtener ID del solicitante
-    SELECT @sol_id = id_solicitante FROM PPSH_SOLICITANTE WHERE num_documento = @ndoc;
-    
-    IF @sol_id IS NOT NULL
-    BEGIN
-        -- Generar número de expediente único
-        DECLARE @num_exp VARCHAR(50);
-        SET @num_exp = 'PPSH-2025-' + @ndoc;
-        
-        IF NOT EXISTS (SELECT 1 FROM PPSH_SOLICITUD WHERE num_expediente = @num_exp)
-        BEGIN
-            INSERT INTO PPSH_SOLICITUD (
-                num_expediente, tipo_solicitud, cod_causa_humanitaria,
-                descripcion_caso, estado_actual, fecha_solicitud,
-                created_by, created_at
-            ) VALUES (
-                @num_exp, @tipo, @causa, @motivo, @estado,
-                DATEADD(DAY, -@dias, CAST(GETDATE() AS DATE)), 'ADMIN', GETDATE()
-            );
-            
-            -- Asociar solicitante con solicitud
-            DECLARE @solicitud_id INT;
-            SELECT @solicitud_id = id_solicitud FROM PPSH_SOLICITUD WHERE num_expediente = @num_exp;
-            
-            UPDATE PPSH_SOLICITANTE 
-            SET id_solicitud = @solicitud_id
-            WHERE id_solicitante = @sol_id;
-            
-            PRINT '  ✅ Solicitud ' + @num_exp + ' - Estado: ' + @estado;
-        END
-    END
-    
-    FETCH NEXT FROM solic_cursor INTO @ndoc, @tipo, @causa, @motivo, @estado, @dias;
-END
-
-CLOSE solic_cursor;
-DEALLOCATE solic_cursor;
+CLOSE solicitante_cursor;
+DEALLOCATE solicitante_cursor;
 GO
 
 -- ============================================================================
@@ -230,9 +223,9 @@ DECLARE @instancias TABLE (
 );
 
 INSERT INTO @instancias VALUES
-    (@workflow_ppsh_id, 'PPSH-2025-VE8765432', 'Solicitud Carlos Ramírez', 'en_proceso', 2),
-    (@workflow_ppsh_id, 'PPSH-2025-CU1234567', 'Solicitud Ana Morales', 'en_proceso', 5),
-    (@workflow_ppsh_id, 'PPSH-2025-NI9876543', 'Solicitud José Fernández', 'completado', 15),
+    (@workflow_ppsh_id, 'PPSH-2025-ADD-001', 'Solicitud Carlos Ramírez', 'en_proceso', 2),
+    (@workflow_ppsh_id, 'PPSH-2025-ADD-002', 'Solicitud Ana Morales', 'en_proceso', 5),
+    (@workflow_ppsh_id, 'PPSH-2025-ADD-003', 'Solicitud José Fernández', 'completado', 15),
     (@workflow_general_id, 'TRAM-2025-5004', 'Trámite Andrea López', 'en_proceso', 1),
     (@workflow_general_id, 'TRAM-2025-5005', 'Trámite Ricardo Campos', 'en_proceso', 3);
 
