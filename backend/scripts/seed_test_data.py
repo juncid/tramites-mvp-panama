@@ -1,13 +1,25 @@
 #!/usr/bin/env python3
 """
 Script para cargar datos de prueba en la base de datos
-Ejecuta los scripts SQL de seed para Trámites Base y Workflow API
+Ejecuta los scripts SQL de seed para PPSH, Trámites Base y Workflow API
 
 Uso:
-    python seed_test_data.py [--tramites] [--workflow] [--all]
+    python seed_test_data.py [--ppsh] [--tramites] [--workflow] [--all]
+
+Opciones:
+    --ppsh, -p      : Cargar datos de PPSH y SIM_FT (catálogos base)
+    --tramites, -t  : Cargar datos de Trámites Base
+    --workflow, -w  : Cargar datos de Workflow API
+    --all, -a       : Cargar todos los datos de prueba
+
+Archivos SQL ejecutados:
+    - seed_sim_ft_test_data.sql         : Catálogos PPSH y datos base
+    - update_sim_ft_test_data.sql       : Actualizaciones SIM_FT
+    - seed_tramites_base_test_data.sql  : Datos de Trámites Base
+    - seed_workflow_test_data.sql       : Datos de Workflow API
 
 Autor: Sistema de Trámites MVP Panamá
-Fecha: 2025-10-24
+Fecha: 2025-10-25
 """
 
 import os
@@ -135,6 +147,22 @@ class DatabaseSeeder:
             traceback.print_exc()
             return False
     
+    def seed_sim_ft(self) -> bool:
+        """Carga datos de prueba para SIM_FT (PPSH y catálogos base)"""
+        print("\n" + "="*60)
+        print("📋 CARGANDO DATOS DE SIM_FT Y PPSH")
+        print("="*60)
+        sql_file = self.sql_dir / 'seed_sim_ft_test_data.sql'
+        return self.execute_sql_file(sql_file)
+    
+    def update_sim_ft(self) -> bool:
+        """Actualiza datos de prueba de SIM_FT"""
+        print("\n" + "="*60)
+        print("🔄 ACTUALIZANDO DATOS DE SIM_FT")
+        print("="*60)
+        sql_file = self.sql_dir / 'update_sim_ft_test_data.sql'
+        return self.execute_sql_file(sql_file)
+    
     def seed_tramites_base(self) -> bool:
         """Carga datos de prueba para Trámites Base API"""
         print("\n" + "="*60)
@@ -159,12 +187,22 @@ class DatabaseSeeder:
         
         success = True
         
-        # 1. Trámites Base
+        # 1. SIM_FT y PPSH (catálogos y datos base)
+        if not self.seed_sim_ft():
+            success = False
+            print("\n⚠️ Falló la carga de SIM_FT/PPSH, pero continuando...")
+        
+        # 2. Actualizar datos SIM_FT
+        if not self.update_sim_ft():
+            success = False
+            print("\n⚠️ Falló la actualización de SIM_FT, pero continuando...")
+        
+        # 3. Trámites Base
         if not self.seed_tramites_base():
             success = False
             print("\n⚠️ Falló la carga de Trámites Base, pero continuando...")
         
-        # 2. Workflow
+        # 4. Workflow
         if not self.seed_workflow():
             success = False
             print("\n⚠️ Falló la carga de Workflow")
@@ -180,12 +218,18 @@ def main():
         epilog="""
 Ejemplos de uso:
   python seed_test_data.py --all          # Carga todos los datos
+  python seed_test_data.py --ppsh         # Solo PPSH y SIM_FT
   python seed_test_data.py --tramites     # Solo trámites base
   python seed_test_data.py --workflow     # Solo workflow
-  python seed_test_data.py -t -w          # Ambos (forma corta)
+  python seed_test_data.py -p -t -w       # Combinación (forma corta)
         """
     )
     
+    parser.add_argument(
+        '--ppsh', '-p',
+        action='store_true',
+        help='Cargar datos de PPSH y SIM_FT (catálogos base)'
+    )
     parser.add_argument(
         '--tramites', '-t',
         action='store_true',
@@ -199,15 +243,15 @@ Ejemplos de uso:
     parser.add_argument(
         '--all', '-a',
         action='store_true',
-        help='Cargar todos los datos de prueba'
+        help='Cargar todos los datos de prueba (PPSH, Trámites, Workflow)'
     )
     
     args = parser.parse_args()
     
     # Si no se especifica ninguna opción, mostrar ayuda
-    if not (args.tramites or args.workflow or args.all):
+    if not (args.ppsh or args.tramites or args.workflow or args.all):
         parser.print_help()
-        print("\n⚠️ Debe especificar al menos una opción: --tramites, --workflow, o --all")
+        print("\n⚠️ Debe especificar al menos una opción: --ppsh, --tramites, --workflow, o --all")
         sys.exit(1)
     
     # Crear instancia del seeder
@@ -227,6 +271,12 @@ Ejemplos de uso:
     if args.all:
         success = seeder.seed_all()
     else:
+        if args.ppsh:
+            if not seeder.seed_sim_ft():
+                success = False
+            if not seeder.update_sim_ft():
+                success = False
+        
         if args.tramites:
             if not seeder.seed_tramites_base():
                 success = False
@@ -244,7 +294,14 @@ Ejemplos de uso:
         print("   1. Importar colecciones Postman desde: backend/postman/")
         print("   2. Configurar environment variables en Postman")
         print("   3. Ejecutar las colecciones para validar los datos")
-        print("\n📚 Consulte: backend/sql/README_TEST_DATA.md para más información")
+        print("\n📚 Datos cargados:")
+        if args.all or args.ppsh:
+            print("   ✅ PPSH - Catálogos y datos base (27 catálogos, 6 registros ejemplo)")
+        if args.all or args.tramites:
+            print("   ✅ Trámites Base - Tipos, estados, prioridades")
+        if args.all or args.workflow:
+            print("   ✅ Workflow - 2 workflows completos (PPSH + General)")
+        print("\n📖 Consulte: backend/sql/README.md para más información")
         sys.exit(0)
     else:
         print("⚠️ COMPLETADO CON ADVERTENCIAS")
