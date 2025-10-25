@@ -2,16 +2,16 @@
 ## Sistema de Trámites Migratorios de Panamá
 
 **Versión**: 1.0  
-**Fecha**: 22 de Octubre, 2025  
+**Fecha**: 25 de Octubre, 2025  
 **Base de Datos**: SQL Server 2019  
-**Total de Tablas**: 35 tablas principales
+**Total de Tablas**: 34 tablas principales
 
 ---
 
 ## 📋 Tabla de Contenidos
 
-- [1. Módulo de Trámites Base](#1-módulo-de-trámites-base)
-- [2. Módulo PPSH (Permiso Provisorio)](#2-módulo-ppsh-permiso-provisorio)
+- [1. Módulo PPSH (Permiso Provisorio)](#1-módulo-ppsh-permiso-provisorio)
+- [2. Módulo SIM_FT (Sistema Integrado de Migración)](#2-módulo-sim_ft-sistema-integrado-de-migración)
 - [3. Módulo de Workflows](#3-módulo-de-workflows)
 - [4. Tablas de Seguridad](#4-tablas-de-seguridad)
 - [5. Tablas Generales (Catálogos)](#5-tablas-generales-catálogos)
@@ -20,55 +20,9 @@
 
 ---
 
-## 1. Módulo de Trámites Base
+## 1. Módulo PPSH (Permiso Provisorio)
 
-### 1.1 Tabla: `tramites`
-
-**Descripción**: Tabla principal para gestión de trámites generales.
-
-**Esquema**: `dbo`
-
-| Columna | Tipo de Dato | Nulo | Default | PK | FK | Descripción |
-|---------|--------------|------|---------|----|----|-------------|
-| `id` | INT | NO | IDENTITY(1,1) | ✅ | | Identificador único autoincremental |
-| `titulo` | NVARCHAR(255) | NO | - | | | Título descriptivo del trámite |
-| `descripcion` | NVARCHAR(MAX) | YES | NULL | | | Descripción detallada del trámite |
-| `estado` | NVARCHAR(50) | NO | 'pendiente' | | | Estado: pendiente, en_proceso, completado, cancelado |
-| `tipo_tramite_id` | INT | YES | NULL | | | Relación con tipos de trámite |
-| `solicitante_nombre` | NVARCHAR(200) | YES | NULL | | | Nombre completo del solicitante |
-| `solicitante_cedula` | NVARCHAR(50) | YES | NULL | | | Cédula/Pasaporte del solicitante |
-| `solicitante_email` | NVARCHAR(200) | YES | NULL | | | Email de contacto |
-| `fecha_creacion` | DATETIME | NO | GETDATE() | | | Fecha y hora de creación |
-| `fecha_actualizacion` | DATETIME | YES | NULL | | | Última actualización del registro |
-| `usuario_creador` | INT | YES | NULL | | ✅ | Usuario que creó el registro |
-| `activo` | BIT | NO | 1 | | | Indicador soft delete (1=activo, 0=eliminado) |
-
-**Índices**:
-- `PK_tramites`: PRIMARY KEY CLUSTERED (`id`)
-- `IX_tramites_estado`: NONCLUSTERED (`estado`)
-- `IX_tramites_fecha_creacion`: NONCLUSTERED (`fecha_creacion` DESC)
-- `IX_tramites_solicitante_cedula`: NONCLUSTERED (`solicitante_cedula`)
-
-**Constraints**:
-```sql
-ALTER TABLE tramites
-ADD CONSTRAINT CK_tramites_estado 
-CHECK (estado IN ('pendiente', 'en_proceso', 'completado', 'cancelado'));
-```
-
-**Ejemplo de Datos**:
-```sql
-INSERT INTO tramites (titulo, descripcion, estado, solicitante_nombre, solicitante_cedula, solicitante_email)
-VALUES 
-    ('Visa de Trabajo', 'Solicitud de visa temporal de trabajo', 'pendiente', 'Juan Pérez García', '8-123-4567', 'juan.perez@email.com'),
-    ('Residencia Permanente', 'Solicitud de residencia permanente', 'en_proceso', 'María González', 'E-8-12345', 'maria.g@email.com');
-```
-
----
-
-## 2. Módulo PPSH (Permiso Provisorio)
-
-### 2.1 Tabla: `PPSH_SOLICITUD`
+### 1.1 Tabla: `PPSH_SOLICITUD`
 
 **Descripción**: Tabla principal de solicitudes de Permiso Provisorio de Salida Humanitaria.
 
@@ -294,6 +248,107 @@ VALUES
 **Índices**:
 - `PK_PPSH_COMENTARIO`: PRIMARY KEY (`id_comentario`)
 - `IX_PPSH_COMENTARIO_solicitud`: NONCLUSTERED (`id_solicitud`, `fecha_comentario` DESC)
+
+---
+
+## 2. Módulo SIM_FT (Sistema Integrado de Migración)
+
+### 2.1 Tabla: `TRAMITE`
+
+**Descripción**: Tabla principal del Sistema Integrado de Migración - Flujo de Trabajo. Gestiona todos los trámites migratorios con identificadores compuestos y seguimiento completo.
+
+**Esquema**: `dbo`
+
+| Columna | Tipo de Dato | Nulo | Default | PK | FK | Descripción |
+|---------|--------------|------|---------|----|----|-------------|
+| `num_annio` | INT | NO | - | ✅ | | Año del trámite (parte de PK compuesta) |
+| `cod_tramite` | VARCHAR(10) | NO | - | ✅ | ✅ | Código del tipo de trámite (FK a TIPO_TRAMITE) |
+| `num_tramite` | INT | NO | - | ✅ | | Número secuencial del trámite |
+| `num_registro` | INT | NO | - | | | Número de registro |
+| `tipo_solicitud` | VARCHAR(50) | YES | NULL | | | Tipo específico de solicitud |
+| `num_cedula_ruc` | VARCHAR(20) | YES | NULL | | | Cédula o RUC del solicitante |
+| `ind_estatus` | CHAR(1) | NO | 'A' | | ✅ | Estado: A=Activo, I=Inactivo, C=Cerrado |
+| `ind_prioridad` | CHAR(1) | NO | 'N' | | ✅ | Prioridad: A=Alta, M=Media, B=Baja, N=Normal |
+| `ind_conclusion` | VARCHAR(10) | YES | NULL | | ✅ | Tipo de conclusión del trámite |
+| `fecha_inicio` | DATETIME | NO | GETDATE() | | | Fecha de inicio del trámite |
+| `fecha_cierre` | DATETIME | YES | NULL | | | Fecha de cierre (si aplica) |
+| `fecha_modificacion` | DATETIME | YES | NULL | | | Última modificación |
+| `usuario_creacion` | VARCHAR(50) | YES | NULL | | | Usuario que creó el registro |
+| `usuario_modificacion` | VARCHAR(50) | YES | NULL | | | Usuario que modificó |
+| `observaciones` | VARCHAR(MAX) | YES | NULL | | | Observaciones del trámite |
+| `activo` | BIT | NO | 1 | | | Soft delete (1=activo, 0=eliminado) |
+
+**Clave Primaria Compuesta**: (`num_annio`, `cod_tramite`, `num_tramite`)
+
+**Índices**:
+- `PK_TRAMITE`: PRIMARY KEY CLUSTERED (`num_annio`, `cod_tramite`, `num_tramite`)
+- `IX_TRAMITE_cedula`: NONCLUSTERED (`num_cedula_ruc`)
+- `IX_TRAMITE_estatus`: NONCLUSTERED (`ind_estatus`)
+- `IX_TRAMITE_fecha`: NONCLUSTERED (`fecha_inicio` DESC)
+
+**Foreign Keys**:
+- `FK_TRAMITE_tipo`: FOREIGN KEY (`cod_tramite`) REFERENCES `TIPO_TRAMITE`(`cod_tramite`)
+- `FK_TRAMITE_estatus`: FOREIGN KEY (`ind_estatus`) REFERENCES `ESTATUS`(`ind_estatus`)
+- `FK_TRAMITE_prioridad`: FOREIGN KEY (`ind_prioridad`) REFERENCES `PRIORIDAD`(`ind_prioridad`)
+
+**Ejemplo de Datos**:
+```sql
+INSERT INTO TRAMITE (num_annio, cod_tramite, num_tramite, num_registro, num_cedula_ruc, ind_estatus, ind_prioridad)
+VALUES 
+    (2025, 'RES_TEMP', 1, 1001, '8-123-4567', 'A', 'N'),
+    (2025, 'VISA_TRAB', 2, 1002, 'E-8-12345', 'A', 'A');
+```
+
+### 2.2 Tabla: `TIPO_TRAMITE`
+
+**Descripción**: Catálogo de tipos de trámites disponibles en el sistema SIM_FT.
+
+| Columna | Tipo de Dato | Nulo | Default | PK | FK | Descripción |
+|---------|--------------|------|---------|----|----|-------------|
+| `cod_tramite` | VARCHAR(10) | NO | - | ✅ | | Código único del tipo de trámite |
+| `des_tramite` | VARCHAR(200) | NO | - | | | Descripción del tipo de trámite |
+| `categoria` | VARCHAR(50) | YES | NULL | | | Categoría del trámite |
+| `requiere_aprobacion` | BIT | NO | 0 | | | Indica si requiere aprobación |
+| `duracion_estimada_dias` | INT | YES | NULL | | | Días estimados de procesamiento |
+| `activo` | BIT | NO | 1 | | | Tipo de trámite activo |
+
+**Índices**:
+- `PK_TIPO_TRAMITE`: PRIMARY KEY (`cod_tramite`)
+
+### 2.3 Tabla: `ESTATUS`
+
+**Descripción**: Catálogo de estados posibles para los trámites.
+
+| Columna | Tipo de Dato | Nulo | Default | PK | FK | Descripción |
+|---------|--------------|------|---------|----|----|-------------|
+| `ind_estatus` | CHAR(1) | NO | - | ✅ | | Indicador de estatus (A/I/C) |
+| `des_estatus` | VARCHAR(100) | NO | - | | | Descripción del estatus |
+| `color` | VARCHAR(20) | YES | NULL | | | Color para UI |
+| `permite_edicion` | BIT | NO | 1 | | | Si permite editar el trámite |
+| `activo` | BIT | NO | 1 | | | Estatus activo |
+
+**Valores estándar**:
+- `A` - Activo
+- `I` - Inactivo
+- `C` - Cerrado
+
+### 2.4 Tabla: `PRIORIDAD`
+
+**Descripción**: Catálogo de niveles de prioridad para trámites.
+
+| Columna | Tipo de Dato | Nulo | Default | PK | FK | Descripción |
+|---------|--------------|------|---------|----|----|-------------|
+| `ind_prioridad` | CHAR(1) | NO | - | ✅ | | Indicador de prioridad |
+| `des_prioridad` | VARCHAR(100) | NO | - | | | Descripción de la prioridad |
+| `orden` | INT | NO | - | | | Orden de importancia (1=mayor) |
+| `color` | VARCHAR(20) | YES | NULL | | | Color para UI |
+| `activo` | BIT | NO | 1 | | | Prioridad activa |
+
+**Valores estándar**:
+- `A` - Alta (Urgente)
+- `M` - Media
+- `B` - Baja
+- `N` - Normal
 
 ---
 
