@@ -130,9 +130,7 @@ async def root():
         "docs": "/api/docs",
         "health": "/health",
         "database_status": "/health/database",
-        "modules": {
-            "tramites": "✅ Disponible en /api/v1/tramites"
-        }
+        "modules": {}
     }
     
     # Agregar módulo PPSH si está disponible
