@@ -615,7 +615,7 @@ SELECT 'Workflow', COUNT(*) FROM Workflow
 UNION ALL
 SELECT 'WorkflowInstancia', COUNT(*) FROM WorkflowInstancia
 UNION ALL
-SELECT 'TRAMITE', COUNT(*) FROM TRAMITE;
+SELECT 'TRAMITE (SIM_FT)', COUNT(*) FROM TRAMITE;
 
 -- Ver estado de catálogos PPSH
 SELECT 'PPSHEstado' AS Catalogo, COUNT(*) AS Total FROM PPSHEstado
@@ -656,11 +656,12 @@ SIM_PANAMA/
 │   │   ├── WorkflowInstancia
 │   │   └── WorkflowInstanciaHistorial
 │   │
-│   └── TRAMITE_* (Sistema de Trámites)
+│   └── SIM_FT_* (Sistema Integrado de Migración)
 │       ├── TRAMITE
 │       ├── TIPO_TRAMITE
 │       ├── ESTATUS
-│       └── PRIORIDAD
+│       ├── PRIORIDAD
+│       └── CONCLUSION
 ```
 
 #### Diagrama de Relaciones Principales
@@ -712,16 +713,18 @@ WHERE wi.activo = 1
 ORDER BY wi.fecha_creacion DESC;
 ```
 
-#### Ver trámites por estado
+#### Ver trámites SIM_FT por estado
 
 ```sql
 SELECT 
     e.des_estatus AS estado,
-    COUNT(*) AS cantidad
+    COUNT(*) AS cantidad,
+    t.num_annio AS año
 FROM TRAMITE t
 JOIN ESTATUS e ON t.ind_estatus = e.ind_estatus
-GROUP BY e.des_estatus
-ORDER BY cantidad DESC;
+WHERE t.activo = 1
+GROUP BY e.des_estatus, t.num_annio
+ORDER BY t.num_annio DESC, cantidad DESC;
 ```
 
 ### Respaldo y Restauración
@@ -988,7 +991,7 @@ Una vez ejecutados los tests:
 - **Ubicación**: `./test-reports/`
   - `ppsh-report.html`
   - `workflow-report.html`
-  - `tramites-report.html`
+  - `sim-ft-report.html`
 
 ### Documentación de Testing
 
