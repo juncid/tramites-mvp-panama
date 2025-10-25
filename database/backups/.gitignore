@@ -1,0 +1,17 @@
+# Ignorar archivos de backup
+*.bak
+*.trn
+*.dmp
+
+# Ignorar archivos temporales
+*.tmp
+*.temp
+
+# Mantener solo scripts y documentación
+!*.sql
+!*.md
+!README.md
+
+# Ignorar archivos de metadata grandes
+*_metadata_*.txt
+*_output*.txt

@@ -2,9 +2,25 @@
 
 Sistema de gestión de trámites desarrollado con FastAPI (Python) y React (TypeScript), utilizando MS SQL Server como base de datos principal y Redis para caché.
 
-> **📢 Actualización Reciente (25 de Octubre de 2025):** Limpieza completa del proyecto - se eliminaron 58 archivos obsoletos (reportes históricos, código temporal, documentación duplicada), se consolidaron guías técnicas y se optimizó la estructura de carpetas. El proyecto ahora está 35% más limpio y mejor organizado. Ver detalles completos al final de este documento.
+> **📢 Actualización Reciente (25 de Octubre de 2025):** 
+> - 🧹 Limpieza completa del proyecto - eliminados 58 archivos obsoletos, estructura optimizada 35% más limpia
+> - 💾 **Backup completo de base de datos disponible** en `database/backups/` con 47 tablas, ~330 registros de ejemplo y documentación completa
+> - 📋 Verificación de cumplimiento Producto Nº1 documentada (100% completado)
+> 
+> Ver detalles completos al final de este documento.
 
 ## 📋 Últimas Actualizaciones
+
+**25 de Octubre de 2025** - Backup de Base de Datos y Verificación de Entregables
+- 💾 **Backup completo creado** en `database/backups/` (~1 MB comprimido)
+- 📊 **47 tablas documentadas** con ~330 registros de ejemplo
+- 🔧 **Scripts automatizados** para crear y restaurar backups
+- ✅ **Verificación Producto Nº1** - 100% de cumplimiento documentado
+- 📖 **Documentación completa** de backups con guías de restauración
+
+📖 **Documentación de backups:** [database/backups/README.md](./database/backups/README.md)  
+📖 **Resumen del backup:** [database/backups/BACKUP_SUMMARY.md](./database/backups/BACKUP_SUMMARY.md)  
+📖 **Verificación de entregables:** [docs/VERIFICACION_PRODUCTO_1.md](./docs/VERIFICACION_PRODUCTO_1.md)
 
 **20 de Octubre de 2025** - Mejoras en Sistema de Workflows Dinámicos
 - ✨ **Creación de workflows completos en 1 petición** (antes: ~20 peticiones)
@@ -159,6 +175,14 @@ tramites-mvp-panama/
 │   ├── Dockerfile                   # 🐳 Configuración Docker frontend
 │   ├── package.json                 # 📦 Dependencias Node.js
 │   └── vite.config.ts              # ⚙️ Configuración Vite
+│
+├── database/                       # 🗄️ Archivos de Base de Datos
+│   ├── backups/                    # 💾 Backups de la base de datos
+│   │   ├── SIM_PANAMA_backup_*.bak # 📦 Backup nativo SQL Server (~1 MB)
+│   │   ├── backup_script.sql       # 🔧 Script para crear backups
+│   │   ├── BACKUP_SUMMARY.md       # 📊 Resumen del backup (47 tablas, ~330 registros)
+│   │   └── README.md               # 📖 Guía de backups y restauración
+│   └── modelo_datos_propuesto_clean.sql  # 📐 Modelo de datos completo
 │
 ├── docs/                           # 📚 Documentación completa
 │   ├── bitacora/                   # 📝 Registro de cambios
@@ -727,31 +751,72 @@ GROUP BY e.des_estatus, t.num_annio
 ORDER BY t.num_annio DESC, cantidad DESC;
 ```
 
-### Respaldo y Restauración
+### 💾 Respaldo y Restauración
 
-#### Crear respaldo de la base de datos
+> **📦 Backup Disponible:** El proyecto incluye un backup completo de la base de datos en `database/backups/` con ~330 registros de ejemplo, scripts automatizados y documentación completa. Ver [database/backups/README.md](./database/backups/README.md) para más información.
+
+#### Backup Incluido en el Proyecto
+
+El repositorio contiene un backup completo de desarrollo en `database/backups/`:
+
+- **SIM_PANAMA_backup_20251025_194649.bak** - Backup nativo comprimido (~1 MB)
+- **BACKUP_SUMMARY.md** - Resumen con estadísticas de 47 tablas
+- **backup_script.sql** - Script reutilizable para crear backups automáticos
+- **README.md** - Guía completa con instrucciones de restauración
+
+**Contenido del backup:**
+- ✅ 47 tablas con estructura completa
+- ✅ ~330 registros de datos de ejemplo
+- ✅ Catálogos precargados (estados, países, tipos de documento, etc.)
+- ✅ Workflows de ejemplo configurados
+- ✅ Usuarios y roles de prueba
+
+#### Restaurar el Backup Incluido
 
 ```bash
-# Crear backup dentro del contenedor
-docker exec tramites-sqlserver /opt/mssql-tools/bin/sqlcmd \
-  -S localhost -U sa -P 'YourStrong@Passw0rd' \
-  -Q "BACKUP DATABASE SIM_PANAMA TO DISK = '/var/opt/mssql/data/SIM_PANAMA_backup.bak' WITH FORMAT, INIT"
+# 1. Copiar backup al contenedor
+docker cp database/backups/SIM_PANAMA_backup_20251025_194649.bak tramites-sqlserver:/var/opt/mssql/backup/
 
-# Copiar backup a tu máquina local
-docker cp tramites-sqlserver:/var/opt/mssql/data/SIM_PANAMA_backup.bak ./backups/
+# 2. Restaurar la base de datos
+docker exec tramites-sqlserver /opt/mssql-tools18/bin/sqlcmd \
+  -S localhost -U sa -P 'YourStrong@Passw0rd' -C \
+  -Q "RESTORE DATABASE [SIM_PANAMA] FROM DISK = '/var/opt/mssql/backup/SIM_PANAMA_backup_20251025_194649.bak' WITH REPLACE, RECOVERY"
 ```
 
-#### Restaurar desde respaldo
+#### Crear Nuevo Backup
 
 ```bash
-# Copiar backup al contenedor
-docker cp ./backups/SIM_PANAMA_backup.bak tramites-sqlserver:/var/opt/mssql/data/
+# Opción 1: Usando el script provisto (recomendado)
+docker cp database/backups/backup_script.sql tramites-sqlserver:/tmp/
+docker exec tramites-sqlserver /opt/mssql-tools18/bin/sqlcmd \
+  -S localhost -U sa -P 'YourStrong@Passw0rd' -C \
+  -i /tmp/backup_script.sql
 
-# Restaurar
-docker exec tramites-sqlserver /opt/mssql-tools/bin/sqlcmd \
-  -S localhost -U sa -P 'YourStrong@Passw0rd' \
-  -Q "RESTORE DATABASE SIM_PANAMA FROM DISK = '/var/opt/mssql/data/SIM_PANAMA_backup.bak' WITH REPLACE"
+# Copiar el backup generado a tu máquina local
+docker cp tramites-sqlserver:/var/opt/mssql/backup/SIM_PANAMA_backup_*.bak database/backups/
+
+# Opción 2: Backup manual directo
+docker exec tramites-sqlserver /opt/mssql-tools18/bin/sqlcmd \
+  -S localhost -U sa -P 'YourStrong@Passw0rd' -C \
+  -Q "BACKUP DATABASE [SIM_PANAMA] TO DISK = '/var/opt/mssql/backup/SIM_PANAMA_manual.bak' WITH FORMAT, COMPRESSION, STATS = 10"
+
+# Copiar a máquina local
+docker cp tramites-sqlserver:/var/opt/mssql/backup/SIM_PANAMA_manual.bak database/backups/
 ```
+
+#### Restaurar desde Backup Personalizado
+
+```bash
+# 1. Copiar tu backup al contenedor
+docker cp ./tu_backup.bak tramites-sqlserver:/var/opt/mssql/backup/
+
+# 2. Restaurar
+docker exec tramites-sqlserver /opt/mssql-tools18/bin/sqlcmd \
+  -S localhost -U sa -P 'YourStrong@Passw0rd' -C \
+  -Q "RESTORE DATABASE [SIM_PANAMA] FROM DISK = '/var/opt/mssql/backup/tu_backup.bak' WITH REPLACE"
+```
+
+📖 **Documentación completa de backups:** [database/backups/README.md](./database/backups/README.md)
 
 ### Troubleshooting
 
