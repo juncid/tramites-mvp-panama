@@ -1117,12 +1117,16 @@ El sistema utiliza MS SQL Server con la base de datos **`SIM_PANAMA`** organizad
 
 #### 📝 Módulo Trámites (Gestión General)
 
-**Tablas principales:**
-- **`Tramite`** - Gestión general de trámites
-- **`TramiteDocumento`** - Documentos adjuntos a trámites
-- **`TramiteHistorial`** - Auditoría de cambios en trámites
+#### 🗄️ Módulo SIM_FT (Sistema Integrado de Migración)
 
-#### 🗄️ Módulo SIM_FT (Funcionalidades Transversales)
+**Tablas principales:**
+- **`TRAMITE`** - Gestión de trámites migratorios con PK compuesta (num_annio, cod_tramite, num_tramite)
+- **`TIPO_TRAMITE`** - Catálogo de tipos de trámites
+- **`ESTATUS`** - Estados del trámite (A=Activo, I=Inactivo, C=Cerrado)
+- **`PRIORIDAD`** - Niveles de prioridad (A=Alta, M=Media, B=Baja, N=Normal)
+- **`CONCLUSION`** - Tipos de conclusión de trámites
+
+#### � Tablas de Soporte Transversal
 
 **Tablas de soporte:**
 - **`TipoDocumento`** - Tipos de documentos del sistema
@@ -1271,17 +1275,25 @@ GET /api/v1/sim-ft/tramites?num_annio=2025&ind_estatus=A&skip=0&limit=10
 #### Crear un Trámite SIM_FT
 
 ```bash
-# Crear un trámite en sistema oficial
-curl -X POST http://localhost:8000/api/v1/tramites \
+# Crear un trámite en sistema SIM_FT
+curl -X POST http://localhost:8001/api/v1/sim-ft/tramites \
   -H "Content-Type: application/json" \
   -d '{
-    "titulo": "Solicitud de Permiso",
-    "descripcion": "Permiso para construcción",
-    "estado": "pendiente"
+    "num_annio": 2025,
+    "cod_tramite": "RES_TEMP",
+    "num_registro": 1001,
+    "tipo_solicitud": "RESIDENCIA_TEMPORAL",
+    "num_cedula_ruc": "8-123-4567",
+    "ind_estatus": "A",
+    "ind_prioridad": "N",
+    "observaciones": "Solicitud de residencia temporal por trabajo"
   }'
 
-# Listar trámites
-curl http://localhost:8000/api/v1/tramites
+# Listar trámites SIM_FT
+curl http://localhost:8001/api/v1/sim-ft/tramites
+
+# Obtener trámite específico por ID compuesto
+curl http://localhost:8001/api/v1/sim-ft/tramites/2025/RES_TEMP/1
 ```
 
 ## 📝 Ejemplos Prácticos de Uso
@@ -1911,10 +1923,18 @@ docker exec tramites-backend python /app/monitor_logs.py stats
 - Detección y manejo de objetos Mock anidados
 ```
 
-##### ❌ Pruebas de Endpoints PPSH (0% exitosas - 32/32)
-- **Estado:** Requiere investigación completa
-- **Problema principal:** Fallas en endpoints específicos del módulo PPSH
-- **Impacto:** Módulo de trámites PPSH no está cubierto por testing automatizado
+##### ⚠️ Pruebas de Endpoints PPSH (Parcialmente completadas - 18.5%)
+- **Estado actual:** 5/27 tests pasando
+- **Problema principal:** Configuración de fixtures y nombres de campos inconsistentes
+- **Progreso:**
+  * ✅ Bug crítico SQLAlchemy corregido (`selectinload.filter`)
+  * ✅ Propiedad `nombre_completo` agregada al modelo
+  * ✅ Estados iniciales corregidos
+  * ⚠️ Pendiente: 15 tests requieren fixture `setup_ppsh_catalogos`
+  * ⚠️ Pendiente: Nombres de campos en assertions (`agencia` → `cod_agencia`)
+  * ⚠️ Pendiente: Endpoint `/api/v1/ppsh/catalogos/paises`
+- **Documentación:** Ver `backend/PPSH_TESTS_PROGRESS_REPORT.md`
+- **Estimación:** 2-3 horas para alcanzar 80%+ cobertura
 
 #### Implicaciones para Producción
 
