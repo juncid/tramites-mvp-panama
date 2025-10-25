@@ -35,8 +35,8 @@ DECLARE @solicitudes_temp TABLE (
 INSERT INTO @solicitudes_temp VALUES
     ('PPSH-2025-ADD-001', 'PPSH', 1, 'Persecución política por activismo en Venezuela', 'RECIBIDO', 2),
     ('PPSH-2025-ADD-002', 'PPSH', 2, 'Amenazas por orientación política en Cuba', 'EN_REVISION', 5),
-    ('PPSH-2025-ADD-003', 'PROTECCION', 3, 'Violencia de género - amenazas de muerte', 'EN_REVISION', 7),
-    ('PPSH-2025-ADD-004', 'PPSH', 4, 'Persecución por pertenecer a minoría étnica', 'DOCUMENTOS_INCOMPLETOS', 10),
+    ('PPSH-2025-ADD-003', 'PROTECCION', 3, 'Violencia de género - amenazas de muerte', 'EN_EVALUACION', 7),
+    ('PPSH-2025-ADD-004', 'PPSH', 4, 'Persecución por pertenecer a minoría étnica', 'INCOMPLETO', 10),
     ('PPSH-2025-ADD-005', 'PPSH', 1, 'Amenazas por trabajo como periodista', 'EN_ENTREVISTA', 12),
     ('PPSH-2025-ADD-006', 'PROTECCION', 5, 'Violencia doméstica extrema - riesgo de vida', 'APROBADO', 15),
     ('PPSH-2025-ADD-007', 'PPSH', 2, 'Persecución por activismo sindical', 'RECHAZADO', 20),
