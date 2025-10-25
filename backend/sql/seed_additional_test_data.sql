@@ -76,13 +76,11 @@ END
 
 CLOSE sol_cursor;
 DEALLOCATE sol_cursor;
-GO
 
--- ============================================================================
--- PARTE 2: SOLICITANTES PPSH (10 casos)
--- ============================================================================
+-- No usar GO aquí - continuar en el mismo batch
+
 PRINT '';
-PRINT '� PARTE 2/4 - Solicitantes PPSH adicionales...';
+PRINT '👥 PARTE 2/4 - Solicitantes PPSH adicionales...';
 
 -- Solicitantes de diferentes nacionalidades y situaciones
 DECLARE @solicitantes TABLE (
@@ -143,11 +141,9 @@ END
 
 CLOSE solicitante_cursor;
 DEALLOCATE solicitante_cursor;
-GO
 
--- ============================================================================
--- PARTE 3: MÁS TRÁMITES SIM_FT (7 casos adicionales)
--- ============================================================================
+-- Continuar sin GO
+
 PRINT '';
 PRINT '🏛️ PARTE 3/4 - Trámites SIM_FT adicionales...';
 
@@ -200,11 +196,9 @@ END
 
 CLOSE tram_cursor;
 DEALLOCATE tram_cursor;
-GO
 
--- ============================================================================
--- PARTE 4: INSTANCIAS DE WORKFLOW ADICIONALES (5 casos)
--- ============================================================================
+-- Continuar sin GO
+
 PRINT '';
 PRINT '🔄 PARTE 4/4 - Instancias de Workflow adicionales...';
 
@@ -266,11 +260,9 @@ END
 
 CLOSE inst_cursor;
 DEALLOCATE inst_cursor;
-GO
 
--- ============================================================================
--- RESUMEN FINAL
--- ============================================================================
+-- Fin del batch único
+
 PRINT '';
 PRINT '═══════════════════════════════════════════════════════════════';
 PRINT '    ✅ DATOS ADICIONALES CARGADOS EXITOSAMENTE';
