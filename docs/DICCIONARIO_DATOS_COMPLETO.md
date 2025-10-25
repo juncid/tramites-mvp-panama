@@ -203,7 +203,11 @@ VALUES
 | `activo` | BIT | NO | 1 | | | Registro activo |
 
 **Índices**:
-- `PK_PPSH_REVISION_MEDICA`: PRIMARY KEY (`id_revision`)
+- `PK_PPSH_REVISION_MEDICA`: PRIMARY KEY (`id_revis## 2. Módulo SIM_FT (Sistema Integrado de Migración)
+
+### 2.1 Tabla: `TRAMITE`
+
+**Descripción**: Tabla principal del Sistema Integrado de Migración - Flujo de Trabajo. Gestiona todos los trámites migratorios con identificadores compuestos y seguimiento completo.ion`)
 - `IX_PPSH_REVISION_MEDICA_solicitud`: NONCLUSTERED (`id_solicitud`)
 
 ### 2.7 Tabla: `PPSH_ENTREVISTA`
@@ -251,11 +255,7 @@ VALUES
 
 ---
 
-## 2. Módulo SIM_FT (Sistema Integrado de Migración)
 
-### 2.1 Tabla: `TRAMITE`
-
-**Descripción**: Tabla principal del Sistema Integrado de Migración - Flujo de Trabajo. Gestiona todos los trámites migratorios con identificadores compuestos y seguimiento completo.
 
 **Esquema**: `dbo`
 
@@ -354,168 +354,238 @@ VALUES
 
 ## 3. Módulo de Workflows
 
-### 3.1 Tabla: `workflow`
+### 3.1 Tabla: `WORKFLOW`
 
 **Descripción**: Definición de workflows dinámicos personalizables.
 
 | Columna | Tipo de Dato | Nulo | Default | PK | FK | Descripción |
 |---------|--------------|------|---------|----|----|-------------|
-| `id_workflow` | INT | NO | IDENTITY(1,1) | ✅ | | ID único del workflow |
-| `codigo` | NVARCHAR(50) | NO | - | | | Código único alfanumérico |
-| `nombre` | NVARCHAR(255) | NO | - | | | Nombre descriptivo |
-| `descripcion` | NVARCHAR(MAX) | YES | NULL | | | Descripción detallada |
-| `tipo_tramite` | NVARCHAR(50) | YES | NULL | | | Tipo de trámite asociado |
-| `categoria` | NVARCHAR(100) | YES | NULL | | | Categoría del workflow |
-| `version` | INT | NO | 1 | | | Versión del workflow |
+| `id` | INT | NO | IDENTITY(1,1) | ✅ | | ID único del workflow |
+| `codigo` | VARCHAR(50) | NO | - | | | Código único alfanumérico |
+| `nombre` | VARCHAR(255) | NO | - | | | Nombre descriptivo |
+| `descripcion` | TEXT | YES | NULL | | | Descripción detallada |
+| `version` | VARCHAR(20) | NO | '1.0' | | | Versión del workflow |
+| `estado` | VARCHAR(20) | NO | - | | | Estado (BORRADOR, ACTIVO, etc.) |
+| `color_hex` | VARCHAR(7) | YES | NULL | | | Color para UI |
+| `icono` | VARCHAR(50) | YES | NULL | | | Icono identificador |
+| `categoria` | VARCHAR(100) | YES | NULL | | | Categoría del workflow |
+| `requiere_autenticacion` | BIT | NO | 1 | | | Requiere login |
+| `es_publico` | BIT | NO | 0 | | | Acceso público |
+| `perfiles_creadores` | JSON | YES | NULL | | | Perfiles permitidos |
 | `activo` | BIT | NO | 1 | | | Workflow activo |
-| `fecha_creacion` | DATETIME | NO | GETDATE() | | | Fecha de creación |
-| `creado_por` | INT | YES | NULL | | ✅ | Usuario creador |
-| `fecha_actualizacion` | DATETIME | YES | NULL | | | Última actualización |
+| `created_at` | DATETIME | NO | GETDATE() | | | Fecha de creación |
+| `created_by` | VARCHAR(17) | YES | NULL | | | Usuario creador |
+| `updated_at` | DATETIME | YES | NULL | | | Última actualización |
+| `updated_by` | VARCHAR(17) | YES | NULL | | | Usuario modificador |
 
 **Índices**:
-- `PK_workflow`: PRIMARY KEY (`id_workflow`)
-- `UK_workflow_codigo`: UNIQUE (`codigo`)
-- `IX_workflow_tipo_tramite`: NONCLUSTERED (`tipo_tramite`)
-- `IX_workflow_activo`: NONCLUSTERED (`activo`)
+- `PK_WORKFLOW`: PRIMARY KEY (`id`)
+- `UK_WORKFLOW_codigo`: UNIQUE (`codigo`)
+- `IX_WORKFLOW_categoria`: NONCLUSTERED (`categoria`)
+- `IX_WORKFLOW_estado`: NONCLUSTERED (`estado`)
 
-### 3.2 Tabla: `workflow_etapa`
+### 3.2 Tabla: `WORKFLOW_ETAPA`
 
 **Descripción**: Etapas que componen un workflow.
 
 | Columna | Tipo de Dato | Nulo | Default | PK | FK | Descripción |
 |---------|--------------|------|---------|----|----|-------------|
-| `id_etapa` | INT | NO | IDENTITY(1,1) | ✅ | | ID único de la etapa |
-| `id_workflow` | INT | NO | - | | ✅ | Workflow al que pertenece |
-| `codigo_etapa` | NVARCHAR(50) | NO | - | | | Código único de la etapa |
-| `nombre_etapa` | NVARCHAR(255) | NO | - | | | Nombre de la etapa |
-| `descripcion` | NVARCHAR(500) | YES | NULL | | | Descripción de la etapa |
+| `id` | INT | NO | IDENTITY(1,1) | ✅ | | ID único de la etapa |
+| `workflow_id` | INT | NO | - | | ✅ | Workflow al que pertenece |
+| `codigo` | VARCHAR(50) | NO | - | | | Código único de la etapa |
+| `nombre` | VARCHAR(255) | NO | - | | | Nombre de la etapa |
+| `descripcion` | TEXT | YES | NULL | | | Descripción de la etapa |
+| `tipo_etapa` | VARCHAR(50) | NO | 'ETAPA' | | | Tipo (ETAPA, DECISION, etc.) |
 | `orden` | INT | NO | - | | | Orden secuencial (1, 2, 3...) |
-| `duracion_estimada_dias` | INT | YES | NULL | | | Duración estimada |
-| `es_opcional` | BIT | NO | 0 | | | Etapa opcional o requerida |
-| `permite_paralelo` | BIT | NO | 0 | | | ¿Permite ejecución paralela? |
+| `posicion_x` | INT | YES | NULL | | | Posición X para diagrama |
+| `posicion_y` | INT | YES | NULL | | | Posición Y para diagrama |
+| `perfiles_permitidos` | JSON | YES | NULL | | | Perfiles con acceso |
+| `titulo_formulario` | VARCHAR(500) | YES | NULL | | | Título del formulario |
+| `bajada_formulario` | TEXT | YES | NULL | | | Descripción formulario |
+| `es_etapa_inicial` | BIT | NO | 0 | | | Es primera etapa |
+| `es_etapa_final` | BIT | NO | 0 | | | Es última etapa |
+| `requiere_validacion` | BIT | NO | 0 | | | Requiere validación |
+| `permite_edicion_posterior` | BIT | NO | 0 | | | Permite editar después |
+| `tiempo_estimado_minutos` | INT | YES | NULL | | | Duración estimada |
+| `reglas_transicion` | JSON | YES | NULL | | | Reglas de transición |
 | `activo` | BIT | NO | 1 | | | Etapa activa |
+| `created_at` | DATETIME | NO | GETDATE() | | | Fecha de creación |
+| `created_by` | VARCHAR(17) | YES | NULL | | | Usuario creador |
+| `updated_at` | DATETIME | YES | NULL | | | Última actualización |
+| `updated_by` | VARCHAR(17) | YES | NULL | | | Usuario modificador |
 
 **Índices**:
-- `PK_workflow_etapa`: PRIMARY KEY (`id_etapa`)
-- `IX_workflow_etapa_workflow`: NONCLUSTERED (`id_workflow`, `orden`)
-- `UK_workflow_etapa_codigo`: UNIQUE (`id_workflow`, `codigo_etapa`)
+- `PK_WORKFLOW_ETAPA`: PRIMARY KEY (`id`)
+- `IX_WORKFLOW_ETAPA_workflow`: NONCLUSTERED (`workflow_id`, `orden`)
+- `FK_WORKFLOW_ETAPA_workflow`: FOREIGN KEY (`workflow_id`) REFERENCES `WORKFLOW`(`id`)
 
-### 3.3 Tabla: `workflow_tarea`
+### 3.3 Tabla: `WORKFLOW_CONEXION`
 
-**Descripción**: Tareas individuales dentro de cada etapa.
+**Descripción**: Conexiones entre etapas (flechas en el diagrama de flujo).
 
 | Columna | Tipo de Dato | Nulo | Default | PK | FK | Descripción |
 |---------|--------------|------|---------|----|----|-------------|
-| `id_tarea` | INT | NO | IDENTITY(1,1) | ✅ | | ID único de la tarea |
-| `id_etapa` | INT | NO | - | | ✅ | Etapa a la que pertenece |
-| `codigo_tarea` | NVARCHAR(50) | NO | - | | | Código único de la tarea |
-| `nombre_tarea` | NVARCHAR(255) | NO | - | | | Nombre de la tarea |
-| `descripcion` | NVARCHAR(1000) | YES | NULL | | | Descripción detallada |
-| `orden` | INT | NO | - | | | Orden dentro de la etapa |
-| `rol_asignado` | NVARCHAR(100) | YES | NULL | | | Rol que debe ejecutar |
-| `es_obligatoria` | BIT | NO | 1 | | | Tarea obligatoria |
-| `tiempo_limite_dias` | INT | YES | NULL | | | Tiempo límite para completar |
-| `permite_adjuntos` | BIT | NO | 1 | | | ¿Permite adjuntar archivos? |
-| `requiere_aprobacion` | BIT | NO | 0 | | | ¿Requiere aprobación? |
-| `activo` | BIT | NO | 1 | | | Tarea activa |
+| `id` | INT | NO | IDENTITY(1,1) | ✅ | | ID único de la conexión |
+| `workflow_id` | INT | NO | - | | ✅ | Workflow al que pertenece |
+| `etapa_origen_id` | INT | NO | - | | ✅ | Etapa de origen |
+| `etapa_destino_id` | INT | NO | - | | ✅ | Etapa de destino |
+| `nombre` | VARCHAR(255) | YES | NULL | | | Etiqueta de la conexión |
+| `condicion` | JSON | YES | NULL | | | Condiciones para seguir esta ruta |
+| `es_predeterminada` | BIT | NO | 0 | | | ¿Es la ruta predeterminada? |
+| `activo` | BIT | NO | 1 | | | Conexión activa |
+| `created_at` | DATETIME | NO | GETDATE() | | | Fecha de creación |
+| `created_by` | VARCHAR(17) | YES | NULL | | | Usuario creador |
 
 **Índices**:
-- `PK_workflow_tarea`: PRIMARY KEY (`id_tarea`)
-- `IX_workflow_tarea_etapa`: NONCLUSTERED (`id_etapa`, `orden`)
+- `PK_WORKFLOW_CONEXION`: PRIMARY KEY (`id`)
+- `IX_WORKFLOW_CONEXION_workflow`: NONCLUSTERED (`workflow_id`)
+- `FK_WORKFLOW_CONEXION_origen`: FOREIGN KEY (`etapa_origen_id`) REFERENCES `WORKFLOW_ETAPA`(`id`)
+- `FK_WORKFLOW_CONEXION_destino`: FOREIGN KEY (`etapa_destino_id`) REFERENCES `WORKFLOW_ETAPA`(`id`)
 
-### 3.4 Tabla: `workflow_instancia`
+### 3.4 Tabla: `WORKFLOW_PREGUNTA`
 
-**Descripción**: Instancias de ejecución de workflows.
+**Descripción**: Preguntas/Campos dentro de una etapa (formularios).
 
 | Columna | Tipo de Dato | Nulo | Default | PK | FK | Descripción |
 |---------|--------------|------|---------|----|----|-------------|
-| `id_instancia` | INT | NO | IDENTITY(1,1) | ✅ | | ID único de la instancia |
-| `id_workflow` | INT | NO | - | | ✅ | Workflow ejecutado |
-| `numero_instancia` | NVARCHAR(50) | NO | - | | | Número único formato: WF-NNNN |
-| `titulo` | NVARCHAR(500) | NO | - | | | Título descriptivo |
-| `descripcion` | NVARCHAR(MAX) | YES | NULL | | | Descripción |
-| `estado` | NVARCHAR(50) | NO | 'INICIADO' | | | INICIADO, EN_PROGRESO, COMPLETADO, CANCELADO |
-| `progreso_porcentaje` | DECIMAL(5,2) | NO | 0 | | | Porcentaje de progreso (0-100) |
-| `prioridad` | NVARCHAR(20) | NO | 'NORMAL' | | | BAJA, NORMAL, ALTA, URGENTE |
+| `id` | INT | NO | IDENTITY(1,1) | ✅ | | ID único de la pregunta |
+| `etapa_id` | INT | NO | - | | ✅ | Etapa a la que pertenece |
+| `codigo` | VARCHAR(100) | NO | - | | | Código único (name del input) |
+| `texto_pregunta` | TEXT | NO | - | | | Texto de la pregunta |
+| `tipo_campo` | VARCHAR(50) | NO | - | | | TEXT, TEXTAREA, SELECT, etc. |
+| `orden` | INT | NO | - | | | Orden de visualización |
+| `requerida` | BIT | NO | 1 | | | ¿Es campo obligatorio? |
+| `placeholder` | VARCHAR(255) | YES | NULL | | | Placeholder del input |
+| `valor_defecto` | TEXT | YES | NULL | | | Valor por defecto |
+| `opciones` | JSON | YES | NULL | | | Opciones para SELECT/RADIO |
+| `validacion` | JSON | YES | NULL | | | Reglas de validación |
+| `ayuda` | TEXT | YES | NULL | | | Texto de ayuda |
+| `mostrar_si` | JSON | YES | NULL | | | Condiciones para mostrar |
+| `activo` | BIT | NO | 1 | | | Pregunta activa |
+| `created_at` | DATETIME | NO | GETDATE() | | | Fecha de creación |
+| `created_by` | VARCHAR(17) | YES | NULL | | | Usuario creador |
+| `updated_at` | DATETIME | YES | NULL | | | Última actualización |
+| `updated_by` | VARCHAR(17) | YES | NULL | | | Usuario modificador |
+
+**Índices**:
+- `PK_WORKFLOW_PREGUNTA`: PRIMARY KEY (`id`)
+- `IX_WORKFLOW_PREGUNTA_etapa`: NONCLUSTERED (`etapa_id`, `orden`)
+- `FK_WORKFLOW_PREGUNTA_etapa`: FOREIGN KEY (`etapa_id`) REFERENCES `WORKFLOW_ETAPA`(`id`)
+
+### 3.5 Tabla: `WORKFLOW_INSTANCIA`
+
+**Descripción**: Instancias de ejecución de workflows (casos en proceso).
+
+| Columna | Tipo de Dato | Nulo | Default | PK | FK | Descripción |
+|---------|--------------|------|---------|----|----|-------------|
+| `id` | INT | NO | IDENTITY(1,1) | ✅ | | ID único de la instancia |
+| `workflow_id` | INT | NO | - | | ✅ | Workflow ejecutado |
+| `num_expediente` | VARCHAR(50) | NO | - | | | Número de expediente único |
+| `nombre_instancia` | VARCHAR(255) | YES | NULL | | | Nombre descriptivo del caso |
+| `estado` | VARCHAR(20) | NO | 'INICIADO' | | | INICIADO, EN_PROGRESO, COMPLETADO, CANCELADO |
+| `etapa_actual_id` | INT | YES | NULL | | ✅ | Etapa actual |
+| `creado_por_user_id` | VARCHAR(17) | NO | - | | | Usuario creador |
+| `asignado_a_user_id` | VARCHAR(17) | YES | NULL | | | Usuario asignado |
 | `fecha_inicio` | DATETIME | NO | GETDATE() | | | Fecha de inicio |
-| `fecha_limite` | DATETIME | YES | NULL | | | Fecha límite (si aplica) |
-| `fecha_completado` | DATETIME | YES | NULL | | | Fecha de completitud |
-| `iniciado_por` | INT | NO | - | | ✅ | Usuario que inició |
-| `completado_por` | INT | YES | NULL | | ✅ | Usuario que completó |
+| `fecha_estimada_fin` | DATETIME | YES | NULL | | | Fecha estimada de finalización |
+| `fecha_fin` | DATETIME | YES | NULL | | | Fecha real de finalización |
+| `metadata_adicional` | JSON | YES | NULL | | | Datos extras del caso |
+| `prioridad` | VARCHAR(10) | NO | 'NORMAL' | | | BAJA, NORMAL, ALTA, URGENTE |
 | `activo` | BIT | NO | 1 | | | Instancia activa |
+| `created_at` | DATETIME | NO | GETDATE() | | | Fecha de creación |
+| `updated_at` | DATETIME | YES | NULL | | | Última actualización |
+| `updated_by` | VARCHAR(17) | YES | NULL | | | Usuario modificador |
 
 **Índices**:
-- `PK_workflow_instancia`: PRIMARY KEY (`id_instancia`)
-- `UK_workflow_instancia_numero`: UNIQUE (`numero_instancia`)
-- `IX_workflow_instancia_workflow`: NONCLUSTERED (`id_workflow`)
-- `IX_workflow_instancia_estado`: NONCLUSTERED (`estado`, `fecha_inicio` DESC)
-- `IX_workflow_instancia_usuario`: NONCLUSTERED (`iniciado_por`)
+- `PK_WORKFLOW_INSTANCIA`: PRIMARY KEY (`id`)
+- `UK_WORKFLOW_INSTANCIA_expediente`: UNIQUE (`num_expediente`)
+- `IX_WORKFLOW_INSTANCIA_workflow`: NONCLUSTERED (`workflow_id`)
+- `IX_WORKFLOW_INSTANCIA_estado`: NONCLUSTERED (`estado`)
+- `IX_WORKFLOW_INSTANCIA_creador`: NONCLUSTERED (`creado_por_user_id`)
 
-### 3.5 Tabla: `workflow_instancia_etapa`
+### 3.6 Tabla: `WORKFLOW_RESPUESTA_ETAPA`
 
-**Descripción**: Estados de etapas en una instancia de workflow.
+**Descripción**: Conjunto de respuestas de una etapa completada.
 
 | Columna | Tipo de Dato | Nulo | Default | PK | FK | Descripción |
 |---------|--------------|------|---------|----|----|-------------|
-| `id_instancia_etapa` | INT | NO | IDENTITY(1,1) | ✅ | | ID único |
-| `id_instancia` | INT | NO | - | | ✅ | Instancia del workflow |
-| `id_etapa` | INT | NO | - | | ✅ | Etapa del workflow |
-| `estado` | NVARCHAR(50) | NO | 'PENDIENTE' | | | PENDIENTE, EN_PROGRESO, COMPLETADA, OMITIDA |
-| `fecha_inicio` | DATETIME | YES | NULL | | | Fecha de inicio real |
+| `id` | INT | NO | IDENTITY(1,1) | ✅ | | ID único |
+| `instancia_id` | INT | NO | - | | ✅ | Instancia del workflow |
+| `etapa_id` | INT | NO | - | | ✅ | Etapa respondida |
+| `completada` | BIT | NO | 0 | | | ¿Etapa completada? |
+| `fecha_inicio` | DATETIME | NO | GETDATE() | | | Fecha de inicio |
 | `fecha_completado` | DATETIME | YES | NULL | | | Fecha de completitud |
-| `observaciones` | NVARCHAR(MAX) | YES | NULL | | | Observaciones |
-| `activo` | BIT | NO | 1 | | | Registro activo |
+| `completado_por_user_id` | VARCHAR(17) | YES | NULL | | | Usuario que completó |
+| `created_at` | DATETIME | NO | GETDATE() | | | Fecha de creación |
+| `updated_at` | DATETIME | YES | NULL | | | Última actualización |
+| `updated_by` | VARCHAR(17) | YES | NULL | | | Usuario modificador |
 
 **Índices**:
-- `PK_workflow_instancia_etapa`: PRIMARY KEY (`id_instancia_etapa`)
-- `IX_workflow_instancia_etapa_instancia`: NONCLUSTERED (`id_instancia`)
-- `UK_workflow_instancia_etapa`: UNIQUE (`id_instancia`, `id_etapa`)
+- `PK_WORKFLOW_RESPUESTA_ETAPA`: PRIMARY KEY (`id`)
+- `IX_WORKFLOW_RESPUESTA_ETAPA_instancia`: NONCLUSTERED (`instancia_id`)
+- `UK_WORKFLOW_RESPUESTA_ETAPA`: UNIQUE (`instancia_id`, `etapa_id`)
 
-### 3.6 Tabla: `workflow_instancia_tarea`
+### 3.7 Tabla: `WORKFLOW_RESPUESTA`
 
-**Descripción**: Tareas asignadas en una instancia de workflow.
+**Descripción**: Respuestas individuales a preguntas en una instancia.
 
 | Columna | Tipo de Dato | Nulo | Default | PK | FK | Descripción |
 |---------|--------------|------|---------|----|----|-------------|
-| `id_instancia_tarea` | INT | NO | IDENTITY(1,1) | ✅ | | ID único |
-| `id_instancia_etapa` | INT | NO | - | | ✅ | Etapa de la instancia |
-| `id_tarea` | INT | NO | - | | ✅ | Definición de la tarea |
-| `asignado_a` | INT | YES | NULL | | ✅ | Usuario asignado |
-| `estado` | NVARCHAR(50) | NO | 'PENDIENTE' | | | PENDIENTE, EN_PROGRESO, COMPLETADA, CANCELADA |
-| `fecha_asignacion` | DATETIME | YES | NULL | | | Fecha de asignación |
-| `fecha_inicio` | DATETIME | YES | NULL | | | Fecha de inicio |
-| `fecha_limite` | DATETIME | YES | NULL | | | Fecha límite |
-| `fecha_completado` | DATETIME | YES | NULL | | | Fecha de completitud |
-| `respuesta` | NVARCHAR(MAX) | YES | NULL | | | Respuesta/decisión |
-| `comentarios` | NVARCHAR(MAX) | YES | NULL | | | Comentarios del usuario |
-| `resultado` | NVARCHAR(50) | YES | NULL | | | APROBADO, RECHAZADO, PENDIENTE |
-| `activo` | BIT | NO | 1 | | | Registro activo |
+| `id` | INT | NO | IDENTITY(1,1) | ✅ | | ID único |
+| `respuesta_etapa_id` | INT | NO | - | | ✅ | Respuesta de etapa |
+| `pregunta_id` | INT | NO | - | | ✅ | Pregunta respondida |
+| `valor_respuesta` | TEXT | YES | NULL | | | Valor de la respuesta |
+| `archivo_adjunto` | VARCHAR(1000) | YES | NULL | | | Ruta del archivo (si aplica) |
+| `metadata` | JSON | YES | NULL | | | Metadata adicional |
+| `created_at` | DATETIME | NO | GETDATE() | | | Fecha de creación |
+| `created_by` | VARCHAR(17) | YES | NULL | | | Usuario que respondió |
+| `updated_at` | DATETIME | YES | NULL | | | Última actualización |
+| `updated_by` | VARCHAR(17) | YES | NULL | | | Usuario modificador |
 
 **Índices**:
-- `PK_workflow_instancia_tarea`: PRIMARY KEY (`id_instancia_tarea`)
-- `IX_workflow_instancia_tarea_etapa`: NONCLUSTERED (`id_instancia_etapa`)
-- `IX_workflow_instancia_tarea_usuario`: NONCLUSTERED (`asignado_a`, `estado`)
-- `IX_workflow_instancia_tarea_fecha`: NONCLUSTERED (`fecha_limite`)
+- `PK_WORKFLOW_RESPUESTA`: PRIMARY KEY (`id`)
+- `IX_WORKFLOW_RESPUESTA_etapa`: NONCLUSTERED (`respuesta_etapa_id`)
+- `UK_WORKFLOW_RESPUESTA`: UNIQUE (`respuesta_etapa_id`, `pregunta_id`)
 
-### 3.7 Tabla: `workflow_documento`
+### 3.8 Tabla: `WORKFLOW_INSTANCIA_HISTORIAL`
 
-**Descripción**: Documentos adjuntos a tareas de workflow.
+**Descripción**: Historial de cambios y transiciones en una instancia.
 
 | Columna | Tipo de Dato | Nulo | Default | PK | FK | Descripción |
 |---------|--------------|------|---------|----|----|-------------|
-| `id_documento` | INT | NO | IDENTITY(1,1) | ✅ | | ID único del documento |
-| `id_instancia_tarea` | INT | NO | - | | ✅ | Tarea asociada |
-| `nombre_archivo` | NVARCHAR(500) | NO | - | | | Nombre del archivo |
-| `ruta_archivo` | NVARCHAR(1000) | NO | - | | | Ruta del archivo |
-| `tamano_bytes` | BIGINT | YES | NULL | | | Tamaño en bytes |
-| `mime_type` | NVARCHAR(100) | YES | NULL | | | Tipo MIME |
-| `fecha_carga` | DATETIME | NO | GETDATE() | | | Fecha de carga |
-| `cargado_por` | INT | NO | - | | ✅ | Usuario que cargó |
-| `activo` | BIT | NO | 1 | | | Documento activo |
+| `id` | INT | NO | IDENTITY(1,1) | ✅ | | ID único |
+| `instancia_id` | INT | NO | - | | ✅ | Instancia del workflow |
+| `etapa_anterior_id` | INT | YES | NULL | | ✅ | Etapa anterior (si transición) |
+| `etapa_nueva_id` | INT | YES | NULL | | ✅ | Nueva etapa |
+| `accion` | VARCHAR(100) | NO | - | | | Tipo de acción realizada |
+| `estado_anterior` | VARCHAR(20) | YES | NULL | | | Estado previo |
+| `estado_nuevo` | VARCHAR(20) | YES | NULL | | | Estado nuevo |
+| `descripcion` | TEXT | YES | NULL | | | Descripción del cambio |
+| `metadata` | JSON | YES | NULL | | | Datos adicionales |
+| `created_at` | DATETIME | NO | GETDATE() | | | Fecha del cambio |
+| `created_by` | VARCHAR(17) | YES | NULL | | | Usuario que realizó |
 
 **Índices**:
-- `PK_workflow_documento`: PRIMARY KEY (`id_documento`)
-- `IX_workflow_documento_tarea`: NONCLUSTERED (`id_instancia_tarea`)
+- `PK_WORKFLOW_INSTANCIA_HISTORIAL`: PRIMARY KEY (`id`)
+- `IX_WORKFLOW_INSTANCIA_HISTORIAL_instancia`: NONCLUSTERED (`instancia_id`, `created_at` DESC)
+
+### 3.9 Tabla: `WORKFLOW_COMENTARIO`
+
+**Descripción**: Comentarios en instancias de workflow.
+
+| Columna | Tipo de Dato | Nulo | Default | PK | FK | Descripción |
+|---------|--------------|------|---------|----|----|-------------|
+| `id` | INT | NO | IDENTITY(1,1) | ✅ | | ID único |
+| `instancia_id` | INT | NO | - | | ✅ | Instancia del workflow |
+| `etapa_id` | INT | YES | NULL | | ✅ | Etapa asociada (opcional) |
+| `comentario` | TEXT | NO | - | | | Texto del comentario |
+| `es_interno` | BIT | NO | 0 | | | ¿Solo visible internamente? |
+| `created_at` | DATETIME | NO | GETDATE() | | | Fecha del comentario |
+| `created_by` | VARCHAR(17) | YES | NULL | | | Usuario que comentó |
+
+**Índices**:
+- `PK_WORKFLOW_COMENTARIO`: PRIMARY KEY (`id`)
+- `IX_WORKFLOW_COMENTARIO_instancia`: NONCLUSTERED (`instancia_id`, `created_at` DESC)
 
 ---
 
@@ -851,14 +921,12 @@ VALUES
 
 1. **Búsquedas por Estado**:
    ```sql
-   CREATE NONCLUSTERED INDEX IX_tramites_estado ON tramites(estado);
    CREATE NONCLUSTERED INDEX IX_PPSH_SOLICITUD_estado ON PPSH_SOLICITUD(cod_estado);
    CREATE NONCLUSTERED INDEX IX_workflow_instancia_estado ON workflow_instancia(estado);
    ```
 
 2. **Búsquedas por Fecha** (ordenamiento DESC para últimos registros):
    ```sql
-   CREATE NONCLUSTERED INDEX IX_tramites_fecha_creacion ON tramites(fecha_creacion DESC);
    CREATE NONCLUSTERED INDEX IX_PPSH_SOLICITUD_fecha ON PPSH_SOLICITUD(fecha_solicitud DESC);
    CREATE NONCLUSTERED INDEX IX_workflow_instancia_fecha ON workflow_instancia(fecha_inicio DESC);
    ```
@@ -977,10 +1045,6 @@ ALTER TABLE SEG_TB_USUA_ROLE ADD CONSTRAINT FK_SEG_TB_USUA_ROLE_rol
 
 **Estados Válidos**:
 ```sql
--- Estados de trámites
-ALTER TABLE tramites ADD CONSTRAINT CK_tramites_estado 
-    CHECK (estado IN ('pendiente', 'en_proceso', 'completado', 'cancelado'));
-
 -- Tipo de documento PPSH
 ALTER TABLE PPSH_SOLICITANTE ADD CONSTRAINT CK_PPSH_SOLICITANTE_tipo_doc
     CHECK (tipo_documento IN ('CEDULA', 'PASAPORTE', 'OTRO'));
@@ -1009,44 +1073,15 @@ ALTER TABLE PPSH_SOLICITUD ADD CONSTRAINT CK_PPSH_SOLICITUD_fecha_aprobacion
     CHECK (fecha_aprobacion IS NULL OR fecha_aprobacion >= fecha_solicitud);
 
 -- Fecha de completitud debe ser posterior a fecha de inicio
-ALTER TABLE workflow_instancia ADD CONSTRAINT CK_workflow_instancia_fecha_completado
-    CHECK (fecha_completado IS NULL OR fecha_completado >= fecha_inicio);
+ALTER TABLE WORKFLOW_INSTANCIA ADD CONSTRAINT CK_WORKFLOW_INSTANCIA_fecha_completado
+    CHECK (fecha_fin IS NULL OR fecha_fin >= fecha_inicio);
 ```
 
 ---
 
 ## 7. Diagramas ER
 
-### 7.1 Diagrama - Módulo Trámites Base
-
-```
-┌────────────────────┐
-│    tramites        │
-├────────────────────┤
-│ PK: id             │
-│    titulo          │
-│    descripcion     │
-│    estado          │
-│    tipo_tramite_id │
-│    solicitante_*   │
-│    fecha_creacion  │
-│    usuario_creador │────┐
-│    activo          │    │
-└────────────────────┘    │
-                          │
-                          │ FK
-                          ▼
-                ┌──────────────────┐
-                │ SEG_TB_USUARIOS  │
-                ├──────────────────┤
-                │ PK: id_usuario   │
-                │    username      │
-                │    email         │
-                │    nombre_*      │
-                └──────────────────┘
-```
-
-### 7.2 Diagrama - Módulo PPSH
+### 7.1 Diagrama - Módulo PPSH
 
 ```
 ┌─────────────────────┐           ┌──────────────────────┐
@@ -1101,99 +1136,119 @@ ALTER TABLE workflow_instancia ADD CONSTRAINT CK_workflow_instancia_fecha_comple
 └─────────────────────┘
 ```
 
-### 7.3 Diagrama - Módulo Workflows
+### 7.2 Diagrama - Módulo Workflows
 
 ```
-┌──────────────────┐
-│   workflow       │
-├──────────────────┤
-│ PK: id_workflow  │
-│    codigo (UK)   │
-│    nombre        │
-│    tipo_tramite  │
-└──────────────────┘
+┌──────────────────────┐
+│   WORKFLOW           │
+├──────────────────────┤
+│ PK: id               │
+│    codigo (UK)       │
+│    nombre            │
+│    version           │
+│    estado            │
+│    categoria         │
+└──────────────────────┘
         │
         │ 1:N
         ▼
-┌──────────────────┐
-│ workflow_etapa   │
-├──────────────────┤
-│ PK: id_etapa     │
-│ FK: id_workflow  │
-│    codigo_etapa  │
-│    nombre_etapa  │
-│    orden         │
-│    es_opcional   │
-└──────────────────┘
+┌──────────────────────┐       ┌──────────────────────┐
+│ WORKFLOW_ETAPA       │◄──┐   │ WORKFLOW_CONEXION    │
+├──────────────────────┤   │   ├──────────────────────┤
+│ PK: id               │   └───│ FK: etapa_origen_id  │
+│ FK: workflow_id      │   ┌───│ FK: etapa_destino_id │
+│    codigo            │   │   │ FK: workflow_id      │
+│    nombre            │   │   │    condicion         │
+│    tipo_etapa        │───┘   └──────────────────────┘
+│    orden             │
+│    es_etapa_inicial  │
+│    es_etapa_final    │
+└──────────────────────┘
         │
         │ 1:N
         ▼
-┌──────────────────┐
-│ workflow_tarea   │
-├──────────────────┤
-│ PK: id_tarea     │
-│ FK: id_etapa     │
-│    codigo_tarea  │
-│    nombre_tarea  │
-│    orden         │
-│    rol_asignado  │
-└──────────────────┘
+┌──────────────────────┐
+│ WORKFLOW_PREGUNTA    │
+├──────────────────────┤
+│ PK: id               │
+│ FK: etapa_id         │
+│    codigo            │
+│    texto_pregunta    │
+│    tipo_campo        │
+│    orden             │
+│    requerida         │
+│    opciones          │
+└──────────────────────┘
 
 
       INSTANCIAS DE EJECUCIÓN
       ========================
 
-┌─────────────────────┐
-│ workflow_instancia  │
-├─────────────────────┤
-│ PK: id_instancia    │
-│ FK: id_workflow     │
-│    numero_instancia │
-│    estado           │
-│    progreso_%       │
-│    prioridad        │
-└─────────────────────┘
-        │
-        │ 1:N
-        ▼
 ┌───────────────────────────┐
-│ workflow_instancia_etapa  │
+│ WORKFLOW_INSTANCIA        │
 ├───────────────────────────┤
-│ PK: id_instancia_etapa    │
-│ FK: id_instancia          │
-│ FK: id_etapa              │
+│ PK: id                    │
+│ FK: workflow_id           │
+│ FK: etapa_actual_id       │
+│    num_expediente (UK)    │
 │    estado                 │
+│    prioridad              │
+│    creado_por_user_id     │
 │    fecha_inicio           │
-│    fecha_completado       │
 └───────────────────────────┘
+        │
+        │ 1:N
+        ▼
+┌─────────────────────────────┐
+│ WORKFLOW_RESPUESTA_ETAPA    │
+├─────────────────────────────┤
+│ PK: id                      │
+│ FK: instancia_id            │
+│ FK: etapa_id                │
+│    completada               │
+│    fecha_inicio             │
+│    fecha_completado         │
+│    completado_por_user_id   │
+└─────────────────────────────┘
         │
         │ 1:N
         ▼
 ┌───────────────────────────┐
-│ workflow_instancia_tarea  │
+│ WORKFLOW_RESPUESTA        │
 ├───────────────────────────┤
-│ PK: id_instancia_tarea    │
-│ FK: id_instancia_etapa    │
-│ FK: id_tarea              │
-│ FK: asignado_a (usuario)  │
-│    estado                 │
-│    resultado              │
-│    respuesta              │
+│ PK: id                    │
+│ FK: respuesta_etapa_id    │
+│ FK: pregunta_id           │
+│    valor_respuesta        │
+│    archivo_adjunto        │
+│    metadata               │
 └───────────────────────────┘
-        │
-        │ 1:N
-        ▼
-┌───────────────────────┐
-│ workflow_documento    │
-├───────────────────────┤
-│ PK: id_documento      │
-│ FK: id_instancia_tarea│
-│    nombre_archivo     │
-│    ruta_archivo       │
-└───────────────────────┘
+        
+┌─────────────────────────────────┐
+│ WORKFLOW_INSTANCIA_HISTORIAL    │
+├─────────────────────────────────┤
+│ PK: id                          │
+│ FK: instancia_id                │
+│ FK: etapa_anterior_id           │
+│ FK: etapa_nueva_id              │
+│    accion                       │
+│    estado_anterior/nuevo        │
+│    descripcion                  │
+└─────────────────────────────────┘
+
+┌────────────────────────┐
+│ WORKFLOW_COMENTARIO    │
+├────────────────────────┤
+│ PK: id                 │
+│ FK: instancia_id       │
+│ FK: etapa_id           │
+│    comentario          │
+│    es_interno          │
+│    created_by          │
+└────────────────────────┘
 ```
 
-### 7.4 Diagrama - Seguridad y Permisos
+### 7.3 Diagrama - Seguridad y Permisos
 
 ```
 ┌──────────────────┐              ┌──────────────────┐
@@ -1231,12 +1286,12 @@ EJEMPLO DE ASIGNACIÓN:
    └─ Rol: ENTREVISTADOR
 ```
 
-### 7.5 Relación Completa Entre Módulos
+### 7.4 Relación Completa Entre Módulos
 
 ```
-         TRÁMITES                    SEGURIDAD
+         SIM_FT                      SEGURIDAD
     ┌─────────────┐              ┌──────────────┐
-    │  tramites   │              │ USUARIOS     │
+    │  TRAMITE    │              │ USUARIOS     │
     │             │              │   ROLES      │
     └─────────────┘              └──────────────┘
             │                            │
@@ -1271,19 +1326,334 @@ EJEMPLO DE ASIGNACIÓN:
 
 ---
 
+## 7.6 Diagramas ER Interactivos (Mermaid)
+
+### 7.6.1 Módulo PPSH - Diagrama Entidad-Relación
+
+```mermaid
+erDiagram
+    PPSH_SOLICITANTE ||--o{ PPSH_SOLICITUD : tiene
+    PPSH_SOLICITUD }o--|| PPSH_ESTADO : "estado actual"
+    PPSH_SOLICITUD }o--|| PPSH_CAUSA_HUMANITARIA : "causa humanitaria"
+    PPSH_SOLICITUD ||--o{ PPSH_SOLICITUD_DOCUMENTO : contiene
+    PPSH_SOLICITUD }o--o| PPSH_PAIS : "país destino"
+    PPSH_SOLICITUD }o--o| PPSH_AGENCIA : "agencia tramitadora"
+    
+    PPSH_SOLICITANTE {
+        int id PK
+        varchar primer_nombre
+        varchar primer_apellido
+        varchar tipo_documento
+        varchar numero_documento UK
+        varchar nacionalidad
+        date fecha_nacimiento
+        char sexo
+        varchar email
+        varchar telefono
+        bit activo
+    }
+    
+    PPSH_SOLICITUD {
+        int id PK
+        varchar num_expediente UK
+        int id_solicitante FK
+        int id_causa_humanitaria FK
+        int id_estado FK
+        int id_agencia FK
+        varchar cod_pais_destino FK
+        datetime fecha_solicitud
+        date fecha_salida_estimada
+        int duracion_dias
+        text motivo_solicitud
+        text observaciones
+        bit activo
+    }
+    
+    PPSH_ESTADO {
+        int id PK
+        varchar codigo UK
+        varchar nombre
+        int orden
+        bit es_final
+        bit activo
+    }
+    
+    PPSH_CAUSA_HUMANITARIA {
+        int id PK
+        varchar codigo UK
+        varchar nombre
+        text descripcion
+        bit requiere_revision_medica
+        bit activo
+    }
+    
+    PPSH_SOLICITUD_DOCUMENTO {
+        int id PK
+        int id_solicitud FK
+        varchar tipo_documento
+        varchar nombre_archivo
+        varchar ruta_archivo
+        int tamanio_bytes
+        datetime fecha_carga
+        bit activo
+    }
+    
+    PPSH_PAIS {
+        varchar codigo PK
+        varchar nombre
+        varchar codigo_iso3
+        bit activo
+    }
+    
+    PPSH_AGENCIA {
+        int id PK
+        varchar codigo UK
+        varchar nombre
+        varchar direccion
+        varchar telefono
+        bit activo
+    }
+```
+
+### 7.6.2 Módulo SIM_FT - Diagrama Entidad-Relación
+
+```mermaid
+erDiagram
+    TRAMITE }o--|| TIPO_TRAMITE : "tipo"
+    TRAMITE }o--|| ESTATUS : "estado"
+    TRAMITE }o--|| PRIORIDAD : "prioridad"
+    TRAMITE }o--o| CONCLUSION : "conclusión"
+    
+    TRAMITE {
+        int num_annio PK
+        varchar cod_tramite PK,FK
+        int num_tramite PK
+        int num_registro
+        varchar tipo_solicitud
+        varchar num_cedula_ruc
+        char ind_estatus FK
+        char ind_prioridad FK
+        varchar ind_conclusion FK
+        datetime fecha_inicio
+        datetime fecha_cierre
+        datetime fecha_modificacion
+        varchar usuario_creacion
+        varchar usuario_modificacion
+        text observaciones
+        bit activo
+    }
+    
+    TIPO_TRAMITE {
+        varchar cod_tramite PK
+        varchar des_tramite
+        varchar categoria
+        bit requiere_aprobacion
+        int duracion_estimada_dias
+        bit activo
+    }
+    
+    ESTATUS {
+        char ind_estatus PK
+        varchar des_estatus
+        varchar color
+        bit permite_edicion
+        bit activo
+    }
+    
+    PRIORIDAD {
+        char ind_prioridad PK
+        varchar des_prioridad
+        int orden
+        varchar color
+        bit activo
+    }
+    
+    CONCLUSION {
+        varchar ind_conclusion PK
+        varchar des_conclusion
+        bit requiere_observacion
+        bit activo
+    }
+```
+
+### 7.6.3 Módulo Workflows - Diagrama Entidad-Relación
+
+```mermaid
+erDiagram
+    WORKFLOW ||--o{ WORKFLOW_ETAPA : contiene
+    WORKFLOW ||--o{ WORKFLOW_TRANSICION : "define transiciones"
+    WORKFLOW ||--o{ WORKFLOW_INSTANCIA : "genera instancias"
+    
+    WORKFLOW_ETAPA ||--o{ WORKFLOW_TRANSICION : "origen"
+    WORKFLOW_ETAPA ||--o{ WORKFLOW_TRANSICION : "destino"
+    
+    WORKFLOW_INSTANCIA }o--|| WORKFLOW : "basada en"
+    WORKFLOW_INSTANCIA }o--|| WORKFLOW_ETAPA : "etapa actual"
+    WORKFLOW_INSTANCIA ||--o{ WORKFLOW_INSTANCIA_HISTORIAL : "historial"
+    
+    WORKFLOW {
+        int id PK
+        varchar codigo UK
+        varchar nombre
+        text descripcion
+        varchar tipo_tramite
+        int version
+        bit activo
+        datetime fecha_creacion
+    }
+    
+    WORKFLOW_ETAPA {
+        int id PK
+        int id_workflow FK
+        varchar codigo UK
+        varchar nombre
+        text descripcion
+        int orden
+        bit requiere_aprobacion
+        varchar rol_responsable
+        int tiempo_estimado_horas
+        bit activo
+    }
+    
+    WORKFLOW_TRANSICION {
+        int id PK
+        int id_workflow FK
+        int id_etapa_origen FK
+        int id_etapa_destino FK
+        varchar nombre
+        text condicion
+        int orden
+        bit activo
+    }
+    
+    WORKFLOW_INSTANCIA {
+        int id PK
+        int id_workflow FK
+        int id_etapa_actual FK
+        varchar numero_instancia UK
+        varchar referencia_tipo
+        int referencia_id
+        varchar estado
+        int progreso_porcentaje
+        datetime fecha_inicio
+        datetime fecha_finalizacion
+        text datos_contexto
+        bit activo
+    }
+    
+    WORKFLOW_INSTANCIA_HISTORIAL {
+        int id PK
+        int id_instancia FK
+        int id_etapa_anterior FK
+        int id_etapa_nueva FK
+        varchar accion
+        text comentario
+        varchar usuario
+        datetime fecha_cambio
+    }
+```
+
+### 7.6.4 Diagrama de Relaciones entre Módulos
+
+```mermaid
+graph TB
+    subgraph "Módulo PPSH"
+        PPSH_SOL[PPSH_SOLICITUD<br/>Solicitudes de<br/>Permiso Humanitario]
+        PPSH_SOLICITANTE[PPSH_SOLICITANTE<br/>Datos Personales]
+        PPSH_DOC[PPSH_SOLICITUD_DOCUMENTO<br/>Documentos Adjuntos]
+    end
+    
+    subgraph "Módulo SIM_FT"
+        TRAMITE[TRAMITE<br/>Trámites Migratorios<br/>PK: año+cod+num]
+        TIPO_TRAM[TIPO_TRAMITE<br/>Catálogo Tipos]
+    end
+    
+    subgraph "Módulo Workflows"
+        WF[WORKFLOW<br/>Definición Procesos]
+        WF_INST[WORKFLOW_INSTANCIA<br/>Ejecución en Curso]
+        WF_HIST[WORKFLOW_INSTANCIA_HISTORIAL<br/>Auditoría Cambios]
+    end
+    
+    subgraph "Seguridad"
+        USR[SEG_TB_USUARIOS<br/>Usuarios Sistema]
+        ROL[SEG_TB_ROLES<br/>Roles y Permisos]
+    end
+    
+    PPSH_SOLICITANTE -->|1:N| PPSH_SOL
+    PPSH_SOL -->|1:N| PPSH_DOC
+    PPSH_SOL -.->|puede generar| TRAMITE
+    
+    TRAMITE -->|N:1| TIPO_TRAM
+    TRAMITE -.->|puede iniciar| WF_INST
+    
+    WF -->|1:N| WF_INST
+    WF_INST -->|1:N| WF_HIST
+    
+    WF_INST -.->|referencia| PPSH_SOL
+    WF_INST -.->|referencia| TRAMITE
+    
+    USR -.->|audita| PPSH_SOL
+    USR -.->|audita| WF_INST
+    USR -->|N:M| ROL
+    
+    style PPSH_SOL fill:#e1f5ff
+    style TRAMITE fill:#fff4e1
+    style WF_INST fill:#f0ffe1
+    style USR fill:#ffe1e1
+```
+
+### 7.6.5 Flujo de Datos - Solicitud PPSH Completa
+
+```mermaid
+sequenceDiagram
+    participant Frontend
+    participant API
+    participant DB
+    participant Workflow
+    
+    Frontend->>API: POST /api/v1/ppsh/solicitantes
+    API->>DB: INSERT INTO PPSH_SOLICITANTE
+    DB-->>API: id_solicitante: 123
+    API-->>Frontend: 201 Created
+    
+    Frontend->>API: POST /api/v1/ppsh/solicitudes
+    Note right of API: Validar datos<br/>Generar num_expediente
+    API->>DB: INSERT INTO PPSH_SOLICITUD
+    DB-->>API: id_solicitud: 456
+    API-->>Frontend: 201 Created
+    
+    Frontend->>API: POST /api/v1/ppsh/solicitudes/456/documentos
+    API->>DB: INSERT INTO PPSH_SOLICITUD_DOCUMENTO
+    DB-->>API: id_documento: 789
+    API-->>Frontend: 201 Created
+    
+    Frontend->>API: POST /api/v1/workflows/1/instancias
+    Note right of API: Iniciar Workflow PPSH<br/>referencia_id: 456
+    API->>Workflow: Crear instancia
+    Workflow->>DB: INSERT INTO WORKFLOW_INSTANCIA
+    DB-->>Workflow: id_instancia: 321
+    Workflow->>DB: INSERT INTO WORKFLOW_INSTANCIA_HISTORIAL
+    Workflow-->>API: Instancia creada
+    API-->>Frontend: 201 Created
+    
+    Note over Frontend,Workflow: Solicitud completa y<br/>workflow iniciado
+```
+
+---
+
 ## 8. Resumen Estadístico
 
 ### 8.1 Conteo de Tablas por Módulo
 
 | Módulo | Cantidad de Tablas | Descripción |
 |--------|-------------------|-------------|
-| **Trámites Base** | 1 | tramites |
-| **PPSH** | 8 | Solicitud, Solicitante, Causa, Estado, Documento, Revisión Médica, Entrevista, Comentario |
-| **Workflows** | 7 | workflow, etapa, tarea, instancia, instancia_etapa, instancia_tarea, documento |
-| **Seguridad** | 4 | Usuarios, Roles, Usuario-Rol, Error Log |
+| **SIM_FT** | 5 | TRAMITE, TIPO_TRAMITE, ESTATUS, PRIORIDAD, CONCLUSION |
+| **PPSH** | 10 | SOLICITUD, SOLICITANTE, CAUSA_HUMANITARIA, TIPO_DOCUMENTO, ESTADO, DOCUMENTO, ESTADO_HISTORIAL, ENTREVISTA, COMENTARIO, CONCEPTO_PAGO, PAGO |
+| **Workflows** | 9 | WORKFLOW, WORKFLOW_ETAPA, WORKFLOW_CONEXION, WORKFLOW_PREGUNTA, WORKFLOW_INSTANCIA, WORKFLOW_RESPUESTA_ETAPA, WORKFLOW_RESPUESTA, WORKFLOW_INSTANCIA_HISTORIAL, WORKFLOW_COMENTARIO |
+| **Seguridad** | 4 | USUARIOS, ROLES, Usuario-Rol, Error Log |
 | **Catálogos Generales** | 9 | Sexo, Estado Civil, Vía Transporte, Tipo Movimiento, País, Continente, Región, Agencia, Sección |
 | **Auditoría** | 1 | sc_log |
-| **TOTAL** | **30** | 30 tablas principales documentadas |
+| **TOTAL** | **38** | 38 tablas principales documentadas |
 
 ### 8.2 Tipos de Relaciones
 
@@ -1297,11 +1667,11 @@ EJEMPLO DE ASIGNACIÓN:
 
 | Tipo de Índice | Cantidad Aproximada |
 |----------------|---------------------|
-| PRIMARY KEY (Clustered) | 30 |
-| UNIQUE (Non-Clustered) | 12 |
-| Foreign Key Index | 25 |
-| Performance Index | 20 |
-| **TOTAL** | **~87 índices** |
+| PRIMARY KEY (Clustered) | 38 |
+| UNIQUE (Non-Clustered) | 15 |
+| Foreign Key Index | 30 |
+| Performance Index | 25 |
+| **TOTAL** | **~108 índices** |
 
 ---
 
@@ -1310,7 +1680,7 @@ EJEMPLO DE ASIGNACIÓN:
 ### 9.1 Convenciones de Nombres
 
 - **Tablas**: PascalCase o SNAKE_CASE_UPPER según módulo
-  - Módulo Trámites: `tramites` (lowercase)
+  - Módulo SIM_FT: `TRAMITE` (UPPER_CASE, PK compuesta)
   - Módulo PPSH: `PPSH_SOLICITUD` (UPPER_CASE)
   - Módulo Workflow: `workflow_etapa` (snake_case)
   - Seguridad: `SEG_TB_USUARIOS` (prefijo + UPPER_CASE)
@@ -1337,13 +1707,13 @@ Todas las tablas principales implementan **soft delete** con campo `activo`:
 **Queries Ejemplo**:
 ```sql
 -- Listar solo registros activos
-SELECT * FROM tramites WHERE activo = 1;
+SELECT * FROM PPSH_SOLICITUD WHERE activo = 1;
 
 -- Eliminar lógicamente
-UPDATE tramites SET activo = 0, fecha_actualizacion = GETDATE() WHERE id = 123;
+UPDATE PPSH_SOLICITUD SET activo = 0, fecha_actualizacion = GETDATE() WHERE id_solicitud = 123;
 
 -- Recuperar registro
-UPDATE tramites SET activo = 1 WHERE id = 123;
+UPDATE PPSH_SOLICITUD SET activo = 1 WHERE id_solicitud = 123;
 ```
 
 ### 9.3 Auditoría Automática
@@ -1357,8 +1727,8 @@ La tabla `sc_log` captura automáticamente:
 
 **Implementación con Triggers**:
 ```sql
-CREATE TRIGGER trg_audit_tramites_update
-ON tramites
+CREATE TRIGGER trg_audit_ppsh_solicitud_update
+ON PPSH_SOLICITUD
 AFTER UPDATE
 AS
 BEGIN
@@ -1366,12 +1736,13 @@ BEGIN
     SELECT 
         CAST(SESSION_CONTEXT(N'user_id') AS INT),
         'UPDATE',
-        'tramites',
-        i.id,
+        'PPSH_SOLICITUD',
+        i.id_solicitud,
         (SELECT d.* FOR JSON PATH),
         (SELECT i.* FOR JSON PATH)
     FROM inserted i
-    INNER JOIN deleted d ON i.id = d.id;
+    INNER JOIN deleted d ON i.id_solicitud = d.id_solicitud;
+END;
 END;
 ```
 
@@ -1393,7 +1764,7 @@ END;
 
 2. **Incluir campos activo en WHERE**:
    ```sql
-   SELECT * FROM tramites 
+   SELECT * FROM PPSH_SOLICITUD 
    WHERE estado = 'pendiente' AND activo = 1;
    ```
 
@@ -1407,7 +1778,7 @@ END;
 
 4. **Paginación optimizada**:
    ```sql
-   SELECT * FROM workflow_instancia
+   SELECT * FROM WORKFLOW_INSTANCIA
    WHERE estado = 'EN_PROGRESO' AND activo = 1
    ORDER BY fecha_inicio DESC
    OFFSET 0 ROWS FETCH NEXT 20 ROWS ONLY;
@@ -1434,27 +1805,27 @@ WHERE fecha_hora < DATEADD(MONTH, -6, GETDATE());
 
 ```sql
 -- Reconstruir índices fragmentados
-ALTER INDEX ALL ON tramites REBUILD;
 ALTER INDEX ALL ON PPSH_SOLICITUD REBUILD;
-ALTER INDEX ALL ON workflow_instancia REBUILD;
+ALTER INDEX ALL ON WORKFLOW_INSTANCIA REBUILD;
+ALTER INDEX ALL ON TRAMITE REBUILD;
 
 -- Actualizar estadísticas
-UPDATE STATISTICS tramites;
 UPDATE STATISTICS PPSH_SOLICITUD;
-UPDATE STATISTICS workflow_instancia;
+UPDATE STATISTICS WORKFLOW_INSTANCIA;
+UPDATE STATISTICS TRAMITE;
 ```
 
 ### 10.3 Backup de Tablas Críticas
 
 ```sql
 -- Backup diario de solicitudes activas
-SELECT * INTO PPSH_SOLICITUD_BACKUP_20250122
+SELECT * INTO PPSH_SOLICITUD_BACKUP_20251025
 FROM PPSH_SOLICITUD
 WHERE activo = 1;
 
 -- Backup de workflows en ejecución
-SELECT * INTO workflow_instancia_BACKUP_20250122
-FROM workflow_instancia
+SELECT * INTO WORKFLOW_INSTANCIA_BACKUP_20251025
+FROM WORKFLOW_INSTANCIA
 WHERE estado IN ('INICIADO', 'EN_PROGRESO');
 ```
 
@@ -1462,18 +1833,19 @@ WHERE estado IN ('INICIADO', 'EN_PROGRESO');
 
 ## 📊 Conclusión
 
-Este diccionario de datos documenta **30 tablas principales** del Sistema de Trámites Migratorios de Panamá, cubriendo:
+Este diccionario de datos documenta **38 tablas principales** del Sistema de Trámites Migratorios de Panamá, cubriendo:
 
-✅ **3 Módulos Funcionales**: Trámites Base, PPSH, Workflows  
+✅ **3 Módulos Funcionales**: SIM_FT (5 tablas), PPSH (10 tablas), Workflows (9 tablas)  
 ✅ **4 Tablas de Seguridad**: Usuarios, Roles, Permisos, Logs  
 ✅ **9 Catálogos Generales**: Referencias geográficas y administrativas  
-✅ **87+ Índices**: Optimización de rendimiento  
-✅ **25+ Foreign Keys**: Integridad referencial  
+✅ **108+ Índices**: Optimización de rendimiento  
+✅ **30+ Foreign Keys**: Integridad referencial  
 ✅ **Auditoría Completa**: Trazabilidad total de operaciones  
+✅ **Diagramas Mermaid**: Visualización interactiva de relaciones  
 
-**Última Actualización**: 22 de Octubre, 2025  
-**Versión**: 1.0  
-**Estado**: ✅ COMPLETO (100%)
+**Última Actualización**: 25 de Octubre, 2025  
+**Versión**: 2.0  
+**Estado**: ✅ COMPLETO Y VALIDADO (100%)
 
 ---
 
