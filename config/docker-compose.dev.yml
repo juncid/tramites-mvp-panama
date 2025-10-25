@@ -73,7 +73,11 @@ services:
         python /app/wait_for_db.py &&
         echo '✅ Base de datos confirmada como operativa' &&
         echo '' &&
-        echo '� Saltando migraciones Alembic (base de datos ya inicializada)...' &&
+        echo '🔄 Aplicando migraciones de Alembic...' &&
+        alembic stamp head &&
+        echo '✅ Baseline establecido (alembic stamp head)' &&
+        alembic upgrade head &&
+        echo '✅ Migraciones aplicadas exitosamente' &&
         echo '' &&
         echo '📥 Cargando datos iniciales de catálogos PPSH...' &&
         python /app/load_initial_data.py &&

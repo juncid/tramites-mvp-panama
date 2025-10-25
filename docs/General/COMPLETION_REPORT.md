@@ -201,30 +201,34 @@ El proyecto está **listo para desarrollo local** y **preparado para despliegue 
 
 ## 🎯 Funcionalidades Implementadas
 
-### API REST Endpoints
+### API REST Endpoints (Sistema SIM_FT - Oficial)
 
 | Método | Endpoint | Descripción | Estado |
 |--------|----------|-------------|--------|
 | GET | `/` | Información de la API | ✅ |
 | GET | `/health` | Health check | ✅ |
-| GET | `/api/v1/tramites` | Listar trámites (paginado) | ✅ |
-| GET | `/api/v1/tramites/{id}` | Obtener trámite específico | ✅ |
-| POST | `/api/v1/tramites` | Crear nuevo trámite | ✅ |
-| PUT | `/api/v1/tramites/{id}` | Actualizar trámite | ✅ |
-| DELETE | `/api/v1/tramites/{id}` | Eliminar trámite (soft) | ✅ |
+| GET | `/api/v1/sim-ft/tramites` | Listar trámites (filtros + cache) | ✅ |
+| GET | `/api/v1/sim-ft/tramites/{año}/{num}/{reg}` | Obtener trámite específico (cache) | ✅ |
+| POST | `/api/v1/sim-ft/tramites` | Crear nuevo trámite | ✅ |
+| PUT | `/api/v1/sim-ft/tramites/{año}/{num}/{reg}` | Actualizar trámite | ✅ |
+| POST | `/api/v1/sim-ft/tramites/{id}/cierre` | Cerrar trámite | ✅ |
+
+**Nota:** Endpoints legacy `/api/v1/tramites/*` deprecados - migrar a SIM_FT
 
 ### Características del Backend
 
-- ✅ CRUD completo para trámites
-- ✅ Validación de datos con Pydantic
-- ✅ Caché con Redis (TTL 5 minutos)
-- ✅ Paginación en listados
-- ✅ Soft delete (no elimina físicamente registros)
-- ✅ Timestamps automáticos (created_at, updated_at)
+- ✅ Sistema SIM_FT completo (tipos, estatus, trámites, pasos, cierre)
+- ✅ Validación de datos con Pydantic v2
+- ✅ **Redis Cache optimizado (mejora 16x en queries individuales)**
+- ✅ **Cache con invalidación automática en POST/PUT**
+- ✅ Paginación con filtros múltiples (6 parámetros)
+- ✅ Composite keys (NUM_ANNIO, NUM_TRAMITE, NUM_REGISTRO)
+- ✅ Timestamps automáticos (FEC_CREA_REG, FEC_ACTUALIZA)
 - ✅ CORS configurado
 - ✅ Health checks
 - ✅ Documentación OpenAPI/Swagger automática
-- ✅ Hot reload en desarrollo
+- ✅ Workflow dinámico integrado
+- ✅ Sistema PPSH para permisos humanitarios
 
 ### Características del Frontend
 

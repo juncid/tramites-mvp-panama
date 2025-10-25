@@ -1,0 +1,621 @@
+{
+  "info": {
+    "_postman_id": "tramites-base-api-2025",
+    "name": "⚠️ Trámites Base - API (DEPRECADO)",
+    "description": "⚠️ **COLECCIÓN DEPRECADA** ⚠️\n\n**Esta colección usa endpoints legacy que están marcados como deprecados.**\n\n🔴 **NO USAR PARA NUEVOS DESARROLLOS**\n\n✅ **USAR EN SU LUGAR:** \n- Colección: `SIM_FT - API Completa`\n- Endpoints: `/api/v1/sim-ft/tramites`\n- Ventajas: \n  - Composite keys (mayor robustez)\n  - Más filtros disponibles\n  - Redis caching optimizado\n  - Sistema oficial y mantenido\n\n---\n\n**Funcionalidades Legacy (solo compatibilidad):**\n- CRUD completo de trámites (tabla TRAMITE)\n- Caché con Redis\n- Paginación\n\n**Diferencias con SIM_FT:**\n- PK simple (id) vs composite (año/tramite/registro)\n- Tabla TRAMITE vs SIM_FT_TRAMITE_E\n- Soft delete vs cierre formal\n\n**Timeline de Migración:**\n- Fase actual: Endpoints deprecados pero funcionales\n- Próxima fase: Eliminación de endpoints legacy\n- Acción requerida: Migrar a SIM_FT antes del 2025-12-01\n\n**Autor:** Sistema de Trámites MVP Panamá\n**Fecha:** 2025-10-24\n**Versión:** 1.0.0 (DEPRECATED)\n**Estado:** ⛔ DEPRECADO - Migrar a SIM_FT",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8000",
+      "type": "string"
+    },
+    {
+      "key": "api_prefix",
+      "value": "/api/v1",
+      "type": "string"
+    },
+    {
+      "key": "tramite_id",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Listar Trámites",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test(\"Response is array\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData).to.be.an('array');",
+              "});",
+              "",
+              "pm.test(\"Trámites have required fields\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    if (jsonData.length > 0) {",
+              "        var tramite = jsonData[0];",
+              "        pm.expect(tramite).to.have.property('id');",
+              "        pm.expect(tramite).to.have.property('NOM_TITULO');",
+              "        pm.expect(tramite).to.have.property('DESCRIPCION');",
+              "        pm.expect(tramite).to.have.property('COD_ESTADO');",
+              "        pm.expect(tramite).to.have.property('IND_ACTIVO');",
+              "        pm.expect(tramite).to.have.property('FEC_CREA_REG');",
+              "        ",
+              "        // Guardar primer ID para otros tests",
+              "        pm.collectionVariables.set('tramite_id', tramite.id);",
+              "    }",
+              "});",
+              "",
+              "pm.test(\"Pagination works\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.length).to.be.at.most(20); // default page_size",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}{{api_prefix}}/tramites?skip=0&limit=20",
+          "host": [
+            "{{base_url}}{{api_prefix}}"
+          ],
+          "path": [
+            "tramites"
+          ],
+          "query": [
+            {
+              "key": "skip",
+              "value": "0",
+              "description": "Número de registros a saltar"
+            },
+            {
+              "key": "limit",
+              "value": "20",
+              "description": "Número máximo de registros a retornar"
+            }
+          ]
+        },
+        "description": "Lista todos los trámites activos con paginación. Los resultados se cachean en Redis por 5 minutos."
+      },
+      "response": []
+    },
+    {
+      "name": "Listar Trámites - Segunda Página",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test(\"Returns second page\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData).to.be.an('array');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}{{api_prefix}}/tramites?skip=20&limit=20",
+          "host": [
+            "{{base_url}}{{api_prefix}}"
+          ],
+          "path": [
+            "tramites"
+          ],
+          "query": [
+            {
+              "key": "skip",
+              "value": "20"
+            },
+            {
+              "key": "limit",
+              "value": "20"
+            }
+          ]
+        },
+        "description": "Obtiene la segunda página de resultados (registros 21-40)"
+      },
+      "response": []
+    },
+    {
+      "name": "Obtener Trámite por ID",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test(\"Trámite has complete data\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData).to.have.property('id');",
+              "    pm.expect(jsonData).to.have.property('NOM_TITULO');",
+              "    pm.expect(jsonData).to.have.property('DESCRIPCION');",
+              "    pm.expect(jsonData).to.have.property('COD_ESTADO');",
+              "    pm.expect(jsonData).to.have.property('IND_ACTIVO');",
+              "    pm.expect(jsonData.activo).to.eql(true);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}{{api_prefix}}/tramites/{{tramite_id}}",
+          "host": [
+            "{{base_url}}{{api_prefix}}"
+          ],
+          "path": [
+            "tramites",
+            "{{tramite_id}}"
+          ]
+        },
+        "description": "Obtiene los detalles completos de un trámite específico por su ID"
+      },
+      "response": []
+    },
+    {
+      "name": "Obtener Trámite - Not Found",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 404\", function () {",
+              "    pm.response.to.have.status(404);",
+              "});",
+              "",
+              "pm.test(\"Error message indicates not found\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.detail).to.include('not found');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}{{api_prefix}}/tramites/999999",
+          "host": [
+            "{{base_url}}{{api_prefix}}"
+          ],
+          "path": [
+            "tramites",
+            "999999"
+          ]
+        },
+        "description": "Intenta obtener un trámite que no existe. Debe retornar 404."
+      },
+      "response": []
+    },
+    {
+      "name": "Crear Trámite",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 201\", function () {",
+              "    pm.response.to.have.status(201);",
+              "});",
+              "",
+              "pm.test(\"Trámite created successfully\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData).to.have.property('id');",
+              "    pm.expect(jsonData.titulo).to.exist;",
+              "    pm.expect(jsonData.activo).to.eql(true);",
+              "    pm.expect(jsonData.estado).to.exist;",
+              "    ",
+              "    // Guardar ID del nuevo trámite",
+              "    pm.collectionVariables.set('tramite_id', jsonData.id);",
+              "});",
+              "",
+              "pm.test(\"Cache invalidated\", function () {",
+              "    // La creación debe invalidar el caché de listados",
+              "    pm.expect(pm.response.code).to.equal(201);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"titulo\": \"Renovación de Permiso de Trabajo\",\n  \"descripcion\": \"Trámite para renovación de permiso de trabajo temporal para extranjeros residentes en Panamá. Incluye verificación de antecedentes y estatus migratorio.\",\n  \"estado\": \"ACTIVO\",\n  \"activo\": true\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}{{api_prefix}}/tramites",
+          "host": [
+            "{{base_url}}{{api_prefix}}"
+          ],
+          "path": [
+            "tramites"
+          ]
+        },
+        "description": "Crea un nuevo trámite en el sistema. Automáticamente invalida el caché de listados."
+      },
+      "response": []
+    },
+    {
+      "name": "Crear Trámite - Visa Turista",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 201\", function () {",
+              "    pm.response.to.have.status(201);",
+              "});",
+              "",
+              "pm.test(\"Visa trámite created\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.titulo).to.include('Visa');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"titulo\": \"Solicitud de Visa de Turista\",\n  \"descripcion\": \"Trámite de solicitud de visa de turista para ciudadanos extranjeros que desean visitar Panamá con fines turísticos. Vigencia de 90 días.\",\n  \"estado\": \"ACTIVO\",\n  \"activo\": true\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}{{api_prefix}}/tramites",
+          "host": [
+            "{{base_url}}{{api_prefix}}"
+          ],
+          "path": [
+            "tramites"
+          ]
+        },
+        "description": "Crea un trámite de tipo visa de turista"
+      },
+      "response": []
+    },
+    {
+      "name": "Crear Trámite - Validación Error",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 422\", function () {",
+              "    pm.response.to.have.status(422);",
+              "});",
+              "",
+              "pm.test(\"Validation error returned\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData).to.have.property('detail');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"descripcion\": \"Trámite sin título (debe fallar validación)\",\n  \"estado\": \"ACTIVO\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}{{api_prefix}}/tramites",
+          "host": [
+            "{{base_url}}{{api_prefix}}"
+          ],
+          "path": [
+            "tramites"
+          ]
+        },
+        "description": "Intenta crear un trámite sin el campo obligatorio 'titulo'. Debe retornar error 422."
+      },
+      "response": []
+    },
+    {
+      "name": "Actualizar Trámite",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test(\"Trámite updated successfully\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.descripcion).to.include('ACTUALIZADO');",
+              "});",
+              "",
+              "pm.test(\"Updated_at timestamp changed\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.updated_at).to.exist;",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"titulo\": \"Renovación de Permiso de Trabajo - ACTUALIZADO\",\n  \"descripcion\": \"ACTUALIZADO: Trámite para renovación de permiso de trabajo temporal. Ahora incluye proceso acelerado para casos urgentes. Tiempo de procesamiento: 15-30 días hábiles.\",\n  \"estado\": \"ACTIVO\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}{{api_prefix}}/tramites/{{tramite_id}}",
+          "host": [
+            "{{base_url}}{{api_prefix}}"
+          ],
+          "path": [
+            "tramites",
+            "{{tramite_id}}"
+          ]
+        },
+        "description": "Actualiza los datos de un trámite existente. Invalida el caché automáticamente."
+      },
+      "response": []
+    },
+    {
+      "name": "Actualizar Trámite - Parcial",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test(\"Only estado updated\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.estado).to.eql('EN_MANTENIMIENTO');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"estado\": \"EN_MANTENIMIENTO\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}{{api_prefix}}/tramites/{{tramite_id}}",
+          "host": [
+            "{{base_url}}{{api_prefix}}"
+          ],
+          "path": [
+            "tramites",
+            "{{tramite_id}}"
+          ]
+        },
+        "description": "Actualiza solo un campo del trámite (actualización parcial)"
+      },
+      "response": []
+    },
+    {
+      "name": "Actualizar Trámite - Not Found",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 404\", function () {",
+              "    pm.response.to.have.status(404);",
+              "});",
+              "",
+              "pm.test(\"Error indicates not found\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.detail).to.include('not found');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"titulo\": \"Test\",\n  \"estado\": \"ACTIVO\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}{{api_prefix}}/tramites/999999",
+          "host": [
+            "{{base_url}}{{api_prefix}}"
+          ],
+          "path": [
+            "tramites",
+            "999999"
+          ]
+        },
+        "description": "Intenta actualizar un trámite inexistente. Debe retornar 404."
+      },
+      "response": []
+    },
+    {
+      "name": "Eliminar Trámite (Soft Delete)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 204\", function () {",
+              "    pm.response.to.have.status(204);",
+              "});",
+              "",
+              "pm.test(\"No content returned\", function () {",
+              "    pm.expect(pm.response.text()).to.eql('');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "DELETE",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}{{api_prefix}}/tramites/{{tramite_id}}",
+          "host": [
+            "{{base_url}}{{api_prefix}}"
+          ],
+          "path": [
+            "tramites",
+            "{{tramite_id}}"
+          ]
+        },
+        "description": "Realiza un soft delete del trámite (establece activo=false). El trámite no se elimina físicamente de la BD."
+      },
+      "response": []
+    },
+    {
+      "name": "Eliminar Trámite - Not Found",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 404\", function () {",
+              "    pm.response.to.have.status(404);",
+              "});",
+              "",
+              "pm.test(\"Error message returned\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.detail).to.include('not found');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "DELETE",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}{{api_prefix}}/tramites/999999",
+          "host": [
+            "{{base_url}}{{api_prefix}}"
+          ],
+          "path": [
+            "tramites",
+            "999999"
+          ]
+        },
+        "description": "Intenta eliminar un trámite que no existe. Debe retornar 404."
+      },
+      "response": []
+    },
+    {
+      "name": "Verificar Trámite Eliminado No Aparece",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 404\", function () {",
+              "    pm.response.to.have.status(404);",
+              "});",
+              "",
+              "pm.test(\"Deleted tramite not found\", function () {",
+              "    // Un trámite con activo=false no debe ser retornado",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.detail).to.include('not found');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}{{api_prefix}}/tramites/{{tramite_id}}",
+          "host": [
+            "{{base_url}}{{api_prefix}}"
+          ],
+          "path": [
+            "tramites",
+            "{{tramite_id}}"
+          ]
+        },
+        "description": "Verifica que un trámite eliminado (soft delete) ya no aparezca en las consultas"
+      },
+      "response": []
+    }
+  ]
+}

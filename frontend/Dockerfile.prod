@@ -68,6 +68,9 @@ RUN addgroup -g 1001 -S nginx-run && \
 # Copiar configuración nginx optimizada
 COPY --chown=nginx-run:nginx-run nginx.conf /etc/nginx/conf.d/default.conf
 
+# Modificar nginx.conf principal para usar pid en /tmp
+RUN sed -i 's|pid.*nginx.pid;|pid /tmp/nginx/nginx.pid;|' /etc/nginx/nginx.conf
+
 # Copiar solo los archivos construidos (dist)
 COPY --from=builder --chown=nginx-run:nginx-run /app/dist /usr/share/nginx/html
 
@@ -78,6 +81,9 @@ RUN chown -R nginx-run:nginx-run /usr/share/nginx/html && \
     # Crear directorio para pid de nginx con permisos correctos
     mkdir -p /var/run/nginx && \
     chown -R nginx-run:nginx-run /var/run/nginx && \
+    # Crear directorio alternativo para nginx con permisos completos
+    mkdir -p /tmp/nginx && \
+    chown -R nginx-run:nginx-run /tmp/nginx && \
     # Optimizar permisos
     chmod -R 755 /usr/share/nginx/html
 

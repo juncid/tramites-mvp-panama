@@ -49,7 +49,7 @@ def listar_workflows(
     limit: int = Query(100, ge=1, le=1000),
     estado: Optional[schemas.EstadoWorkflowEnum] = None,
     categoria: Optional[str] = None,
-    activo: bool = True,
+    activo: Optional[bool] = None,
     db: Session = Depends(get_db)
 ):
     """Lista todos los workflows disponibles"""

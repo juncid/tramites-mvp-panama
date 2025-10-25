@@ -1,26 +1,25 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, ConfigDict
 from datetime import datetime
 from typing import Optional
 
 class TramiteBase(BaseModel):
-    titulo: str
-    descripcion: Optional[str] = None
-    estado: str = "pendiente"
+    NOM_TITULO: str = Field(..., description="Título del trámite")
+    DESCRIPCION: Optional[str] = Field(default=None, description="Descripción del trámite")
+    COD_ESTADO: str = Field(default="pendiente", description="Estado del trámite")
 
 class TramiteCreate(TramiteBase):
     pass
 
 class TramiteUpdate(BaseModel):
-    titulo: Optional[str] = None
-    descripcion: Optional[str] = None
-    estado: Optional[str] = None
-    activo: Optional[bool] = None
+    NOM_TITULO: Optional[str] = Field(default=None, description="Título del trámite")
+    DESCRIPCION: Optional[str] = Field(default=None, description="Descripción del trámite")
+    COD_ESTADO: Optional[str] = Field(default=None, description="Estado del trámite")
+    IND_ACTIVO: Optional[bool] = Field(default=None, description="Indica si el trámite está activo")
 
 class TramiteResponse(TramiteBase):
     id: int
-    activo: bool
-    created_at: datetime
-    updated_at: Optional[datetime] = None
+    IND_ACTIVO: bool = Field(default=True, description="Indica si el trámite está activo")
+    FEC_CREA_REG: datetime = Field(..., description="Fecha de creación")
+    FEC_MODIF_REG: Optional[datetime] = Field(default=None, description="Fecha de modificación")
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

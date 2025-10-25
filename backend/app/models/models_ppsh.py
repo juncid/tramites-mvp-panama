@@ -49,11 +49,8 @@ class PPSHTipoDocumento(Base):
     es_obligatorio = Column(Boolean, nullable=False, default=False)
     descripcion = Column(String(300))
     orden = Column(Integer)
-    categoria = Column(String(20), nullable=True, index=True)
     activo = Column(Boolean, nullable=False, default=True)
     created_at = Column(DateTime, nullable=False, default=func.now())
-    updated_at = Column(DateTime, nullable=True, onupdate=func.now())
-    updated_by = Column(String(17))
 
     # Relaciones
     documentos = relationship("PPSHDocumento", back_populates="tipo_documento")
@@ -117,8 +114,6 @@ class PPSHSolicitud(Base):
     activo = Column(Boolean, nullable=False, default=True)
     created_at = Column(DateTime, nullable=False, default=func.now())
     created_by = Column(String(17))
-    updated_at = Column(DateTime, onupdate=func.now())
-    updated_by = Column(String(17))
 
     # Relaciones
     causa_humanitaria = relationship("PPSHCausaHumanitaria", back_populates="solicitudes")
@@ -168,8 +163,6 @@ class PPSHSolicitante(Base):
     activo = Column(Boolean, nullable=False, default=True)
     created_at = Column(DateTime, nullable=False, default=func.now())
     created_by = Column(String(17))
-    updated_at = Column(DateTime, onupdate=func.now())
-    updated_by = Column(String(17))
 
     # Relaciones
     solicitud = relationship("PPSHSolicitud", back_populates="solicitantes")
@@ -265,8 +258,6 @@ class PPSHEntrevista(Base):
     requiere_segunda_entrevista = Column(Boolean, nullable=False, default=False)
     created_at = Column(DateTime, nullable=False, default=func.now())
     created_by = Column(String(17))
-    updated_at = Column(DateTime, onupdate=func.now())
-    updated_by = Column(String(17))
 
     # Relaciones
     solicitud = relationship("PPSHSolicitud", back_populates="entrevistas")
@@ -303,8 +294,6 @@ class PPSHConceptoPago(Base):
     activo = Column(Boolean, nullable=False, default=True)
     created_at = Column(DateTime, nullable=False, default=func.now())
     created_by = Column(String(17))
-    updated_at = Column(DateTime, onupdate=func.now())
-    updated_by = Column(String(17))
 
     # Relaciones
     pagos = relationship("PPSHPago", back_populates="concepto")
@@ -329,8 +318,6 @@ class PPSHPago(Base):
     observaciones = Column(String(500))
     created_at = Column(DateTime, nullable=False, default=func.now())
     created_by = Column(String(17))
-    updated_at = Column(DateTime, onupdate=func.now())
-    updated_by = Column(String(17))
 
     # Relaciones
     solicitud = relationship("PPSHSolicitud", back_populates="pagos")

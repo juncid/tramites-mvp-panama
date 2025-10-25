@@ -97,10 +97,8 @@ class TipoDocumentoResponse(BaseModel):
     es_obligatorio: bool
     descripcion: Optional[str]
     orden: Optional[int]
-    categoria: Optional[str]
     activo: bool
     created_at: datetime
-    updated_at: Optional[datetime]
 
     class Config:
         from_attributes = True
@@ -197,14 +195,13 @@ class SolicitanteUpdate(BaseModel):
     observaciones: Optional[str] = Field(None, max_length=500)
 
 
-class SolicitanteResponse(SolicitanteBase):
+class SolicitanteResponse(BaseModel):
     """Response de solicitante"""
     id_solicitante: int
     id_solicitud: int
     nombre_completo: str
     activo: bool
     created_at: datetime
-    updated_at: Optional[datetime]
 
     class Config:
         from_attributes = True
@@ -273,7 +270,6 @@ class SolicitudResponse(SolicitudBase):
     fecha_vencimiento_permiso: Optional[date]
     activo: bool
     created_at: datetime
-    updated_at: Optional[datetime]
     
     # Relaciones
     causa_humanitaria: Optional[CausaHumanitariaResponse] = None
@@ -422,7 +418,6 @@ class EntrevistaResponse(BaseModel):
     observaciones: Optional[str]
     requiere_segunda_entrevista: bool
     created_at: datetime
-    updated_at: Optional[datetime]
 
     class Config:
         from_attributes = True

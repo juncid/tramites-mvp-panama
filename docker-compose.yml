@@ -45,7 +45,7 @@ services:
     depends_on:
       sqlserver:
         condition: service_healthy
-    command: python /app/init_database.py
+    command: python /app/scripts/init_database.py
     restart: "no"
 
   # Database Migrations (Alembic)
@@ -70,7 +70,7 @@ services:
     command: >
       sh -c "
         echo '🏥 Verificando salud de la base de datos...' &&
-        python /app/wait_for_db.py &&
+        python /app/scripts/wait_for_db.py &&
         echo '✅ Base de datos confirmada como operativa' &&
         echo '' &&
         echo '🔄 Aplicando migraciones de Alembic...' &&
@@ -79,9 +79,40 @@ services:
         alembic upgrade head &&
         echo '✅ Migraciones aplicadas exitosamente' &&
         echo '' &&
-        echo '📥 Cargando datos iniciales de catálogos PPSH...' &&
-        python /app/load_initial_data.py &&
-        echo '🎉 Sistema de inicialización completado exitosamente'
+        echo '🎉 Sistema de migraciones completado exitosamente'
+      "
+    restart: "no"
+
+  # Database Seeder (Test Data)
+  db-seed:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: tramites-db-seed
+    environment:
+      - DATABASE_HOST=sqlserver
+      - DATABASE_PORT=1433
+      - DATABASE_NAME=SIM_PANAMA
+      - DATABASE_USER=sa
+      - DATABASE_PASSWORD=YourStrong@Passw0rd
+    volumes:
+      - ./backend:/app
+    networks:
+      - tramites-network
+    depends_on:
+      db-migrations:
+        condition: service_completed_successfully
+    profiles:
+      - seed
+      - dev
+    command: >
+      sh -c "
+        echo '🌱 Iniciando carga de datos de prueba...' &&
+        echo '' &&
+        python /app/scripts/seed_test_data.py --all &&
+        echo '' &&
+        echo '🎉 Datos de prueba cargados exitosamente' &&
+        echo '📋 Ahora puede probar las colecciones Postman en: backend/postman/'
       "
     restart: "no"
 
@@ -136,15 +167,14 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-      db-migrations:
-        condition: service_completed_successfully
-    command: >
-      sh -c "
-        echo '⏳ Esperando a que las migraciones se completen...' &&
-        sleep 5 &&
-        echo '🚀 Iniciando aplicación FastAPI...' &&
-        uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
-      "
+    command: ["python3", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--timeout-keep-alive", "300"]
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import requests; requests.get('http://localhost:8000/health', timeout=2)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
     logging:
       driver: "json-file"
       options:
@@ -194,6 +224,26 @@ services:
       interval: 10s
       timeout: 5s
       retries: 3
+
+  # MkDocs - Documentación del proyecto (DESACTIVADO - Contenido con alucinaciones)
+  # mkdocs:
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile.mkdocs
+  #   container_name: tramites-mkdocs
+  #   ports:
+  #     - "8002:8000"
+  #   volumes:
+  #     - ./docs-site:/docs
+  #     - ./mkdocs.yml:/mkdocs.yml:ro
+  #   networks:
+  #     - tramites-network
+  #   command: serve --dev-addr=0.0.0.0:8000
+  #   logging:
+  #     driver: "json-file"
+  #     options:
+  #       max-size: "5m"
+  #       max-file: "2"
 
 networks:
   tramites-network:

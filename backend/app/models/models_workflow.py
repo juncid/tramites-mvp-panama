@@ -73,7 +73,7 @@ class Workflow(Base):
     Workflow/Proceso principal configurable
     Ej: "Permiso de Protección de Seguridad Humanitaria"
     """
-    __tablename__ = "workflow"
+    __tablename__ = "WORKFLOW"
 
     id = Column(Integer, primary_key=True, index=True)
     codigo = Column(String(50), unique=True, nullable=False, index=True)
@@ -97,7 +97,7 @@ class Workflow(Base):
     # Auditoría
     activo = Column(Boolean, nullable=False, default=True)
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
-    created_by = Column(String(17), index=True)
+    created_by = Column(String(17))
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     updated_by = Column(String(17))
     
@@ -112,10 +112,10 @@ class WorkflowEtapa(Base):
     Etapa/Nodo individual dentro de un workflow
     Cada etapa puede tener un formulario con múltiples preguntas
     """
-    __tablename__ = "workflow_etapa"
+    __tablename__ = "WORKFLOW_ETAPA"
 
     id = Column(Integer, primary_key=True, index=True)
-    workflow_id = Column(Integer, ForeignKey('workflow.id'), nullable=False, index=True)
+    workflow_id = Column(Integer, ForeignKey('WORKFLOW.id'), nullable=False, index=True)
     
     # Identificación
     codigo = Column(String(50), nullable=False, index=True)  # Único dentro del workflow
@@ -165,12 +165,12 @@ class WorkflowConexion(Base):
     Conexiones entre etapas (flechas en el diagrama)
     Define el flujo del proceso
     """
-    __tablename__ = "workflow_conexion"
+    __tablename__ = "WORKFLOW_CONEXION"
 
     id = Column(Integer, primary_key=True, index=True)
-    workflow_id = Column(Integer, ForeignKey('workflow.id'), nullable=False, index=True)
-    etapa_origen_id = Column(Integer, ForeignKey('workflow_etapa.id'), nullable=False, index=True)
-    etapa_destino_id = Column(Integer, ForeignKey('workflow_etapa.id'), nullable=False, index=True)
+    workflow_id = Column(Integer, ForeignKey('WORKFLOW.id'), nullable=False, index=True)
+    etapa_origen_id = Column(Integer, ForeignKey('WORKFLOW_ETAPA.id'), nullable=False, index=True)
+    etapa_destino_id = Column(Integer, ForeignKey('WORKFLOW_ETAPA.id'), nullable=False, index=True)
     
     # Configuración
     nombre = Column(String(255))  # Etiqueta de la conexión
@@ -193,10 +193,10 @@ class WorkflowPregunta(Base):
     Preguntas/Campos dentro de una etapa
     Define los campos del formulario de cada etapa
     """
-    __tablename__ = "workflow_pregunta"
+    __tablename__ = "WORKFLOW_PREGUNTA"
 
     id = Column(Integer, primary_key=True, index=True)
-    etapa_id = Column(Integer, ForeignKey('workflow_etapa.id'), nullable=False, index=True)
+    etapa_id = Column(Integer, ForeignKey('WORKFLOW_ETAPA.id'), nullable=False, index=True)
     
     # Identificación
     codigo = Column(String(50), nullable=False, index=True)  # Único dentro de la etapa
@@ -250,10 +250,10 @@ class WorkflowInstancia(Base):
     Instancia de ejecución de un workflow
     Representa un caso específico en proceso
     """
-    __tablename__ = "workflow_instancia"
+    __tablename__ = "WORKFLOW_INSTANCIA"
 
     id = Column(Integer, primary_key=True, index=True)
-    workflow_id = Column(Integer, ForeignKey('workflow.id'), nullable=False, index=True)
+    workflow_id = Column(Integer, ForeignKey('WORKFLOW.id'), nullable=False, index=True)
     
     # Identificación
     num_expediente = Column(String(50), unique=True, nullable=False, index=True)
@@ -261,7 +261,7 @@ class WorkflowInstancia(Base):
     
     # Estado
     estado = Column(SQLEnum(EstadoInstancia), nullable=False, default=EstadoInstancia.INICIADO, index=True)
-    etapa_actual_id = Column(Integer, ForeignKey('workflow_etapa.id'), index=True)
+    etapa_actual_id = Column(Integer, ForeignKey('WORKFLOW_ETAPA.id'), index=True)
     
     # Datos del solicitante/creador
     creado_por_user_id = Column(String(17), nullable=False, index=True)
@@ -295,11 +295,11 @@ class WorkflowRespuestaEtapa(Base):
     Conjunto de respuestas de una etapa completada
     Agrupa todas las respuestas de un formulario de etapa
     """
-    __tablename__ = "workflow_respuesta_etapa"
+    __tablename__ = "WORKFLOW_RESPUESTA_ETAPA"
 
     id = Column(Integer, primary_key=True, index=True)
-    instancia_id = Column(Integer, ForeignKey('workflow_instancia.id'), nullable=False, index=True)
-    etapa_id = Column(Integer, ForeignKey('workflow_etapa.id'), nullable=False, index=True)
+    instancia_id = Column(Integer, ForeignKey('WORKFLOW_INSTANCIA.id'), nullable=False, index=True)
+    etapa_id = Column(Integer, ForeignKey('WORKFLOW_ETAPA.id'), nullable=False, index=True)
     
     # Estado de la respuesta de la etapa
     completada = Column(Boolean, nullable=False, default=False)
@@ -324,11 +324,11 @@ class WorkflowRespuesta(Base):
     """
     Respuesta individual a una pregunta en una instancia
     """
-    __tablename__ = "workflow_respuesta"
+    __tablename__ = "WORKFLOW_RESPUESTA"
 
     id = Column(Integer, primary_key=True, index=True)
-    respuesta_etapa_id = Column(Integer, ForeignKey('workflow_respuesta_etapa.id'), nullable=False, index=True)
-    pregunta_id = Column(Integer, ForeignKey('workflow_pregunta.id'), nullable=False, index=True)
+    respuesta_etapa_id = Column(Integer, ForeignKey('WORKFLOW_RESPUESTA_ETAPA.id'), nullable=False, index=True)
+    pregunta_id = Column(Integer, ForeignKey('WORKFLOW_PREGUNTA.id'), nullable=False, index=True)
     
     # Valores de respuesta (usar el apropiado según tipo de pregunta)
     valor_texto = Column(Text)
@@ -354,15 +354,15 @@ class WorkflowInstanciaHistorial(Base):
     """
     Historial de cambios y transiciones de una instancia
     """
-    __tablename__ = "workflow_instancia_historial"
+    __tablename__ = "WORKFLOW_INSTANCIA_HISTORIAL"
 
     id = Column(Integer, primary_key=True, index=True)
-    instancia_id = Column(Integer, ForeignKey('workflow_instancia.id'), nullable=False, index=True)
+    instancia_id = Column(Integer, ForeignKey('WORKFLOW_INSTANCIA.id'), nullable=False, index=True)
     
     # Información del cambio
     tipo_cambio = Column(String(50), nullable=False, index=True)  # TRANSICION, ASIGNACION, CAMBIO_ESTADO
-    etapa_origen_id = Column(Integer, ForeignKey('workflow_etapa.id'))
-    etapa_destino_id = Column(Integer, ForeignKey('workflow_etapa.id'))
+    etapa_origen_id = Column(Integer, ForeignKey('WORKFLOW_ETAPA.id'))
+    etapa_destino_id = Column(Integer, ForeignKey('WORKFLOW_ETAPA.id'))
     estado_anterior = Column(String(50))
     estado_nuevo = Column(String(50))
     
@@ -384,10 +384,10 @@ class WorkflowComentario(Base):
     """
     Comentarios en una instancia de workflow
     """
-    __tablename__ = "workflow_comentario"
+    __tablename__ = "WORKFLOW_COMENTARIO"
 
     id = Column(Integer, primary_key=True, index=True)
-    instancia_id = Column(Integer, ForeignKey('workflow_instancia.id'), nullable=False, index=True)
+    instancia_id = Column(Integer, ForeignKey('WORKFLOW_INSTANCIA.id'), nullable=False, index=True)
     
     # Contenido
     comentario = Column(Text, nullable=False)

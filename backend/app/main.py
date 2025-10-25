@@ -33,6 +33,13 @@ except ImportError:
     WORKFLOW_AVAILABLE = False
     workflow_router = None
 
+try:
+    from app.routers.routers_sim_ft import router as sim_ft_router
+    SIM_FT_AVAILABLE = True
+except ImportError:
+    SIM_FT_AVAILABLE = False
+    sim_ft_router = None
+
 # Configurar logging
 log_file = os.path.join("logs", "app.log") if os.path.exists("logs") else None
 setup_logging(
@@ -104,6 +111,13 @@ if WORKFLOW_AVAILABLE and workflow_router:
 else:
     logger.warning("⚠️  Módulo Workflow Dinámico no disponible")
 
+# Incluir router de SIM_FT si está disponible
+if SIM_FT_AVAILABLE and sim_ft_router:
+    app.include_router(sim_ft_router, prefix="/api/v1")
+    logger.info("✅ Módulo SIM_FT registrado en /api/v1/sim-ft")
+else:
+    logger.warning("⚠️  Módulo SIM_FT no disponible")
+
 logger.info("🚀 Aplicación FastAPI inicializada")
 
 @app.get("/", tags=["Root"])
@@ -116,9 +130,7 @@ async def root():
         "docs": "/api/docs",
         "health": "/health",
         "database_status": "/health/database",
-        "modules": {
-            "tramites": "✅ Disponible en /api/v1/tramites"
-        }
+        "modules": {}
     }
     
     # Agregar módulo PPSH si está disponible
@@ -132,6 +144,12 @@ async def root():
         response["modules"]["workflow"] = "✅ Disponible en /api/v1/workflow"
     else:
         response["modules"]["workflow"] = "❌ No disponible"
+    
+    # Agregar módulo SIM_FT si está disponible
+    if SIM_FT_AVAILABLE:
+        response["modules"]["sim_ft"] = "✅ Disponible en /api/v1/sim-ft"
+    else:
+        response["modules"]["sim_ft"] = "❌ No disponible"
     
     return response
 
@@ -249,6 +267,8 @@ async def startup_event():
         logger.info("    - PPSH: ✅")
     if WORKFLOW_AVAILABLE:
         logger.info("    - Workflow Dinámico: ✅")
+    if SIM_FT_AVAILABLE:
+        logger.info("    - SIM_FT: ✅")
     
     # Inicializar métricas si está disponible
     if METRICS_AVAILABLE:

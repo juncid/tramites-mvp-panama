@@ -11,7 +11,7 @@ Siguiendo principios SOLID:
 """
 
 from sqlalchemy.orm import Session, joinedload, selectinload
-from sqlalchemy import func, and_, or_, desc, extract
+from sqlalchemy import func, and_, or_, desc, extract, text
 from typing import List, Optional, Dict, Tuple
 from datetime import datetime, date, timedelta
 from fastapi import HTTPException, status
@@ -207,7 +207,7 @@ class SolicitudService:
             historial = models_ppsh.PPSHEstadoHistorial(
                 id_solicitud=solicitud.id_solicitud,
                 estado_anterior=None,
-                estado_nuevo="RECEPCION",
+                estado_nuevo="RECIBIDO",
                 fecha_cambio=datetime.now(),
                 user_id=user_id,
                 observaciones="Solicitud creada",
@@ -242,7 +242,7 @@ class SolicitudService:
                 joinedload(models_ppsh.PPSHSolicitud.estado),
                 selectinload(models_ppsh.PPSHSolicitud.solicitantes),
                 selectinload(models_ppsh.PPSHSolicitud.documentos),
-                selectinload(models_ppsh.PPSHSolicitud.historial_estados),
+                selectinload(models_ppsh.PPSHSolicitud.historial),
                 selectinload(models_ppsh.PPSHSolicitud.entrevistas),
                 selectinload(models_ppsh.PPSHSolicitud.comentarios)
             )
@@ -483,39 +483,41 @@ class SolicitudService:
         ).scalar()
         
         # Promedio de días de procesamiento (solicitudes finalizadas)
-        promedio_dias = db.query(
-            func.avg(
-                func.datediff(
-                    'day',
-                    models_ppsh.PPSHSolicitud.fecha_solicitud,
-                    models_ppsh.PPSHSolicitud.fecha_resolucion
-                )
-            )
-        ).filter(
-            models_ppsh.PPSHSolicitud.fecha_resolucion.isnot(None)
+        promedio_dias_result = db.execute(
+            text("""
+                SELECT AVG(DATEDIFF(day, fecha_solicitud, fecha_resolucion))
+                FROM PPSH_SOLICITUD
+                WHERE fecha_resolucion IS NOT NULL
+            """)
         ).scalar()
+        promedio_dias = float(promedio_dias_result) if promedio_dias_result else None
         
         # Estadísticas por estado
-        stats_por_estado = (
-            db.query(
-                models_ppsh.PPSHEstado.cod_estado,
-                models_ppsh.PPSHEstado.nombre_estado,
-                models_ppsh.PPSHEstado.color_hex,
-                func.count(models_ppsh.PPSHSolicitud.id_solicitud).label('total'),
-                func.avg(
-                    func.datediff(
-                        'day',
-                        models_ppsh.PPSHSolicitud.fecha_solicitud,
-                        func.current_date()
-                    )
-                ).label('promedio_dias')
+        stats_result = db.execute(
+            text("""
+                SELECT 
+                    e.cod_estado,
+                    e.nombre_estado,
+                    e.color_hex,
+                    COUNT(s.id_solicitud) as total,
+                    AVG(DATEDIFF(day, s.fecha_solicitud, GETDATE())) as promedio_dias
+                FROM PPSH_ESTADO e
+                LEFT JOIN PPSH_SOLICITUD s ON e.cod_estado = s.estado_actual AND s.activo = 1
+                GROUP BY e.cod_estado, e.nombre_estado, e.color_hex, e.orden
+                ORDER BY e.orden
+            """)
+        ).fetchall()
+        
+        stats_por_estado = [
+            EstadisticasPorEstado(
+                cod_estado=row[0],
+                nombre_estado=row[1],
+                color_hex=row[2],
+                total_solicitudes=row[3] or 0,
+                promedio_dias=float(row[4]) if row[4] else None
             )
-            .join(models_ppsh.PPSHSolicitud, models_ppsh.PPSHEstado.cod_estado == models_ppsh.PPSHSolicitud.estado_actual)
-            .filter(models_ppsh.PPSHSolicitud.activo == True)
-            .group_by(models_ppsh.PPSHEstado.cod_estado, models_ppsh.PPSHEstado.nombre_estado, models_ppsh.PPSHEstado.color_hex)
-            .order_by(models_ppsh.PPSHEstado.orden)
-            .all()
-        )
+            for row in stats_result
+        ]
         
         return EstadisticasGenerales(
             total_solicitudes=total_solicitudes or 0,
@@ -524,16 +526,7 @@ class SolicitudService:
             solicitudes_rechazadas=solicitudes_rechazadas or 0,
             solicitudes_en_proceso=solicitudes_en_proceso or 0,
             promedio_dias_procesamiento=float(promedio_dias) if promedio_dias else None,
-            por_estado=[
-                EstadisticasPorEstado(
-                    cod_estado=stat.cod_estado,
-                    nombre_estado=stat.nombre_estado,
-                    color_hex=stat.color_hex,
-                    total_solicitudes=stat.total,
-                    promedio_dias=float(stat.promedio_dias) if stat.promedio_dias else None
-                )
-                for stat in stats_por_estado
-            ]
+            por_estado=stats_por_estado
         )
 
 
@@ -701,8 +694,8 @@ class EntrevistaService:
 # SERVICIO DE COMENTARIOS
 # ==========================================
 
-class ComentarioService:
-    """Servicio para manejar comentarios"""
+class PPSHComentarioService:
+    """Servicio para manejar comentarios de PPSH"""
     
     @staticmethod
     def crear_comentario(
