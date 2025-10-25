@@ -17,7 +17,9 @@ Sistema de gestión de trámites desarrollado con FastAPI (Python) y React (Type
 - 🔧 **Scripts automatizados** para crear y restaurar backups
 - ✅ **Verificación Producto Nº1** - 100% de cumplimiento documentado
 - 📖 **Documentación completa** de backups con guías de restauración
+- 📦 **Índice completo de archivos** del Producto Nº1 generado
 
+📖 **Índice Producto Nº1:** [docs/PRODUCTO1_ARCHIVOS.md](./docs/PRODUCTO1_ARCHIVOS.md) - Lista completa de entregables  
 📖 **Documentación de backups:** [database/backups/README.md](./database/backups/README.md)  
 📖 **Resumen del backup:** [database/backups/BACKUP_SUMMARY.md](./database/backups/BACKUP_SUMMARY.md)  
 📖 **Verificación de entregables:** [docs/VERIFICACION_PRODUCTO_1.md](./docs/VERIFICACION_PRODUCTO_1.md)
