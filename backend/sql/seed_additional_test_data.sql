@@ -77,8 +77,6 @@ END
 CLOSE sol_cursor;
 DEALLOCATE sol_cursor;
 
--- No usar GO aquí - continuar en el mismo batch
-
 PRINT '';
 PRINT '👥 PARTE 2/4 - Solicitantes PPSH adicionales...';
 
@@ -142,8 +140,6 @@ END
 CLOSE solicitante_cursor;
 DEALLOCATE solicitante_cursor;
 
--- Continuar sin GO
-
 PRINT '';
 PRINT '🏛️ PARTE 3/4 - Trámites SIM_FT adicionales...';
 
@@ -196,8 +192,6 @@ END
 
 CLOSE tram_cursor;
 DEALLOCATE tram_cursor;
-
--- Continuar sin GO
 
 PRINT '';
 PRINT '🔄 PARTE 4/4 - Instancias de Workflow adicionales...';
@@ -260,8 +254,6 @@ END
 
 CLOSE inst_cursor;
 DEALLOCATE inst_cursor;
-
--- Fin del batch único
 
 PRINT '';
 PRINT '═══════════════════════════════════════════════════════════════';
