@@ -60,10 +60,10 @@ BEGIN
         INSERT INTO PPSH_SOLICITUD (
             num_expediente, tipo_solicitud, cod_causa_humanitaria,
             descripcion_caso, estado_actual, fecha_solicitud,
-            created_by, created_at
+            activo, created_by, created_at
         ) VALUES (
             @num_exp, @tipo, @causa, @desc, @estado,
-            DATEADD(DAY, -@dias, CAST(GETDATE() AS DATE)), 'ADMIN', GETDATE()
+            DATEADD(DAY, -@dias, CAST(GETDATE() AS DATE)), 1, 'ADMIN', GETDATE()
         );
         
         INSERT INTO @solicitud_ids (num_exp, id_solicitud)
