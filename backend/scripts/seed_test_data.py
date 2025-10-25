@@ -1,22 +1,24 @@
 #!/usr/bin/env python3
 """
 Script para cargar datos de prueba en la base de datos
-Ejecuta los scripts SQL de seed para PPSH, Trámites Base y Workflow API
+Ejecuta los scripts SQL de seed para PPSH, Trámites Base, Workflow API y datos adicionales
 
 Uso:
-    python seed_test_data.py [--ppsh] [--tramites] [--workflow] [--all]
+    python seed_test_data.py [--ppsh] [--tramites] [--workflow] [--additional] [--all]
 
 Opciones:
-    --ppsh, -p      : Cargar datos de PPSH y SIM_FT (catálogos base)
-    --tramites, -t  : Cargar datos de Trámites Base
-    --workflow, -w  : Cargar datos de Workflow API
-    --all, -a       : Cargar todos los datos de prueba
+    --ppsh, -p        : Cargar datos de PPSH y SIM_FT (catálogos base)
+    --tramites, -t    : Cargar datos de Trámites Base
+    --workflow, -w    : Cargar datos de Workflow API
+    --additional, -x  : Cargar datos adicionales (10 solicitantes, 10 solicitudes, 7 trámites, 5 instancias)
+    --all, -a         : Cargar todos los datos de prueba (base + adicionales)
 
 Archivos SQL ejecutados:
-    - seed_sim_ft_test_data.sql         : Catálogos PPSH y datos base
+    - seed_sim_ft_test_data.sql         : Catálogos PPSH y datos base (6 registros)
     - update_sim_ft_test_data.sql       : Actualizaciones SIM_FT
     - seed_tramites_base_test_data.sql  : Datos de Trámites Base
     - seed_workflow_test_data.sql       : Datos de Workflow API
+    - seed_additional_test_data.sql     : Datos adicionales realistas (32+ registros)
 
 Autor: Sistema de Trámites MVP Panamá
 Fecha: 2025-10-25
@@ -179,6 +181,14 @@ class DatabaseSeeder:
         sql_file = self.sql_dir / 'seed_workflow_test_data.sql'
         return self.execute_sql_file(sql_file)
     
+    def seed_additional(self) -> bool:
+        """Carga datos adicionales de prueba (casos más realistas)"""
+        print("\n" + "="*60)
+        print("🌟 CARGANDO DATOS ADICIONALES DE PRUEBA")
+        print("="*60)
+        sql_file = self.sql_dir / 'seed_additional_test_data.sql'
+        return self.execute_sql_file(sql_file)
+    
     def seed_all(self) -> bool:
         """Carga todos los datos de prueba"""
         print("\n" + "🎯"*30)
@@ -205,7 +215,15 @@ class DatabaseSeeder:
         # 4. Workflow
         if not self.seed_workflow():
             success = False
-            print("\n⚠️ Falló la carga de Workflow")
+            print("\n⚠️ Falló la carga de Workflow, pero continuando...")
+        
+        # 5. Datos adicionales (casos realistas)
+        print("\n" + "="*60)
+        print("🌟 CARGANDO DATOS ADICIONALES PARA PRUEBAS EXTENSIVAS")
+        print("="*60)
+        if not self.seed_additional():
+            success = False
+            print("\n⚠️ Falló la carga de datos adicionales")
         
         return success
 
@@ -217,11 +235,12 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Ejemplos de uso:
-  python seed_test_data.py --all          # Carga todos los datos
+  python seed_test_data.py --all          # Carga todos los datos (incluyendo adicionales)
   python seed_test_data.py --ppsh         # Solo PPSH y SIM_FT
   python seed_test_data.py --tramites     # Solo trámites base
   python seed_test_data.py --workflow     # Solo workflow
-  python seed_test_data.py -p -t -w       # Combinación (forma corta)
+  python seed_test_data.py --additional   # Solo datos adicionales (requiere datos base)
+  python seed_test_data.py -p -t -w -x    # Combinación completa (forma corta)
         """
     )
     
@@ -241,17 +260,22 @@ Ejemplos de uso:
         help='Cargar datos de Workflow API'
     )
     parser.add_argument(
+        '--additional', '-x',
+        action='store_true',
+        help='Cargar datos adicionales (10 solicitantes, 10 solicitudes, 7 trámites, 5 instancias)'
+    )
+    parser.add_argument(
         '--all', '-a',
         action='store_true',
-        help='Cargar todos los datos de prueba (PPSH, Trámites, Workflow)'
+        help='Cargar todos los datos de prueba (PPSH, Trámites, Workflow + Adicionales)'
     )
     
     args = parser.parse_args()
     
     # Si no se especifica ninguna opción, mostrar ayuda
-    if not (args.ppsh or args.tramites or args.workflow or args.all):
+    if not (args.ppsh or args.tramites or args.workflow or args.additional or args.all):
         parser.print_help()
-        print("\n⚠️ Debe especificar al menos una opción: --ppsh, --tramites, --workflow, o --all")
+        print("\n⚠️ Debe especificar al menos una opción: --ppsh, --tramites, --workflow, --additional, o --all")
         sys.exit(1)
     
     # Crear instancia del seeder
@@ -284,6 +308,10 @@ Ejemplos de uso:
         if args.workflow:
             if not seeder.seed_workflow():
                 success = False
+        
+        if args.additional:
+            if not seeder.seed_additional():
+                success = False
     
     # Resultado final
     print("\n" + "="*60)
@@ -301,6 +329,8 @@ Ejemplos de uso:
             print("   ✅ Trámites Base - Tipos, estados, prioridades")
         if args.all or args.workflow:
             print("   ✅ Workflow - 2 workflows completos (PPSH + General)")
+        if args.all or args.additional:
+            print("   ✅ Datos Adicionales - 10 solicitantes, 10 solicitudes, 7 trámites, 5 instancias workflow")
         print("\n📖 Consulte: backend/sql/README.md para más información")
         sys.exit(0)
     else:
