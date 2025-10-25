@@ -448,7 +448,399 @@ El proyecto incluye colecciones de Postman listas para usar:
 
 ---
 
-## 🔧 Comandos Útiles
+## �️ Conexión a la Base de Datos
+
+### Información de Conexión
+
+Una vez que el sistema está corriendo con Docker, puedes conectarte a la base de datos SQL Server usando cualquier cliente SQL.
+
+#### Credenciales de Desarrollo
+
+| Parámetro | Valor | Descripción |
+|-----------|-------|-------------|
+| **Host** | `localhost` | Desde tu máquina local |
+| **Puerto** | `1433` | Puerto estándar de SQL Server |
+| **Usuario** | `sa` | Administrador del sistema |
+| **Contraseña** | `YourStrong@Passw0rd` | Contraseña de desarrollo (⚠️ cambiar en producción) |
+| **Base de Datos** | `SIM_PANAMA` | Base de datos principal del sistema |
+| **Autenticación** | SQL Server Authentication | Modo de autenticación |
+
+#### String de Conexión
+
+```
+Server=localhost,1433;Database=SIM_PANAMA;User Id=sa;Password=YourStrong@Passw0rd;TrustServerCertificate=True;
+```
+
+### Clientes SQL Recomendados
+
+#### 1. **Azure Data Studio** (Recomendado - Multiplataforma)
+
+**Instalación:**
+- Descargar desde: https://aka.ms/azuredatastudio
+- Disponible para Windows, macOS y Linux
+
+**Configuración de Conexión:**
+1. Abrir Azure Data Studio
+2. Click en "New Connection"
+3. Completar los campos:
+   - **Connection type:** Microsoft SQL Server
+   - **Server:** `localhost,1433`
+   - **Authentication type:** SQL Login
+   - **User name:** `sa`
+   - **Password:** `YourStrong@Passw0rd`
+   - **Database:** `SIM_PANAMA`
+   - **Trust server certificate:** ✅ Activado
+4. Click en "Connect"
+
+**Ventajas:**
+- ✅ Interfaz moderna y limpia
+- ✅ Multiplataforma (Windows, Mac, Linux)
+- ✅ Extensiones para Python, Jupyter, etc.
+- ✅ Integración con Git
+- ✅ Gratis y de código abierto
+
+#### 2. **SQL Server Management Studio (SSMS)** (Windows Only)
+
+**Instalación:**
+- Descargar desde: https://aka.ms/ssmsfullsetup
+- Solo disponible para Windows
+
+**Configuración de Conexión:**
+1. Abrir SSMS
+2. En "Connect to Server":
+   - **Server type:** Database Engine
+   - **Server name:** `localhost,1433`
+   - **Authentication:** SQL Server Authentication
+   - **Login:** `sa`
+   - **Password:** `YourStrong@Passw0rd`
+3. Click en "Connect"
+
+**Ventajas:**
+- ✅ Herramienta oficial de Microsoft
+- ✅ Funcionalidades avanzadas de administración
+- ✅ Depuración de stored procedures
+- ✅ Generación de diagramas
+
+#### 3. **DBeaver** (Multiplataforma)
+
+**Instalación:**
+- Descargar desde: https://dbeaver.io/download/
+- Disponible para Windows, macOS y Linux
+
+**Configuración de Conexión:**
+1. Abrir DBeaver
+2. Click en "New Database Connection"
+3. Seleccionar "SQL Server" → Next
+4. Completar:
+   - **Host:** `localhost`
+   - **Port:** `1433`
+   - **Database:** `SIM_PANAMA`
+   - **Authentication:** SQL Server Authentication
+   - **Username:** `sa`
+   - **Password:** `YourStrong@Passw0rd`
+5. En "Driver properties" agregar:
+   - `trustServerCertificate = true`
+6. Test Connection → Finish
+
+**Ventajas:**
+- ✅ Soporta múltiples bases de datos (SQL Server, PostgreSQL, MySQL, etc.)
+- ✅ Gratis y de código abierto
+- ✅ Exportación/importación de datos
+- ✅ Generación de diagramas ER
+
+#### 4. **VSCode con SQL Server Extension**
+
+**Instalación:**
+1. Instalar Visual Studio Code
+2. Instalar extensión: "SQL Server (mssql)"
+
+**Configuración de Conexión:**
+1. Presionar `Ctrl+Shift+P` (o `Cmd+Shift+P` en Mac)
+2. Escribir "MS SQL: Connect"
+3. Completar el wizard:
+   - **Server name:** `localhost,1433`
+   - **Database name:** `SIM_PANAMA`
+   - **Authentication Type:** SQL Login
+   - **User name:** `sa`
+   - **Password:** `YourStrong@Passw0rd`
+   - **Save Password:** Yes
+   - **Profile Name:** `SIM_PANAMA Development`
+
+**Ventajas:**
+- ✅ Ya tienes VSCode instalado si desarrollas
+- ✅ Integración con tu editor de código
+- ✅ Ejecución de queries sin cambiar de aplicación
+- ✅ IntelliSense para SQL
+
+### Conexión desde el Terminal
+
+#### Usando Docker (Recomendado)
+
+```bash
+# Conectarse al contenedor de SQL Server
+docker exec -it tramites-sqlserver /opt/mssql-tools/bin/sqlcmd \
+  -S localhost -U sa -P 'YourStrong@Passw0rd' -d SIM_PANAMA
+
+# Ejecutar una query directamente
+docker exec -it tramites-sqlserver /opt/mssql-tools/bin/sqlcmd \
+  -S localhost -U sa -P 'YourStrong@Passw0rd' -d SIM_PANAMA \
+  -Q "SELECT COUNT(*) as total_solicitudes FROM PPSHSolicitud"
+```
+
+#### Usando sqlcmd (Windows - si tienes SQL Server instalado)
+
+```powershell
+sqlcmd -S localhost,1433 -U sa -P YourStrong@Passw0rd -d SIM_PANAMA
+```
+
+### Verificar Conexión
+
+Una vez conectado, puedes ejecutar estas queries para verificar que todo está funcionando:
+
+```sql
+-- Ver todas las tablas del sistema
+SELECT 
+    SCHEMA_NAME(schema_id) AS [Schema],
+    name AS [Table],
+    create_date AS [Created]
+FROM sys.tables
+ORDER BY [Schema], [Table];
+
+-- Ver número de registros en tablas principales
+SELECT 'PPSHSolicitud' AS Tabla, COUNT(*) AS Total FROM PPSHSolicitud
+UNION ALL
+SELECT 'PPSHSolicitante', COUNT(*) FROM PPSHSolicitante
+UNION ALL
+SELECT 'Workflow', COUNT(*) FROM Workflow
+UNION ALL
+SELECT 'WorkflowInstancia', COUNT(*) FROM WorkflowInstancia
+UNION ALL
+SELECT 'TRAMITE', COUNT(*) FROM TRAMITE;
+
+-- Ver estado de catálogos PPSH
+SELECT 'PPSHEstado' AS Catalogo, COUNT(*) AS Total FROM PPSHEstado
+UNION ALL
+SELECT 'PPSHCausaHumanitaria', COUNT(*) FROM PPSHCausaHumanitaria
+UNION ALL
+SELECT 'PPSHTipoDocumento', COUNT(*) FROM PPSHTipoDocumento
+UNION ALL
+SELECT 'PPSHPais', COUNT(*) FROM PPSHPais;
+```
+
+**Resultados esperados después de iniciar el sistema:**
+- Catálogos PPSH: 27+ registros cargados
+- Tablas creadas: 30+ tablas del sistema
+- Datos de ejemplo: 6+ registros de prueba
+
+### Estructura de la Base de Datos
+
+#### Esquemas Principales
+
+El sistema utiliza una única base de datos `SIM_PANAMA` organizada en módulos:
+
+```
+SIM_PANAMA/
+├── dbo (schema por defecto)
+│   ├── PPSH_* (Módulo de Permisos Humanitarios)
+│   │   ├── PPSHSolicitante
+│   │   ├── PPSHSolicitud
+│   │   ├── PPSHSolicitudDocumento
+│   │   ├── PPSHEstado
+│   │   ├── PPSHCausaHumanitaria
+│   │   └── PPSHTipoDocumento
+│   │
+│   ├── Workflow_* (Motor de Workflows)
+│   │   ├── Workflow
+│   │   ├── WorkflowEtapa
+│   │   ├── WorkflowTransicion
+│   │   ├── WorkflowInstancia
+│   │   └── WorkflowInstanciaHistorial
+│   │
+│   └── TRAMITE_* (Sistema de Trámites)
+│       ├── TRAMITE
+│       ├── TIPO_TRAMITE
+│       ├── ESTATUS
+│       └── PRIORIDAD
+```
+
+#### Diagrama de Relaciones Principales
+
+```
+PPSHSolicitante (1) ──→ (N) PPSHSolicitud
+     │                        │
+     │                        ├──→ (1) PPSHEstado
+     │                        ├──→ (1) PPSHCausaHumanitaria
+     │                        └──→ (N) PPSHSolicitudDocumento
+     
+Workflow (1) ──→ (N) WorkflowEtapa
+     │           ↓
+     │      WorkflowTransicion
+     │
+     └──→ (N) WorkflowInstancia ──→ (N) WorkflowInstanciaHistorial
+```
+
+### Explorar los Datos
+
+#### Ver solicitudes PPSH recientes
+
+```sql
+SELECT 
+    s.id,
+    s.num_expediente,
+    sol.primer_nombre + ' ' + sol.primer_apellido AS solicitante,
+    e.nombre AS estado,
+    s.fecha_creacion
+FROM PPSHSolicitud s
+JOIN PPSHSolicitante sol ON s.id_solicitante = sol.id
+JOIN PPSHEstado e ON s.id_estado = e.id
+ORDER BY s.fecha_creacion DESC;
+```
+
+#### Ver workflows activos
+
+```sql
+SELECT 
+    w.nombre AS workflow,
+    wi.id AS instancia_id,
+    we.nombre AS etapa_actual,
+    wi.fecha_creacion,
+    wi.estado
+FROM WorkflowInstancia wi
+JOIN Workflow w ON wi.id_workflow = w.id
+JOIN WorkflowEtapa we ON wi.id_etapa_actual = we.id
+WHERE wi.activo = 1
+ORDER BY wi.fecha_creacion DESC;
+```
+
+#### Ver trámites por estado
+
+```sql
+SELECT 
+    e.des_estatus AS estado,
+    COUNT(*) AS cantidad
+FROM TRAMITE t
+JOIN ESTATUS e ON t.ind_estatus = e.ind_estatus
+GROUP BY e.des_estatus
+ORDER BY cantidad DESC;
+```
+
+### Respaldo y Restauración
+
+#### Crear respaldo de la base de datos
+
+```bash
+# Crear backup dentro del contenedor
+docker exec tramites-sqlserver /opt/mssql-tools/bin/sqlcmd \
+  -S localhost -U sa -P 'YourStrong@Passw0rd' \
+  -Q "BACKUP DATABASE SIM_PANAMA TO DISK = '/var/opt/mssql/data/SIM_PANAMA_backup.bak' WITH FORMAT, INIT"
+
+# Copiar backup a tu máquina local
+docker cp tramites-sqlserver:/var/opt/mssql/data/SIM_PANAMA_backup.bak ./backups/
+```
+
+#### Restaurar desde respaldo
+
+```bash
+# Copiar backup al contenedor
+docker cp ./backups/SIM_PANAMA_backup.bak tramites-sqlserver:/var/opt/mssql/data/
+
+# Restaurar
+docker exec tramites-sqlserver /opt/mssql-tools/bin/sqlcmd \
+  -S localhost -U sa -P 'YourStrong@Passw0rd' \
+  -Q "RESTORE DATABASE SIM_PANAMA FROM DISK = '/var/opt/mssql/data/SIM_PANAMA_backup.bak' WITH REPLACE"
+```
+
+### Troubleshooting
+
+#### Error: "Login failed for user 'sa'"
+
+**Solución:**
+```bash
+# Verificar que el contenedor está corriendo
+docker ps | grep tramites-sqlserver
+
+# Verificar logs del contenedor
+docker logs tramites-sqlserver
+
+# Reiniciar el contenedor
+docker compose restart sqlserver
+```
+
+#### Error: "Cannot connect to server"
+
+**Solución:**
+```bash
+# Verificar que el puerto 1433 está expuesto
+docker compose ps
+
+# Verificar que no hay otro SQL Server usando el puerto
+netstat -an | grep 1433
+
+# En Windows PowerShell
+Get-NetTCPConnection -LocalPort 1433
+```
+
+#### Error: "Database 'SIM_PANAMA' does not exist"
+
+**Solución:**
+```bash
+# Ejecutar las migraciones
+docker compose run --rm db-migrations
+
+# O recrear todo el sistema
+docker compose down -v
+docker compose up --build
+```
+
+### Seguridad en Producción
+
+⚠️ **IMPORTANTE:** Las credenciales mostradas son solo para desarrollo local.
+
+**Para producción, debes:**
+
+1. **Cambiar la contraseña de `sa`:**
+   ```sql
+   ALTER LOGIN sa WITH PASSWORD = 'NuevaContraseñaSegura123!@#';
+   ```
+
+2. **Crear usuarios específicos por aplicación:**
+   ```sql
+   -- Crear login
+   CREATE LOGIN tramites_app WITH PASSWORD = 'ContraseñaSegura123!@#';
+   
+   -- Crear usuario en la base de datos
+   USE SIM_PANAMA;
+   CREATE USER tramites_app FOR LOGIN tramites_app;
+   
+   -- Asignar permisos específicos (no db_owner)
+   GRANT SELECT, INSERT, UPDATE, DELETE ON SCHEMA::dbo TO tramites_app;
+   ```
+
+3. **Configurar firewall:**
+   - Solo permitir conexiones desde IPs autorizadas
+   - Usar VPN para acceso remoto
+
+4. **Habilitar encriptación:**
+   - Usar certificados SSL/TLS
+   - Configurar `Encrypt=True` en connection string
+
+5. **Actualizar variables de entorno:**
+   ```bash
+   # backend/.env
+   DB_USER=tramites_app
+   DB_PASSWORD=ContraseñaSegura123!@#
+   ```
+
+### Documentación Adicional
+
+- 📖 **Diccionario de Datos Completo:** [docs/DICCIONARIO_DATOS_COMPLETO.md](./docs/DICCIONARIO_DATOS_COMPLETO.md)
+- 📖 **Scripts SQL:** [backend/sql/](./backend/sql/)
+- 📖 **Migraciones Alembic:** [backend/alembic/versions/](./backend/alembic/versions/)
+- 📖 **Guía de Migraciones:** [MIGRATIONS_GUIDE.md](./MIGRATIONS_GUIDE.md)
+
+---
+
+## �🔧 Comandos Útiles
 
 ### Para Usuarios Nuevos
 
@@ -1098,15 +1490,27 @@ Para ejemplos más avanzados y casos de uso específicos, consulta:
 
 El proyecto incluye colecciones completas de Postman para probar todos los endpoints de la API.
 
-### 📦 Colecciones Disponibles
+### � Ubicación de Colecciones
+
+Todas las colecciones Postman están organizadas en el directorio **`postman-collections/`** en la raíz del proyecto.
+
+```
+postman-collections/
+├── PPSH_Complete_API.postman_collection.json
+├── SIM_FT_Complete_API.postman_collection.json
+├── Workflow_API_Tests.postman_collection.json
+├── env-dev.json
+├── env-staging.json
+└── README.md (documentación completa)
+```
+
+### �📦 Colecciones Disponibles
 
 | Colección | Endpoints | Descripción |
 |-----------|-----------|-------------|
 | **PPSH_Complete_API.json** | ~36 requests | API completa del módulo PPSH (Permisos de Protección y Stateless Humanitarios) |
 | **Workflow_API_Tests.json** | ~30 requests | API completa del sistema de Workflows dinámicos |
 | **SIM_FT_Complete_API.json** | ~35 requests | API completa del módulo SIM_FT (Sistema Integrado de Migración) |
-| **Tramites_Base_API.json** | ~5 requests | API básica de gestión de trámites |
-| **PPSH_Upload_Tests.json** | Tests | Pruebas específicas para carga de documentos |
 
 ### 🚀 Uso de Colecciones
 
@@ -1114,7 +1518,7 @@ El proyecto incluye colecciones completas de Postman para probar todos los endpo
 
 1. Abrir Postman
 2. Click en "Import"
-3. Seleccionar archivo `.json` desde `backend/postman/`
+3. Seleccionar archivo `.json` desde **`postman-collections/`**
 4. Click en "Import"
 
 #### Ejecutar con Newman (CLI)
@@ -1124,10 +1528,10 @@ El proyecto incluye colecciones completas de Postman para probar todos los endpo
 npm install -g newman
 
 # Ejecutar una colección
-newman run backend/postman/PPSH_Complete_API.postman_collection.json
+newman run postman-collections/PPSH_Complete_API.postman_collection.json
 
 # Ejecutar con reportes HTML
-newman run backend/postman/PPSH_Complete_API.postman_collection.json \
+newman run postman-collections/PPSH_Complete_API.postman_collection.json \
   --reporters cli,htmlextra \
   --reporter-htmlextra-export reports/api-test-report.html
 ```
@@ -1136,7 +1540,7 @@ newman run backend/postman/PPSH_Complete_API.postman_collection.json \
 
 ```powershell
 # Ejecutar todas las colecciones de Postman
-Get-ChildItem backend\postman\*_API*.json | ForEach-Object {
+Get-ChildItem postman-collections\*_API*.json | ForEach-Object {
   Write-Host "Ejecutando: $($_.Name)" -ForegroundColor Cyan
   newman run $_.FullName
 }
@@ -1149,68 +1553,56 @@ Get-ChildItem backend\postman\*_API*.json | ForEach-Object {
 | PPSH | 18 endpoints | ✅ 100% | Completo |
 | Workflows | 24 endpoints | ✅ 100% | Completo |
 | SIM_FT | 35 endpoints | ✅ 100% | Completo |
-| Trámites Base | 5 endpoints | ✅ 100% | Completo |
-| **TOTAL** | **82 endpoints** | **✅ 100%** | **Completo** |
+| **TOTAL** | **77 endpoints** | **✅ 100%** | **Completo** |
 
 ### 📝 Variables de Entorno
 
-#### Opción 1: Variables en las Colecciones (Incluidas)
+#### Archivos de Entorno Incluidos
 
-Todas las colecciones ya incluyen sus variables predefinidas. Al importarlas en Postman, estarán listas para usar.
-
-#### Opción 2: Archivos de Entorno (Recomendado)
-
-El proyecto incluye archivos de entorno predefinidos en `backend/postman/`:
+El directorio `postman-collections/` incluye archivos de entorno predefinidos:
 
 ```bash
 # Desarrollo Local
-backend/postman/env-dev.json
+postman-collections/env-dev.json
 {
-  "base_url": "http://localhost:8000",
-  "api_prefix": "/api/v1",
-  "username": "admin",
-  "password": "admin123"
+  "base_url": "http://localhost:8001",
+  "api_prefix": "/api/v1"
 }
 
 # Staging
-backend/postman/env-staging.json
+postman-collections/env-staging.json
 {
   "base_url": "https://staging.tramites.gob.pa",
   "api_prefix": "/api/v1"
 }
-
-# Producción (ejemplo - NO commitear con datos reales)
-backend/postman/env-prod.json.example
 ```
 
 **Importar entorno en Postman:**
 1. Click en "Environments" → "Import"
-2. Seleccionar `backend/postman/env-dev.json`
+2. Seleccionar `postman-collections/env-dev.json`
 3. Activar el entorno importado
 
 **Usar con Newman:**
 ```bash
-newman run backend/postman/PPSH_Complete_API.postman_collection.json \
-  --environment backend/postman/env-dev.json
+newman run postman-collections/PPSH_Complete_API.postman_collection.json \
+  --environment postman-collections/env-dev.json
 ```
 
 #### Variables por Colección
 
 | Colección | Variables Automáticas | Variables Requeridas |
 |-----------|----------------------|---------------------|
-| **Tramites_Base_API** | `tramite_id` | Ninguna |
 | **PPSH_Complete_API** | `solicitud_id`, `num_expediente`, `solicitante_id` | Ninguna |
-| **PPSH_Upload_Tests** | Ninguna | `solicitud_id` (existente) |
 | **Workflow_API_Tests** | `workflow_id`, `etapa_id`, `instancia_id` | Ninguna |
 | **SIM_FT_Complete_API** | `cod_tramite`, `num_annio`, `num_tramite` | Ninguna |
 
-**📖 Documentación completa de variables:** [backend/postman/README.md#variables](./backend/postman/README.md#-variables-de-entorno-y-colección)
+**📖 Documentación completa:** Ver [`postman-collections/README.md`](./postman-collections/README.md)
 
 ### 📚 Documentación Adicional
 
-- **README de Postman:** [backend/postman/README.md](./backend/postman/README.md)
-- **Comandos Newman:** Guía completa en README de Postman
-- **Documentación interactiva:** http://localhost:8000/docs
+- **README de Postman:** [postman-collections/README.md](./postman-collections/README.md)
+- **Guía de uso completa:** Incluye ejemplos, troubleshooting y configuración avanzada
+- **Documentación interactiva:** http://localhost:8001/api/docs
 
 ## 🧪 Testing
 

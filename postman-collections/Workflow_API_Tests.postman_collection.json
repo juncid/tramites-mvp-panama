@@ -1,0 +1,1558 @@
+{
+  "info": {
+    "_postman_id": "workflow-dynamic-api-2025",
+    "name": "Sistema Workflow Dinámico - API",
+    "description": "Colección completa de endpoints para el Sistema de Workflow Dinámico del Sistema de Trámites Migratorios de Panamá.\n\n**Funcionalidades:**\n- Gestión de Workflows (plantillas de procesos)\n- Gestión de Etapas y Preguntas\n- Gestión de Conexiones entre etapas\n- Ejecución de Instancias de workflows\n- Comentarios e Historial\n\n**Autor:** Sistema de Trámites MVP Panamá\n**Fecha:** 2025-10-20\n**Versión:** 2.0.0\n**Última actualización:** 2025-10-25 - Agregada sección de ejemplo de flujo completo end-to-end\n\n**Actualización:** Colección verificada para usar nombres de columnas de BD (created_at, created_by, updated_at, updated_by)\n**Fecha actualización:** 2025-10-24",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8000",
+      "type": "string"
+    },
+    {
+      "key": "api_prefix",
+      "value": "/api/v1/workflow",
+      "type": "string"
+    },
+    {
+      "key": "workflow_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "etapa_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "pregunta_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "conexion_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "instancia_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "current_user",
+      "value": "ADMIN",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Gestión de Workflows",
+      "item": [
+        {
+          "name": "Crear Workflow Simple",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test(\"Response has workflow_id\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('id');",
+                  "    pm.collectionVariables.set(\"workflow_id\", jsonData.id);",
+                  "});",
+                  "",
+                  "pm.test(\"Workflow code is correct\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.codigo).to.eql(\"PPSH_PRUEBA\");",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"codigo\": \"PPSH_PRUEBA\",\n  \"nombre\": \"Permiso de Protección de Seguridad Humanitaria - Prueba\",\n  \"descripcion\": \"Workflow de prueba para el proceso PPSH\",\n  \"version\": \"1.0\",\n  \"estado\": \"BORRADOR\",\n  \"categoria\": \"Migración\",\n  \"color_hex\": \"#0066CC\",\n  \"icono\": \"shield\",\n  \"requiere_autenticacion\": true,\n  \"es_publico\": false,\n  \"perfiles_creadores\": [\n    \"CIUDADANO\",\n    \"ABOGADO\"\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/workflows",
+              "host": [
+                "{{base_url}}{{api_prefix}}"
+              ],
+              "path": [
+                "workflows"
+              ]
+            },
+            "description": "Crea un nuevo workflow simple sin etapas ni conexiones"
+          },
+          "response": []
+        },
+        {
+          "name": "Crear Workflow Completo con Etapas",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test(\"Workflow created with stages\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.etapas).to.be.an('array');",
+                  "    pm.expect(jsonData.etapas.length).to.be.at.least(1);",
+                  "    pm.collectionVariables.set(\"workflow_id\", jsonData.id);",
+                  "    ",
+                  "    // Guardar IDs de etapas para otros tests",
+                  "    if (jsonData.etapas.length > 0) {",
+                  "        pm.collectionVariables.set(\"etapa_id\", jsonData.etapas[0].id);",
+                  "    }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"codigo\": \"FLUJO_COMPLETO_TEST\",\n  \"nombre\": \"Flujo Completo de Prueba\",\n  \"descripcion\": \"Workflow completo con etapas y preguntas\",\n  \"estado\": \"ACTIVO\",\n  \"categoria\": \"Pruebas\",\n  \"perfiles_creadores\": [\n    \"ADMIN\"\n  ],\n  \"etapas\": [\n    {\n      \"codigo\": \"INICIO\",\n      \"nombre\": \"Inicio del Proceso\",\n      \"descripcion\": \"Etapa inicial de registro\",\n      \"tipo_etapa\": \"ETAPA\",\n      \"orden\": 1,\n      \"es_etapa_inicial\": true,\n      \"es_etapa_final\": false,\n      \"perfiles_permitidos\": [\n        \"CIUDADANO\",\n        \"ABOGADO\"\n      ],\n      \"titulo_formulario\": \"Datos Personales\",\n      \"bajada_formulario\": \"Por favor complete sus datos personales\",\n      \"preguntas\": [\n        {\n          \"codigo\": \"NOMBRE\",\n          \"pregunta\": \"¿Cuál es su nombre completo?\",\n          \"tipo_pregunta\": \"RESPUESTA_TEXTO\",\n          \"orden\": 1,\n          \"es_obligatoria\": true,\n          \"validacion_regex\": \"^[a-zA-ZáéíóúÁÉÍÓÚñÑ ]+$\",\n          \"mensaje_validacion\": \"Solo se permiten letras y espacios\",\n          \"placeholder\": \"Juan Pérez García\"\n        },\n        {\n          \"codigo\": \"EMAIL\",\n          \"pregunta\": \"¿Cuál es su correo electrónico?\",\n          \"tipo_pregunta\": \"RESPUESTA_TEXTO\",\n          \"orden\": 2,\n          \"es_obligatoria\": true,\n          \"validacion_regex\": \"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\\\.[a-zA-Z]{2,}$\",\n          \"mensaje_validacion\": \"Debe ser un correo electrónico válido\",\n          \"placeholder\": \"ejemplo@correo.com\"\n        },\n        {\n          \"codigo\": \"NACIONALIDAD\",\n          \"pregunta\": \"¿Cuál es su nacionalidad?\",\n          \"tipo_pregunta\": \"LISTA\",\n          \"orden\": 3,\n          \"es_obligatoria\": true,\n          \"opciones\": [\n            \"Panameña\",\n            \"Venezolana\",\n            \"Colombiana\",\n            \"Nicaragüense\",\n            \"Otra\"\n          ]\n        }\n      ]\n    },\n    {\n      \"codigo\": \"DOCUMENTOS\",\n      \"nombre\": \"Carga de Documentos\",\n      \"descripcion\": \"Etapa de carga de documentos\",\n      \"tipo_etapa\": \"ETAPA\",\n      \"orden\": 2,\n      \"perfiles_permitidos\": [\n        \"CIUDADANO\",\n        \"ABOGADO\"\n      ],\n      \"titulo_formulario\": \"Documentos Requeridos\",\n      \"preguntas\": [\n        {\n          \"codigo\": \"PASAPORTE\",\n          \"pregunta\": \"Cargue copia de su pasaporte\",\n          \"tipo_pregunta\": \"CARGA_ARCHIVO\",\n          \"orden\": 1,\n          \"es_obligatoria\": true,\n          \"extensiones_permitidas\": [\n            \".pdf\",\n            \".jpg\",\n            \".png\"\n          ],\n          \"tamano_maximo_mb\": 5,\n          \"texto_ayuda\": \"Debe ser una copia legible de todas las páginas\"\n        }\n      ]\n    },\n    {\n      \"codigo\": \"REVISION\",\n      \"nombre\": \"Revisión y Validación\",\n      \"descripcion\": \"Etapa de revisión por funcionario\",\n      \"tipo_etapa\": \"ETAPA\",\n      \"orden\": 3,\n      \"perfiles_permitidos\": [\n        \"FUNCIONARIO\",\n        \"ADMIN\"\n      ],\n      \"titulo_formulario\": \"Revisión de Solicitud\",\n      \"preguntas\": [\n        {\n          \"codigo\": \"APROBADO\",\n          \"pregunta\": \"¿Se aprueba la solicitud?\",\n          \"tipo_pregunta\": \"OPCIONES\",\n          \"orden\": 1,\n          \"es_obligatoria\": true,\n          \"opciones\": [\n            \"SI\",\n            \"NO\"\n          ],\n          \"permite_multiple\": false\n        }\n      ]\n    },\n    {\n      \"codigo\": \"FINALIZACION\",\n      \"nombre\": \"Finalización\",\n      \"descripcion\": \"Etapa final del proceso\",\n      \"tipo_etapa\": \"ETAPA\",\n      \"orden\": 4,\n      \"es_etapa_final\": true,\n      \"perfiles_permitidos\": [\n        \"SISTEMA\"\n      ]\n    }\n  ],\n  \"conexiones\": [\n    {\n      \"nombre\": \"Ir a Documentos\",\n      \"es_predeterminada\": true,\n      \"etapa_origen_codigo\": \"INICIO\",\n      \"etapa_destino_codigo\": \"DOCUMENTOS\"\n    },\n    {\n      \"nombre\": \"Enviar a Revisión\",\n      \"es_predeterminada\": true,\n      \"etapa_origen_codigo\": \"DOCUMENTOS\",\n      \"etapa_destino_codigo\": \"REVISION\"\n    },\n    {\n      \"nombre\": \"Finalizar\",\n      \"condicion\": {\n        \"pregunta\": \"APROBADO\",\n        \"valor\": \"SI\"\n      },\n      \"es_predeterminada\": true,\n      \"etapa_origen_codigo\": \"REVISION\",\n      \"etapa_destino_codigo\": \"FINALIZACION\"\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/workflows",
+              "host": [
+                "{{base_url}}{{api_prefix}}"
+              ],
+              "path": [
+                "workflows"
+              ]
+            },
+            "description": "Crea un workflow completo con etapas, preguntas y conexiones"
+          },
+          "response": []
+        },
+        {
+          "name": "Listar Workflows",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/workflows?skip=0&limit=100&activo=true",
+              "host": [
+                "{{base_url}}{{api_prefix}}"
+              ],
+              "path": [
+                "workflows"
+              ],
+              "query": [
+                {
+                  "key": "skip",
+                  "value": "0"
+                },
+                {
+                  "key": "limit",
+                  "value": "100"
+                },
+                {
+                  "key": "estado",
+                  "value": "ACTIVO",
+                  "disabled": true
+                },
+                {
+                  "key": "categoria",
+                  "value": "Migración",
+                  "disabled": true
+                },
+                {
+                  "key": "activo",
+                  "value": "true"
+                }
+              ]
+            },
+            "description": "Lista todos los workflows con filtros opcionales"
+          },
+          "response": []
+        },
+        {
+          "name": "Obtener Workflow por ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/workflows/{{workflow_id}}",
+              "host": [
+                "{{base_url}}{{api_prefix}}"
+              ],
+              "path": [
+                "workflows",
+                "{{workflow_id}}"
+              ]
+            },
+            "description": "Obtiene los detalles completos de un workflow incluyendo etapas y preguntas"
+          },
+          "response": []
+        },
+        {
+          "name": "Actualizar Workflow",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Nombre Actualizado del Workflow\",\n  \"descripcion\": \"Descripción actualizada\",\n  \"estado\": \"ACTIVO\",\n  \"version\": \"1.1\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/workflows/{{workflow_id}}",
+              "host": [
+                "{{base_url}}{{api_prefix}}"
+              ],
+              "path": [
+                "workflows",
+                "{{workflow_id}}"
+              ]
+            },
+            "description": "Actualiza la información de un workflow existente"
+          },
+          "response": []
+        },
+        {
+          "name": "Eliminar Workflow",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/workflows/{{workflow_id}}",
+              "host": [
+                "{{base_url}}{{api_prefix}}"
+              ],
+              "path": [
+                "workflows",
+                "{{workflow_id}}"
+              ]
+            },
+            "description": "Elimina (desactiva) un workflow"
+          },
+          "response": []
+        }
+      ],
+      "description": "Endpoints para crear y gestionar workflows (plantillas de procesos)"
+    },
+    {
+      "name": "2. Gestión de Etapas",
+      "item": [
+        {
+          "name": "Crear Etapa",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "var jsonData = pm.response.json();",
+                  "pm.collectionVariables.set(\"etapa_id\", jsonData.id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"workflow_id\": {{workflow_id}},\n  \"codigo\": \"NUEVA_ETAPA\",\n  \"nombre\": \"Nueva Etapa\",\n  \"descripcion\": \"Descripción de la nueva etapa\",\n  \"tipo_etapa\": \"ETAPA\",\n  \"orden\": 5,\n  \"perfiles_permitidos\": [\"ADMIN\", \"FUNCIONARIO\"],\n  \"titulo_formulario\": \"Formulario de Nueva Etapa\",\n  \"requiere_validacion\": true,\n  \"tiempo_estimado_minutos\": 30\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/etapas",
+              "host": [
+                "{{base_url}}{{api_prefix}}"
+              ],
+              "path": [
+                "etapas"
+              ]
+            },
+            "description": "Crea una nueva etapa en un workflow existente"
+          },
+          "response": []
+        },
+        {
+          "name": "Obtener Etapa por ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/etapas/{{etapa_id}}",
+              "host": [
+                "{{base_url}}{{api_prefix}}"
+              ],
+              "path": [
+                "etapas",
+                "{{etapa_id}}"
+              ]
+            },
+            "description": "Obtiene los detalles de una etapa incluyendo sus preguntas"
+          },
+          "response": []
+        },
+        {
+          "name": "Actualizar Etapa",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Etapa Actualizada\",\n  \"descripcion\": \"Descripción actualizada de la etapa\",\n  \"orden\": 2,\n  \"requiere_validacion\": false\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/etapas/{{etapa_id}}",
+              "host": [
+                "{{base_url}}{{api_prefix}}"
+              ],
+              "path": [
+                "etapas",
+                "{{etapa_id}}"
+              ]
+            },
+            "description": "Actualiza los datos de una etapa"
+          },
+          "response": []
+        },
+        {
+          "name": "Eliminar Etapa",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/etapas/{{etapa_id}}",
+              "host": [
+                "{{base_url}}{{api_prefix}}"
+              ],
+              "path": [
+                "etapas",
+                "{{etapa_id}}"
+              ]
+            },
+            "description": "Elimina (desactiva) una etapa"
+          },
+          "response": []
+        }
+      ],
+      "description": "Endpoints para gestionar etapas dentro de los workflows"
+    },
+    {
+      "name": "3. Gestión de Preguntas",
+      "item": [
+        {
+          "name": "Crear Pregunta",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "var jsonData = pm.response.json();",
+                  "pm.collectionVariables.set(\"pregunta_id\", jsonData.id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"etapa_id\": {{etapa_id}},\n  \"codigo\": \"NUEVA_PREGUNTA\",\n  \"pregunta\": \"¿Cuál es tu nueva pregunta?\",\n  \"tipo_pregunta\": \"RESPUESTA_TEXTO\",\n  \"orden\": 10,\n  \"es_obligatoria\": true,\n  \"placeholder\": \"Escribe tu respuesta aquí\",\n  \"texto_ayuda\": \"Esta es una ayuda para la pregunta\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/preguntas",
+              "host": [
+                "{{base_url}}{{api_prefix}}"
+              ],
+              "path": [
+                "preguntas"
+              ]
+            },
+            "description": "Crea una nueva pregunta en una etapa"
+          },
+          "response": []
+        },
+        {
+          "name": "Crear Pregunta con Opciones",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"etapa_id\": {{etapa_id}},\n  \"codigo\": \"PREGUNTA_OPCIONES\",\n  \"pregunta\": \"Seleccione una opción\",\n  \"tipo_pregunta\": \"OPCIONES\",\n  \"orden\": 11,\n  \"es_obligatoria\": true,\n  \"opciones\": [\"Opción A\", \"Opción B\", \"Opción C\"],\n  \"permite_multiple\": false\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/preguntas",
+              "host": [
+                "{{base_url}}{{api_prefix}}"
+              ],
+              "path": [
+                "preguntas"
+              ]
+            },
+            "description": "Crea una pregunta con opciones de selección"
+          },
+          "response": []
+        },
+        {
+          "name": "Crear Pregunta de Archivo",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"etapa_id\": {{etapa_id}},\n  \"codigo\": \"CARGA_DOC\",\n  \"pregunta\": \"Cargue su documento\",\n  \"tipo_pregunta\": \"CARGA_ARCHIVO\",\n  \"orden\": 12,\n  \"es_obligatoria\": true,\n  \"extensiones_permitidas\": [\".pdf\", \".doc\", \".docx\"],\n  \"tamano_maximo_mb\": 10,\n  \"requiere_ocr\": false,\n  \"texto_ayuda\": \"Formatos aceptados: PDF, DOC, DOCX. Tamaño máximo: 10MB\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/preguntas",
+              "host": [
+                "{{base_url}}{{api_prefix}}"
+              ],
+              "path": [
+                "preguntas"
+              ]
+            },
+            "description": "Crea una pregunta para carga de archivos"
+          },
+          "response": []
+        },
+        {
+          "name": "Obtener Pregunta por ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/preguntas/{{pregunta_id}}",
+              "host": [
+                "{{base_url}}{{api_prefix}}"
+              ],
+              "path": [
+                "preguntas",
+                "{{pregunta_id}}"
+              ]
+            },
+            "description": "Obtiene los detalles de una pregunta"
+          },
+          "response": []
+        },
+        {
+          "name": "Actualizar Pregunta",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pregunta\": \"Pregunta actualizada\",\n  \"es_obligatoria\": false,\n  \"texto_ayuda\": \"Ayuda actualizada\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/preguntas/{{pregunta_id}}",
+              "host": [
+                "{{base_url}}{{api_prefix}}"
+              ],
+              "path": [
+                "preguntas",
+                "{{pregunta_id}}"
+              ]
+            },
+            "description": "Actualiza una pregunta"
+          },
+          "response": []
+        },
+        {
+          "name": "Eliminar Pregunta",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/preguntas/{{pregunta_id}}",
+              "host": [
+                "{{base_url}}{{api_prefix}}"
+              ],
+              "path": [
+                "preguntas",
+                "{{pregunta_id}}"
+              ]
+            },
+            "description": "Elimina (desactiva) una pregunta"
+          },
+          "response": []
+        }
+      ],
+      "description": "Endpoints para gestionar preguntas dentro de las etapas"
+    },
+    {
+      "name": "4. Gestión de Conexiones",
+      "item": [
+        {
+          "name": "Crear Conexión",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "var jsonData = pm.response.json();",
+                  "pm.collectionVariables.set(\"conexion_id\", jsonData.id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"workflow_id\": {{workflow_id}},\n  \"etapa_origen_id\": 1,\n  \"etapa_destino_id\": 2,\n  \"nombre\": \"Avanzar\",\n  \"es_predeterminada\": true\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/conexiones",
+              "host": [
+                "{{base_url}}{{api_prefix}}"
+              ],
+              "path": [
+                "conexiones"
+              ]
+            },
+            "description": "Crea una conexión entre dos etapas"
+          },
+          "response": []
+        },
+        {
+          "name": "Crear Conexión con Condición",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"workflow_id\": {{workflow_id}},\n  \"etapa_origen_id\": 2,\n  \"etapa_destino_id\": 3,\n  \"nombre\": \"Si es aprobado\",\n  \"condicion\": {\n    \"pregunta\": \"APROBADO\",\n    \"operador\": \"==\",\n    \"valor\": \"SI\"\n  },\n  \"es_predeterminada\": false\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/conexiones",
+              "host": [
+                "{{base_url}}{{api_prefix}}"
+              ],
+              "path": [
+                "conexiones"
+              ]
+            },
+            "description": "Crea una conexión con condiciones"
+          },
+          "response": []
+        },
+        {
+          "name": "Obtener Conexión por ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/conexiones/{{conexion_id}}",
+              "host": [
+                "{{base_url}}{{api_prefix}}"
+              ],
+              "path": [
+                "conexiones",
+                "{{conexion_id}}"
+              ]
+            },
+            "description": "Obtiene los detalles de una conexión"
+          },
+          "response": []
+        },
+        {
+          "name": "Actualizar Conexión",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Conexión actualizada\",\n  \"condicion\": {\n    \"pregunta\": \"ESTADO\",\n    \"valor\": \"APROBADO\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/conexiones/{{conexion_id}}",
+              "host": [
+                "{{base_url}}{{api_prefix}}"
+              ],
+              "path": [
+                "conexiones",
+                "{{conexion_id}}"
+              ]
+            },
+            "description": "Actualiza una conexión"
+          },
+          "response": []
+        },
+        {
+          "name": "Eliminar Conexión",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/conexiones/{{conexion_id}}",
+              "host": [
+                "{{base_url}}{{api_prefix}}"
+              ],
+              "path": [
+                "conexiones",
+                "{{conexion_id}}"
+              ]
+            },
+            "description": "Elimina una conexión"
+          },
+          "response": []
+        }
+      ],
+      "description": "Endpoints para gestionar conexiones entre etapas"
+    },
+    {
+      "name": "5. Gestión de Instancias",
+      "item": [
+        {
+          "name": "Crear Instancia",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test(\"Instance created with num_expediente\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('num_expediente');",
+                  "    pm.expect(jsonData).to.have.property('id');",
+                  "    pm.collectionVariables.set(\"instancia_id\", jsonData.id);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"workflow_id\": {{workflow_id}},\n  \"nombre_instancia\": \"Solicitud de Juan Pérez\",\n  \"prioridad\": \"NORMAL\",\n  \"metadata_adicional\": {\n    \"solicitante\": \"Juan Pérez\",\n    \"email\": \"juan.perez@example.com\",\n    \"telefono\": \"+507 6000-0000\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/instancias",
+              "host": [
+                "{{base_url}}{{api_prefix}}"
+              ],
+              "path": [
+                "instancias"
+              ]
+            },
+            "description": "Inicia una nueva instancia de un workflow"
+          },
+          "response": []
+        },
+        {
+          "name": "Listar Instancias",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/instancias?skip=0&limit=50",
+              "host": [
+                "{{base_url}}{{api_prefix}}"
+              ],
+              "path": [
+                "instancias"
+              ],
+              "query": [
+                {
+                  "key": "skip",
+                  "value": "0"
+                },
+                {
+                  "key": "limit",
+                  "value": "50"
+                },
+                {
+                  "key": "workflow_id",
+                  "value": "{{workflow_id}}",
+                  "disabled": true
+                },
+                {
+                  "key": "estado",
+                  "value": "EN_PROGRESO",
+                  "disabled": true
+                },
+                {
+                  "key": "creado_por",
+                  "value": "USER001",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Lista las instancias de workflows con filtros"
+          },
+          "response": []
+        },
+        {
+          "name": "Obtener Instancia por ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/instancias/{{instancia_id}}",
+              "host": [
+                "{{base_url}}{{api_prefix}}"
+              ],
+              "path": [
+                "instancias",
+                "{{instancia_id}}"
+              ]
+            },
+            "description": "Obtiene los detalles completos de una instancia con respuestas"
+          },
+          "response": []
+        },
+        {
+          "name": "Actualizar Instancia",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre_instancia\": \"Solicitud Actualizada\",\n  \"prioridad\": \"ALTA\",\n  \"asignado_a_user_id\": \"FUNC001\",\n  \"metadata_adicional\": {\n    \"observaciones\": \"Requiere atención urgente\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/instancias/{{instancia_id}}",
+              "host": [
+                "{{base_url}}{{api_prefix}}"
+              ],
+              "path": [
+                "instancias",
+                "{{instancia_id}}"
+              ]
+            },
+            "description": "Actualiza una instancia de workflow"
+          },
+          "response": []
+        },
+        {
+          "name": "Transicionar a Siguiente Etapa",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"etapa_destino_id\": 1004,\n  \"respuestas\": [\n    {\n      \"pregunta_id\": 1005,\n      \"valor_json\": {\n        \"nombre_archivo\": \"pasaporte.pdf\",\n        \"ruta\": \"/uploads/pasaporte.pdf\"\n      }\n    }\n  ],\n  \"comentario\": \"Formulario completado correctamente\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/instancias/{{instancia_id}}/transicion",
+              "host": [
+                "{{base_url}}{{api_prefix}}"
+              ],
+              "path": [
+                "instancias",
+                "{{instancia_id}}",
+                "transicion"
+              ]
+            },
+            "description": "Realiza una transición de una etapa a otra guardando respuestas"
+          },
+          "response": []
+        }
+      ],
+      "description": "Endpoints para ejecutar instancias de workflows"
+    },
+    {
+      "name": "6. Comentarios e Historial",
+      "item": [
+        {
+          "name": "Agregar Comentario",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"comentario\": \"Este es un comentario importante sobre la solicitud\",\n  \"es_interno\": true,\n  \"es_notificacion\": false,\n  \"archivos\": [\n    {\n      \"nombre\": \"nota.pdf\",\n      \"url\": \"/uploads/comentarios/nota.pdf\"\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/instancias/{{instancia_id}}/comentarios",
+              "host": [
+                "{{base_url}}{{api_prefix}}"
+              ],
+              "path": [
+                "instancias",
+                "{{instancia_id}}",
+                "comentarios"
+              ]
+            },
+            "description": "Agrega un comentario a una instancia"
+          },
+          "response": []
+        },
+        {
+          "name": "Listar Comentarios",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/instancias/{{instancia_id}}/comentarios?incluir_internos=true",
+              "host": [
+                "{{base_url}}{{api_prefix}}"
+              ],
+              "path": [
+                "instancias",
+                "{{instancia_id}}",
+                "comentarios"
+              ],
+              "query": [
+                {
+                  "key": "incluir_internos",
+                  "value": "true"
+                }
+              ]
+            },
+            "description": "Lista los comentarios de una instancia"
+          },
+          "response": []
+        },
+        {
+          "name": "Obtener Historial",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/instancias/{{instancia_id}}/historial",
+              "host": [
+                "{{base_url}}{{api_prefix}}"
+              ],
+              "path": [
+                "instancias",
+                "{{instancia_id}}",
+                "historial"
+              ]
+            },
+            "description": "Obtiene el historial completo de cambios de una instancia"
+          },
+          "response": []
+        }
+      ],
+      "description": "Endpoints para comentarios e historial de instancias"
+    },
+    {
+      "name": "6. 🎯 EJEMPLO: Flujo Completo Workflow",
+      "item": [
+        {
+          "name": "E1. Crear Workflow Completo",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test(\"Workflow created with etapas\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('id');",
+                  "    pm.collectionVariables.set('workflow_id', jsonData.id);",
+                  "    pm.expect(jsonData.codigo).to.eql('EJEMPLO_VISA');",
+                  "    pm.expect(jsonData.etapas).to.be.an('array');",
+                  "    pm.expect(jsonData.etapas.length).to.eql(3);",
+                  "    ",
+                  "    // Guardar IDs de las etapas",
+                  "    var etapaInicial = jsonData.etapas.find(e => e.tipo_etapa === 'INICIAL');",
+                  "    var etapaIntermedia = jsonData.etapas.find(e => e.tipo_etapa === 'INTERMEDIA');",
+                  "    var etapaFinal = jsonData.etapas.find(e => e.tipo_etapa === 'FINAL');",
+                  "    ",
+                  "    pm.collectionVariables.set('etapa_inicial_id', etapaInicial.id);",
+                  "    pm.collectionVariables.set('etapa_intermedia_id', etapaIntermedia.id);",
+                  "    pm.collectionVariables.set('etapa_final_id', etapaFinal.id);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"codigo\": \"EJEMPLO_VISA\",\n  \"nombre\": \"Solicitud de Visa Temporal\",\n  \"descripcion\": \"Workflow de ejemplo para procesar solicitudes de visa temporal\",\n  \"version\": \"1.0\",\n  \"estado\": \"ACTIVO\",\n  \"categoria\": \"Migración\",\n  \"color_hex\": \"#2ECC71\",\n  \"icono\": \"passport\",\n  \"requiere_autenticacion\": true,\n  \"es_publico\": true,\n  \"perfiles_creadores\": [\"CIUDADANO\", \"ABOGADO\"],\n  \"etapas\": [\n    {\n      \"codigo\": \"RECEPCION\",\n      \"nombre\": \"Recepción de Solicitud\",\n      \"descripcion\": \"Recepción y validación inicial de documentos\",\n      \"tipo_etapa\": \"INICIAL\",\n      \"orden\": 1,\n      \"plazo_dias\": 2,\n      \"es_obligatoria\": true,\n      \"permite_retroceso\": false,\n      \"requiere_aprobacion\": false,\n      \"asignacion_automatica\": true,\n      \"rol_asignado\": \"RECEPCIONISTA\",\n      \"color_hex\": \"#3498DB\",\n      \"icono\": \"inbox\"\n    },\n    {\n      \"codigo\": \"REVISION\",\n      \"nombre\": \"Revisión Técnica\",\n      \"descripcion\": \"Análisis detallado de requisitos y antecedentes\",\n      \"tipo_etapa\": \"INTERMEDIA\",\n      \"orden\": 2,\n      \"plazo_dias\": 5,\n      \"es_obligatoria\": true,\n      \"permite_retroceso\": true,\n      \"requiere_aprobacion\": true,\n      \"asignacion_automatica\": false,\n      \"rol_asignado\": \"ANALISTA\",\n      \"color_hex\": \"#F39C12\",\n      \"icono\": \"search\"\n    },\n    {\n      \"codigo\": \"EMISION\",\n      \"nombre\": \"Emisión de Visa\",\n      \"descripcion\": \"Generación y entrega de visa aprobada\",\n      \"tipo_etapa\": \"FINAL\",\n      \"orden\": 3,\n      \"plazo_dias\": 3,\n      \"es_obligatoria\": true,\n      \"permite_retroceso\": false,\n      \"requiere_aprobacion\": true,\n      \"asignacion_automatica\": true,\n      \"rol_asignado\": \"EMISOR\",\n      \"color_hex\": \"#2ECC71\",\n      \"icono\": \"check-circle\"\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/workflows/completo",
+              "host": ["{{base_url}}{{api_prefix}}"],
+              "path": ["workflows", "completo"]
+            },
+            "description": "**PASO 1:** Crear workflow completo con 3 etapas (guarda workflow_id y etapa_ids en variables)"
+          },
+          "response": []
+        },
+        {
+          "name": "E2. Agregar Pregunta - Tipo de Visa",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test(\"Pregunta created\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('id');",
+                  "    pm.collectionVariables.set('pregunta_tipo_visa_id', jsonData.id);",
+                  "    pm.expect(jsonData.opciones).to.be.an('array');",
+                  "    pm.expect(jsonData.opciones.length).to.eql(3);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"codigo\": \"TIPO_VISA\",\n  \"texto\": \"¿Qué tipo de visa temporal solicita?\",\n  \"descripcion\": \"Seleccione el tipo de visa según su propósito de viaje\",\n  \"tipo_respuesta\": \"SELECCION_UNICA\",\n  \"es_obligatoria\": true,\n  \"orden\": 1,\n  \"validacion_regex\": null,\n  \"mensaje_ayuda\": \"Debe seleccionar una de las opciones disponibles\",\n  \"valor_por_defecto\": null,\n  \"opciones\": [\n    {\n      \"codigo\": \"TURISMO\",\n      \"texto\": \"Turismo\",\n      \"orden\": 1,\n      \"es_activa\": true\n    },\n    {\n      \"codigo\": \"NEGOCIOS\",\n      \"texto\": \"Negocios\",\n      \"orden\": 2,\n      \"es_activa\": true\n    },\n    {\n      \"codigo\": \"ESTUDIO\",\n      \"texto\": \"Estudios\",\n      \"orden\": 3,\n      \"es_activa\": true\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/workflows/{{workflow_id}}/etapas/{{etapa_inicial_id}}/preguntas",
+              "host": ["{{base_url}}{{api_prefix}}"],
+              "path": ["workflows", "{{workflow_id}}", "etapas", "{{etapa_inicial_id}}", "preguntas"]
+            },
+            "description": "**PASO 2:** Agregar pregunta de selección única a etapa inicial (guarda pregunta_tipo_visa_id)"
+          },
+          "response": []
+        },
+        {
+          "name": "E3. Agregar Pregunta - Subir Pasaporte",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test(\"Pregunta archivo created\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('id');",
+                  "    pm.expect(jsonData.tipo_respuesta).to.eql('ARCHIVO');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"codigo\": \"PASAPORTE\",\n  \"texto\": \"Subir copia del pasaporte\",\n  \"descripcion\": \"Documento de identidad vigente\",\n  \"tipo_respuesta\": \"ARCHIVO\",\n  \"es_obligatoria\": true,\n  \"orden\": 2,\n  \"mensaje_ayuda\": \"Formato PDF o imagen, máximo 5MB\",\n  \"configuracion_json\": {\n    \"tipos_archivo_permitidos\": [\"pdf\", \"jpg\", \"png\"],\n    \"tamano_maximo_mb\": 5\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/workflows/{{workflow_id}}/etapas/{{etapa_inicial_id}}/preguntas",
+              "host": ["{{base_url}}{{api_prefix}}"],
+              "path": ["workflows", "{{workflow_id}}", "etapas", "{{etapa_inicial_id}}", "preguntas"]
+            },
+            "description": "**PASO 3:** Agregar pregunta de tipo archivo a etapa inicial"
+          },
+          "response": []
+        },
+        {
+          "name": "E4. Crear Conexión - Recepción a Revisión",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test(\"Conexión created\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('id');",
+                  "    pm.collectionVariables.set('conexion_1_id', jsonData.id);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Pasar a Revisión\",\n  \"descripcion\": \"Conexión automática después de recepción completa\",\n  \"tipo_conexion\": \"SECUENCIAL\",\n  \"es_condicional\": false,\n  \"condicion_json\": null,\n  \"accion_automatica\": \"AVANZAR\",\n  \"requiere_confirmacion\": false,\n  \"mensaje_confirmacion\": null,\n  \"orden\": 1\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/workflows/{{workflow_id}}/conexiones?etapa_origen_id={{etapa_inicial_id}}&etapa_destino_id={{etapa_intermedia_id}}",
+              "host": ["{{base_url}}{{api_prefix}}"],
+              "path": ["workflows", "{{workflow_id}}", "conexiones"],
+              "query": [
+                {
+                  "key": "etapa_origen_id",
+                  "value": "{{etapa_inicial_id}}"
+                },
+                {
+                  "key": "etapa_destino_id",
+                  "value": "{{etapa_intermedia_id}}"
+                }
+              ]
+            },
+            "description": "**PASO 4:** Crear conexión secuencial de Recepción a Revisión (guarda conexion_1_id)"
+          },
+          "response": []
+        },
+        {
+          "name": "E5. Crear Conexión Condicional - Revisión a Emisión",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test(\"Conexión condicional created\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('id');",
+                  "    pm.expect(jsonData.es_condicional).to.be.true;",
+                  "    pm.collectionVariables.set('conexion_2_id', jsonData.id);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Aprobar y Emitir\",\n  \"descripcion\": \"Avanza a emisión solo si la revisión es favorable\",\n  \"tipo_conexion\": \"CONDICIONAL\",\n  \"es_condicional\": true,\n  \"condicion_json\": {\n    \"campo\": \"resultado_revision\",\n    \"operador\": \"igual\",\n    \"valor\": \"APROBADO\"\n  },\n  \"accion_automatica\": \"AVANZAR\",\n  \"requiere_confirmacion\": true,\n  \"mensaje_confirmacion\": \"¿Confirma que desea aprobar y emitir la visa?\",\n  \"orden\": 1\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/workflows/{{workflow_id}}/conexiones?etapa_origen_id={{etapa_intermedia_id}}&etapa_destino_id={{etapa_final_id}}",
+              "host": ["{{base_url}}{{api_prefix}}"],
+              "path": ["workflows", "{{workflow_id}}", "conexiones"],
+              "query": [
+                {
+                  "key": "etapa_origen_id",
+                  "value": "{{etapa_intermedia_id}}"
+                },
+                {
+                  "key": "etapa_destino_id",
+                  "value": "{{etapa_final_id}}"
+                }
+              ]
+            },
+            "description": "**PASO 5:** Crear conexión condicional de Revisión a Emisión (guarda conexion_2_id)"
+          },
+          "response": []
+        },
+        {
+          "name": "E6. Activar Workflow",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Workflow is active\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.estado).to.eql('ACTIVO');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"estado\": \"ACTIVO\",\n  \"version\": \"1.0\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/workflows/{{workflow_id}}",
+              "host": ["{{base_url}}{{api_prefix}}"],
+              "path": ["workflows", "{{workflow_id}}"]
+            },
+            "description": "**PASO 6:** Activar workflow para poder crear instancias"
+          },
+          "response": []
+        },
+        {
+          "name": "E7. Crear Instancia de Workflow",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test(\"Instancia created\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('id');",
+                  "    pm.collectionVariables.set('instancia_id', jsonData.id);",
+                  "    pm.expect(jsonData.estado_actual).to.eql('EN_PROGRESO');",
+                  "    pm.expect(jsonData.etapa_actual_id).to.eql(pm.collectionVariables.get('etapa_inicial_id'));",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"datos_iniciales\": {\n    \"solicitante\": \"María González\",\n    \"num_documento\": \"N-123456\",\n    \"nacionalidad\": \"COL\",\n    \"fecha_ingreso_estimada\": \"2025-12-01\"\n  },\n  \"iniciado_por\": \"MARIA_GONZALEZ\",\n  \"referencia_externa\": \"VISA-2025-001\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/workflows/{{workflow_id}}/instancias",
+              "host": ["{{base_url}}{{api_prefix}}"],
+              "path": ["workflows", "{{workflow_id}}", "instancias"]
+            },
+            "description": "**PASO 7:** Crear instancia del workflow (guarda instancia_id). Inicia en etapa RECEPCION"
+          },
+          "response": []
+        },
+        {
+          "name": "E8. Responder Preguntas - Etapa Inicial",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Respuestas saved\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('respuestas');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"respuestas\": [\n    {\n      \"pregunta_id\": \"{{pregunta_tipo_visa_id}}\",\n      \"valor_respuesta\": \"TURISMO\",\n      \"respuesta_texto\": \"Turismo\"\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/instancias/{{instancia_id}}/respuestas",
+              "host": ["{{base_url}}{{api_prefix}}"],
+              "path": ["instancias", "{{instancia_id}}", "respuestas"]
+            },
+            "description": "**PASO 8:** Responder preguntas de la etapa inicial (selecciona TURISMO)"
+          },
+          "response": []
+        },
+        {
+          "name": "E9. Avanzar a Revisión",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Instancia advanced to REVISION\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.etapa_actual_id).to.eql(pm.collectionVariables.get('etapa_intermedia_id'));",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"accion\": \"AVANZAR\",\n  \"observaciones\": \"Documentación inicial completa. Pasa a revisión técnica.\",\n  \"datos_adicionales\": {\n    \"recepcionado_por\": \"RECEP001\",\n    \"fecha_recepcion\": \"2025-10-25T09:00:00\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/instancias/{{instancia_id}}/avanzar",
+              "host": ["{{base_url}}{{api_prefix}}"],
+              "path": ["instancias", "{{instancia_id}}", "avanzar"]
+            },
+            "description": "**PASO 9:** Avanzar de RECEPCION a REVISION"
+          },
+          "response": []
+        },
+        {
+          "name": "E10. Agregar Comentario en Revisión",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test(\"Comment added\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('id');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"contenido\": \"Revisión técnica iniciada. Todos los documentos están en orden.\",\n  \"es_interno\": true,\n  \"autor\": \"ANALISTA001\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/instancias/{{instancia_id}}/comentarios",
+              "host": ["{{base_url}}{{api_prefix}}"],
+              "path": ["instancias", "{{instancia_id}}", "comentarios"]
+            },
+            "description": "**PASO 10:** Agregar comentario durante la revisión"
+          },
+          "response": []
+        },
+        {
+          "name": "E11. Avanzar a Emisión (Aprobado)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Instancia advanced to EMISION\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.etapa_actual_id).to.eql(pm.collectionVariables.get('etapa_final_id'));",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"accion\": \"AVANZAR\",\n  \"observaciones\": \"Revisión completada favorablemente. Aprobado para emisión.\",\n  \"datos_adicionales\": {\n    \"resultado_revision\": \"APROBADO\",\n    \"revisado_por\": \"ANALISTA001\",\n    \"puntuacion\": 95,\n    \"recomendacion\": \"Emitir visa de turismo por 90 días\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/instancias/{{instancia_id}}/avanzar",
+              "host": ["{{base_url}}{{api_prefix}}"],
+              "path": ["instancias", "{{instancia_id}}", "avanzar"]
+            },
+            "description": "**PASO 11:** Avanzar de REVISION a EMISION (con resultado APROBADO para cumplir condición)"
+          },
+          "response": []
+        },
+        {
+          "name": "E12. Completar Workflow",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Instancia completed\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.estado_actual).to.eql('COMPLETADO');",
+                  "    pm.expect(jsonData).to.have.property('fecha_finalizacion');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"accion\": \"COMPLETAR\",\n  \"observaciones\": \"Visa emitida exitosamente. Número de visa: VT-2025-001234\",\n  \"datos_adicionales\": {\n    \"numero_visa\": \"VT-2025-001234\",\n    \"fecha_emision\": \"2025-10-30\",\n    \"fecha_vigencia_desde\": \"2025-12-01\",\n    \"fecha_vigencia_hasta\": \"2026-03-01\",\n    \"emitido_por\": \"EMISOR001\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/instancias/{{instancia_id}}/avanzar",
+              "host": ["{{base_url}}{{api_prefix}}"],
+              "path": ["instancias", "{{instancia_id}}", "avanzar"]
+            },
+            "description": "**PASO 12:** Completar workflow en etapa final (estado = COMPLETADO)"
+          },
+          "response": []
+        },
+        {
+          "name": "E13. Obtener Historial Completo",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Historial has multiple entries\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.be.an('array');",
+                  "    pm.expect(jsonData.length).to.be.greaterThan(2);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/instancias/{{instancia_id}}/historial",
+              "host": ["{{base_url}}{{api_prefix}}"],
+              "path": ["instancias", "{{instancia_id}}", "historial"]
+            },
+            "description": "**PASO 13:** Obtener historial completo de cambios de la instancia"
+          },
+          "response": []
+        },
+        {
+          "name": "E14. Listar Todas las Instancias",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"List includes our instancia\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.be.an('array');",
+                  "    var ourInstance = jsonData.find(i => i.id === pm.collectionVariables.get('instancia_id'));",
+                  "    pm.expect(ourInstance).to.exist;",
+                  "    pm.expect(ourInstance.estado_actual).to.eql('COMPLETADO');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/workflows/{{workflow_id}}/instancias",
+              "host": ["{{base_url}}{{api_prefix}}"],
+              "path": ["workflows", "{{workflow_id}}", "instancias"]
+            },
+            "description": "**PASO 14 (FINAL):** Listar todas las instancias del workflow y verificar nuestra instancia completada"
+          },
+          "response": []
+        }
+      ],
+      "description": "**Flujo de ejemplo completo del sistema de Workflow Dinámico de principio a fin**\n\nEste flujo demuestra el ciclo completo de creación y ejecución de un workflow:\n\n**FASE 1: Diseño del Workflow (Pasos 1-6)**\n1. Crear workflow completo con 3 etapas (Recepción, Revisión, Emisión)\n2. Agregar pregunta de selección única (tipo de visa)\n3. Agregar pregunta de archivo (pasaporte)\n4. Crear conexión secuencial (Recepción → Revisión)\n5. Crear conexión condicional (Revisión → Emisión, solo si aprobado)\n6. Activar workflow\n\n**FASE 2: Ejecución del Workflow (Pasos 7-14)**\n7. Crear instancia del workflow\n8. Responder preguntas de etapa inicial\n9. Avanzar a etapa de Revisión\n10. Agregar comentario durante revisión\n11. Avanzar a etapa de Emisión (con aprobación)\n12. Completar workflow\n13. Consultar historial completo\n14. Listar todas las instancias\n\n**Variables utilizadas:**\n- `workflow_id`: ID del workflow creado\n- `etapa_inicial_id`, `etapa_intermedia_id`, `etapa_final_id`: IDs de las etapas\n- `pregunta_tipo_visa_id`: ID de la pregunta creada\n- `conexion_1_id`, `conexion_2_id`: IDs de las conexiones\n- `instancia_id`: ID de la instancia ejecutada\n\n**Características demostradas:**\n- Creación de workflows con múltiples etapas\n- Preguntas de diferentes tipos (selección única, archivo)\n- Conexiones secuenciales y condicionales\n- Ejecución de instancias con respuestas\n- Avance entre etapas\n- Comentarios e historial\n- Finalización exitosa\n\n**Duración estimada:** ~10-15 minutos\n**Estado final:** Workflow ACTIVO con instancia COMPLETADA"
+    }
+  ]
+}
