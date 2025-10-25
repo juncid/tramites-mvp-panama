@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "ppsh-complete-api-2025",
     "name": "PPSH - API Completa",
-    "description": "Colección completa de todos los endpoints del módulo PPSH (Permiso Por razones de Seguridad Humanitaria) del Sistema de Trámites Migratorios de Panamá.\n\n**Incluye:**\n- Catálogos (Causas Humanitarias, Tipos de Documento, Estados)\n- Gestión de Solicitudes (CRUD completo)\n- Gestión de Documentos (Upload, Verificación)\n- Gestión de Entrevistas\n- Comentarios y Seguimiento\n- Estadísticas\n\n**Autor:** Sistema de Trámites MVP Panamá\n**Fecha:** 2025-10-21\n**Versión:** 1.0.0",
+    "description": "Colección completa de todos los endpoints del módulo PPSH (Permiso Por razones de Seguridad Humanitaria) del Sistema de Trámites Migratorios de Panamá.\n\n**Incluye:**\n- Catálogos (Causas Humanitarias, Tipos de Documento, Estados)\n- Gestión de Solicitudes (CRUD completo)\n- Gestión de Documentos (Upload, Verificación)\n- Gestión de Entrevistas\n- Comentarios y Seguimiento\n- Estadísticas\n- 🎯 Ejemplo de flujo completo end-to-end\n\n**Autor:** Sistema de Trámites MVP Panamá\n**Fecha:** 2025-10-21\n**Versión:** 2.0.0\n**Última actualización:** 2025-10-25 - Agregada sección 9 con ejemplo de flujo completo",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -1226,6 +1226,548 @@
         }
       ],
       "description": "Health check del módulo"
+    },
+    {
+      "name": "9. 🎯 EJEMPLO: Flujo Completo PPSH",
+      "item": [
+        {
+          "name": "E1. Obtener Causas Humanitarias",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Response is an array\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.be.an('array');",
+                  "    pm.expect(jsonData.length).to.be.greaterThan(0);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/catalogos/causas-humanitarias",
+              "host": ["{{base_url}}{{api_prefix}}"],
+              "path": ["catalogos", "causas-humanitarias"]
+            },
+            "description": "**PASO 1:** Obtener catálogo de causas humanitarias disponibles"
+          },
+          "response": []
+        },
+        {
+          "name": "E2. Obtener Tipos de Documento",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Response is an array\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.be.an('array');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/catalogos/tipos-documento",
+              "host": ["{{base_url}}{{api_prefix}}"],
+              "path": ["catalogos", "tipos-documento"]
+            },
+            "description": "**PASO 2:** Obtener catálogo de tipos de documentos"
+          },
+          "response": []
+        },
+        {
+          "name": "E3. Crear Solicitud Individual",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test(\"Response has solicitud_id\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('id');",
+                  "    pm.collectionVariables.set('solicitud_id', jsonData.id);",
+                  "});",
+                  "",
+                  "pm.test(\"Solicitud has num_expediente\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('num_expediente');",
+                  "    pm.collectionVariables.set('num_expediente', jsonData.num_expediente);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cod_causa_humanitaria\": \"PERS\",\n  \"nombre\": \"Juan\",\n  \"segundo_nombre\": \"Carlos\",\n  \"apellido\": \"Pérez\",\n  \"segundo_apellido\": \"González\",\n  \"fecha_nacimiento\": \"1985-05-15\",\n  \"nacionalidad\": \"VEN\",\n  \"numero_documento\": \"V-12345678\",\n  \"tipo_documento\": \"PASAPORTE\",\n  \"telefono\": \"+507 6000-0001\",\n  \"email\": \"juan.perez@example.com\",\n  \"direccion\": \"Calle 50, Ciudad de Panamá\",\n  \"narrativa_hechos\": \"Solicito protección humanitaria debido a persecución política en mi país de origen.\",\n  \"evidencia_inicial\": \"Documentos de amenazas recibidas, reportes de medios de comunicación.\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/solicitudes/individual",
+              "host": ["{{base_url}}{{api_prefix}}"],
+              "path": ["solicitudes", "individual"]
+            },
+            "description": "**PASO 3:** Crear solicitud individual de PPSH (guarda solicitud_id y num_expediente en variables)"
+          },
+          "response": []
+        },
+        {
+          "name": "E4. Asignar a Funcionario",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Solicitud was assigned\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('funcionario_asignado');",
+                  "    pm.expect(jsonData.funcionario_asignado).to.eql('FUNC001');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"funcionario_asignado\": \"FUNC001\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/solicitudes/{{solicitud_id}}/asignar",
+              "host": ["{{base_url}}{{api_prefix}}"],
+              "path": ["solicitudes", "{{solicitud_id}}", "asignar"]
+            },
+            "description": "**PASO 4:** Asignar solicitud a funcionario FUNC001"
+          },
+          "response": []
+        },
+        {
+          "name": "E5. Subir Pasaporte",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test(\"Document uploaded\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('id');",
+                  "    pm.collectionVariables.set('documento_id', jsonData.id);",
+                  "    pm.expect(jsonData.tipo_documento).to.eql('PASAPORTE');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "multipart/form-data"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": "pasaporte_ejemplo.pdf"
+                },
+                {
+                  "key": "tipo_documento",
+                  "value": "PASAPORTE",
+                  "type": "text"
+                },
+                {
+                  "key": "numero_documento",
+                  "value": "V-12345678",
+                  "type": "text"
+                },
+                {
+                  "key": "observaciones",
+                  "value": "Pasaporte vigente hasta 2028",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/solicitudes/{{solicitud_id}}/documentos",
+              "host": ["{{base_url}}{{api_prefix}}"],
+              "path": ["solicitudes", "{{solicitud_id}}", "documentos"]
+            },
+            "description": "**PASO 5:** Subir documento de pasaporte (guarda documento_id en variable)"
+          },
+          "response": []
+        },
+        {
+          "name": "E6. Verificar Documento",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Document verified\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.estado_verificacion).to.eql('VERIFICADO');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"estado_verificacion\": \"VERIFICADO\",\n  \"observaciones_verificacion\": \"Documento auténtico y vigente. Verificado con autoridades competentes.\",\n  \"verificado_por\": \"FUNC001\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/solicitudes/{{solicitud_id}}/documentos/{{documento_id}}/verificar",
+              "host": ["{{base_url}}{{api_prefix}}"],
+              "path": ["solicitudes", "{{solicitud_id}}", "documentos", "{{documento_id}}", "verificar"]
+            },
+            "description": "**PASO 6:** Verificar documento como VERIFICADO"
+          },
+          "response": []
+        },
+        {
+          "name": "E7. Programar Entrevista",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test(\"Interview scheduled\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('id');",
+                  "    pm.collectionVariables.set('entrevista_id', jsonData.id);",
+                  "    pm.expect(jsonData.estado).to.eql('PROGRAMADA');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fecha_programada\": \"2025-11-15T10:00:00\",\n  \"lugar\": \"Oficina SNM - Piso 3, Sala de Entrevistas A\",\n  \"tipo_entrevista\": \"PRESENCIAL\",\n  \"observaciones\": \"Traer documentos originales. Asistir 15 minutos antes.\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/solicitudes/{{solicitud_id}}/entrevistas",
+              "host": ["{{base_url}}{{api_prefix}}"],
+              "path": ["solicitudes", "{{solicitud_id}}", "entrevistas"]
+            },
+            "description": "**PASO 7:** Programar entrevista presencial (guarda entrevista_id en variable)"
+          },
+          "response": []
+        },
+        {
+          "name": "E8. Registrar Resultado de Entrevista",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Interview result registered\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.estado).to.eql('COMPLETADA');",
+                  "    pm.expect(jsonData.resultado).to.eql('FAVORABLE');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fecha_realizada\": \"2025-11-15T10:30:00\",\n  \"resultado\": \"FAVORABLE\",\n  \"observaciones_resultado\": \"Entrevista exitosa. El solicitante demostró credibilidad en su narrativa. Se recomienda aprobación.\",\n  \"entrevistador\": \"FUNC001\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/solicitudes/{{solicitud_id}}/entrevistas/{{entrevista_id}}/resultado",
+              "host": ["{{base_url}}{{api_prefix}}"],
+              "path": ["solicitudes", "{{solicitud_id}}", "entrevistas", "{{entrevista_id}}", "resultado"]
+            },
+            "description": "**PASO 8:** Registrar resultado FAVORABLE de la entrevista"
+          },
+          "response": []
+        },
+        {
+          "name": "E9. Cambiar Estado a En Revisión",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Estado changed successfully\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.cod_estado).to.eql('REV');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nuevo_estado\": \"REV\",\n  \"motivo_cambio\": \"Entrevista completada con resultado favorable. Pasa a revisión final.\",\n  \"usuario_responsable\": \"FUNC001\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/solicitudes/{{solicitud_id}}/estado",
+              "host": ["{{base_url}}{{api_prefix}}"],
+              "path": ["solicitudes", "{{solicitud_id}}", "estado"]
+            },
+            "description": "**PASO 9:** Cambiar estado a En Revisión (REV)"
+          },
+          "response": []
+        },
+        {
+          "name": "E10. Cambiar Estado a Aprobado",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Solicitud approved\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.cod_estado).to.eql('APR');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nuevo_estado\": \"APR\",\n  \"motivo_cambio\": \"Solicitud aprobada. Cumple todos los criterios de protección humanitaria.\",\n  \"usuario_responsable\": \"DIRECTOR_SNM\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/solicitudes/{{solicitud_id}}/estado",
+              "host": ["{{base_url}}{{api_prefix}}"],
+              "path": ["solicitudes", "{{solicitud_id}}", "estado"]
+            },
+            "description": "**PASO 10:** Aprobar solicitud (estado APR)"
+          },
+          "response": []
+        },
+        {
+          "name": "E11. Agregar Comentario Final",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test(\"Comment added\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('id');",
+                  "    pm.collectionVariables.set('comentario_id', jsonData.id);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"contenido\": \"Solicitud procesada exitosamente. Notificar al solicitante para recoger documentación.\",\n  \"es_interno\": true,\n  \"autor\": \"DIRECTOR_SNM\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/solicitudes/{{solicitud_id}}/comentarios",
+              "host": ["{{base_url}}{{api_prefix}}"],
+              "path": ["solicitudes", "{{solicitud_id}}", "comentarios"]
+            },
+            "description": "**PASO 11:** Agregar comentario interno final"
+          },
+          "response": []
+        },
+        {
+          "name": "E12. Obtener Historial Completo",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Historial has multiple entries\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.be.an('array');",
+                  "    pm.expect(jsonData.length).to.be.greaterThan(0);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/solicitudes/{{solicitud_id}}/historial",
+              "host": ["{{base_url}}{{api_prefix}}"],
+              "path": ["solicitudes", "{{solicitud_id}}", "historial"]
+            },
+            "description": "**PASO 12:** Obtener historial completo de cambios de la solicitud"
+          },
+          "response": []
+        },
+        {
+          "name": "E13. Obtener Estadísticas",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Estadísticas includes our solicitud\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('total_solicitudes');",
+                  "    pm.expect(jsonData).to.have.property('solicitudes_aprobadas');",
+                  "    pm.expect(jsonData.solicitudes_aprobadas).to.be.greaterThan(0);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}{{api_prefix}}/estadisticas",
+              "host": ["{{base_url}}{{api_prefix}}"],
+              "path": ["estadisticas"]
+            },
+            "description": "**PASO 13 (FINAL):** Verificar estadísticas del sistema con la nueva solicitud aprobada"
+          },
+          "response": []
+        }
+      ],
+      "description": "**Flujo de ejemplo completo de PPSH de principio a fin**\n\nEste flujo demuestra el ciclo completo de una solicitud PPSH:\n\n1. Consultar catálogos (causas humanitarias, tipos de documento)\n2. Crear solicitud individual\n3. Asignar a funcionario\n4. Subir documentos\n5. Verificar documentos\n6. Programar entrevista\n7. Registrar resultado de entrevista\n8. Cambiar estados (Revisión → Aprobado)\n9. Agregar comentarios\n10. Consultar historial\n11. Verificar estadísticas\n\n**Variables utilizadas:**\n- `solicitud_id`: ID de la solicitud creada\n- `num_expediente`: Número de expediente generado\n- `documento_id`: ID del documento subido\n- `entrevista_id`: ID de la entrevista programada\n- `comentario_id`: ID del comentario agregado\n\n**Duración estimada:** ~5-10 minutos\n**Estado final:** Solicitud APROBADA"
     }
   ]
 }
