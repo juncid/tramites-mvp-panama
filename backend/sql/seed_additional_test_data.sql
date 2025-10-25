@@ -25,10 +25,10 @@ PRINT '📋 PARTE 1/4 - Crear Solicitudes PPSH...';
 -- Solicitudes con diferentes estados
 DECLARE @solicitudes_temp TABLE (
     num_exp VARCHAR(50),
-    tipo_sol VARCHAR(20),
+    tipo_sol VARCHAR(50),
     causa_id INT,
     descripcion VARCHAR(MAX),
-    estado VARCHAR(20),
+    estado VARCHAR(50),
     dias INT
 );
 
@@ -44,7 +44,7 @@ INSERT INTO @solicitudes_temp VALUES
     ('PPSH-2025-ADD-009', 'PPSH', 6, 'Persecución religiosa', 'EN_REVISION', 4),
     ('PPSH-2025-ADD-010', 'PROTECCION_HUMANITARIA', 3, 'Violencia de pandillas - testigo protegido', 'EN_ENTREVISTA', 8);
 
-DECLARE @num_exp VARCHAR(50), @tipo VARCHAR(20), @causa INT, @desc VARCHAR(MAX), @estado VARCHAR(20), @dias INT;
+DECLARE @num_exp VARCHAR(50), @tipo VARCHAR(50), @causa INT, @desc VARCHAR(MAX), @estado VARCHAR(50), @dias INT;
 DECLARE @solicitud_ids TABLE (num_exp VARCHAR(50), id_solicitud INT);
 
 DECLARE sol_cursor CURSOR FOR 
