@@ -19,9 +19,9 @@ PRINT '📋 PARTE 1/4 - Solicitantes PPSH adicionales...';
 
 -- Solicitantes de diferentes nacionalidades y situaciones
 DECLARE @solicitantes TABLE (
-    nombre VARCHAR(100),
-    apellido1 VARCHAR(100),
-    apellido2 VARCHAR(100),
+    primer_nombre VARCHAR(100),
+    primer_apellido VARCHAR(100),
+    segundo_apellido VARCHAR(100),
     tipo_doc VARCHAR(20),
     num_doc VARCHAR(50),
     nacionalidad VARCHAR(3),
@@ -48,7 +48,7 @@ DECLARE @nom VARCHAR(100), @ap1 VARCHAR(100), @ap2 VARCHAR(100), @tdoc VARCHAR(2
         @ndoc VARCHAR(50), @nac VARCHAR(3), @fnac DATE, @sex CHAR(1), @email VARCHAR(100), @tel VARCHAR(20);
 
 DECLARE sol_cursor CURSOR FOR 
-    SELECT nombre, apellido1, apellido2, tipo_doc, num_doc, nacionalidad, fecha_nac, sexo, email, telefono 
+    SELECT primer_nombre, primer_apellido, segundo_apellido, tipo_doc, num_doc, nacionalidad, fecha_nac, sexo, email, telefono 
     FROM @solicitantes;
 
 OPEN sol_cursor;
@@ -56,15 +56,15 @@ FETCH NEXT FROM sol_cursor INTO @nom, @ap1, @ap2, @tdoc, @ndoc, @nac, @fnac, @se
 
 WHILE @@FETCH_STATUS = 0
 BEGIN
-    IF NOT EXISTS (SELECT 1 FROM PPSH_SOLICITANTE WHERE NUM_DOCUMENTO = @ndoc)
+    IF NOT EXISTS (SELECT 1 FROM PPSH_SOLICITANTE WHERE num_documento = @ndoc)
     BEGIN
         INSERT INTO PPSH_SOLICITANTE (
-            NOMBRE, APELLIDO_1, APELLIDO_2, TIPO_DOCUMENTO, NUM_DOCUMENTO,
-            COD_PAIS_NACIONALIDAD, FEC_NACIMIENTO, COD_SEXO,
-            EMAIL, NUM_TELEFONO, FEC_CREA_REG, ID_USUARIO_CREA
+            primer_nombre, primer_apellido, segundo_apellido, tipo_documento, num_documento,
+            cod_nacionalidad, fecha_nacimiento, cod_sexo,
+            email, telefono, created_by, created_at
         ) VALUES (
             @nom, @ap1, @ap2, @tdoc, @ndoc, @nac, @fnac, @sex,
-            @email, @tel, GETDATE(), 'ADMIN'
+            @email, @tel, 'ADMIN', GETDATE()
         );
         PRINT '  ✅ ' + @nom + ' ' + @ap1 + ' (' + @ndoc + ')';
     END
@@ -114,33 +114,32 @@ FETCH NEXT FROM solic_cursor INTO @ndoc, @tipo, @causa, @motivo, @estado, @dias;
 WHILE @@FETCH_STATUS = 0
 BEGIN
     -- Obtener ID del solicitante
-    SELECT @sol_id = ID FROM PPSH_SOLICITANTE WHERE NUM_DOCUMENTO = @ndoc;
+    SELECT @sol_id = id_solicitante FROM PPSH_SOLICITANTE WHERE num_documento = @ndoc;
     
     IF @sol_id IS NOT NULL
     BEGIN
-        IF NOT EXISTS (
-            SELECT 1 FROM PPSH_SOLICITUD 
-            WHERE ID_SOLICITANTE = @sol_id 
-            AND FEC_SOLICITUD = DATEADD(DAY, -@dias, GETDATE())
-        )
+        -- Generar número de expediente único
+        DECLARE @num_exp VARCHAR(50);
+        SET @num_exp = 'PPSH-2025-' + @ndoc;
+        
+        IF NOT EXISTS (SELECT 1 FROM PPSH_SOLICITUD WHERE num_expediente = @num_exp)
         BEGIN
             INSERT INTO PPSH_SOLICITUD (
-                ID_SOLICITANTE, TIPO_SOLICITUD, ID_CAUSA_HUMANITARIA,
-                MOTIVO_SOLICITUD, COD_ESTADO, FEC_SOLICITUD,
-                ID_USUARIO_CREA, FEC_CREA_REG
+                num_expediente, tipo_solicitud, cod_causa_humanitaria,
+                descripcion_caso, estado_actual, fecha_solicitud,
+                created_by, created_at
             ) VALUES (
-                @sol_id, @tipo, @causa, @motivo, @estado,
-                DATEADD(DAY, -@dias, GETDATE()), 'ADMIN', GETDATE()
+                @num_exp, @tipo, @causa, @motivo, @estado,
+                DATEADD(DAY, -@dias, CAST(GETDATE() AS DATE)), 'ADMIN', GETDATE()
             );
             
-            -- Generar número de expediente
-            DECLARE @exp_id INT, @num_exp VARCHAR(50);
-            SELECT @exp_id = SCOPE_IDENTITY();
-            SET @num_exp = 'PPSH-2025-' + RIGHT('00000' + CAST(@exp_id AS VARCHAR), 5);
+            -- Asociar solicitante con solicitud
+            DECLARE @solicitud_id INT;
+            SELECT @solicitud_id = id_solicitud FROM PPSH_SOLICITUD WHERE num_expediente = @num_exp;
             
-            UPDATE PPSH_SOLICITUD 
-            SET NUM_EXPEDIENTE = @num_exp
-            WHERE ID = @exp_id;
+            UPDATE PPSH_SOLICITANTE 
+            SET id_solicitud = @solicitud_id
+            WHERE id_solicitante = @sol_id;
             
             PRINT '  ✅ Solicitud ' + @num_exp + ' - Estado: ' + @estado;
         END
@@ -224,26 +223,25 @@ SELECT @workflow_general_id = id FROM workflow WHERE codigo = 'WF_GENERAL';
 -- Instancias en diferentes estados
 DECLARE @instancias TABLE (
     workflow_id INT,
-    ref_tipo VARCHAR(50),
-    ref_id INT,
+    num_exp VARCHAR(50),
+    nombre VARCHAR(255),
     estado VARCHAR(20),
-    descripcion VARCHAR(255),
     dias INT
 );
 
 INSERT INTO @instancias VALUES
-    (@workflow_ppsh_id, 'PPSH_SOLICITUD', 1, 'activa', 'Procesando solicitud de Carlos Ramírez', 2),
-    (@workflow_ppsh_id, 'PPSH_SOLICITUD', 2, 'activa', 'Procesando solicitud de Ana Morales', 5),
-    (@workflow_ppsh_id, 'PPSH_SOLICITUD', 3, 'completada', 'Solicitud de José Fernández completada', 15),
-    (@workflow_general_id, 'TRAMITE', 5004, 'activa', 'Trámite de Andrea López en proceso', 1),
-    (@workflow_general_id, 'TRAMITE', 5005, 'activa', 'Trámite de Ricardo Campos en proceso', 3);
+    (@workflow_ppsh_id, 'PPSH-2025-VE8765432', 'Solicitud Carlos Ramírez', 'en_proceso', 2),
+    (@workflow_ppsh_id, 'PPSH-2025-CU1234567', 'Solicitud Ana Morales', 'en_proceso', 5),
+    (@workflow_ppsh_id, 'PPSH-2025-NI9876543', 'Solicitud José Fernández', 'completado', 15),
+    (@workflow_general_id, 'TRAM-2025-5004', 'Trámite Andrea López', 'en_proceso', 1),
+    (@workflow_general_id, 'TRAM-2025-5005', 'Trámite Ricardo Campos', 'en_proceso', 3);
 
-DECLARE @wf_id INT, @ref_tipo VARCHAR(50), @ref_id INT, @est_wf VARCHAR(20), @desc VARCHAR(255), @dias_wf INT;
+DECLARE @wf_id INT, @num_exp VARCHAR(50), @nombre VARCHAR(255), @est_wf VARCHAR(20), @dias_wf INT;
 DECLARE inst_cursor CURSOR FOR 
-    SELECT workflow_id, ref_tipo, ref_id, estado, descripcion, dias FROM @instancias;
+    SELECT workflow_id, num_exp, nombre, estado, dias FROM @instancias;
 
 OPEN inst_cursor;
-FETCH NEXT FROM inst_cursor INTO @wf_id, @ref_tipo, @ref_id, @est_wf, @desc, @dias_wf;
+FETCH NEXT FROM inst_cursor INTO @wf_id, @num_exp, @nombre, @est_wf, @dias_wf;
 
 WHILE @@FETCH_STATUS = 0
 BEGIN
@@ -252,30 +250,25 @@ BEGIN
         -- Obtener primera etapa del workflow
         DECLARE @etapa_id INT;
         SELECT TOP 1 @etapa_id = id FROM workflow_etapa 
-        WHERE id_workflow = @wf_id ORDER BY orden;
+        WHERE workflow_id = @wf_id ORDER BY orden;
         
         IF @etapa_id IS NOT NULL AND NOT EXISTS (
-            SELECT 1 FROM workflow_instancia 
-            WHERE id_workflow = @wf_id 
-            AND referencia_tipo = @ref_tipo 
-            AND referencia_id = @ref_id
+            SELECT 1 FROM workflow_instancia WHERE num_expediente = @num_exp
         )
         BEGIN
             INSERT INTO workflow_instancia (
-                id_workflow, id_etapa_actual, referencia_tipo, referencia_id,
-                estado, fecha_inicio, fecha_fin, datos_contexto,
-                id_usuario_crea, fec_crea_reg
+                workflow_id, etapa_actual_id, num_expediente, nombre_instancia,
+                estado, fecha_inicio, fecha_fin, prioridad, activo, created_at
             ) VALUES (
-                @wf_id, @etapa_id, @ref_tipo, @ref_id, @est_wf,
+                @wf_id, @etapa_id, @num_exp, @nombre, @est_wf,
                 DATEADD(DAY, -@dias_wf, GETDATE()),
-                CASE WHEN @est_wf = 'completada' THEN GETDATE() ELSE NULL END,
-                '{"descripcion": "' + @desc + '"}',
-                'ADMIN', GETDATE()
+                CASE WHEN @est_wf = 'completado' THEN GETDATE() ELSE NULL END,
+                'NORMAL', 1, GETDATE()
             );
-            PRINT '  ✅ Instancia workflow: ' + @desc;
+            PRINT '  ✅ Instancia workflow: ' + @nombre;
         END
     END
-    FETCH NEXT FROM inst_cursor INTO @wf_id, @ref_tipo, @ref_id, @est_wf, @desc, @dias_wf;
+    FETCH NEXT FROM inst_cursor INTO @wf_id, @num_exp, @nombre, @est_wf, @dias_wf;
 END
 
 CLOSE inst_cursor;
