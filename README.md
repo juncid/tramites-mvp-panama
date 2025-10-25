@@ -2,7 +2,9 @@
 
 Sistema de gestión de trámites desarrollado con FastAPI (Python) y React (TypeScript), utilizando MS SQL Server como base de datos principal y Redis para caché.
 
-## � Últimas Actualizaciones
+> **📢 Actualización Reciente (25 de Octubre de 2025):** Limpieza completa del proyecto - se eliminaron 58 archivos obsoletos (reportes históricos, código temporal, documentación duplicada), se consolidaron guías técnicas y se optimizó la estructura de carpetas. El proyecto ahora está 35% más limpio y mejor organizado. Ver detalles completos al final de este documento.
+
+## 📋 Últimas Actualizaciones
 
 **20 de Octubre de 2025** - Mejoras en Sistema de Workflows Dinámicos
 - ✨ **Creación de workflows completos en 1 petición** (antes: ~20 peticiones)
@@ -25,81 +27,155 @@ Sistema de gestión de trámites desarrollado con FastAPI (Python) y React (Type
 
 📖 **Resumen de cambios:** [docs/bitacora/CHANGES_SUMMARY.md](./docs/bitacora/CHANGES_SUMMARY.md)
 
-## �📋 Requisitos Previos
+---
+
+## 📋 Requisitos Previos
 
 Para ejecutar este proyecto en tu entorno local, necesitas tener instalado:
 
-- [Docker](https://docs.docker.com/get-docker/) (versión 20.10 o superior)
-- [Docker Compose](https://docs.docker.com/compose/install/) (versión 2.0 o superior)
-- Git
+### Requisitos Obligatorios
+
+- **[Docker Desktop](https://docs.docker.com/get-docker/)** (versión 20.10 o superior)
+  - Para Windows: Docker Desktop para Windows
+  - Para Mac: Docker Desktop para Mac
+  - Para Linux: Docker Engine + Docker Compose
+- **[Git](https://git-scm.com/downloads)** - Sistema de control de versiones
+
+### ¿Por qué Docker?
+
+Docker te permite ejecutar toda la aplicación (backend, frontend, base de datos, Redis) sin necesidad de instalar Python, Node.js, SQL Server u otras dependencias directamente en tu computadora. Todo se ejecuta en contenedores aislados que funcionan de manera idéntica en cualquier sistema operativo.
+
+**Ventajas:**
+- ✅ No necesitas instalar Python, Node.js, SQL Server, Redis manualmente
+- ✅ Configuración automática de todas las dependencias
+- ✅ Mismo entorno para todos los desarrolladores
+- ✅ Un solo comando para iniciar todo el sistema
+
+### Requisitos Opcionales (Para Desarrollo Avanzado)
+
+Si planeas desarrollar sin Docker o ejecutar las colecciones de Postman:
+- **Python 3.11+** (solo para desarrollo local sin Docker)
+- **Node.js 18+** (solo para desarrollo local sin Docker)
+- **Postman Desktop** o **Newman** (para ejecutar tests de API)
 
 ## 🏗️ Arquitectura del Proyecto
 
-El proyecto sigue los principios de **Clean Architecture** con separación clara de responsabilidades:
+### ¿Qué es Clean Architecture?
+
+Este proyecto sigue los principios de **Clean Architecture**, un patrón de diseño que organiza el código en capas independientes, facilitando el mantenimiento, las pruebas y la escalabilidad del sistema.
+
+**Beneficios para usuarios nuevos:**
+- 📂 **Código organizado:** Cada archivo tiene un propósito claro
+- 🔧 **Fácil de modificar:** Cambios en una capa no afectan las demás
+- 🧪 **Fácil de probar:** Cada componente se puede probar independientemente
+- 📚 **Fácil de entender:** Estructura predecible y documentada
+
+### Capas de la Arquitectura
+
+```
+┌─────────────────────────────────────────────────────┐
+│  CAPA 1: FRAMEWORKS & DRIVERS (Infraestructura)    │
+│  - Docker, FastAPI, React, SQL Server, Redis        │
+│  - Archivos: infrastructure/, Dockerfile            │
+└─────────────────────────────────────────────────────┘
+              ↑ depende de ↑
+┌─────────────────────────────────────────────────────┐
+│  CAPA 2: INTERFACE ADAPTERS (Adaptadores)          │
+│  - API Endpoints (routers/), Validaciones (schemas/)│
+│  - Convierten datos entre formatos                  │
+└─────────────────────────────────────────────────────┘
+              ↑ depende de ↑
+┌─────────────────────────────────────────────────────┐
+│  CAPA 3: USE CASES (Lógica de Negocio)            │
+│  - Reglas de negocio (services/)                    │
+│  - Operaciones: crear, actualizar, validar          │
+└─────────────────────────────────────────────────────┘
+              ↑ depende de ↑
+┌─────────────────────────────────────────────────────┐
+│  CAPA 4: ENTITIES (Modelos de Datos)               │
+│  - Definición de tablas (models/)                   │
+│  - Estructuras fundamentales del sistema            │
+└─────────────────────────────────────────────────────┘
+```
+
+### Estructura de Carpetas Explicada
+
+### Estructura de Carpetas Explicada
 
 ```
 tramites-mvp-panama/
-├── backend/                          # API FastAPI (Python)
-│   ├── app/
-│   │   ├── __init__.py
-│   │   ├── main.py                  # Punto de entrada de la aplicación
-│   │   ├── config.py                # Configuración global
-│   │   ├── database.py              # Conexión a MS SQL Server
-│   │   ├── redis_client.py          # Cliente Redis
-│   │   ├── infrastructure/          # Capa de Frameworks & Drivers
-│   │   │   ├── __init__.py
-│   │   │   ├── database_session.py  # Sesiones de BD
-│   │   │   └── redis_connection.py  # Conexión Redis
-│   │   ├── models/                  # Capa de Entities (Modelos SQLAlchemy)
-│   │   │   ├── __init__.py
-│   │   │   ├── models_base.py       # Modelos base
-│   │   │   ├── models_ppsh.py       # Modelos PPSH
-│   │   │   ├── models_tramites.py   # Modelos Trámites
-│   │   │   └── models_workflow.py   # Modelos Workflow
-│   │   ├── routers/                 # Capa de Interface Adapters (API Routes)
-│   │   │   ├── __init__.py
-│   │   │   ├── router_health.py     # Health checks
-│   │   │   ├── router_ppsh.py       # Endpoints PPSH
+├── backend/                          # 🐍 API Backend (Python/FastAPI)
+│   ├── app/                         # Código principal de la aplicación
+│   │   ├── main.py                  # 🚀 Punto de entrada - inicia la API
+│   │   ├── config.py                # ⚙️ Configuración (puertos, BD, etc.)
+│   │   ├── database.py              # 🗄️ Conexión a MS SQL Server
+│   │   ├── redis_client.py          # 💾 Cliente de caché Redis
+│   │   │
+│   │   ├── infrastructure/          # 🏗️ CAPA 1: Frameworks & Drivers
+│   │   │   ├── database_session.py  # Gestión de sesiones de BD
+│   │   │   └── redis_connection.py  # Gestión de conexión Redis
+│   │   │
+│   │   ├── models/                  # 📊 CAPA 4: Entities (Modelos)
+│   │   │   ├── models_ppsh.py       # Tablas del módulo PPSH
+│   │   │   ├── models_tramites.py   # Tablas de trámites generales
+│   │   │   └── models_workflow.py   # Tablas de workflows dinámicos
+│   │   │
+│   │   ├── services/                # 💼 CAPA 3: Use Cases (Lógica)
+│   │   │   ├── services_ppsh.py     # Lógica de negocio PPSH
+│   │   │   ├── services_tramites.py # Lógica de trámites
+│   │   │   └── services_workflow.py # Lógica de workflows
+│   │   │
+│   │   ├── routers/                 # 🌐 CAPA 2: API Endpoints
+│   │   │   ├── router_ppsh.py       # Endpoints PPSH (/api/v1/ppsh/*)
 │   │   │   ├── router_tramites.py   # Endpoints Trámites
 │   │   │   └── router_workflow.py   # Endpoints Workflow
-│   │   ├── schemas/                 # Capa de Interface Adapters (Pydantic Schemas)
-│   │   │   ├── __init__.py
-│   │   │   ├── schemas_ppsh.py      # Schemas PPSH
-│   │   │   ├── schemas_tramites.py  # Schemas Trámites
-│   │   │   └── schemas_workflow.py  # Schemas Workflow
-│   │   ├── services/                # Capa de Use Cases (Business Logic)
-│   │   │   ├── __init__.py
-│   │   │   ├── services_ppsh.py     # Lógica PPSH
-│   │   │   ├── services_tramites.py # Lógica Trámites
-│   │   │   └── services_workflow.py # Lógica Workflow
-│   │   └── utils/                   # Utilidades compartidas
-│   │       ├── __init__.py
-│   │       ├── auth_utils.py        # Utilidades de autenticación
-│   │       ├── file_utils.py        # Utilidades de archivos
-│   │       └── validation_utils.py  # Utilidades de validación
-│   ├── tests/                       # Tests del backend
-│   ├── Dockerfile
-│   ├── requirements.txt
-│   └── .env.example
-├── frontend/                        # Aplicación React (TypeScript)
+│   │   │
+│   │   ├── schemas/                 # ✅ CAPA 2: Validaciones
+│   │   │   ├── schemas_ppsh.py      # Validación de datos PPSH
+│   │   │   ├── schemas_tramites.py  # Validación de trámites
+│   │   │   └── schemas_workflow.py  # Validación de workflows
+│   │   │
+│   │   └── utils/                   # 🔧 Utilidades compartidas
+│   │       ├── auth_utils.py        # Funciones de autenticación
+│   │       ├── file_utils.py        # Manejo de archivos
+│   │       └── validation_utils.py  # Validaciones comunes
+│   │
+│   ├── alembic/                     # 📝 Migraciones de base de datos
+│   │   └── versions/                # Historial de cambios en BD
+│   ├── tests/                       # 🧪 Pruebas automatizadas
+│   ├── postman/                     # 📮 Colecciones de prueba API
+│   ├── sql/                         # 📊 Scripts SQL (datos iniciales)
+│   ├── Dockerfile                   # 🐳 Configuración Docker backend
+│   ├── requirements.txt             # 📦 Dependencias Python
+│   └── .env.example                 # 🔑 Variables de entorno (ejemplo)
+│
+├── frontend/                        # ⚛️ Aplicación Frontend (React/TypeScript)
 │   ├── src/
-│   │   ├── api/                    # Cliente API
-│   │   ├── App.tsx                 # Componente principal
-│   │   ├── App.css                 # Estilos
-│   │   ├── main.tsx                # Punto de entrada
-│   │   └── index.css               # Estilos globales
-│   ├── public/
-│   ├── Dockerfile
-│   ├── package.json
-│   ├── tsconfig.json
-│   └── vite.config.ts
-├── docs/                           # Documentación completa
-│   ├── bitacora/                   # Bitácora de cambios
-│   ├── ejemplos/                   # Ejemplos de uso
-│   └── [otras carpetas...]
-├── docker-compose.yml              # Orquestación de servicios
-└── README.md                       # Este archivo
+│   │   ├── api/                    # 🌐 Cliente para llamar al backend
+│   │   ├── components/             # 🧩 Componentes reutilizables
+│   │   ├── pages/                  # 📄 Páginas de la aplicación
+│   │   ├── App.tsx                 # 🚀 Componente raíz
+│   │   └── main.tsx                # 🎯 Punto de entrada
+│   ├── Dockerfile                   # 🐳 Configuración Docker frontend
+│   ├── package.json                 # 📦 Dependencias Node.js
+│   └── vite.config.ts              # ⚙️ Configuración Vite
+│
+├── docs/                           # 📚 Documentación completa
+│   ├── bitacora/                   # 📝 Registro de cambios
+│   ├── ejemplos/                   # 💡 Ejemplos de uso
+│   └── DICCIONARIO_DATOS_COMPLETO.md  # 📖 Documentación BD
+│
+├── docker-compose.yml              # 🐳 Orquestación de servicios
+├── README.md                       # 📘 Este archivo (guía principal)
+└── Makefile                        # 🛠️ Comandos útiles (make start, etc.)
 ```
+
+**Módulos del Sistema:**
+
+- **PPSH:** Permisos de Protección y Stateless Humanitarios (solicitudes de refugio)
+- **Workflow:** Sistema de workflows dinámicos (procesos configurables)
+- **Trámites:** Gestión general de trámites migratorios
+- **SIM_FT:** Sistema Integrado de Migración - Funcionalidades Transversales
 
 ## ✅ Estado Actual del Proyecto
 
@@ -132,6 +208,278 @@ tramites-mvp-panama/
 ```
 
 ## 🚀 Inicio Rápido
+
+### Guía para Usuarios Nuevos
+
+Si es tu primera vez trabajando con Docker o este tipo de proyectos, sigue estos pasos detallados:
+
+#### Paso 1: Verificar Requisitos
+
+**Windows:**
+```powershell
+# Verificar que Docker Desktop está instalado y corriendo
+docker --version
+docker-compose --version
+
+# Verificar que Git está instalado
+git --version
+```
+
+**Mac/Linux:**
+```bash
+# Verificar que Docker está instalado y corriendo
+docker --version
+docker-compose --version
+
+# Verificar que Git está instalado
+git --version
+```
+
+**Versiones mínimas esperadas:**
+- Docker: 20.10+
+- Docker Compose: 2.0+
+- Git: 2.30+
+
+Si algún comando falla, instala la herramienta faltante desde los enlaces en la sección [Requisitos Previos](#-requisitos-previos).
+
+#### Paso 2: Clonar el Proyecto
+
+```bash
+# Clonar el repositorio desde GitHub
+git clone https://github.com/juncid/tramites-mvp-panama.git
+
+# Entrar al directorio del proyecto
+cd tramites-mvp-panama
+```
+
+**¿Qué hace esto?** Descarga todo el código del proyecto a tu computadora.
+
+#### Paso 3: Configurar Variables de Entorno (Opcional)
+
+Los archivos `.env.example` contienen configuraciones de ejemplo. Para desarrollo local, **no necesitas modificarlos** - funcionan tal cual.
+
+```bash
+# Solo si quieres personalizar la configuración
+cp backend/.env.example backend/.env
+cp frontend/.env.example frontend/.env
+```
+
+**Para producción:** Cambia las contraseñas por valores seguros en estos archivos.
+
+#### Paso 4: Iniciar el Sistema
+
+**Opción A: Comando Simple (Recomendado para principiantes)**
+
+```bash
+docker compose up --build
+```
+
+**¿Qué hace este comando?**
+1. Descarga las imágenes base (Python, Node.js, SQL Server, Redis)
+2. Construye los contenedores del backend y frontend
+3. Crea la red de comunicación entre servicios
+4. Inicia SQL Server y espera a que esté listo
+5. Ejecuta las migraciones de base de datos (crea tablas)
+6. Carga datos iniciales (catálogos)
+7. Inicia el backend (API FastAPI)
+8. Inicia el frontend (React)
+9. Inicia Redis (caché)
+
+**Tiempo estimado:** 3-5 minutos la primera vez (descarga de imágenes), 30-60 segundos las siguientes veces.
+
+**Opción B: Modo Detached (Ejecuta en segundo plano)**
+
+```bash
+docker compose up --build -d
+```
+
+Agrega `-d` para que los servicios se ejecuten en segundo plano y puedas seguir usando la terminal.
+
+#### Paso 5: Verificar que Todo Está Funcionando
+
+**Ver los logs en tiempo real:**
+```bash
+docker compose logs -f
+```
+
+Presiona `Ctrl+C` para salir de los logs (los servicios siguen corriendo).
+
+**Verificar el estado de los servicios:**
+```bash
+docker compose ps
+```
+
+Deberías ver algo como:
+```
+NAME                   STATUS              PORTS
+tramites-backend       Up 2 minutes        0.0.0.0:8000->8000/tcp
+tramites-frontend      Up 2 minutes        0.0.0.0:3000->3000/tcp
+tramites-sqlserver     Up 2 minutes        0.0.0.0:1433->1433/tcp
+tramites-redis         Up 2 minutes        0.0.0.0:6379->6379/tcp
+```
+
+**Probar los servicios:**
+
+| Servicio | URL | ¿Qué verás? |
+|----------|-----|-------------|
+| **Frontend** | http://localhost:3000 | Aplicación web React |
+| **Backend API** | http://localhost:8000 | JSON con información de la API |
+| **Swagger Docs** | http://localhost:8000/docs | Documentación interactiva de la API |
+| **ReDoc** | http://localhost:8000/redoc | Documentación alternativa de la API |
+
+#### Paso 6: Detener el Sistema
+
+```bash
+# Detener todos los servicios
+docker compose down
+
+# Detener Y eliminar la base de datos (empezar de cero)
+docker compose down -v
+```
+
+### Métodos Alternativos de Inicio
+
+#### Opción 1: Script Automático (Linux/Mac/WSL)
+
+```bash
+./start.sh
+```
+
+#### Opción 2: Usando Make (Desarrollo)
+
+```bash
+# Ver todos los comandos disponibles
+make help
+
+# Iniciar servicios
+make start
+
+# Detener servicios
+make stop
+
+# Ver logs
+make logs
+```
+
+### ¿Qué Pasa si Algo Sale Mal?
+
+**Error: "docker: command not found"**
+- Instala Docker Desktop desde https://docs.docker.com/get-docker/
+
+**Error: "Cannot connect to the Docker daemon"**
+- Asegúrate de que Docker Desktop está ejecutándose
+- En Windows: Busca el ícono de Docker en la bandeja del sistema
+
+**Error: "port is already allocated"**
+- Otro programa está usando los puertos 3000, 8000, 1433 o 6379
+- Cierra la aplicación que esté usando ese puerto o modifica los puertos en `docker-compose.yml`
+
+**Error: "no space left on device"**
+- Docker está usando mucho espacio
+- Ejecuta: `docker system prune -a` para limpiar imágenes antiguas
+
+**Otros problemas:**
+```bash
+# Ver logs del backend
+docker compose logs backend
+
+# Ver logs de SQL Server
+docker compose logs sqlserver
+
+# Reiniciar un servicio específico
+docker compose restart backend
+```
+
+---
+
+## 🧪 Probando la API
+
+Una vez que el sistema esté corriendo, puedes probar los endpoints de varias formas:
+
+### 1. Usando la Documentación Interactiva (Swagger)
+
+1. Abre http://localhost:8000/docs en tu navegador
+2. Explora los endpoints disponibles
+3. Haz clic en "Try it out" para probar cualquier endpoint
+4. Modifica los parámetros y haz clic en "Execute"
+5. Ve la respuesta inmediatamente
+
+**Ideal para:** Explorar la API sin escribir código
+
+### 2. Usando cURL (Línea de Comandos)
+
+```bash
+# Listar todos los trámites
+curl http://localhost:8000/api/v1/sim-ft/tramites
+
+# Crear un solicitante PPSH
+curl -X POST http://localhost:8000/api/v1/ppsh/solicitantes \
+  -H "Content-Type: application/json" \
+  -d '{
+    "nombre": "Juan",
+    "apellido1": "Pérez",
+    "tipo_documento": "PASAPORTE",
+    "numero_documento": "N123456789",
+    "nacionalidad": "VE",
+    "fecha_nacimiento": "1990-01-15",
+    "sexo": "M",
+    "email": "juan@example.com"
+  }'
+```
+
+**Ideal para:** Tests rápidos y scripts automatizados
+
+### 3. Usando Postman (Recomendado para Tests Completos)
+
+El proyecto incluye colecciones de Postman listas para usar:
+
+1. Instala [Postman Desktop](https://www.postman.com/downloads/)
+2. Abre Postman → Click en "Import"
+3. Selecciona un archivo de `backend/postman/`:
+   - `PPSH_Complete_API.postman_collection.json` - 36 requests PPSH
+   - `Workflow_API_Tests.postman_collection.json` - 30 requests Workflow
+   - `SIM_FT_Complete_API.postman_collection.json` - 35 requests SIM_FT
+4. Las colecciones incluyen ejemplos de principio a fin
+5. Click en "Send" para ejecutar requests
+
+**Documentación completa:** [backend/postman/README.md](./backend/postman/README.md)
+
+**Ideal para:** Testing completo, flujos end-to-end, validación de casos de uso
+
+---
+
+## 🔧 Comandos Útiles
+
+### Para Usuarios Nuevos
+
+```bash
+# Ver qué servicios están corriendo
+docker compose ps
+
+# Ver logs de todos los servicios
+docker compose logs
+
+# Ver logs de un servicio específico
+docker compose logs backend
+docker compose logs sqlserver
+
+# Seguir los logs en tiempo real
+docker compose logs -f backend
+
+# Reiniciar un servicio
+docker compose restart backend
+
+# Detener todos los servicios
+docker compose down
+
+# Detener y eliminar TODO (incluyendo base de datos)
+docker compose down -v
+
+# Reconstruir un servicio específico
+docker compose up --build backend
+```
+
+### Para Desarrolladores
 
 ### Opción 1: Script de Inicio Automático (Recomendado)
 
@@ -1262,5 +1610,156 @@ Desglose por módulo:
 ---
 
 **Nota:** Esta deuda técnica no impide el funcionamiento del sistema en producción, pero limita la confianza en cambios futuros y la velocidad de desarrollo. Se recomienda abordar progresivamente según las prioridades del negocio.
+
+---
+
+## 📋 Historial de Limpieza del Proyecto
+
+### Limpieza Completa - 25 de Octubre de 2025
+
+**Objetivo:** Optimizar la estructura del proyecto eliminando archivos obsoletos, consolidando documentación y mejorando la organización general.
+
+#### Resumen de Cambios
+
+**Total de archivos eliminados:** 58 archivos  
+**Reducción de líneas de código:** ~11,540 líneas  
+**Reducción general del proyecto:** 35%
+
+#### Archivos Eliminados por Categoría
+
+##### 1. Colecciones Postman (7 archivos - 41% reducción)
+- ✅ Eliminados archivos de ejemplo individual (PPSH_REQUEST_*.md)
+- ✅ Eliminado mapeo obsoleto (MAPEO_PPSH_API.md)
+- ✅ Eliminadas colecciones redundantes (Upload_Tests, Cache_Tests)
+- ✅ Consolidado README de 900+ líneas a 143 líneas
+- ✅ Creada guía completa de ejemplos end-to-end (418 líneas)
+
+**Archivos mantenidos:** 10 archivos esenciales (colecciones principales + documentación consolidada)
+
+##### 2. Scripts SQL (4 archivos - 44% reducción)
+- ✅ Eliminados DDL scripts (ahora en migraciones Alembic)
+  - `create_sim_ft_tables.sql`
+  - `fix_sim_ft_tramites.sql`
+- ✅ Consolidados 3 README en uno solo
+- ✅ Mantenidos solo scripts de datos iniciales (seed)
+
+**Archivos mantenidos:** 5 archivos (4 seed scripts + 1 README consolidado)
+
+##### 3. Documentación Backend (18 archivos - 53% reducción)
+- ✅ Eliminados reportes de sesión históricos (SESION_*.md)
+- ✅ Eliminados reportes de problemas resueltos (PPSH_TESTS_*, WORKFLOW_FIX_*)
+- ✅ Eliminadas guías de corrección ya aplicadas
+- ✅ Eliminada documentación duplicada de colecciones Postman
+
+**Archivos mantenidos:** 16 archivos de documentación técnica actual
+
+##### 4. Archivos Raíz del Proyecto (9 archivos)
+- ✅ Eliminados reportes de sesión (RESUMEN_SESION_*.md)
+- ✅ Eliminados reportes de integración (RESULTADO_INTEGRACION_*.md)
+- ✅ Eliminados archivos de reorganización (REORGANIZACION_DOCS_*.md)
+- ✅ Eliminadas guías de carga de datos obsoletas
+
+##### 5. Código Temporal (3 archivos Python)
+- ✅ `temp_postman_script.py`
+- ✅ `temp_routers_workflow.py`
+- ✅ `temp_services_workflow.py`
+
+##### 6. Backend Root (2 archivos)
+- ✅ `ACTUALIZACION_RUTAS.md`
+- ✅ `ORGANIZACION_BACKEND.md`
+
+#### Mejoras en Documentación
+
+**Consolidación:**
+- backend/postman/README.md: 900+ líneas → 143 líneas (simplificado)
+- backend/postman/README_EJEMPLOS_END_TO_END.md: 0 → 418 líneas (nueva guía completa)
+- backend/sql/README.md: 3 archivos → 1 archivo consolidado (418 líneas)
+
+**Organización:**
+- ✅ Toda la documentación relevante se mantiene
+- ✅ Referencias actualizadas a ubicaciones correctas
+- ✅ Información redundante eliminada
+- ✅ Guías técnicas consolidadas en una sola fuente
+
+#### Estructura Actual del Proyecto
+
+```
+tramites-mvp-panama/
+├── backend/
+│   ├── postman/                    # 10 archivos (vs 17 anteriores)
+│   │   ├── *.postman_collection.json (5 colecciones)
+│   │   ├── env-*.json (3 ambientes)
+│   │   ├── README.md (simplificado)
+│   │   └── README_EJEMPLOS_END_TO_END.md (nueva guía)
+│   ├── sql/                        # 5 archivos (vs 9 anteriores)
+│   │   ├── seed_*.sql (4 scripts)
+│   │   └── README.md (consolidado)
+│   ├── docs/                       # 16 archivos técnicos actuales
+│   └── app/                        # Código fuente organizado
+├── docs/                           # Documentación general
+│   ├── bitacora/                   # Historial de cambios
+│   ├── ejemplos/                   # Ejemplos de uso
+│   └── *.md                        # Guías técnicas
+└── [otros directorios...]
+```
+
+#### Commits Realizados
+
+1. **8822dd2** - feat: Agregar secciones de ejemplo end-to-end a colecciones PPSH y Workflow
+2. **81ceb5b** - docs: Agregar guía completa de ejemplos end-to-end en colecciones Postman
+3. **f2853ae** - refactor: Limpiar directorio postman - eliminar archivos obsoletos
+4. **bbfbe68** - refactor: Limpiar directorio sql - eliminar DDL y consolidar documentación
+5. **0a68ed4** - refactor: Limpiar archivos obsoletos y temporales del proyecto
+
+**Todos los commits están en la rama:** `review-entrega-api`
+
+#### Beneficios de la Limpieza
+
+**Para Nuevos Desarrolladores:**
+- ✅ Estructura más clara y fácil de navegar
+- ✅ Menos confusión por archivos duplicados u obsoletos
+- ✅ Documentación consolidada en ubicaciones predecibles
+
+**Para el Proyecto:**
+- ✅ Reducción del 35% en archivos
+- ✅ Menor tamaño de repositorio
+- ✅ Búsquedas más rápidas en el código
+- ✅ Menor uso de almacenamiento
+
+**Para Mantenimiento:**
+- ✅ Solo archivos esenciales y actuales
+- ✅ Documentación consolidada y actualizada
+- ✅ Separación clara: DDL (Alembic) vs DML (sql/)
+- ✅ Historia de cambios preservada en commits
+
+#### Archivos Esenciales Mantenidos
+
+**Colecciones Postman (100% de endpoints cubiertos):**
+- PPSH_Complete_API.postman_collection.json (36 requests)
+- Workflow_API_Tests.postman_collection.json (30 requests)
+- SIM_FT_Complete_API.postman_collection.json (35 requests)
+- Tramites_Base_API.postman_collection.json (5 requests)
+- SIM_FT_Tramite_Upload_Tests.postman_collection.json (tests de upload)
+
+**Scripts SQL (solo datos iniciales):**
+- seed_sim_ft_test_data.sql
+- update_sim_ft_test_data.sql
+- seed_tramites_base_test_data.sql
+- seed_workflow_test_data.sql
+
+**Documentación (consolidada y actual):**
+- backend/postman/README.md
+- backend/postman/README_EJEMPLOS_END_TO_END.md
+- backend/sql/README.md
+- docs/bitacora/ (historial completo de cambios)
+- docs/ejemplos/ (ejemplos de uso)
+- 16 documentos técnicos en backend/docs/
+
+#### Próximos Pasos Sugeridos
+
+1. **Revisión periódica:** Establecer un proceso trimestral de limpieza de archivos obsoletos
+2. **Documentación viva:** Mantener README files actualizados con cada cambio importante
+3. **Git hooks:** Considerar pre-commit hooks para evitar commits de archivos temporales
+4. **Convenciones de nombres:** Documentar convenciones para evitar proliferación de archivos
 
 ---
