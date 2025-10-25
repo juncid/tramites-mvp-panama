@@ -70,7 +70,7 @@ ADD CONSTRAINT FK_PPSH_SOLICITUD_ESTADO
 FOREIGN KEY (cod_estado) REFERENCES PPSH_ESTADO(cod_estado);
 ```
 
-### 2.2 Tabla: `PPSH_SOLICITANTE`
+### 1.2 Tabla: `PPSH_SOLICITANTE`
 
 **Descripción**: Información de solicitantes del PPSH.
 
@@ -108,7 +108,7 @@ ADD CONSTRAINT CK_PPSH_SOLICITANTE_sexo
 CHECK (sexo IN ('M', 'F'));
 ```
 
-### 2.3 Tabla: `PPSH_CAUSA_HUMANITARIA`
+### 1.3 Tabla: `PPSH_CAUSA_HUMANITARIA`
 
 **Descripción**: Catálogo de causas humanitarias.
 
@@ -130,7 +130,7 @@ VALUES
     ('CASO_ESP', 'Caso Especial', 0);
 ```
 
-### 2.4 Tabla: `PPSH_ESTADO`
+### 1.4 Tabla: `PPSH_ESTADO`
 
 **Descripción**: Estados posibles de una solicitud PPSH.
 
@@ -157,7 +157,7 @@ VALUES
     ('CANCELADO', 'Cancelado', 6, 1);
 ```
 
-### 2.5 Tabla: `PPSH_DOCUMENTO`
+### 1.5 Tabla: `PPSH_DOCUMENTO`
 
 **Descripción**: Documentos adjuntos a solicitudes PPSH.
 
@@ -184,7 +184,7 @@ VALUES
 - `IX_PPSH_DOCUMENTO_solicitud`: NONCLUSTERED (`id_solicitud`)
 - `IX_PPSH_DOCUMENTO_tipo`: NONCLUSTERED (`tipo_documento`)
 
-### 2.6 Tabla: `PPSH_REVISION_MEDICA`
+### 1.6 Tabla: `PPSH_REVISION_MEDICA`
 
 **Descripción**: Revisiones médicas de solicitudes PPSH.
 
@@ -203,14 +203,10 @@ VALUES
 | `activo` | BIT | NO | 1 | | | Registro activo |
 
 **Índices**:
-- `PK_PPSH_REVISION_MEDICA`: PRIMARY KEY (`id_revis## 2. Módulo SIM_FT (Sistema Integrado de Migración)
-
-### 2.1 Tabla: `TRAMITE`
-
-**Descripción**: Tabla principal del Sistema Integrado de Migración - Flujo de Trabajo. Gestiona todos los trámites migratorios con identificadores compuestos y seguimiento completo.ion`)
+- `PK_PPSH_REVISION_MEDICA`: PRIMARY KEY (`id_revision`)
 - `IX_PPSH_REVISION_MEDICA_solicitud`: NONCLUSTERED (`id_solicitud`)
 
-### 2.7 Tabla: `PPSH_ENTREVISTA`
+### 1.7 Tabla: `PPSH_ENTREVISTA`
 
 **Descripción**: Entrevistas realizadas a solicitantes PPSH.
 
@@ -234,7 +230,7 @@ VALUES
 - `IX_PPSH_ENTREVISTA_solicitud`: NONCLUSTERED (`id_solicitud`)
 - `IX_PPSH_ENTREVISTA_fecha`: NONCLUSTERED (`fecha_programada`)
 
-### 2.8 Tabla: `PPSH_COMENTARIO`
+### 1.8 Tabla: `PPSH_COMENTARIO`
 
 **Descripción**: Comentarios y bitácora de una solicitud PPSH.
 
@@ -255,7 +251,11 @@ VALUES
 
 ---
 
+## 2. Módulo SIM_FT (Sistema Integrado de Migración)
 
+### 2.1 Tabla: `TRAMITE`
+
+**Descripción**: Tabla principal del Sistema Integrado de Migración - Flujo de Trabajo. Gestiona todos los trámites migratorios con identificadores compuestos y seguimiento completo.
 
 **Esquema**: `dbo`
 
@@ -349,6 +349,25 @@ VALUES
 - `M` - Media
 - `B` - Baja
 - `N` - Normal
+
+### 2.5 Tabla: `CONCLUSION`
+
+**Descripción**: Catálogo de tipos de conclusión para trámites finalizados.
+
+| Columna | Tipo de Dato | Nulo | Default | PK | FK | Descripción |
+|---------|--------------|------|---------|----|----|-------------|
+| `ind_conclusion` | VARCHAR(10) | NO | - | ✅ | | Indicador de conclusión |
+| `des_conclusion` | VARCHAR(200) | NO | - | | | Descripción de la conclusión |
+| `es_exitosa` | BIT | NO | 0 | | | Indica si es conclusión exitosa |
+| `requiere_seguimiento` | BIT | NO | 0 | | | Requiere seguimiento posterior |
+| `activo` | BIT | NO | 1 | | | Conclusión activa |
+
+**Valores posibles**:
+- Aprobado
+- Rechazado
+- Cancelado
+- En espera
+- Transferido
 
 ---
 
