@@ -11,7 +11,7 @@ Date: 2025-10-22
 
 from datetime import datetime
 from typing import Optional, List
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field, ConfigDict, field_validator, model_validator
 
 
 # ==========================================
@@ -254,20 +254,49 @@ class SimFtTramiteEBase(BaseModel):
 class SimFtTramiteECreate(SimFtTramiteEBase):
     """Schema para crear un encabezado de trámite"""
     FEC_INI_TRAMITE: Optional[datetime] = None
+    FEC_FIN_TRAMITE: Optional[datetime] = None
     IND_ESTATUS: Optional[str] = Field(None, max_length=2)
+    IND_CONCLUSION: Optional[str] = Field(None, max_length=2)
     IND_PRIORIDAD: Optional[str] = Field(None, max_length=1)
     OBS_OBSERVA: Optional[str] = None
     ID_USUARIO_CREA: Optional[str] = Field(None, max_length=17)
+    
+    @model_validator(mode='after')
+    def validar_fechas_y_conclusion(self):
+        """Valida que fecha_fin sea posterior a fecha_inicio y que trámites finalizados tengan conclusión"""
+        if self.FEC_INI_TRAMITE and self.FEC_FIN_TRAMITE:
+            if self.FEC_FIN_TRAMITE <= self.FEC_INI_TRAMITE:
+                raise ValueError('La fecha de finalización debe ser posterior a la fecha de inicio')
+        
+        # Si el trámite está finalizado (estado 03), debe tener conclusión
+        if self.IND_ESTATUS == '03' and not self.IND_CONCLUSION:
+            raise ValueError('Los trámites finalizados deben tener una conclusión')
+        
+        return self
 
 
 class SimFtTramiteEUpdate(BaseModel):
     """Schema para actualizar un encabezado de trámite"""
+    FEC_INI_TRAMITE: Optional[datetime] = None
     FEC_FIN_TRAMITE: Optional[datetime] = None
     IND_ESTATUS: Optional[str] = Field(None, max_length=2)
     IND_CONCLUSION: Optional[str] = Field(None, max_length=2)
     IND_PRIORIDAD: Optional[str] = Field(None, max_length=1)
     OBS_OBSERVA: Optional[str] = None
     HITS_TRAMITE: Optional[int] = None
+    
+    @model_validator(mode='after')
+    def validar_fechas_y_conclusion(self):
+        """Valida que fecha_fin sea posterior a fecha_inicio y que trámites finalizados tengan conclusión"""
+        if self.FEC_INI_TRAMITE and self.FEC_FIN_TRAMITE:
+            if self.FEC_FIN_TRAMITE <= self.FEC_INI_TRAMITE:
+                raise ValueError('La fecha de finalización debe ser posterior a la fecha de inicio')
+        
+        # Si el trámite está finalizado (estado 03), debe tener conclusión
+        if self.IND_ESTATUS == '03' and not self.IND_CONCLUSION:
+            raise ValueError('Los trámites finalizados deben tener una conclusión')
+        
+        return self
 
 
 class SimFtTramiteEResponse(SimFtTramiteEBase):

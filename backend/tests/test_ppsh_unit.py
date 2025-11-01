@@ -20,7 +20,12 @@ from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
 from app.models import models_ppsh
-from app.schemas import (
+from app.models.models_ppsh import (
+    PPSHSolicitud, PPSHSolicitante, PPSHDocumento,
+    PPSHEntrevista, PPSHComentario, PPSHEstadoHistorial,
+    PPSHCausaHumanitaria, PPSHTipoDocumento, PPSHEstado
+)
+from app.schemas.schemas_ppsh import (
     SolicitudCreate, SolicitanteCreate,
     DocumentoCreate, EntrevistaCreate
 )
@@ -58,7 +63,7 @@ class TestPPSHSolicitudesEndpoints:
         db_session.commit()
 
         # Act: Hacer petición como admin
-        with patch('app.routes_ppsh.get_current_user', return_value=admin_user):
+        with patch('app.routers.routers_ppsh.get_current_user', return_value=admin_user):
             response = client.get("/api/v1/ppsh/solicitudes/")
 
         # Assert: Admin ve todas las solicitudes
@@ -92,7 +97,7 @@ class TestPPSHSolicitudesEndpoints:
         db_session.commit()
 
         # Act: Hacer petición como analista
-        with patch('app.routes_ppsh.get_current_user', return_value=analista_user):
+        with patch('app.routers.routers_ppsh.get_current_user', return_value=analista_user):
             response = client.get("/api/v1/ppsh/solicitudes/")
 
         # Assert: Solo ve solicitudes de su agencia
@@ -123,7 +128,7 @@ class TestPPSHSolicitudesEndpoints:
         db_session.commit()
 
         # Act: Filtrar por estado
-        with patch('app.routes_ppsh.get_current_user', return_value=admin_user):
+        with patch('app.routers.routers_ppsh.get_current_user', return_value=admin_user):
             response = client.get("/api/v1/ppsh/solicitudes/?estado=RECIBIDA")
 
         # Assert: Solo solicitudes con ese estado
@@ -135,7 +140,7 @@ class TestPPSHSolicitudesEndpoints:
     def test_get_solicitudes_permission_denied(self, client: TestClient, readonly_user):
         """Test: Usuario sin permisos no puede acceder"""
         # Act: Intentar acceso sin permisos
-        with patch('app.routes_ppsh.get_current_user', return_value=readonly_user):
+        with patch('app.routers.routers_ppsh.get_current_user', return_value=readonly_user):
             response = client.get("/api/v1/ppsh/solicitudes/")
 
         # Assert: Acceso denegado
@@ -172,7 +177,7 @@ class TestPPSHSolicitudesEndpoints:
         }
 
         # Act: Crear solicitud
-        with patch('app.routes_ppsh.get_current_user', return_value=analista_user):
+        with patch('app.routers.routers_ppsh.get_current_user', return_value=analista_user):
             response = client.post("/api/v1/ppsh/solicitudes/", json=solicitud_data)
 
         # Assert: Verificar creación
@@ -196,7 +201,7 @@ class TestPPSHSolicitudesEndpoints:
     def test_create_solicitud_validation_errors(self, client: TestClient, analista_user):
         """Test: Validaciones en creación de solicitud"""
         # Test: Tipo solicitud requerido
-        with patch('app.routes_ppsh.get_current_user', return_value=analista_user):
+        with patch('app.routers.routers_ppsh.get_current_user', return_value=analista_user):
             response = client.post("/api/v1/ppsh/solicitudes/", json={
                 "descripcion_caso": "Sin tipo"
             })
@@ -215,7 +220,7 @@ class TestPPSHSolicitudesEndpoints:
                 }
             ]
         }
-        with patch('app.routes_ppsh.get_current_user', return_value=analista_user):
+        with patch('app.routers.routers_ppsh.get_current_user', return_value=analista_user):
             response = client.post("/api/v1/ppsh/solicitudes/", json=solicitud_sin_titular)
         assert response.status_code == 422
 
@@ -246,7 +251,7 @@ class TestPPSHSolicitudesEndpoints:
         }
 
         # Act: Crear nueva solicitud
-        with patch('app.routes_ppsh.get_current_user', return_value=analista_user):
+        with patch('app.routers.routers_ppsh.get_current_user', return_value=analista_user):
             response = client.post("/api/v1/ppsh/solicitudes/", json=solicitud_data)
 
         # Assert: Número debe ser diferente
@@ -273,7 +278,7 @@ class TestPPSHSolicitudesEndpoints:
         db_session.commit()
 
         # Act: Obtener solicitud
-        with patch('app.routes_ppsh.get_current_user', return_value=analista_user):
+        with patch('app.routers.routers_ppsh.get_current_user', return_value=analista_user):
             response = client.get("/api/v1/ppsh/solicitudes/1")
 
         # Assert: Verificar respuesta
@@ -286,7 +291,7 @@ class TestPPSHSolicitudesEndpoints:
     def test_get_solicitud_not_found(self, client: TestClient, analista_user):
         """Test: Solicitud no encontrada"""
         # Act: Buscar solicitud inexistente
-        with patch('app.routes_ppsh.get_current_user', return_value=analista_user):
+        with patch('app.routers.routers_ppsh.get_current_user', return_value=analista_user):
             response = client.get("/api/v1/ppsh/solicitudes/999")
 
         # Assert: Error 404
@@ -305,7 +310,7 @@ class TestPPSHSolicitudesEndpoints:
         db_session.commit()
 
         # Act: Intentar obtener solicitud
-        with patch('app.routes_ppsh.get_current_user', return_value=analista_user):
+        with patch('app.routers.routers_ppsh.get_current_user', return_value=analista_user):
             response = client.get("/api/v1/ppsh/solicitudes/1")
 
         # Assert: Acceso denegado
@@ -335,7 +340,7 @@ class TestPPSHSolicitudesEndpoints:
         }
 
         # Act: Actualizar solicitud
-        with patch('app.routes_ppsh.get_current_user', return_value=analista_user):
+        with patch('app.routers.routers_ppsh.get_current_user', return_value=analista_user):
             response = client.put("/api/v1/ppsh/solicitudes/1", json=update_data)
 
         # Assert: Verificar actualización
@@ -357,7 +362,7 @@ class TestPPSHSolicitudesEndpoints:
         db_session.commit()
 
         # Act: Cambiar estado a EN_REVISION
-        with patch('app.routes_ppsh.get_current_user', return_value=analista_user):
+        with patch('app.routers.routers_ppsh.get_current_user', return_value=analista_user):
             response = client.put("/api/v1/ppsh/solicitudes/1/estado", json={
                 "nuevo_estado": "EN_REVISION",
                 "observaciones": "Iniciando revisión de documentos"
@@ -410,7 +415,7 @@ class TestPPSHSolicitantesEndpoints:
         db_session.commit()
 
         # Act: Obtener solicitantes
-        with patch('app.routes_ppsh.get_current_user', return_value=analista_user):
+        with patch('app.routers.routers_ppsh.get_current_user', return_value=analista_user):
             response = client.get("/api/v1/ppsh/solicitudes/1/solicitantes")
 
         # Assert: Verificar solicitantes
@@ -449,7 +454,7 @@ class TestPPSHSolicitantesEndpoints:
         }
 
         # Act: Agregar solicitante
-        with patch('app.routes_ppsh.get_current_user', return_value=analista_user):
+        with patch('app.routers.routers_ppsh.get_current_user', return_value=analista_user):
             response = client.post("/api/v1/ppsh/solicitudes/1/solicitantes", json=solicitante_data)
 
         # Assert: Verificar creación
@@ -488,7 +493,7 @@ class TestPPSHDocumentosEndpoints:
         }
 
         # Act: Subir documento
-        with patch('app.routes_ppsh.get_current_user', return_value=analista_user):
+        with patch('app.routers.routers_ppsh.get_current_user', return_value=analista_user):
             response = client.post(
                 "/api/v1/ppsh/solicitudes/1/documentos",
                 files=files,
@@ -524,7 +529,7 @@ class TestPPSHDocumentosEndpoints:
         db_session.commit()
 
         # Act: Obtener documentos
-        with patch('app.routes_ppsh.get_current_user', return_value=analista_user):
+        with patch('app.routers.routers_ppsh.get_current_user', return_value=analista_user):
             response = client.get("/api/v1/ppsh/solicitudes/1/documentos")
 
         # Assert: Verificar documentos
@@ -551,7 +556,7 @@ class TestPPSHDocumentosEndpoints:
         db_session.commit()
 
         # Act: Eliminar documento
-        with patch('app.routes_ppsh.get_current_user', return_value=analista_user):
+        with patch('app.routers.routers_ppsh.get_current_user', return_value=analista_user):
             response = client.delete("/api/v1/ppsh/documentos/1")
 
         # Assert: Verificar eliminación
@@ -578,7 +583,7 @@ class TestPPSHEntrevistasEndpoints:
         }
 
         # Act: Crear entrevista
-        with patch('app.routes_ppsh.get_current_user', return_value=analista_user):
+        with patch('app.routers.routers_ppsh.get_current_user', return_value=analista_user):
             response = client.post("/api/v1/ppsh/solicitudes/1/entrevistas", json=entrevista_data)
 
         # Assert: Verificar creación
@@ -605,7 +610,7 @@ class TestPPSHEntrevistasEndpoints:
         db_session.commit()
 
         # Act: Obtener entrevistas
-        with patch('app.routes_ppsh.get_current_user', return_value=analista_user):
+        with patch('app.routers.routers_ppsh.get_current_user', return_value=analista_user):
             response = client.get("/api/v1/ppsh/solicitudes/1/entrevistas")
 
         # Assert: Verificar entrevistas
@@ -636,7 +641,7 @@ class TestPPSHEntrevistasEndpoints:
         }
 
         # Act: Actualizar resultado
-        with patch('app.routes_ppsh.get_current_user', return_value=analista_user):
+        with patch('app.routers.routers_ppsh.get_current_user', return_value=analista_user):
             response = client.put("/api/v1/ppsh/entrevistas/1/resultado", json=resultado_data)
 
         # Assert: Verificar actualización
@@ -664,7 +669,7 @@ class TestPPSHComentariosEndpoints:
         }
 
         # Act: Agregar comentario
-        with patch('app.routes_ppsh.get_current_user', return_value=analista_user):
+        with patch('app.routers.routers_ppsh.get_current_user', return_value=analista_user):
             response = client.post("/api/v1/ppsh/solicitudes/1/comentarios", json=comentario_data)
 
         # Assert: Verificar creación
@@ -691,7 +696,7 @@ class TestPPSHComentariosEndpoints:
         db_session.commit()
 
         # Act: Obtener comentarios
-        with patch('app.routes_ppsh.get_current_user', return_value=analista_user):
+        with patch('app.routers.routers_ppsh.get_current_user', return_value=analista_user):
             response = client.get("/api/v1/ppsh/solicitudes/1/comentarios")
 
         # Assert: Verificar comentarios
@@ -708,7 +713,7 @@ class TestPPSHCatalogosEndpoints:
     def test_get_tipos_documento(self, client: TestClient, admin_user):
         """Test: Obtener tipos de documento"""
         # Act: Obtener catálogo
-        with patch('app.routes_ppsh.get_current_user', return_value=admin_user):
+        with patch('app.routers.routers_ppsh.get_current_user', return_value=admin_user):
             response = client.get("/api/v1/ppsh/catalogos/tipos-documento")
 
         # Assert: Verificar catálogo
@@ -719,7 +724,7 @@ class TestPPSHCatalogosEndpoints:
     def test_get_causas_humanitarias(self, client: TestClient, admin_user):
         """Test: Obtener causas humanitarias"""
         # Act: Obtener catálogo
-        with patch('app.routes_ppsh.get_current_user', return_value=admin_user):
+        with patch('app.routers.routers_ppsh.get_current_user', return_value=admin_user):
             response = client.get("/api/v1/ppsh/catalogos/causas-humanitarias")
 
         # Assert: Verificar catálogo
@@ -730,7 +735,7 @@ class TestPPSHCatalogosEndpoints:
     def test_get_paises(self, client: TestClient, admin_user):
         """Test: Obtener países"""
         # Act: Obtener catálogo
-        with patch('app.routes_ppsh.get_current_user', return_value=admin_user):
+        with patch('app.routers.routers_ppsh.get_current_user', return_value=admin_user):
             response = client.get("/api/v1/ppsh/catalogos/paises")
 
         # Assert: Verificar catálogo
@@ -757,7 +762,7 @@ class TestPPSHEstadisticasEndpoints:
         db_session.commit()
 
         # Act: Obtener estadísticas
-        with patch('app.routes_ppsh.get_current_user', return_value=admin_user):
+        with patch('app.routers.routers_ppsh.get_current_user', return_value=admin_user):
             response = client.get("/api/v1/ppsh/estadisticas/dashboard")
 
         # Assert: Verificar estadísticas
@@ -786,7 +791,7 @@ class TestPPSHEstadisticasEndpoints:
         db_session.commit()
 
         # Act: Obtener estadísticas
-        with patch('app.routes_ppsh.get_current_user', return_value=analista_user):
+        with patch('app.routers.routers_ppsh.get_current_user', return_value=analista_user):
             response = client.get("/api/v1/ppsh/estadisticas/dashboard")
 
         # Assert: Solo debe ver estadísticas de su agencia

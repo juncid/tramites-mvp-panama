@@ -13,8 +13,9 @@ from io import BytesIO
 
 # Importar la aplicación principal
 from app.main import app
-from app.database import get_db
-from app import models_ppsh, schemas_ppsh
+from app.infrastructure.database import get_db
+from app.models import models_ppsh
+from app.schemas import schemas_ppsh
 
 # Cliente de test
 client = TestClient(app)
@@ -40,8 +41,8 @@ class TestUploadDocumentEndpoint:
         
         return ("archivo", (filename, BytesIO(content), "application/pdf"))
     
-    @patch('app.routes_ppsh.get_current_user')
-    @patch('app.routes_ppsh.DocumentoService.registrar_documento')
+    @patch('app.routers.routers_ppsh.get_current_user')
+    @patch('app.routers.routers_ppsh.DocumentoService.registrar_documento')
     def test_upload_documento_exitoso(self, mock_registrar_doc, mock_current_user):
         """Test de subida exitosa de documento"""
         
@@ -102,7 +103,7 @@ class TestUploadDocumentEndpoint:
         assert call_args[1]["tamano_bytes"] == len(self.test_file_content)
         assert call_args[1]["uploaded_by"] == "USR001"
     
-    @patch('app.routes_ppsh.get_current_user')
+    @patch('app.routers.routers_ppsh.get_current_user')
     def test_upload_documento_sin_archivo(self, mock_current_user):
         """Test de error cuando no se envía archivo"""
         
@@ -122,7 +123,7 @@ class TestUploadDocumentEndpoint:
         error_detail = response.json()
         assert "archivo" in str(error_detail["detail"])
     
-    @patch('app.routes_ppsh.get_current_user')
+    @patch('app.routers.routers_ppsh.get_current_user')
     def test_upload_documento_tipo_texto(self, mock_current_user):
         """Test de subida con tipo de documento como texto libre"""
         
@@ -131,7 +132,7 @@ class TestUploadDocumentEndpoint:
             "username": "analista_test"
         }
         
-        with patch('app.routes_ppsh.DocumentoService.registrar_documento') as mock_registrar:
+        with patch('app.routers.routers_ppsh.DocumentoService.registrar_documento') as mock_registrar:
             mock_documento = models_ppsh.PPSHDocumento(
                 id_documento=789,
                 id_solicitud=self.test_solicitud_id,
@@ -162,8 +163,8 @@ class TestUploadDocumentEndpoint:
             assert response_data["tipo_documento_texto"] == "Certificado Médico Especializado"
             assert response_data["nombre_archivo"] == "certificado_medico.jpg"
     
-    @patch('app.routes_ppsh.get_current_user')
-    @patch('app.routes_ppsh.DocumentoService.registrar_documento')
+    @patch('app.routers.routers_ppsh.get_current_user')
+    @patch('app.routers.routers_ppsh.DocumentoService.registrar_documento')
     def test_upload_documento_solicitud_inexistente(self, mock_registrar_doc, mock_current_user):
         """Test de error cuando la solicitud no existe"""
         
@@ -185,7 +186,7 @@ class TestUploadDocumentEndpoint:
         # El endpoint debería retornar 404 para solicitudes inexistentes
         assert response.json()["detail"] in ["Not Found", "Solicitud con identificador 99999 no encontrada", "Solicitud con identificador 99999 no encontrado"]
     
-    @patch('app.routes_ppsh.get_current_user')
+    @patch('app.routers.routers_ppsh.get_current_user')
     def test_upload_multiple_tipos_documento(self, mock_current_user):
         """Test con diferentes tipos de archivo y extensiones"""
         
@@ -219,7 +220,7 @@ class TestUploadDocumentEndpoint:
         ]
         
         for case in test_cases:
-            with patch('app.routes_ppsh.DocumentoService.registrar_documento') as mock_registrar:
+            with patch('app.routers.routers_ppsh.DocumentoService.registrar_documento') as mock_registrar:
                 mock_documento = models_ppsh.PPSHDocumento(
                     id_documento=999,
                     id_solicitud=self.test_solicitud_id,
@@ -255,7 +256,7 @@ class TestUploadDocumentIntegration:
     """Tests de integración más completos"""
     
     @pytest.mark.integration
-    @patch('app.routes_ppsh.get_current_user')
+    @patch('app.routers.routers_ppsh.get_current_user')
     def test_workflow_completo_documento(self, mock_current_user):
         """Test del workflow completo: subir -> verificar documento"""
         
@@ -265,7 +266,7 @@ class TestUploadDocumentIntegration:
         }
         
         # 1. Subir documento
-        with patch('app.routes_ppsh.DocumentoService.registrar_documento') as mock_upload:
+        with patch('app.routers.routers_ppsh.DocumentoService.registrar_documento') as mock_upload:
             mock_documento_uploaded = models_ppsh.PPSHDocumento(
                 id_documento=100,
                 id_solicitud=123,
@@ -294,7 +295,7 @@ class TestUploadDocumentIntegration:
             doc_id = upload_response.json()["id_documento"]
         
         # 2. Verificar documento
-        with patch('app.routes_ppsh.DocumentoService.verificar_documento') as mock_verify:
+        with patch('app.routers.routers_ppsh.DocumentoService.verificar_documento') as mock_verify:
             mock_documento_verified = models_ppsh.PPSHDocumento(
                 id_documento=doc_id,
                 id_solicitud=123,

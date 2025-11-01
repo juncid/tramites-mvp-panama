@@ -18,7 +18,7 @@ from factory.alchemy import SQLAlchemyModelFactory
 from sqlalchemy.orm import Session
 
 from app.models import Tramite
-from app.models_ppsh import (
+from app.models.models_ppsh import (
     PPSHSolicitud, PPSHSolicitante, PPSHDocumento,
     PPSHEntrevista, PPSHComentario, PPSHEstado,
     PPSHCausaHumanitaria, PPSHTipoDocumento

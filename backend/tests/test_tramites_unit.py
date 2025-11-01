@@ -33,17 +33,17 @@ class TestTramitesEndpoints:
         # Arrange: Crear trámites de prueba
         tramite1 = Tramite(
             id=1,
-            titulo="Trámite Test 1",
-            descripcion="Descripción test 1",
-            estado="PENDIENTE",
+            NOM_TITULO="Trámite Test 1",
+            DESCRIPCION="Descripción test 1",
+            COD_ESTADO="PENDIENTE",
             created_at=datetime.now(),
             activo=True
         )
         tramite2 = Tramite(
             id=2,
-            titulo="Trámite Test 2", 
-            descripcion="Descripción test 2",
-            estado="COMPLETADO",
+            NOM_TITULO="Trámite Test 2", 
+            DESCRIPCION="Descripción test 2",
+            COD_ESTADO="COMPLETADO",
             created_at=datetime.now(),
             activo=True
         )
@@ -82,7 +82,7 @@ class TestTramitesEndpoints:
             tramite = Tramite(
                 titulo=f"Trámite {i+1}",
                 descripcion=f"Descripción {i+1}",
-                estado="PENDIENTE",
+                COD_ESTADO="PENDIENTE",
                 created_at=datetime.now(),
                 activo=True
             )
@@ -108,16 +108,16 @@ class TestTramitesEndpoints:
         """Test: Filtros en listado de trámites"""
         # Arrange: Crear trámites con diferentes estados
         tramite1 = Tramite(
-            titulo="Trámite Pendiente",
-            descripcion="Descripción",
-            estado="PENDIENTE",
+            NOM_TITULO="Trámite Pendiente",
+            DESCRIPCION="Descripción",
+            COD_ESTADO="PENDIENTE",
             created_at=datetime.now(),
             activo=True
         )
         tramite2 = Tramite(
-            titulo="Trámite Completado",
-            descripcion="Descripción",
-            estado="COMPLETADO",
+            NOM_TITULO="Trámite Completado",
+            DESCRIPCION="Descripción",
+            COD_ESTADO="COMPLETADO",
             created_at=datetime.now(),
             activo=True
         )
@@ -137,16 +137,16 @@ class TestTramitesEndpoints:
         """Test: No incluir trámites eliminados (soft delete)"""
         # Arrange: Crear trámite activo y eliminado
         tramite_activo = Tramite(
-            titulo="Trámite Activo",
-            descripcion="Descripción",
-            estado="PENDIENTE",
+            NOM_TITULO="Trámite Activo",
+            DESCRIPCION="Descripción",
+            COD_ESTADO="PENDIENTE",
             created_at=datetime.now(),
             activo=True
         )
         tramite_eliminado = Tramite(
-            titulo="Trámite Eliminado",
-            descripcion="Descripción",
-            estado="PENDIENTE",
+            NOM_TITULO="Trámite Eliminado",
+            DESCRIPCION="Descripción",
+            COD_ESTADO="PENDIENTE",
             created_at=datetime.now(),
             activo=False
         )
@@ -192,9 +192,9 @@ class TestTramitesEndpoints:
         
         # Crear datos en BD
         tramite = Tramite(
-            titulo="Trámite Test",
-            descripcion="Descripción",
-            estado="PENDIENTE",
+            NOM_TITULO="Trámite Test",
+            DESCRIPCION="Descripción",
+            COD_ESTADO="PENDIENTE",
             created_at=datetime.now(),
             activo=True
         )
@@ -218,9 +218,9 @@ class TestTramitesEndpoints:
         # Arrange: Crear trámite
         tramite = Tramite(
             id=1,
-            titulo="Trámite Test",
-            descripcion="Descripción detallada",
-            estado="PENDIENTE",
+            NOM_TITULO="Trámite Test",
+            DESCRIPCION="Descripción detallada",
+            COD_ESTADO="PENDIENTE",
             created_at=datetime.now(),
             activo=True
         )
@@ -253,9 +253,9 @@ class TestTramitesEndpoints:
         # Arrange: Crear trámite eliminado
         tramite = Tramite(
             id=1,
-            titulo="Trámite Eliminado",
-            descripcion="Descripción",
-            estado="PENDIENTE",
+            NOM_TITULO="Trámite Eliminado",
+            DESCRIPCION="Descripción",
+            COD_ESTADO="PENDIENTE",
             created_at=datetime.now(),
             activo=False  # Soft deleted
         )
@@ -368,9 +368,9 @@ class TestTramitesEndpoints:
         # Arrange: Crear trámite existente
         tramite = Tramite(
             id=1,
-            titulo="Trámite Original",
-            descripcion="Descripción original",
-            estado="PENDIENTE",
+            NOM_TITULO="Trámite Original",
+            DESCRIPCION="Descripción original",
+            COD_ESTADO="PENDIENTE",
             created_at=datetime.now(),
             activo=True
         )
@@ -414,9 +414,9 @@ class TestTramitesEndpoints:
         # Arrange: Crear trámite
         tramite = Tramite(
             id=1,
-            titulo="Título Original",
-            descripcion="Descripción Original",
-            estado="PENDIENTE",
+            NOM_TITULO="Título Original",
+            DESCRIPCION="Descripción Original",
+            COD_ESTADO="PENDIENTE",
             created_at=datetime.now(),
             activo=True
         )
@@ -445,9 +445,9 @@ class TestTramitesEndpoints:
         
         tramite = Tramite(
             id=1,
-            titulo="Título Original",
-            descripcion="Descripción",
-            estado="PENDIENTE",
+            NOM_TITULO="Título Original",
+            DESCRIPCION="Descripción",
+            COD_ESTADO="PENDIENTE",
             created_at=datetime.now(),
             activo=True
         )
@@ -470,9 +470,9 @@ class TestTramitesEndpoints:
         # Arrange: Crear trámite
         tramite = Tramite(
             id=1,
-            titulo="Trámite a Eliminar",
-            descripcion="Descripción",
-            estado="PENDIENTE",
+            NOM_TITULO="Trámite a Eliminar",
+            DESCRIPCION="Descripción",
+            COD_ESTADO="PENDIENTE",
             created_at=datetime.now(),
             activo=True
         )
@@ -503,9 +503,9 @@ class TestTramitesEndpoints:
         # Arrange: Crear trámite ya eliminado
         tramite = Tramite(
             id=1,
-            titulo="Trámite Ya Eliminado",
-            descripcion="Descripción",
-            estado="PENDIENTE",
+            NOM_TITULO="Trámite Ya Eliminado",
+            DESCRIPCION="Descripción",
+            COD_ESTADO="PENDIENTE",
             created_at=datetime.now(),
             activo=False  # Ya eliminado
         )
@@ -527,9 +527,9 @@ class TestTramitesEndpoints:
         
         tramite = Tramite(
             id=1,
-            titulo="Trámite",
-            descripcion="Descripción",
-            estado="PENDIENTE",
+            NOM_TITULO="Trámite",
+            DESCRIPCION="Descripción",
+            COD_ESTADO="PENDIENTE",
             created_at=datetime.now(),
             activo=True
         )
@@ -620,9 +620,9 @@ class TestTramitesEndpoints:
         
         # Crear datos en BD
         tramite = Tramite(
-            titulo="Trámite Test",
-            descripcion="Descripción",
-            estado="PENDIENTE",
+            NOM_TITULO="Trámite Test",
+            DESCRIPCION="Descripción",
+            COD_ESTADO="PENDIENTE",
             created_at=datetime.now(),
             activo=True
         )

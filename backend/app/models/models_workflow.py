@@ -174,6 +174,7 @@ class WorkflowConexion(Base):
     
     # Configuración
     nombre = Column(String(255))  # Etiqueta de la conexión
+    tipo_conexion = Column(String(50))  # Tipo: SECUENCIAL, CONDICIONAL, PARALELA
     condicion = Column(JSON)  # Condiciones para seguir esta ruta (ej: si respuesta == "SI")
     es_predeterminada = Column(Boolean, nullable=False, default=False)
     

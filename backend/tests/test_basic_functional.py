@@ -150,9 +150,9 @@ class TestTramitesBasic:
     def test_model_creation_direct(self, db_session: Session):
         """Test: Crear modelo directamente en BD"""
         tramite = Tramite(
-            titulo="Test Directo",
-            descripcion="Creado directamente en BD",
-            estado="pendiente"
+            NOM_TITULO="Test Directo",
+            DESCRIPCION="Creado directamente en BD",
+            COD_ESTADO="pendiente"
         )
         
         db_session.add(tramite)

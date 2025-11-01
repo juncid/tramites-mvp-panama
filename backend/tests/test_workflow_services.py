@@ -14,10 +14,10 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 from fastapi import HTTPException
 
-from app.database import Base
-from app import models_workflow as models
-from app import schemas_workflow as schemas
-from app.services_workflow import (
+from app.infrastructure.database import Base
+from app.models import models_workflow as models
+from app.schemas import schemas_workflow as schemas
+from app.services.services_workflow import (
     WorkflowService,
     EtapaService,
     PreguntaService,
@@ -105,8 +105,7 @@ class TestWorkflowService:
             nombre="Workflow Completo",
             estado=schemas.EstadoWorkflowEnum.ACTIVO,
             etapas=[
-                schemas.WorkflowEtapaCreate(
-                    workflow_id=1,  # Se ignorará
+                schemas.WorkflowEtapaCreateNested(
                     codigo="E1",
                     nombre="Etapa 1",
                     tipo_etapa=schemas.TipoEtapaEnum.ETAPA,
@@ -114,8 +113,7 @@ class TestWorkflowService:
                     es_etapa_inicial=True,
                     perfiles_permitidos=["USER"],
                     preguntas=[
-                        schemas.WorkflowPreguntaCreate(
-                            etapa_id=1,  # Se ignorará
+                        schemas.WorkflowPreguntaCreateNested(
                             codigo="P1",
                             pregunta="Pregunta 1",
                             tipo_pregunta=schemas.TipoPreguntaEnum.RESPUESTA_TEXTO,
@@ -257,7 +255,7 @@ class TestEtapaService:
             nombre="Etapa 1",
             tipo_etapa=schemas.TipoEtapaEnum.ETAPA,
             orden=1,
-            perfiles_permitidos=[]
+            perfiles_permitidos=["ADMIN"]
         )
         EtapaService.crear_etapa_con_preguntas(db, etapa_data, workflow.id, "ADMIN")
         
@@ -295,14 +293,13 @@ class TestInstanciaService:
             nombre="Test",
             estado=schemas.EstadoWorkflowEnum.ACTIVO,
             etapas=[
-                schemas.WorkflowEtapaCreate(
-                    workflow_id=1,
+                schemas.WorkflowEtapaCreateNested(
                     codigo="INICIO",
                     nombre="Inicio",
                     tipo_etapa=schemas.TipoEtapaEnum.ETAPA,
                     orden=1,
                     es_etapa_inicial=True,
-                    perfiles_permitidos=[]
+                    perfiles_permitidos=["ADMIN"]
                 )
             ]
         )
@@ -328,20 +325,19 @@ class TestInstanciaService:
     
     def test_crear_instancia(self, db):
         """Test: Crear instancia de workflow"""
-        # Crear workflow activo con etapa inicial
+        # Crear workflow con etapa inicial
         workflow_data = schemas.WorkflowCreate(
             codigo="WF",
             nombre="Test",
             estado=schemas.EstadoWorkflowEnum.ACTIVO,
             etapas=[
-                schemas.WorkflowEtapaCreate(
-                    workflow_id=1,
+                schemas.WorkflowEtapaCreateNested(
                     codigo="INICIO",
                     nombre="Inicio",
                     tipo_etapa=schemas.TipoEtapaEnum.ETAPA,
                     orden=1,
                     es_etapa_inicial=True,
-                    perfiles_permitidos=[]
+                    perfiles_permitidos=["ADMIN"]
                 )
             ]
         )
@@ -396,14 +392,13 @@ class TestHistorialService:
             nombre="Test",
             estado=schemas.EstadoWorkflowEnum.ACTIVO,
             etapas=[
-                schemas.WorkflowEtapaCreate(
-                    workflow_id=1,
+                schemas.WorkflowEtapaCreateNested(
                     codigo="INICIO",
                     nombre="Inicio",
                     tipo_etapa=schemas.TipoEtapaEnum.ETAPA,
                     orden=1,
                     es_etapa_inicial=True,
-                    perfiles_permitidos=[]
+                    perfiles_permitidos=["ADMIN"]
                 )
             ]
         )
@@ -434,14 +429,13 @@ class TestHistorialService:
             nombre="Test",
             estado=schemas.EstadoWorkflowEnum.ACTIVO,
             etapas=[
-                schemas.WorkflowEtapaCreate(
-                    workflow_id=1,
+                schemas.WorkflowEtapaCreateNested(
                     codigo="INICIO",
                     nombre="Inicio",
                     tipo_etapa=schemas.TipoEtapaEnum.ETAPA,
                     orden=1,
                     es_etapa_inicial=True,
-                    perfiles_permitidos=[]
+                    perfiles_permitidos=["ADMIN"]
                 )
             ]
         )
@@ -472,14 +466,13 @@ class TestComentarioService:
             nombre="Test",
             estado=schemas.EstadoWorkflowEnum.ACTIVO,
             etapas=[
-                schemas.WorkflowEtapaCreate(
-                    workflow_id=1,
+                schemas.WorkflowEtapaCreateNested(
                     codigo="INICIO",
                     nombre="Inicio",
                     tipo_etapa=schemas.TipoEtapaEnum.ETAPA,
                     orden=1,
                     es_etapa_inicial=True,
-                    perfiles_permitidos=[]
+                    perfiles_permitidos=["ADMIN"]
                 )
             ]
         )

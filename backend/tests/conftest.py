@@ -29,8 +29,8 @@ os.environ["REDIS_URL"] = "redis://localhost:6379/15"  # BD de test
 os.environ["LOG_LEVEL"] = "WARNING"
 
 from app.main import app
-from app.database import get_db, Base
-from app.redis_client import get_redis
+from app.infrastructure.database import get_db, Base
+from app.infrastructure.redis_client import get_redis
 
 # Configurar Faker para datos de prueba
 fake = Faker(['es_ES', 'en_US'])
@@ -178,8 +178,8 @@ def client(db_session: Session) -> Generator[TestClient, None, None]:
     
     # También parchear la función get_redis directamente para casos donde no se usa inyección
     # Only patch modules that actually import get_redis
-    with patch('app.routes.get_redis', return_value=mock_redis), \
-         patch('app.redis_client.get_redis', return_value=mock_redis), \
+    with patch('app.routers.routers_sim_ft.get_redis', return_value=mock_redis), \
+         patch('app.infrastructure.redis_client.get_redis', return_value=mock_redis), \
          patch('app.main.get_redis', return_value=mock_redis):
         
         with TestClient(app) as test_client:
@@ -331,7 +331,7 @@ def mock_get_current_user(user_data: Dict[str, Any]):
     Factory para crear mock de autenticación
     
     Usage:
-        with patch('app.routes_ppsh.get_current_user', 
+        with patch('app.routers.routers_ppsh.get_current_user', 
                    side_effect=lambda: admin_user):
             # test code
     """

@@ -149,11 +149,18 @@ class SolicitanteBase(BaseModel):
     @field_validator('fecha_nacimiento')
     @classmethod
     def validar_fecha_nacimiento(cls, v: date) -> date:
-        """Valida que la fecha de nacimiento sea válida"""
+        """Valida que la fecha de nacimiento sea válida y que tenga al menos 18 años"""
         if v > date.today():
             raise ValueError('La fecha de nacimiento no puede ser futura')
         if v.year < 1900:
             raise ValueError('La fecha de nacimiento debe ser posterior a 1900')
+        
+        # Calcular edad
+        today = date.today()
+        edad = today.year - v.year - ((today.month, today.day) < (v.month, v.day))
+        if edad < 18:
+            raise ValueError('El solicitante debe tener al menos 18 años')
+        
         return v
 
     @model_validator(mode='after')
@@ -238,6 +245,11 @@ class SolicitudCreate(SolicitudBase):
         # Validar tipo de solicitud
         if self.tipo_solicitud == TipoSolicitudEnum.INDIVIDUAL and len(self.solicitantes) > 1:
             raise ValueError('Una solicitud individual solo puede tener un solicitante')
+        
+        # Validar prioridad alta requiere justificación
+        if self.prioridad == PrioridadEnum.ALTA:
+            if not self.descripcion_caso or len(self.descripcion_caso.strip()) < 50:
+                raise ValueError('Las solicitudes de prioridad ALTA requieren una justificación detallada (mínimo 50 caracteres)')
         
         return self
 
@@ -348,7 +360,39 @@ class DocumentoCreate(BaseModel):
     tipo_documento_texto: Optional[str] = Field(None, max_length=100)
     nombre_archivo: str = Field(..., max_length=255)
     extension: Optional[str] = Field(None, max_length=10)
+    tamanio_bytes: Optional[int] = None
     observaciones: Optional[str] = Field(None, max_length=500)
+    
+    @field_validator('extension')
+    @classmethod
+    def validar_extension(cls, v: Optional[str]) -> Optional[str]:
+        """Valida que la extensión sea permitida"""
+        if v is None:
+            return v
+        
+        extensiones_permitidas = ['.pdf', '.jpg', '.jpeg', '.png', '.doc', '.docx']
+        v_lower = v.lower()
+        
+        if not v_lower.startswith('.'):
+            v_lower = '.' + v_lower
+            
+        if v_lower not in extensiones_permitidas:
+            raise ValueError(f'Extensión no permitida. Extensiones válidas: {", ".join(extensiones_permitidas)}')
+        
+        return v_lower
+    
+    @field_validator('tamanio_bytes')
+    @classmethod
+    def validar_tamanio(cls, v: Optional[int]) -> Optional[int]:
+        """Valida que el tamaño del archivo no exceda 10MB"""
+        if v is None:
+            return v
+        
+        max_size = 10 * 1024 * 1024  # 10MB en bytes
+        if v > max_size:
+            raise ValueError(f'El archivo excede el tamaño máximo permitido de 10MB')
+        
+        return v
 
 
 class DocumentoUpdate(BaseModel):
@@ -388,6 +432,14 @@ class EntrevistaCreate(BaseModel):
     cod_agencia: Optional[str] = Field(None, max_length=2)
     entrevistador_user_id: str = Field(..., max_length=17)
     observaciones: Optional[str] = Field(None, max_length=2000)
+    
+    @field_validator('fecha_programada')
+    @classmethod
+    def validar_fecha_futura(cls, v: datetime) -> datetime:
+        """Valida que la fecha de entrevista sea futura"""
+        if v <= datetime.now():
+            raise ValueError('La fecha de entrevista debe ser futura')
+        return v
 
 
 class EntrevistaUpdate(BaseModel):

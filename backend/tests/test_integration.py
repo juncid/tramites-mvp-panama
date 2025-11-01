@@ -22,7 +22,7 @@ import tempfile
 import os
 
 from app.models import Tramite
-from app.models_ppsh import (
+from app.models.models_ppsh import (
     PPSHSolicitud, PPSHSolicitante, PPSHDocumento,
     PPSHEntrevista, PPSHComentario, PPSHEstado,
     PPSHCausaHumanitaria, PPSHTipoDocumento
@@ -296,7 +296,7 @@ class TestPPSHIntegrationWorkflow:
             ]
         }
 
-        with patch('app.routes_ppsh.get_current_user', return_value=analista_user):
+        with patch('app.routers.routers_ppsh.get_current_user', return_value=analista_user):
             create_response = client.post("/api/v1/ppsh/solicitudes/", json=solicitud_data)
         
         assert create_response.status_code == 201
@@ -324,7 +324,7 @@ class TestPPSHIntegrationWorkflow:
             "telefono": "+507-6000-5678"
         }
 
-        with patch('app.routes_ppsh.get_current_user', return_value=analista_user):
+        with patch('app.routers.routers_ppsh.get_current_user', return_value=analista_user):
             add_familiar_response = client.post(
                 f"/api/v1/ppsh/solicitudes/{solicitud_id}/solicitantes",
                 json=familiar_data
@@ -350,7 +350,7 @@ class TestPPSHIntegrationWorkflow:
         }
 
         # Subir documento de identidad
-        with patch('app.routes_ppsh.get_current_user', return_value=analista_user):
+        with patch('app.routers.routers_ppsh.get_current_user', return_value=analista_user):
             upload_response1 = client.post(
                 f"/api/v1/ppsh/solicitudes/{solicitud_id}/documentos",
                 files={
@@ -371,7 +371,7 @@ class TestPPSHIntegrationWorkflow:
         assert doc1["nombre_archivo"] == "pasaporte_carlos.pdf"
 
         # Subir evidencia de persecución
-        with patch('app.routes_ppsh.get_current_user', return_value=analista_user):
+        with patch('app.routers.routers_ppsh.get_current_user', return_value=analista_user):
             upload_response2 = client.post(
                 f"/api/v1/ppsh/solicitudes/{solicitud_id}/documentos",
                 files={
@@ -392,7 +392,7 @@ class TestPPSHIntegrationWorkflow:
         assert doc2["nombre_archivo"] == "evidencia_persecucion.pdf"
 
         # 4. VERIFICAR DOCUMENTOS SUBIDOS
-        with patch('app.routes_ppsh.get_current_user', return_value=analista_user):
+        with patch('app.routers.routers_ppsh.get_current_user', return_value=analista_user):
             docs_response = client.get(f"/api/v1/ppsh/solicitudes/{solicitud_id}/documentos")
         
         assert docs_response.status_code == 200
@@ -400,7 +400,7 @@ class TestPPSHIntegrationWorkflow:
         assert len(documentos) == 2
 
         # 5. CAMBIAR ESTADO A "EN_REVISION"
-        with patch('app.routes_ppsh.get_current_user', return_value=analista_user):
+        with patch('app.routers.routers_ppsh.get_current_user', return_value=analista_user):
             estado_response = client.put(
                 f"/api/v1/ppsh/solicitudes/{solicitud_id}/estado",
                 json={
@@ -421,7 +421,7 @@ class TestPPSHIntegrationWorkflow:
             "observaciones": "Primera entrevista para evaluación del caso"
         }
 
-        with patch('app.routes_ppsh.get_current_user', return_value=analista_user):
+        with patch('app.routers.routers_ppsh.get_current_user', return_value=analista_user):
             entrevista_response = client.post(
                 f"/api/v1/ppsh/solicitudes/{solicitud_id}/entrevistas",
                 json=entrevista_data
@@ -440,7 +440,7 @@ class TestPPSHIntegrationWorkflow:
             "tipo_comentario": "EVALUACION"
         }
 
-        with patch('app.routes_ppsh.get_current_user', return_value=analista_user):
+        with patch('app.routers.routers_ppsh.get_current_user', return_value=analista_user):
             comentario_response = client.post(
                 f"/api/v1/ppsh/solicitudes/{solicitud_id}/comentarios",
                 json=comentario_data
@@ -458,7 +458,7 @@ class TestPPSHIntegrationWorkflow:
             "recomendaciones": "Recomiendo aprobación de la protección humanitaria."
         }
 
-        with patch('app.routes_ppsh.get_current_user', return_value=analista_user):
+        with patch('app.routers.routers_ppsh.get_current_user', return_value=analista_user):
             resultado_response = client.put(
                 f"/api/v1/ppsh/entrevistas/{entrevista_id}/resultado",
                 json=resultado_entrevista
@@ -470,7 +470,7 @@ class TestPPSHIntegrationWorkflow:
         assert entrevista_actualizada["estado"] == "REALIZADA"
 
         # 9. DECISIÓN FINAL (COMO SUPERVISOR/ADMIN)
-        with patch('app.routes_ppsh.get_current_user', return_value=admin_user):
+        with patch('app.routers.routers_ppsh.get_current_user', return_value=admin_user):
             decision_response = client.put(
                 f"/api/v1/ppsh/solicitudes/{solicitud_id}/estado",
                 json={
@@ -484,7 +484,7 @@ class TestPPSHIntegrationWorkflow:
         assert solicitud_final["estado_actual"] == "APROBADA"
 
         # 10. VERIFICAR ESTADO FINAL COMPLETO
-        with patch('app.routes_ppsh.get_current_user', return_value=admin_user):
+        with patch('app.routers.routers_ppsh.get_current_user', return_value=admin_user):
             final_response = client.get(f"/api/v1/ppsh/solicitudes/{solicitud_id}")
         
         assert final_response.status_code == 200
@@ -495,19 +495,19 @@ class TestPPSHIntegrationWorkflow:
         assert len(solicitud_completa["solicitantes"]) == 2  # Titular + familiar
         
         # Verificar documentos
-        with patch('app.routes_ppsh.get_current_user', return_value=admin_user):
+        with patch('app.routers.routers_ppsh.get_current_user', return_value=admin_user):
             docs_final = client.get(f"/api/v1/ppsh/solicitudes/{solicitud_id}/documentos")
         assert len(docs_final.json()) == 2
 
         # Verificar entrevistas
-        with patch('app.routes_ppsh.get_current_user', return_value=admin_user):
+        with patch('app.routers.routers_ppsh.get_current_user', return_value=admin_user):
             entrevistas_final = client.get(f"/api/v1/ppsh/solicitudes/{solicitud_id}/entrevistas")
         entrevistas = entrevistas_final.json()
         assert len(entrevistas) == 1
         assert entrevistas[0]["resultado"] == "FAVORABLE"
 
         # Verificar comentarios
-        with patch('app.routes_ppsh.get_current_user', return_value=admin_user):
+        with patch('app.routers.routers_ppsh.get_current_user', return_value=admin_user):
             comentarios_final = client.get(f"/api/v1/ppsh/solicitudes/{solicitud_id}/comentarios")
         comentarios = comentarios_final.json()
         assert len(comentarios) >= 1  # Al menos el comentario de evaluación
@@ -534,19 +534,19 @@ class TestPPSHIntegrationWorkflow:
             ]
         }
 
-        with patch('app.routes_ppsh.get_current_user', return_value=analista_user):
+        with patch('app.routers.routers_ppsh.get_current_user', return_value=analista_user):
             create_response = client.post("/api/v1/ppsh/solicitudes/", json=solicitud_data)
         
         assert create_response.status_code == 201
         solicitud_id = create_response.json()["id"]
 
         # 2. USUARIO READONLY NO PUEDE CREAR
-        with patch('app.routes_ppsh.get_current_user', return_value=readonly_user):
+        with patch('app.routers.routers_ppsh.get_current_user', return_value=readonly_user):
             readonly_create = client.post("/api/v1/ppsh/solicitudes/", json=solicitud_data)
         assert readonly_create.status_code == 403
 
         # 3. USUARIO READONLY NO PUEDE ACTUALIZAR
-        with patch('app.routes_ppsh.get_current_user', return_value=readonly_user):
+        with patch('app.routers.routers_ppsh.get_current_user', return_value=readonly_user):
             readonly_update = client.put(
                 f"/api/v1/ppsh/solicitudes/{solicitud_id}",
                 json={"descripcion_caso": "Intento de actualización"}
@@ -555,17 +555,17 @@ class TestPPSHIntegrationWorkflow:
 
         # 4. USUARIO READONLY PUEDE CONSULTAR (SI ES DE SU AGENCIA)
         # Nota: En este caso readonly_user tiene agencia diferente, por lo que no puede ver
-        with patch('app.routes_ppsh.get_current_user', return_value=readonly_user):
+        with patch('app.routers.routers_ppsh.get_current_user', return_value=readonly_user):
             readonly_get = client.get(f"/api/v1/ppsh/solicitudes/{solicitud_id}")
         assert readonly_get.status_code == 403
 
         # 5. ADMIN PUEDE VER TODA LA INFORMACIÓN
-        with patch('app.routes_ppsh.get_current_user', return_value=admin_user):
+        with patch('app.routers.routers_ppsh.get_current_user', return_value=admin_user):
             admin_get = client.get(f"/api/v1/ppsh/solicitudes/{solicitud_id}")
         assert admin_get.status_code == 200
 
         # 6. ADMIN PUEDE ACTUALIZAR CUALQUIER SOLICITUD
-        with patch('app.routes_ppsh.get_current_user', return_value=admin_user):
+        with patch('app.routers.routers_ppsh.get_current_user', return_value=admin_user):
             admin_update = client.put(
                 f"/api/v1/ppsh/solicitudes/{solicitud_id}",
                 json={"prioridad": "BAJA"}
@@ -623,7 +623,7 @@ class TestPPSHIntegrationWorkflow:
         db_session.commit()
 
         # 2. ESTADÍSTICAS COMO ADMIN (VE TODO)
-        with patch('app.routes_ppsh.get_current_user', return_value=admin_user):
+        with patch('app.routers.routers_ppsh.get_current_user', return_value=admin_user):
             admin_stats = client.get("/api/v1/ppsh/estadisticas/dashboard")
         
         assert admin_stats.status_code == 200
@@ -646,7 +646,7 @@ class TestPPSHIntegrationWorkflow:
         assert por_agencia["AGE02"] == 2
 
         # 3. ESTADÍSTICAS COMO ANALISTA (SOLO SU AGENCIA)
-        with patch('app.routes_ppsh.get_current_user', return_value=analista_user):
+        with patch('app.routers.routers_ppsh.get_current_user', return_value=analista_user):
             analista_stats = client.get("/api/v1/ppsh/estadisticas/dashboard")
         
         assert analista_stats.status_code == 200
@@ -699,7 +699,7 @@ class TestSystemIntegration:
             ]
         }
 
-        with patch('app.routes_ppsh.get_current_user', return_value=admin_user):
+        with patch('app.routers.routers_ppsh.get_current_user', return_value=admin_user):
             ppsh_response = client.post("/api/v1/ppsh/solicitudes/", json=ppsh_data)
         
         assert ppsh_response.status_code == 201
@@ -712,7 +712,7 @@ class TestSystemIntegration:
         assert tramites_list.json()["total"] >= 1
 
         # Listar solicitudes PPSH
-        with patch('app.routes_ppsh.get_current_user', return_value=admin_user):
+        with patch('app.routers.routers_ppsh.get_current_user', return_value=admin_user):
             ppsh_list = client.get("/api/v1/ppsh/solicitudes/")
         assert ppsh_list.status_code == 200
         assert ppsh_list.json()["total"] >= 1
@@ -725,7 +725,7 @@ class TestSystemIntegration:
         assert tramite_update.status_code == 200
 
         # Actualizar solicitud PPSH
-        with patch('app.routes_ppsh.get_current_user', return_value=admin_user):
+        with patch('app.routers.routers_ppsh.get_current_user', return_value=admin_user):
             ppsh_update = client.put(f"/api/v1/ppsh/solicitudes/{ppsh_id}", json={
                 "prioridad": "ALTA"
             })
@@ -738,7 +738,7 @@ class TestSystemIntegration:
         assert tramite_final.json()["estado"] == "EN_PROCESO"
 
         # Verificar solicitud PPSH
-        with patch('app.routes_ppsh.get_current_user', return_value=admin_user):
+        with patch('app.routers.routers_ppsh.get_current_user', return_value=admin_user):
             ppsh_final = client.get(f"/api/v1/ppsh/solicitudes/{ppsh_id}")
         assert ppsh_final.status_code == 200
         assert ppsh_final.json()["prioridad"] == "ALTA"
@@ -755,14 +755,14 @@ class TestSystemIntegration:
             "solicitantes": []                 # Sin solicitantes
         }
 
-        with patch('app.routes_ppsh.get_current_user', return_value=analista_user):
+        with patch('app.routers.routers_ppsh.get_current_user', return_value=analista_user):
             error_response = client.post("/api/v1/ppsh/solicitudes/", json=invalid_data)
         
         # Debe retornar error de validación
         assert error_response.status_code == 422
 
         # 2. VERIFICAR QUE NO SE CREÓ NADA EN LA BD
-        with patch('app.routes_ppsh.get_current_user', return_value=analista_user):
+        with patch('app.routers.routers_ppsh.get_current_user', return_value=analista_user):
             list_response = client.get("/api/v1/ppsh/solicitudes/")
         
         # No debe haber solicitudes (o las que había antes)
@@ -775,7 +775,7 @@ class TestSystemIntegration:
             "content_type": "application/pdf"
         }
 
-        with patch('app.routes_ppsh.get_current_user', return_value=analista_user):
+        with patch('app.routers.routers_ppsh.get_current_user', return_value=analista_user):
             upload_error = client.post(
                 "/api/v1/ppsh/solicitudes/99999/documentos",  # ID inexistente
                 files={
@@ -807,13 +807,13 @@ class TestSystemIntegration:
             ]
         }
 
-        with patch('app.routes_ppsh.get_current_user', return_value=analista_user):
+        with patch('app.routers.routers_ppsh.get_current_user', return_value=analista_user):
             valid_response = client.post("/api/v1/ppsh/solicitudes/", json=valid_data)
         
         assert valid_response.status_code == 201
 
         # 5. VERIFICAR QUE SOLO SE CREÓ LA SOLICITUD VÁLIDA
-        with patch('app.routes_ppsh.get_current_user', return_value=analista_user):
+        with patch('app.routers.routers_ppsh.get_current_user', return_value=analista_user):
             final_list = client.get("/api/v1/ppsh/solicitudes/")
         
         assert final_list.json()["total"] == initial_count + 1
@@ -839,7 +839,7 @@ class TestSystemIntegration:
             ]
         }
 
-        with patch('app.routes_ppsh.get_current_user', return_value=analista_user):
+        with patch('app.routers.routers_ppsh.get_current_user', return_value=analista_user):
             create_response = client.post("/api/v1/ppsh/solicitudes/", json=solicitud_data)
         
         assert create_response.status_code == 201
@@ -847,21 +847,21 @@ class TestSystemIntegration:
 
         # 2. SIMULAR ACTUALIZACIONES CONCURRENTES
         # Usuario 1 (analista) actualiza descripción
-        with patch('app.routes_ppsh.get_current_user', return_value=analista_user):
+        with patch('app.routers.routers_ppsh.get_current_user', return_value=analista_user):
             update1 = client.put(f"/api/v1/ppsh/solicitudes/{solicitud_id}", json={
                 "descripcion_caso": "Actualizada por analista"
             })
         assert update1.status_code == 200
 
         # Usuario 2 (admin) actualiza prioridad
-        with patch('app.routes_ppsh.get_current_user', return_value=admin_user):
+        with patch('app.routers.routers_ppsh.get_current_user', return_value=admin_user):
             update2 = client.put(f"/api/v1/ppsh/solicitudes/{solicitud_id}", json={
                 "prioridad": "URGENTE"
             })
         assert update2.status_code == 200
 
         # 3. VERIFICAR ESTADO FINAL CONSISTENTE
-        with patch('app.routes_ppsh.get_current_user', return_value=admin_user):
+        with patch('app.routers.routers_ppsh.get_current_user', return_value=admin_user):
             final_state = client.get(f"/api/v1/ppsh/solicitudes/{solicitud_id}")
         
         assert final_state.status_code == 200
@@ -874,12 +874,12 @@ class TestSystemIntegration:
         # 4. SIMULAR MÚLTIPLES LECTURAS SIMULTÁNEAS
         # Múltiples usuarios leyendo la misma solicitud
         for _ in range(5):
-            with patch('app.routes_ppsh.get_current_user', return_value=admin_user):
+            with patch('app.routers.routers_ppsh.get_current_user', return_value=admin_user):
                 read_response = client.get(f"/api/v1/ppsh/solicitudes/{solicitud_id}")
             assert read_response.status_code == 200
             
         # Las lecturas no deben afectar los datos
-        with patch('app.routes_ppsh.get_current_user', return_value=admin_user):
+        with patch('app.routers.routers_ppsh.get_current_user', return_value=admin_user):
             consistency_check = client.get(f"/api/v1/ppsh/solicitudes/{solicitud_id}")
         
         assert consistency_check.status_code == 200

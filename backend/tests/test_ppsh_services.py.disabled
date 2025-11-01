@@ -1,0 +1,769 @@
+"""
+Tests unitarios para servicios PPSH
+Sistema de Trámites Migratorios de Panamá
+
+Cubre:
+- CatalogoService: Gestión de catálogos
+- SolicitudService: Lógica de negocio de solicitudes
+- SolicitanteService: Gestión de solicitantes
+- DocumentoService: Manejo de documentos
+- EntrevistaService: Programación y gestión de entrevistas
+- EstadisticasService: Cálculo de métricas y estadísticas
+"""
+
+import pytest
+from datetime import datetime, date, timedelta
+from unittest.mock import Mock, patch
+from sqlalchemy.orm import Session
+from fastapi import HTTPException
+
+from app.services.services_ppsh import (
+    CatalogoService, SolicitudService, SolicitanteService,
+    DocumentoService, EntrevistaService, EstadisticasService,
+    PPSHNotFoundException, PPSHBusinessException, PPSHPermissionException
+)
+from app.models.models_ppsh import (
+    PPSHSolicitud, PPSHSolicitante, PPSHDocumento,
+    PPSHEntrevista, PPSHComentario, PPSHEstado,
+    PPSHCausaHumanitaria, PPSHTipoDocumento
+)
+
+
+# ==========================================
+# FIXTURES
+# ==========================================
+
+@pytest.fixture
+def mock_db_session():
+    """Mock de sesión de base de datos"""
+    return Mock(spec=Session)
+
+
+@pytest.fixture
+def setup_catalogos(db_session):
+    """Setup de catálogos necesarios"""
+    # Causas humanitarias
+    causas = [
+        PPSHCausaHumanitaria(
+            cod_causa=1,
+            nombre_causa="Refugiado",
+            descripcion="Persona refugiada",
+            requiere_evidencia=True,
+            activo=True
+        ),
+        PPSHCausaHumanitaria(
+            cod_causa=2,
+            nombre_causa="Asilo Político",
+            descripcion="Solicitante de asilo",
+            requiere_evidencia=True,
+            activo=True
+        ),
+    ]
+    
+    # Estados
+    estados = [
+        PPSHEstado(
+            cod_estado="RECIBIDO",
+            nombre_estado="Recibido",
+            descripcion="Solicitud recibida",
+            orden=1,
+            color_hex="#3498db",
+            es_final=False,
+            activo=True
+        ),
+        PPSHEstado(
+            cod_estado="EN_REVISION",
+            nombre_estado="En Revisión",
+            descripcion="En proceso de revisión",
+            orden=2,
+            color_hex="#f39c12",
+            es_final=False,
+            activo=True
+        ),
+        PPSHEstado(
+            cod_estado="APROBADO",
+            nombre_estado="Aprobado",
+            descripcion="Solicitud aprobada",
+            orden=3,
+            color_hex="#2ecc71",
+            es_final=True,
+            activo=True
+        ),
+    ]
+    
+    # Tipos de documento
+    tipos_doc = [
+        PPSHTipoDocumento(
+            cod_tipo_documento=1,
+            nombre_tipo="Pasaporte",
+            descripcion="Documento de identidad internacional",
+            obligatorio=True,
+            orden=1,
+            activo=True
+        ),
+        PPSHTipoDocumento(
+            cod_tipo_documento=2,
+            nombre_tipo="Cédula",
+            descripcion="Documento de identidad nacional",
+            obligatorio=False,
+            orden=2,
+            activo=True
+        ),
+    ]
+    
+    db_session.add_all(causas + estados + tipos_doc)
+    db_session.commit()
+    
+    return {
+        "causas": causas,
+        "estados": estados,
+        "tipos_doc": tipos_doc
+    }
+
+
+# ==========================================
+# TESTS DE CATALOGOSERVICE
+# ==========================================
+
+class TestCatalogoService:
+    """Tests para CatalogoService"""
+    
+    def test_get_causas_humanitarias_success(self, db_session, setup_catalogos):
+        """Test: Obtener causas humanitarias exitosamente"""
+        causas = CatalogoService.get_causas_humanitarias(db_session)
+        
+        assert len(causas) == 2
+        assert causas[0].nombre_causa == "Asilo Político"  # Ordenado alfabéticamente
+        assert causas[1].nombre_causa == "Refugiado"
+    
+    def test_get_causas_humanitarias_solo_activas(self, db_session, setup_catalogos):
+        """Test: Filtrar solo causas activas"""
+        # Agregar causa inactiva
+        causa_inactiva = PPSHCausaHumanitaria(
+            cod_causa=99,
+            nombre_causa="Obsoleta",
+            descripcion="Causa obsoleta",
+            requiere_evidencia=False,
+            activo=False
+        )
+        db_session.add(causa_inactiva)
+        db_session.commit()
+        
+        causas = CatalogoService.get_causas_humanitarias(db_session, activos_solo=True)
+        
+        assert len(causas) == 2
+        assert all(c.activo for c in causas)
+    
+    def test_get_tipos_documento_success(self, db_session, setup_catalogos):
+        """Test: Obtener tipos de documento"""
+        tipos = CatalogoService.get_tipos_documento(db_session)
+        
+        assert len(tipos) >= 2
+        # Verificar orden
+        assert tipos[0].orden <= tipos[1].orden
+    
+    def test_get_estados_success(self, db_session, setup_catalogos):
+        """Test: Obtener estados"""
+        estados = CatalogoService.get_estados(db_session)
+        
+        assert len(estados) == 3
+        assert estados[0].orden == 1
+        assert estados[2].orden == 3
+    
+    def test_get_estado_by_codigo_found(self, db_session, setup_catalogos):
+        """Test: Obtener estado por código existente"""
+        estado = CatalogoService.get_estado_by_codigo(db_session, "RECIBIDO")
+        
+        assert estado is not None
+        assert estado.cod_estado == "RECIBIDO"
+        assert estado.nombre_estado == "Recibido"
+    
+    def test_get_estado_by_codigo_not_found(self, db_session, setup_catalogos):
+        """Test: Estado no encontrado lanza excepción"""
+        with pytest.raises(PPSHNotFoundException):
+            CatalogoService.get_estado_by_codigo(db_session, "INEXISTENTE")
+    
+    def test_validar_causa_humanitaria_valida(self, db_session, setup_catalogos):
+        """Test: Validar causa humanitaria válida"""
+        es_valida = CatalogoService.validar_causa_humanitaria(db_session, 1)
+        assert es_valida is True
+    
+    def test_validar_causa_humanitaria_invalida(self, db_session, setup_catalogos):
+        """Test: Validar causa humanitaria inválida"""
+        es_valida = CatalogoService.validar_causa_humanitaria(db_session, 999)
+        assert es_valida is False
+
+
+# ==========================================
+# TESTS DE SOLICITUDSERVICE
+# ==========================================
+
+class TestSolicitudService:
+    """Tests para SolicitudService"""
+    
+    def test_generar_numero_solicitud(self, db_session):
+        """Test: Generar número único de solicitud"""
+        # Primera solicitud del año
+        numero = SolicitudService.generar_numero_solicitud(db_session, "AGE01", 2025)
+        
+        assert numero == "PPSH-AGE01-2025-000001"
+    
+    def test_generar_numero_solicitud_secuencial(self, db_session, setup_catalogos):
+        """Test: Números de solicitud son secuenciales"""
+        # Crear solicitud existente
+        solicitud_existente = PPSHSolicitud(
+            numero_solicitud="PPSH-AGE01-2025-000001",
+            cod_agencia="AGE01",
+            cod_seccion="SEC01",
+            tipo_solicitud="INDIVIDUAL",
+            cod_causa_humanitaria=1,
+            descripcion_caso="Caso 1",
+            prioridad="NORMAL",
+            cod_estado_actual="RECIBIDO",
+            fecha_registro=datetime.now()
+        )
+        db_session.add(solicitud_existente)
+        db_session.commit()
+        
+        # Generar nuevo número
+        numero = SolicitudService.generar_numero_solicitud(db_session, "AGE01", 2025)
+        
+        assert numero == "PPSH-AGE01-2025-000002"
+    
+    def test_crear_solicitud_success(self, db_session, setup_catalogos):
+        """Test: Crear solicitud exitosamente"""
+        from app.schemas_ppsh import SolicitudCreate, SolicitanteCreate
+        
+        solicitud_data = SolicitudCreate(
+            tipo_solicitud="INDIVIDUAL",
+            cod_causa_humanitaria=1,
+            descripcion_caso="Caso de prueba",
+            prioridad="NORMAL",
+            observaciones_generales="Sin observaciones",
+            solicitantes=[
+                SolicitanteCreate(
+                    es_titular=True,
+                    tipo_documento="PASAPORTE",
+                    num_documento="AB123456",
+                    pais_emisor="VEN",
+                    primer_nombre="Juan",
+                    primer_apellido="Pérez",
+                    fecha_nacimiento=date(1990, 5, 15),
+                    cod_sexo="M",
+                    cod_nacionalidad="VEN",
+                    email="juan@example.com"
+                )
+            ]
+        )
+        
+        user_context = {
+            "user_id": "ADMIN01",
+            "agencia": "AGE01",
+            "seccion": "SEC01"
+        }
+        
+        solicitud = SolicitudService.crear_solicitud(
+            db_session, solicitud_data, user_context
+        )
+        
+        assert solicitud.id is not None
+        assert solicitud.numero_solicitud.startswith("PPSH-AGE01-")
+        assert solicitud.cod_estado_actual == "RECIBIDO"
+        assert len(solicitud.solicitantes) == 1
+    
+    def test_crear_solicitud_valida_titular_unico(self, db_session, setup_catalogos):
+        """Test: Validar que haya exactamente un titular"""
+        from app.schemas_ppsh import SolicitudCreate, SolicitanteCreate
+        
+        # Sin titular
+        with pytest.raises(PPSHBusinessException):
+            solicitud_data = SolicitudCreate(
+                tipo_solicitud="INDIVIDUAL",
+                cod_causa_humanitaria=1,
+                descripcion_caso="Caso sin titular",
+                prioridad="NORMAL",
+                solicitantes=[
+                    SolicitanteCreate(
+                        es_titular=False,  # No titular
+                        tipo_documento="PASAPORTE",
+                        num_documento="AB123456",
+                        pais_emisor="VEN",
+                        primer_nombre="Juan",
+                        primer_apellido="Pérez",
+                        fecha_nacimiento=date(1990, 5, 15),
+                        cod_sexo="M",
+                        cod_nacionalidad="VEN",
+                        email="juan@example.com"
+                    )
+                ]
+            )
+    
+    def test_obtener_solicitud_by_id(self, db_session, setup_catalogos):
+        """Test: Obtener solicitud por ID"""
+        # Crear solicitud
+        solicitud = PPSHSolicitud(
+            numero_solicitud="PPSH-AGE01-2025-000001",
+            cod_agencia="AGE01",
+            cod_seccion="SEC01",
+            tipo_solicitud="INDIVIDUAL",
+            cod_causa_humanitaria=1,
+            descripcion_caso="Caso de prueba",
+            prioridad="NORMAL",
+            cod_estado_actual="RECIBIDO",
+            fecha_registro=datetime.now()
+        )
+        db_session.add(solicitud)
+        db_session.commit()
+        db_session.refresh(solicitud)
+        
+        # Obtener solicitud
+        solicitud_obtenida = SolicitudService.obtener_solicitud_by_id(
+            db_session, solicitud.id
+        )
+        
+        assert solicitud_obtenida is not None
+        assert solicitud_obtenida.id == solicitud.id
+        assert solicitud_obtenida.numero_solicitud == "PPSH-AGE01-2025-000001"
+    
+    def test_obtener_solicitud_not_found(self, db_session):
+        """Test: Solicitud no encontrada"""
+        with pytest.raises(PPSHNotFoundException):
+            SolicitudService.obtener_solicitud_by_id(db_session, 99999)
+    
+    def test_actualizar_estado_solicitud(self, db_session, setup_catalogos):
+        """Test: Actualizar estado de solicitud"""
+        # Crear solicitud
+        solicitud = PPSHSolicitud(
+            numero_solicitud="PPSH-AGE01-2025-000001",
+            cod_agencia="AGE01",
+            cod_seccion="SEC01",
+            tipo_solicitud="INDIVIDUAL",
+            cod_causa_humanitaria=1,
+            descripcion_caso="Caso de prueba",
+            prioridad="NORMAL",
+            cod_estado_actual="RECIBIDO",
+            fecha_registro=datetime.now()
+        )
+        db_session.add(solicitud)
+        db_session.commit()
+        db_session.refresh(solicitud)
+        
+        # Actualizar estado
+        solicitud_actualizada = SolicitudService.actualizar_estado(
+            db_session,
+            solicitud.id,
+            "EN_REVISION",
+            "ADMIN01",
+            "Iniciando proceso de revisión"
+        )
+        
+        assert solicitud_actualizada.cod_estado_actual == "EN_REVISION"
+    
+    def test_listar_solicitudes_con_filtros(self, db_session, setup_catalogos):
+        """Test: Listar solicitudes con filtros"""
+        # Crear varias solicitudes
+        solicitudes = [
+            PPSHSolicitud(
+                numero_solicitud=f"PPSH-AGE01-2025-{i:06d}",
+                cod_agencia="AGE01",
+                cod_seccion="SEC01",
+                tipo_solicitud="INDIVIDUAL",
+                cod_causa_humanitaria=1,
+                descripcion_caso=f"Caso {i}",
+                prioridad="NORMAL" if i % 2 == 0 else "ALTA",
+                cod_estado_actual="RECIBIDO" if i % 2 == 0 else "EN_REVISION",
+                fecha_registro=datetime.now()
+            )
+            for i in range(1, 11)
+        ]
+        db_session.add_all(solicitudes)
+        db_session.commit()
+        
+        # Filtrar por prioridad
+        from app.schemas_ppsh import SolicitudFiltros
+        filtros = SolicitudFiltros(prioridad="ALTA")
+        
+        resultado = SolicitudService.listar_solicitudes(
+            db_session,
+            filtros=filtros,
+            page=1,
+            size=10
+        )
+        
+        assert resultado["total"] == 5  # 5 con prioridad ALTA
+        assert all(s.prioridad == "ALTA" for s in resultado["items"])
+    
+    def test_verificar_permiso_acceso_admin(self, db_session, setup_catalogos):
+        """Test: Admin tiene acceso a todas las solicitudes"""
+        solicitud = PPSHSolicitud(
+            numero_solicitud="PPSH-AGE01-2025-000001",
+            cod_agencia="AGE01",
+            cod_seccion="SEC01",
+            tipo_solicitud="INDIVIDUAL",
+            cod_causa_humanitaria=1,
+            descripcion_caso="Caso de prueba",
+            prioridad="NORMAL",
+            cod_estado_actual="RECIBIDO",
+            fecha_registro=datetime.now()
+        )
+        db_session.add(solicitud)
+        db_session.commit()
+        
+        user_context = {"es_admin": True, "agencia": "AGE02"}
+        
+        # No debe lanzar excepción
+        SolicitudService.verificar_permiso_acceso(
+            solicitud, user_context
+        )
+    
+    def test_verificar_permiso_acceso_mismo_agencia(self, db_session, setup_catalogos):
+        """Test: Usuario puede acceder a solicitudes de su agencia"""
+        solicitud = PPSHSolicitud(
+            numero_solicitud="PPSH-AGE01-2025-000001",
+            cod_agencia="AGE01",
+            cod_seccion="SEC01",
+            tipo_solicitud="INDIVIDUAL",
+            cod_causa_humanitaria=1,
+            descripcion_caso="Caso de prueba",
+            prioridad="NORMAL",
+            cod_estado_actual="RECIBIDO",
+            fecha_registro=datetime.now()
+        )
+        
+        user_context = {"es_admin": False, "agencia": "AGE01"}
+        
+        # No debe lanzar excepción
+        SolicitudService.verificar_permiso_acceso(
+            solicitud, user_context
+        )
+    
+    def test_verificar_permiso_acceso_denegado(self, db_session, setup_catalogos):
+        """Test: Usuario no puede acceder a solicitudes de otra agencia"""
+        solicitud = PPSHSolicitud(
+            numero_solicitud="PPSH-AGE01-2025-000001",
+            cod_agencia="AGE01",
+            cod_seccion="SEC01",
+            tipo_solicitud="INDIVIDUAL",
+            cod_causa_humanitaria=1,
+            descripcion_caso="Caso de prueba",
+            prioridad="NORMAL",
+            cod_estado_actual="RECIBIDO",
+            fecha_registro=datetime.now()
+        )
+        
+        user_context = {"es_admin": False, "agencia": "AGE02"}
+        
+        with pytest.raises(PPSHPermissionException):
+            SolicitudService.verificar_permiso_acceso(
+                solicitud, user_context
+            )
+
+
+# ==========================================
+# TESTS DE SOLICITANTESERVICE
+# ==========================================
+
+class TestSolicitanteService:
+    """Tests para SolicitanteService"""
+    
+    def test_agregar_solicitante_success(self, db_session, setup_catalogos):
+        """Test: Agregar solicitante a solicitud"""
+        # Crear solicitud
+        solicitud = PPSHSolicitud(
+            numero_solicitud="PPSH-AGE01-2025-000001",
+            cod_agencia="AGE01",
+            cod_seccion="SEC01",
+            tipo_solicitud="FAMILIAR",
+            cod_causa_humanitaria=1,
+            descripcion_caso="Caso familiar",
+            prioridad="NORMAL",
+            cod_estado_actual="RECIBIDO",
+            fecha_registro=datetime.now()
+        )
+        db_session.add(solicitud)
+        db_session.commit()
+        db_session.refresh(solicitud)
+        
+        # Agregar solicitante
+        from app.schemas_ppsh import SolicitanteCreate
+        
+        solicitante_data = SolicitanteCreate(
+            es_titular=False,
+            tipo_documento="PASAPORTE",
+            num_documento="CD789012",
+            pais_emisor="VEN",
+            primer_nombre="María",
+            primer_apellido="Pérez",
+            fecha_nacimiento=date(2010, 3, 20),
+            cod_sexo="F",
+            cod_nacionalidad="VEN",
+            email="maria@example.com"
+        )
+        
+        solicitante = SolicitanteService.agregar_solicitante(
+            db_session,
+            solicitud.id,
+            solicitante_data,
+            "ADMIN01"
+        )
+        
+        assert solicitante.id is not None
+        assert solicitante.solicitud_id == solicitud.id
+        assert solicitante.primer_nombre == "María"
+    
+    def test_validar_documento_unico(self, db_session, setup_catalogos):
+        """Test: Validar que número de documento sea único"""
+        # Crear solicitud y solicitante existente
+        solicitud = PPSHSolicitud(
+            numero_solicitud="PPSH-AGE01-2025-000001",
+            cod_agencia="AGE01",
+            cod_seccion="SEC01",
+            tipo_solicitud="INDIVIDUAL",
+            cod_causa_humanitaria=1,
+            descripcion_caso="Caso de prueba",
+            prioridad="NORMAL",
+            cod_estado_actual="RECIBIDO",
+            fecha_registro=datetime.now()
+        )
+        solicitante_existente = PPSHSolicitante(
+            solicitud=solicitud,
+            es_titular=True,
+            tipo_documento="PASAPORTE",
+            num_documento="AB123456",
+            pais_emisor="VEN",
+            primer_nombre="Juan",
+            primer_apellido="Pérez",
+            fecha_nacimiento=date(1990, 5, 15),
+            cod_sexo="M",
+            cod_nacionalidad="VEN"
+        )
+        db_session.add_all([solicitud, solicitante_existente])
+        db_session.commit()
+        
+        # Intentar agregar con documento duplicado
+        es_unico = SolicitanteService.validar_documento_unico(
+            db_session, "PASAPORTE", "AB123456"
+        )
+        
+        assert es_unico is False
+
+
+# ==========================================
+# TESTS DE DOCUMENTOSERVICE
+# ==========================================
+
+class TestDocumentoService:
+    """Tests para DocumentoService"""
+    
+    def test_registrar_documento_success(self, db_session, setup_catalogos):
+        """Test: Registrar documento exitosamente"""
+        # Crear solicitud
+        solicitud = PPSHSolicitud(
+            numero_solicitud="PPSH-AGE01-2025-000001",
+            cod_agencia="AGE01",
+            cod_seccion="SEC01",
+            tipo_solicitud="INDIVIDUAL",
+            cod_causa_humanitaria=1,
+            descripcion_caso="Caso de prueba",
+            prioridad="NORMAL",
+            cod_estado_actual="RECIBIDO",
+            fecha_registro=datetime.now()
+        )
+        db_session.add(solicitud)
+        db_session.commit()
+        db_session.refresh(solicitud)
+        
+        # Registrar documento
+        from app.schemas_ppsh import DocumentoCreate
+        
+        documento_data = DocumentoCreate(
+            cod_tipo_documento=1,
+            nombre_archivo="pasaporte.pdf",
+            extension="pdf",
+            ruta_archivo="/uploads/2025/pasaporte.pdf",
+            tamanio_bytes=1024000,
+            observaciones="Pasaporte vigente"
+        )
+        
+        documento = DocumentoService.registrar_documento(
+            db_session,
+            solicitud.id,
+            documento_data,
+            "ADMIN01"
+        )
+        
+        assert documento.id is not None
+        assert documento.solicitud_id == solicitud.id
+        assert documento.nombre_archivo == "pasaporte.pdf"
+        assert documento.fecha_subida is not None
+    
+    def test_validar_extension_permitida(self):
+        """Test: Validar extensiones de archivo permitidas"""
+        extensiones_validas = ["pdf", "jpg", "jpeg", "png", "doc", "docx"]
+        
+        for ext in extensiones_validas:
+            assert DocumentoService.validar_extension(ext) is True
+        
+        assert DocumentoService.validar_extension("exe") is False
+        assert DocumentoService.validar_extension("bat") is False
+    
+    def test_validar_tamanio_maximo(self):
+        """Test: Validar tamaño máximo de archivo"""
+        # 5 MB (permitido)
+        assert DocumentoService.validar_tamanio(5 * 1024 * 1024) is True
+        
+        # 20 MB (excedido)
+        assert DocumentoService.validar_tamanio(20 * 1024 * 1024) is False
+
+
+# ==========================================
+# TESTS DE ENTREVISTASERVICE
+# ==========================================
+
+class TestEntrevistaService:
+    """Tests para EntrevistaService"""
+    
+    def test_programar_entrevista_success(self, db_session, setup_catalogos):
+        """Test: Programar entrevista exitosamente"""
+        # Crear solicitud
+        solicitud = PPSHSolicitud(
+            numero_solicitud="PPSH-AGE01-2025-000001",
+            cod_agencia="AGE01",
+            cod_seccion="SEC01",
+            tipo_solicitud="INDIVIDUAL",
+            cod_causa_humanitaria=1,
+            descripcion_caso="Caso de prueba",
+            prioridad="NORMAL",
+            cod_estado_actual="RECIBIDO",
+            fecha_registro=datetime.now()
+        )
+        db_session.add(solicitud)
+        db_session.commit()
+        db_session.refresh(solicitud)
+        
+        # Programar entrevista
+        from app.schemas_ppsh import EntrevistaCreate
+        
+        fecha_futura = datetime.now() + timedelta(days=7)
+        
+        entrevista_data = EntrevistaCreate(
+            fecha_programada=fecha_futura,
+            hora_programada="10:00",
+            modalidad="PRESENCIAL",
+            lugar="Oficina Central",
+            entrevistador_asignado="ADMIN01",
+            observaciones="Entrevista inicial"
+        )
+        
+        entrevista = EntrevistaService.programar_entrevista(
+            db_session,
+            solicitud.id,
+            entrevista_data,
+            "ADMIN01"
+        )
+        
+        assert entrevista.id is not None
+        assert entrevista.solicitud_id == solicitud.id
+        assert entrevista.modalidad == "PRESENCIAL"
+    
+    def test_validar_disponibilidad_horario(self, db_session, setup_catalogos):
+        """Test: Validar disponibilidad de horario"""
+        # Crear solicitud y entrevista existente
+        solicitud = PPSHSolicitud(
+            numero_solicitud="PPSH-AGE01-2025-000001",
+            cod_agencia="AGE01",
+            cod_seccion="SEC01",
+            tipo_solicitud="INDIVIDUAL",
+            cod_causa_humanitaria=1,
+            descripcion_caso="Caso de prueba",
+            prioridad="NORMAL",
+            cod_estado_actual="RECIBIDO",
+            fecha_registro=datetime.now()
+        )
+        
+        fecha_ocupada = datetime.now() + timedelta(days=7)
+        entrevista_existente = PPSHEntrevista(
+            solicitud=solicitud,
+            fecha_programada=fecha_ocupada,
+            hora_programada="10:00",
+            modalidad="PRESENCIAL",
+            lugar="Oficina Central",
+            entrevistador_asignado="ADMIN01"
+        )
+        
+        db_session.add_all([solicitud, entrevista_existente])
+        db_session.commit()
+        
+        # Verificar disponibilidad
+        disponible = EntrevistaService.verificar_disponibilidad(
+            db_session,
+            fecha_ocupada.date(),
+            "10:00",
+            "ADMIN01"
+        )
+        
+        assert disponible is False
+
+
+# ==========================================
+# TESTS DE ESTADISTICASSERVICE
+# ==========================================
+
+class TestEstadisticasService:
+    """Tests para EstadisticasService"""
+    
+    def test_calcular_estadisticas_por_estado(self, db_session, setup_catalogos):
+        """Test: Calcular estadísticas por estado"""
+        # Crear solicitudes con diferentes estados
+        solicitudes = [
+            PPSHSolicitud(
+                numero_solicitud=f"PPSH-AGE01-2025-{i:06d}",
+                cod_agencia="AGE01",
+                cod_seccion="SEC01",
+                tipo_solicitud="INDIVIDUAL",
+                cod_causa_humanitaria=1,
+                descripcion_caso=f"Caso {i}",
+                prioridad="NORMAL",
+                cod_estado_actual="RECIBIDO" if i <= 5 else "EN_REVISION",
+                fecha_registro=datetime.now()
+            )
+            for i in range(1, 11)
+        ]
+        db_session.add_all(solicitudes)
+        db_session.commit()
+        
+        estadisticas = EstadisticasService.estadisticas_por_estado(db_session)
+        
+        assert len(estadisticas) >= 2
+        assert any(e["estado"] == "RECIBIDO" and e["total"] == 5 for e in estadisticas)
+        assert any(e["estado"] == "EN_REVISION" and e["total"] == 5 for e in estadisticas)
+    
+    def test_calcular_tiempo_promedio_procesamiento(self, db_session, setup_catalogos):
+        """Test: Calcular tiempo promedio de procesamiento"""
+        # Crear solicitudes con fechas de inicio y resolución
+        solicitudes = [
+            PPSHSolicitud(
+                numero_solicitud=f"PPSH-AGE01-2025-{i:06d}",
+                cod_agencia="AGE01",
+                cod_seccion="SEC01",
+                tipo_solicitud="INDIVIDUAL",
+                cod_causa_humanitaria=1,
+                descripcion_caso=f"Caso {i}",
+                prioridad="NORMAL",
+                cod_estado_actual="APROBADO",
+                fecha_registro=datetime(2025, 1, 1),
+                fecha_resolucion=datetime(2025, 1, 10)  # 9 días
+            )
+            for i in range(1, 6)
+        ]
+        db_session.add_all(solicitudes)
+        db_session.commit()
+        
+        promedio = EstadisticasService.tiempo_promedio_procesamiento(db_session)
+        
+        assert promedio["promedio_dias"] == 9
+        assert promedio["total_procesados"] == 5
+
+
+if __name__ == "__main__":
+    pytest.main([__file__, "-v", "--tb=short"])
