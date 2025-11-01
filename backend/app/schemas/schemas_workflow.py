@@ -9,7 +9,7 @@ Author: Sistema de Trámites MVP Panamá
 Date: 2025-10-20
 """
 
-from pydantic import BaseModel, Field, validator, ConfigDict
+from pydantic import BaseModel, Field, validator, ConfigDict, field_validator, model_validator
 from typing import Optional, List, Dict, Any, Union
 from datetime import datetime
 from enum import Enum
@@ -83,6 +83,17 @@ class WorkflowPreguntaBase(BaseModel):
     valor_predeterminado: Optional[str] = Field(None, max_length=500)
     mostrar_si: Optional[Dict[str, Any]] = None
     activo: bool = True
+    
+    @model_validator(mode='after')
+    def validar_opciones_por_tipo(self):
+        """Valida que las preguntas de tipo texto no tengan opciones"""
+        tipos_sin_opciones = [TipoPreguntaEnum.RESPUESTA_TEXTO, TipoPreguntaEnum.RESPUESTA_LARGA]
+        
+        if self.tipo_pregunta in tipos_sin_opciones:
+            if self.opciones and len(self.opciones) > 0:
+                raise ValueError(f'Las preguntas de tipo {self.tipo_pregunta.value} no deben tener opciones')
+        
+        return self
 
 
 class WorkflowPreguntaCreate(WorkflowPreguntaBase):
@@ -150,6 +161,21 @@ class WorkflowEtapaBase(BaseModel):
     tiempo_estimado_minutos: Optional[int] = Field(None, ge=0)
     reglas_transicion: Optional[Dict[str, Any]] = None
     activo: bool = True
+    
+    @field_validator('orden')
+    @classmethod
+    def validar_orden_positivo(cls, v: int) -> int:
+        """Valida que el orden sea positivo"""
+        if v < 0:
+            raise ValueError('El orden debe ser un número positivo o cero')
+        return v
+    
+    @model_validator(mode='after')
+    def validar_perfiles(self):
+        """Valida que se especifiquen perfiles permitidos"""
+        if not self.perfiles_permitidos or len(self.perfiles_permitidos) == 0:
+            raise ValueError('La etapa debe tener al menos un perfil permitido')
+        return self
 
 
 class WorkflowEtapaCreate(WorkflowEtapaBase):
@@ -203,9 +229,31 @@ class WorkflowEtapaResponse(WorkflowEtapaBase):
 class WorkflowConexionBase(BaseModel):
     """Schema base para conexión"""
     nombre: Optional[str] = Field(None, max_length=255)
+    tipo_conexion: Optional[str] = Field(None, max_length=50)
     condicion: Optional[Dict[str, Any]] = None
     es_predeterminada: bool = False
     activo: bool = True
+    
+    @field_validator('tipo_conexion')
+    @classmethod
+    def validar_tipo_conexion(cls, v: Optional[str]) -> Optional[str]:
+        """Valida que el tipo de conexión sea válido"""
+        if v is None:
+            return v
+        
+        tipos_validos = ['SECUENCIAL', 'CONDICIONAL', 'PARALELA']
+        if v not in tipos_validos:
+            raise ValueError(f'Tipo de conexión inválido. Tipos válidos: {", ".join(tipos_validos)}')
+        
+        return v
+    
+    @model_validator(mode='after')
+    def validar_condicion_condicional(self):
+        """Valida que las conexiones condicionales tengan condición"""
+        if self.tipo_conexion == 'CONDICIONAL':
+            if not self.condicion:
+                raise ValueError('Las conexiones condicionales deben tener una condición definida')
+        return self
 
 
 class WorkflowConexionCreate(WorkflowConexionBase):
@@ -213,12 +261,26 @@ class WorkflowConexionCreate(WorkflowConexionBase):
     workflow_id: int
     etapa_origen_id: int
     etapa_destino_id: int
+    
+    @model_validator(mode='after')
+    def validar_etapas_diferentes(self):
+        """Valida que las etapas de origen y destino sean diferentes"""
+        if self.etapa_origen_id == self.etapa_destino_id:
+            raise ValueError('La etapa de origen y destino deben ser diferentes')
+        return self
 
 
 class WorkflowConexionCreateByCodigo(WorkflowConexionBase):
     """Schema para crear conexión usando códigos de etapa (para creación completa de workflow)"""
     etapa_origen_codigo: str = Field(..., max_length=100)
     etapa_destino_codigo: str = Field(..., max_length=100)
+    
+    @model_validator(mode='after')
+    def validar_etapas_diferentes(self):
+        """Valida que las etapas de origen y destino sean diferentes"""
+        if self.etapa_origen_codigo == self.etapa_destino_codigo:
+            raise ValueError('La etapa de origen y destino deben ser diferentes')
+        return self
 
 
 class WorkflowConexionUpdate(BaseModel):
@@ -265,6 +327,15 @@ class WorkflowCreate(WorkflowBase):
     """Schema para crear workflow completo con etapas y conexiones anidadas"""
     etapas: Optional[List[WorkflowEtapaCreateNested]] = Field(default_factory=list)
     conexiones: Optional[List[WorkflowConexionCreateByCodigo]] = Field(default_factory=list)
+    
+    @model_validator(mode='after')
+    def validar_etapa_inicial(self):
+        """Valida que haya al menos una etapa inicial si se definen etapas"""
+        if self.etapas:
+            etapas_iniciales = sum(1 for e in self.etapas if e.es_etapa_inicial)
+            if etapas_iniciales == 0:
+                raise ValueError('El workflow debe tener al menos una etapa inicial')
+        return self
 
 
 class WorkflowUpdate(BaseModel):
