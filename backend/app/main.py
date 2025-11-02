@@ -40,6 +40,13 @@ except ImportError:
     SIM_FT_AVAILABLE = False
     sim_ft_router = None
 
+try:
+    from app.routers.routers_ocr import router as ocr_router
+    OCR_AVAILABLE = True
+except ImportError:
+    OCR_AVAILABLE = False
+    ocr_router = None
+
 # Configurar logging
 log_file = os.path.join("logs", "app.log") if os.path.exists("logs") else None
 setup_logging(
@@ -118,6 +125,13 @@ if SIM_FT_AVAILABLE and sim_ft_router:
 else:
     logger.warning("⚠️  Módulo SIM_FT no disponible")
 
+# Incluir router de OCR si está disponible
+if OCR_AVAILABLE and ocr_router:
+    app.include_router(ocr_router, prefix="/api/v1")
+    logger.info("✅ Módulo OCR registrado en /api/v1/ocr")
+else:
+    logger.warning("⚠️  Módulo OCR no disponible")
+
 logger.info("🚀 Aplicación FastAPI inicializada")
 
 @app.get("/", tags=["Root"])
@@ -150,6 +164,12 @@ async def root():
         response["modules"]["sim_ft"] = "✅ Disponible en /api/v1/sim-ft"
     else:
         response["modules"]["sim_ft"] = "❌ No disponible"
+    
+    # Agregar módulo OCR si está disponible
+    if OCR_AVAILABLE:
+        response["modules"]["ocr"] = "✅ Disponible en /api/v1/ocr"
+    else:
+        response["modules"]["ocr"] = "❌ No disponible"
     
     return response
 
@@ -269,6 +289,8 @@ async def startup_event():
         logger.info("    - Workflow Dinámico: ✅")
     if SIM_FT_AVAILABLE:
         logger.info("    - SIM_FT: ✅")
+    if OCR_AVAILABLE:
+        logger.info("    - OCR: ✅")
     
     # Inicializar métricas si está disponible
     if METRICS_AVAILABLE:

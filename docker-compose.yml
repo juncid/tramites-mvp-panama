@@ -181,6 +181,109 @@ services:
         max-size: "10m"
         max-file: "5"
 
+  # Celery Worker para OCR
+  celery-worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: tramites-celery-worker
+    environment:
+      - DATABASE_HOST=sqlserver
+      - DATABASE_PORT=1433
+      - DATABASE_NAME=SIM_PANAMA
+      - DATABASE_USER=sa
+      - DATABASE_PASSWORD=YourStrong@Passw0rd
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - CELERY_BROKER_URL=redis://redis:6379/1
+      - CELERY_RESULT_BACKEND=redis://redis:6379/2
+      - C_FORCE_ROOT=true
+      - LOG_LEVEL=INFO
+    volumes:
+      - ./backend:/app
+      - backend-logs:/app/logs
+    networks:
+      - tramites-network
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: >
+      celery -A celery_app worker 
+      --loglevel=info 
+      --concurrency=4 
+      --queues=ocr_high_priority,ocr_default,ocr_low_priority
+      --max-tasks-per-child=100
+      --time-limit=3600
+      --soft-time-limit=3000
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  # Celery Beat para tareas programadas
+  celery-beat:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: tramites-celery-beat
+    environment:
+      - DATABASE_HOST=sqlserver
+      - DATABASE_PORT=1433
+      - DATABASE_NAME=SIM_PANAMA
+      - DATABASE_USER=sa
+      - DATABASE_PASSWORD=YourStrong@Passw0rd
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - CELERY_BROKER_URL=redis://redis:6379/1
+      - CELERY_RESULT_BACKEND=redis://redis:6379/2
+      - C_FORCE_ROOT=true
+      - LOG_LEVEL=INFO
+    volumes:
+      - ./backend:/app
+      - backend-logs:/app/logs
+    networks:
+      - tramites-network
+    depends_on:
+      - redis
+    command: celery -A celery_app beat --loglevel=info
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "3"
+
+  # Flower - Monitor de Celery
+  celery-flower:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: tramites-celery-flower
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/1
+      - CELERY_RESULT_BACKEND=redis://redis:6379/2
+      - FLOWER_PORT=5555
+    ports:
+      - "5555:5555"
+    volumes:
+      - ./backend:/app
+    networks:
+      - tramites-network
+    depends_on:
+      - redis
+      - celery-worker
+    command: celery -A celery_app flower --port=5555
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "2"
+
   # React Frontend
   frontend:
     build:

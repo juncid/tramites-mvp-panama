@@ -9,3 +9,16 @@ pyodbc==5.0.1
 redis==5.0.1
 python-dotenv==1.0.0
 python-multipart>=0.0.6
+
+# Celery para procesamiento asíncrono
+celery==5.3.4
+kombu==5.3.4
+
+# OCR y procesamiento de imágenes
+pytesseract==0.3.10
+opencv-python-headless==4.8.1.78
+Pillow==10.1.0
+numpy==1.26.2
+
+# Monitoreo de Celery
+flower==2.0.1

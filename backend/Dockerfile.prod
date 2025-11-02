@@ -7,6 +7,13 @@ RUN apt-get update && apt-get install -y \
     gnupg2 \
     unixodbc \
     unixodbc-dev \
+    # Tesseract OCR y dependencias
+    tesseract-ocr \
+    tesseract-ocr-spa \
+    tesseract-ocr-eng \
+    # Bibliotecas para OpenCV
+    libgl1 \
+    libglib2.0-0 \
     && curl https://packages.microsoft.com/keys/microsoft.asc | apt-key add - \
     && curl https://packages.microsoft.com/config/debian/11/prod.list > /etc/apt/sources.list.d/mssql-release.list \
     && apt-get update \
@@ -22,6 +29,13 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application
 COPY . .
+
+# Download tessdata_best Spanish model for better OCR accuracy
+RUN curl -L -o /usr/share/tesseract-ocr/5/tessdata/spa.traineddata \
+    https://github.com/tesseract-ocr/tessdata_best/raw/main/spa.traineddata
+
+# Copy custom Tesseract dictionary for Panama
+COPY config/tesseract_panama_words.txt /usr/share/tesseract-ocr/5/tessdata/panama.user-words
 
 # Create non-root user
 RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app

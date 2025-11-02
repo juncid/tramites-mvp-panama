@@ -1,5 +1,5 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
-import { TramitesPage, TramitesPageUser, BpmnPage } from './pages'
+import { TramitesPage, TramitesPageUser, BpmnPage, OCRTestPage } from './pages'
 
 function App() {
   return (
@@ -9,6 +9,7 @@ function App() {
         <Route path="/tramites" element={<TramitesPage />} />
         <Route path="/tramites-user" element={<TramitesPageUser />} />
         <Route path="/bpmn" element={<BpmnPage />} />
+        <Route path="/ocr" element={<OCRTestPage />} />
         <Route path="*" element={<Navigate to="/tramites" replace />} />
       </Routes>
     </Router>

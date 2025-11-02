@@ -205,6 +205,7 @@ class PPSHDocumento(Base):
     # Relaciones
     solicitud = relationship("PPSHSolicitud", back_populates="documentos")
     tipo_documento = relationship("PPSHTipoDocumento", back_populates="documentos")
+    ocr_results = relationship("PPSHDocumentoOCR", back_populates="documento", cascade="all, delete-orphan")
 
 
 class PPSHEstadoHistorial(Base):
