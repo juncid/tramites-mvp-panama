@@ -1,17 +1,10 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
-import { TramitesPage, TramitesPageUser, BpmnPage, OCRTestPage } from './pages'
+import { BrowserRouter as Router } from 'react-router-dom'
+import { AppRouter } from './routes/AppRouter'
 
 function App() {
   return (
     <Router>
-      <Routes>
-        <Route path="/" element={<Navigate to="/tramites" replace />} />
-        <Route path="/tramites" element={<TramitesPage />} />
-        <Route path="/tramites-user" element={<TramitesPageUser />} />
-        <Route path="/bpmn" element={<BpmnPage />} />
-        <Route path="/ocr" element={<OCRTestPage />} />
-        <Route path="*" element={<Navigate to="/tramites" replace />} />
-      </Routes>
+      <AppRouter />
     </Router>
   )
 }
