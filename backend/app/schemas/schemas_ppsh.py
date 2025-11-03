@@ -401,6 +401,22 @@ class DocumentoUpdate(BaseModel):
     estado_verificacion: Optional[EstadoVerificacionEnum] = None
 
 
+class OCRResultadoResponse(BaseModel):
+    """Response de resultado OCR"""
+    id_ocr: int
+    estado_ocr: str
+    texto_confianza: Optional[float] = None
+    idioma_detectado: Optional[str] = None
+    num_paginas: Optional[int] = None
+    datos_estructurados: Optional[dict] = None
+    codigo_error: Optional[str] = None
+    mensaje_error: Optional[str] = None
+    fecha_procesamiento: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
 class DocumentoResponse(BaseModel):
     """Response de documento"""
     id_documento: int
@@ -416,9 +432,23 @@ class DocumentoResponse(BaseModel):
     uploaded_by: Optional[str]
     uploaded_at: datetime
     observaciones: Optional[str]
+    # Información de OCR
+    ocr_resultado: Optional[OCRResultadoResponse] = None
+    ocr_exitoso: bool = False
 
     class Config:
         from_attributes = True
+
+
+class ActualizarOCRDocumentoRequest(BaseModel):
+    """Schema para actualizar estado OCR de un documento"""
+    id_documento: int
+    ocr_exitoso: bool
+
+
+class ActualizarOCRDocumentosRequest(BaseModel):
+    """Schema para actualizar múltiples documentos"""
+    documentos: List[ActualizarOCRDocumentoRequest]
 
 
 # ==========================================
@@ -552,3 +582,33 @@ class PaginatedResponse(BaseModel):
     page_size: int
     total_pages: int
     items: List[SolicitudListResponse]
+
+
+# ==========================================
+# SCHEMAS DE ETAPAS
+# ==========================================
+
+class EtapaSolicitudResponse(BaseModel):
+    """Schema para response de etapa de solicitud"""
+    id_etapa_solicitud: int
+    id_solicitud: int
+    codigo_etapa: str
+    nombre_etapa: str
+    descripcion: Optional[str] = None
+    estado: str  # PENDIENTE, EN_PROCESO, COMPLETADO
+    orden: int
+    fecha_inicio: Optional[datetime] = None
+    fecha_completado: Optional[datetime] = None
+    completado_por: Optional[str] = None
+    observaciones: Optional[str] = None
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+class ActualizarEstadoEtapaRequest(BaseModel):
+    """Schema para actualizar estado de una etapa"""
+    estado: str = Field(..., pattern="^(PENDIENTE|EN_PROCESO|COMPLETADO)$")
+    observaciones: Optional[str] = Field(None, max_length=1000)

@@ -4,6 +4,8 @@ import { Dashboard } from '../pages/Dashboard';
 import { Tramites } from '../pages/Tramites';
 import { Solicitudes } from '../pages/Solicitudes';
 import { ProcesosList } from '../pages/ProcesosList';
+import { RevisionRequisitos } from '../pages/RevisionRequisitos';
+import { Etapas } from '../pages/Etapas';
 
 export const AppRouter = () => {
   return (
@@ -22,6 +24,22 @@ export const AppRouter = () => {
         element={
           <MainLayout>
             <Solicitudes />
+          </MainLayout>
+        }
+      />
+      <Route
+        path="/solicitudes/:id/revision"
+        element={
+          <MainLayout>
+            <RevisionRequisitos />
+          </MainLayout>
+        }
+      />
+      <Route
+        path="/solicitudes/:id/etapas"
+        element={
+          <MainLayout>
+            <Etapas />
           </MainLayout>
         }
       />

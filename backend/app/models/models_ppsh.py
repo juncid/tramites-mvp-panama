@@ -128,6 +128,7 @@ class PPSHSolicitud(Base):
     entrevistas = relationship("PPSHEntrevista", back_populates="solicitud", cascade="all, delete-orphan")
     comentarios = relationship("PPSHComentario", back_populates="solicitud", cascade="all, delete-orphan")
     pagos = relationship("PPSHPago", back_populates="solicitud", cascade="all, delete-orphan")
+    etapas = relationship("PPSHEtapaSolicitud", back_populates="solicitud", cascade="all, delete-orphan", order_by="PPSHEtapaSolicitud.orden")
 
 
 class PPSHSolicitante(Base):
@@ -323,3 +324,25 @@ class PPSHPago(Base):
     # Relaciones
     solicitud = relationship("PPSHSolicitud", back_populates="pagos")
     concepto = relationship("PPSHConceptoPago", back_populates="pagos")
+
+
+class PPSHEtapaSolicitud(Base):
+    """Tracking de etapas del proceso PPSH por solicitud"""
+    __tablename__ = "PPSH_ETAPA_SOLICITUD"
+
+    id_etapa_solicitud = Column(Integer, primary_key=True, index=True)
+    id_solicitud = Column(Integer, ForeignKey('PPSH_SOLICITUD.id_solicitud'), nullable=False, index=True)
+    codigo_etapa = Column(String(20), nullable=False, index=True)  # "1.2", "1.7", etc.
+    nombre_etapa = Column(String(500), nullable=False)
+    descripcion = Column(String(2000))
+    estado = Column(String(20), nullable=False, default='PENDIENTE', index=True)  # PENDIENTE, EN_PROCESO, COMPLETADO
+    orden = Column(Integer, nullable=False)
+    fecha_inicio = Column(DateTime)
+    fecha_completado = Column(DateTime)
+    completado_por = Column(String(17))
+    observaciones = Column(String(1000))
+    created_at = Column(DateTime, nullable=False, default=func.now())
+    updated_at = Column(DateTime, onupdate=func.now())
+
+    # Relaciones
+    solicitud = relationship("PPSHSolicitud", back_populates="etapas")

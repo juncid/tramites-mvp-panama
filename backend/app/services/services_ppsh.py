@@ -538,6 +538,150 @@ class DocumentoService:
     """Servicio para manejar documentos de solicitudes"""
     
     @staticmethod
+    def listar_documentos(
+        db: Session,
+        id_solicitud: int
+    ) -> List[models_ppsh.PPSHDocumento]:
+        """Lista todos los documentos de una solicitud con información de OCR"""
+        
+        # Validar que existe la solicitud
+        SolicitudService.get_solicitud(db, id_solicitud, incluir_relaciones=False)
+        
+        logger.info(f"Listando documentos para solicitud {id_solicitud}")
+        
+        # Eager load de la relación ocr_results para evitar N+1 queries
+        from sqlalchemy.orm import joinedload
+        
+        documentos = db.query(models_ppsh.PPSHDocumento).options(
+            joinedload(models_ppsh.PPSHDocumento.ocr_results)
+        ).filter(
+            models_ppsh.PPSHDocumento.id_solicitud == id_solicitud
+        ).order_by(models_ppsh.PPSHDocumento.uploaded_at.desc()).all()
+        
+        return documentos
+    
+    @staticmethod
+    def actualizar_estado_ocr_documentos(
+        db: Session,
+        documentos_update: List[dict],
+        id_solicitud: int = None
+    ) -> dict:
+        """
+        Actualiza el estado OCR de múltiples documentos.
+        Si se proporciona id_solicitud, verifica si todos los documentos tienen OCR exitoso
+        para marcar la etapa de revisión OCR como completada.
+        
+        Args:
+            db: Sesión de base de datos
+            documentos_update: Lista de dicts con {id_documento, ocr_exitoso}
+            id_solicitud: ID de la solicitud (opcional, para verificar completitud)
+            
+        Returns:
+            Dict con: {
+                'documentos_actualizados': int,
+                'revision_ocr_completada': bool,
+                'total_documentos': int,
+                'documentos_con_ocr': int
+            }
+        """
+        from app.models.models_ocr import PPSHDocumentoOCR
+        
+        logger.info(f"Actualizando estado OCR de {len(documentos_update)} documentos")
+        
+        count = 0
+        for doc_data in documentos_update:
+            id_documento = doc_data['id_documento']
+            ocr_exitoso = doc_data['ocr_exitoso']
+            
+            # Verificar que el documento existe
+            documento = db.query(models_ppsh.PPSHDocumento).filter(
+                models_ppsh.PPSHDocumento.id_documento == id_documento
+            ).first()
+            
+            if not documento:
+                logger.warning(f"Documento {id_documento} no encontrado")
+                continue
+            
+            # Buscar o crear registro OCR
+            ocr_record = db.query(PPSHDocumentoOCR).filter(
+                PPSHDocumentoOCR.id_documento == id_documento
+            ).order_by(PPSHDocumentoOCR.created_at.desc()).first()
+            
+            if ocr_record:
+                # Actualizar registro existente
+                if ocr_exitoso:
+                    ocr_record.estado_ocr = 'COMPLETADO'
+                    # Siempre actualizar confianza a 100.0 por revisión manual
+                    ocr_record.texto_confianza = 100.0
+                else:
+                    ocr_record.estado_ocr = 'PENDIENTE'
+                    ocr_record.texto_confianza = None
+            else:
+                # Crear nuevo registro OCR si no existe
+                if ocr_exitoso:
+                    nuevo_ocr = PPSHDocumentoOCR(
+                        id_documento=id_documento,
+                        estado_ocr='COMPLETADO',
+                        texto_confianza=100.0,  # Revisión manual = máxima confianza
+                        created_by='MANUAL_REVIEW',
+                        created_at=datetime.now()
+                    )
+                    db.add(nuevo_ocr)
+            
+            count += 1
+        
+        db.commit()
+        logger.info(f"Se actualizaron {count} documentos correctamente")
+        
+        # Verificar si todos los documentos de la solicitud tienen OCR exitoso
+        resultado = {
+            'documentos_actualizados': count,
+            'revision_ocr_completada': False,
+            'total_documentos': 0,
+            'documentos_con_ocr': 0
+        }
+        
+        if id_solicitud:
+            # Obtener todos los documentos de la solicitud
+            todos_documentos = db.query(models_ppsh.PPSHDocumento).filter(
+                models_ppsh.PPSHDocumento.id_solicitud == id_solicitud
+            ).all()
+            
+            resultado['total_documentos'] = len(todos_documentos)
+            
+            # Contar documentos con OCR exitoso
+            documentos_con_ocr_exitoso = 0
+            for doc in todos_documentos:
+                ocr_record = db.query(PPSHDocumentoOCR).filter(
+                    PPSHDocumentoOCR.id_documento == doc.id_documento
+                ).order_by(PPSHDocumentoOCR.created_at.desc()).first()
+                
+                if ocr_record and ocr_record.estado_ocr == 'COMPLETADO' and ocr_record.texto_confianza and ocr_record.texto_confianza >= 70.0:
+                    documentos_con_ocr_exitoso += 1
+            
+            resultado['documentos_con_ocr'] = documentos_con_ocr_exitoso
+            
+            # Todos los documentos tienen OCR exitoso?
+            if resultado['total_documentos'] > 0 and documentos_con_ocr_exitoso == resultado['total_documentos']:
+                resultado['revision_ocr_completada'] = True
+                logger.info(f"✅ Todos los documentos de la solicitud {id_solicitud} tienen OCR exitoso - Etapa 1.7 COMPLETADA")
+                
+                # Actualizar etapa 1.7 a COMPLETADO
+                try:
+                    PPSHEtapaService.actualizar_estado_etapa(
+                        db=db,
+                        id_solicitud=id_solicitud,
+                        codigo_etapa='1.7',
+                        nuevo_estado='COMPLETADO',
+                        completado_por='SISTEMA_OCR',
+                        observaciones='Todos los documentos procesados exitosamente por OCR'
+                    )
+                except Exception as e:
+                    logger.warning(f"No se pudo actualizar etapa 1.7: {str(e)}")
+        
+        return resultado
+    
+    @staticmethod
     def registrar_documento(
         db: Session,
         id_solicitud: int,
@@ -739,3 +883,130 @@ class PPSHComentarioService:
             query = query.filter(models_ppsh.PPSHComentario.es_interno == False)
         
         return query.order_by(models_ppsh.PPSHComentario.created_at).all()
+
+
+# ==========================================
+# SERVICIO DE ETAPAS
+# ==========================================
+
+class PPSHEtapaService:
+    """Servicio para gestión de etapas de solicitudes PPSH"""
+    
+    @staticmethod
+    def obtener_etapas_solicitud(
+        db: Session,
+        id_solicitud: int
+    ) -> List[models_ppsh.PPSHEtapaSolicitud]:
+        """
+        Obtiene todas las etapas de una solicitud ordenadas por orden.
+        Si la solicitud no tiene etapas, las crea automáticamente.
+        """
+        # Verificar que la solicitud existe
+        solicitud = SolicitudService.get_solicitud(db, id_solicitud, incluir_relaciones=False)
+        
+        # Obtener etapas existentes
+        etapas = db.query(models_ppsh.PPSHEtapaSolicitud).filter(
+            models_ppsh.PPSHEtapaSolicitud.id_solicitud == id_solicitud
+        ).order_by(models_ppsh.PPSHEtapaSolicitud.orden).all()
+        
+        # Si no hay etapas, crearlas
+        if not etapas:
+            logger.info(f"Creando etapas por defecto para solicitud {id_solicitud}")
+            etapas = PPSHEtapaService._crear_etapas_por_defecto(db, id_solicitud)
+        
+        return etapas
+    
+    @staticmethod
+    def _crear_etapas_por_defecto(
+        db: Session,
+        id_solicitud: int
+    ) -> List[models_ppsh.PPSHEtapaSolicitud]:
+        """Crea las etapas por defecto para una solicitud"""
+        etapas_config = [
+            {
+                'codigo_etapa': '1.2',
+                'nombre_etapa': 'Recolectar requisitos del trámite PPSH y los anexo en el sistema',
+                'estado': 'COMPLETADO',  # Se asume que si llegó aquí, ya tiene documentos
+                'orden': 1
+            },
+            {
+                'codigo_etapa': '1.7',
+                'nombre_etapa': 'Revisados requisitos vs checklist en Sistema, completa control de cita, valida # caso, registro',
+                'estado': 'PENDIENTE',
+                'orden': 2
+            }
+        ]
+        
+        etapas_creadas = []
+        for config in etapas_config:
+            nueva_etapa = models_ppsh.PPSHEtapaSolicitud(
+                id_solicitud=id_solicitud,
+                **config,
+                created_at=datetime.now()
+            )
+            db.add(nueva_etapa)
+            etapas_creadas.append(nueva_etapa)
+        
+        db.commit()
+        
+        # Refrescar para obtener IDs
+        for etapa in etapas_creadas:
+            db.refresh(etapa)
+        
+        return etapas_creadas
+    
+    @staticmethod
+    def actualizar_estado_etapa(
+        db: Session,
+        id_solicitud: int,
+        codigo_etapa: str,
+        nuevo_estado: str,
+        completado_por: Optional[str] = None,
+        observaciones: Optional[str] = None
+    ) -> models_ppsh.PPSHEtapaSolicitud:
+        """
+        Actualiza el estado de una etapa específica.
+        Si el estado es COMPLETADO, marca la fecha de completado.
+        """
+        etapa = db.query(models_ppsh.PPSHEtapaSolicitud).filter(
+            models_ppsh.PPSHEtapaSolicitud.id_solicitud == id_solicitud,
+            models_ppsh.PPSHEtapaSolicitud.codigo_etapa == codigo_etapa
+        ).first()
+        
+        if not etapa:
+            # Si no existe la etapa, crearla
+            logger.info(f"Etapa {codigo_etapa} no existe para solicitud {id_solicitud}, creando...")
+            etapa = models_ppsh.PPSHEtapaSolicitud(
+                id_solicitud=id_solicitud,
+                codigo_etapa=codigo_etapa,
+                nombre_etapa=f"Etapa {codigo_etapa}",
+                estado=nuevo_estado,
+                orden=999,  # Orden temporal
+                created_at=datetime.now()
+            )
+            db.add(etapa)
+        
+        # Actualizar estado
+        estado_anterior = etapa.estado
+        etapa.estado = nuevo_estado
+        
+        if observaciones:
+            etapa.observaciones = observaciones
+        
+        # Si cambió a COMPLETADO, marcar fecha
+        if nuevo_estado == 'COMPLETADO' and estado_anterior != 'COMPLETADO':
+            etapa.fecha_completado = datetime.now()
+            if completado_por:
+                etapa.completado_por = completado_por
+            logger.info(f"✅ Etapa {codigo_etapa} de solicitud {id_solicitud} marcada como COMPLETADA")
+        
+        # Si cambió a EN_PROCESO por primera vez, marcar fecha de inicio
+        if nuevo_estado == 'EN_PROCESO' and not etapa.fecha_inicio:
+            etapa.fecha_inicio = datetime.now()
+        
+        etapa.updated_at = datetime.now()
+        
+        db.commit()
+        db.refresh(etapa)
+        
+        return etapa
