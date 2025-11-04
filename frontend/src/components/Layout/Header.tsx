@@ -16,6 +16,7 @@ const tabs: TabItem[] = [
   { label: 'Inicio', path: '/' },
   { label: 'Solicitudes', path: '/solicitudes' },
   { label: 'Procesos', path: '/procesos' },
+  { label: 'Flujos', path: '/flujos' },
 ];
 
 export const Header = () => {

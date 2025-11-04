@@ -6,6 +6,8 @@ import { Solicitudes } from '../pages/Solicitudes';
 import { ProcesosList } from '../pages/ProcesosList';
 import { RevisionRequisitos } from '../pages/RevisionRequisitos';
 import { Etapas } from '../pages/Etapas';
+import { Procesos } from '../pages/Procesos';
+import { WorkflowEditor } from '../pages/WorkflowEditor';
 
 export const AppRouter = () => {
   return (
@@ -50,6 +52,22 @@ export const AppRouter = () => {
             <ProcesosList />
           </MainLayout>
         }
+      />
+      <Route
+        path="/flujos"
+        element={
+          <MainLayout>
+            <Procesos />
+          </MainLayout>
+        }
+      />
+      <Route
+        path="/procesos/nuevo"
+        element={<WorkflowEditor />}
+      />
+      <Route
+        path="/procesos/:id/editar"
+        element={<WorkflowEditor />}
       />
       <Route
         path="/procesos/:id"
