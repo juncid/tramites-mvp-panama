@@ -62,15 +62,15 @@ export const Procesos: React.FC = () => {
   };
 
   const handleNuevoProceso = () => {
-    navigate('/procesos/nuevo');
+    navigate('/flujos/nuevo');
   };
 
   const handleEdit = (id: number) => {
-    navigate(`/procesos/${id}/editar`);
+    navigate(`/flujos/${id}/editar`);
   };
 
   const handleView = (id: number) => {
-    navigate(`/procesos/${id}`);
+    navigate(`/flujos/${id}`);
   };
 
   const handleDuplicate = async (workflow: Workflow) => {

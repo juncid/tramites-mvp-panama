@@ -3,7 +3,6 @@ import { MainLayout } from '../components/Layout/MainLayout';
 import { Dashboard } from '../pages/Dashboard';
 import { Tramites } from '../pages/Tramites';
 import { Solicitudes } from '../pages/Solicitudes';
-import { ProcesosList } from '../pages/ProcesosList';
 import { RevisionRequisitos } from '../pages/RevisionRequisitos';
 import { Etapas } from '../pages/Etapas';
 import { Procesos } from '../pages/Procesos';
@@ -49,7 +48,7 @@ export const AppRouter = () => {
         path="/procesos"
         element={
           <MainLayout>
-            <ProcesosList />
+            <Procesos />
           </MainLayout>
         }
       />
@@ -61,12 +60,13 @@ export const AppRouter = () => {
           </MainLayout>
         }
       />
+      {/* Rutas de workflows - deben ir ANTES de /procesos/:id */}
       <Route
-        path="/procesos/nuevo"
+        path="/flujos/nuevo"
         element={<WorkflowEditor />}
       />
       <Route
-        path="/procesos/:id/editar"
+        path="/flujos/:id/editar"
         element={<WorkflowEditor />}
       />
       <Route

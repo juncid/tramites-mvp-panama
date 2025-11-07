@@ -19,6 +19,7 @@ import {
   NavigateNext,
   Close as CloseIcon,
   Visibility as VisibilityIcon,
+  DocumentScanner as ScannerIcon,
 } from '@mui/icons-material';
 import { useNavigate, useParams } from 'react-router-dom';
 import { DocumentChecklistTable } from '../components/Solicitudes/DocumentChecklistTable';
@@ -30,11 +31,9 @@ export const RevisionRequisitos = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   
-  const [ocrResultsPositive, setOcrResultsPositive] = useState<string>('si');
-  const [showOcrButton, setShowOcrButton] = useState(false);
+  const [ocrResultsPositive, setOcrResultsPositive] = useState<string>('no');
   const [showSummaryCard, setShowSummaryCard] = useState(true);
   const [selectedDocument, setSelectedDocument] = useState<string | null>(null);
-  const [autoUpdateRadio, setAutoUpdateRadio] = useState(true); // Control para actualización automática
   const [ocrOverrides, setOcrOverrides] = useState<Record<string, boolean>>({}); // Cambios manuales de OCR por documento
   
   // Estado para datos de la API
@@ -122,6 +121,14 @@ export const RevisionRequisitos = () => {
       };
     });
 
+  // Determinar si ya se ejecutó OCR (al menos un documento tiene OCR procesado)
+  // Si algún documento tiene doc?.ocr_exitoso !== undefined, significa que ya pasó por OCR
+  const ocrYaEjecutado = documentosAPI.some(doc => doc.ocr_exitoso !== undefined && doc.ocr_exitoso !== null);
+  
+  // Estado de la pregunta OCR:
+  // - Pre-OCR: Mostrar pregunta de radio buttons
+  // - Post-OCR: Mostrar secciones de revisión OCR + manual
+
   // Seleccionar automáticamente el primer documento con ocr_exitoso = false
   useEffect(() => {
     if (documentos.length > 0 && !selectedDocument) {
@@ -130,16 +137,8 @@ export const RevisionRequisitos = () => {
       // Si no hay ninguno fallido, seleccionar el primero
       const documentoASeleccionar = primerDocumentoFallido || documentos[0];
       setSelectedDocument(documentoASeleccionar.id);
-      setAutoUpdateRadio(true); // Reactivar actualización automática
     }
   }, [documentos, selectedDocument]);
-
-  // Reactivar actualización automática cuando cambia el documento seleccionado
-  useEffect(() => {
-    if (selectedDocument) {
-      setAutoUpdateRadio(true);
-    }
-  }, [selectedDocument]);
 
   // Función para guardar cambios de OCR
   const handleGuardar = async () => {
@@ -186,21 +185,7 @@ export const RevisionRequisitos = () => {
     }
   };
 
-  // Actualizar radio button según el OCR del documento seleccionado
-  // Solo si no ha sido modificado manualmente
-  useEffect(() => {
-    if (selectedDocument && autoUpdateRadio) {
-      const doc = documentos.find(d => d.id === selectedDocument);
-      if (doc) {
-        // Si hasOcr es true (check verde), seleccionar "si"
-        // Si hasOcr es false (X roja), seleccionar "no"
-        const nuevoValor = doc.hasOcr ? 'si' : 'no';
-        setOcrResultsPositive(nuevoValor);
-        // Mostrar botón solo si NO tiene OCR exitoso (necesita procesamiento)
-        setShowOcrButton(!doc.hasOcr);
-      }
-    }
-  }, [selectedDocument, documentos, autoUpdateRadio]);  if (loading) {
+  if (loading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
         <CircularProgress />
@@ -310,62 +295,65 @@ export const RevisionRequisitos = () => {
               Lorem ipsum dolor sit amet consectetur. Tristique placerat venenatis iaculis imperdiet in. Venenatis quam cursus ut urna vel a ac iaculis. Volutpat tempus urna nullam aliquam.
             </Typography>
 
-            {/* Pregunta OCR */}
-            <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
-              Obtuvieron los archivos resultados positivos en la revisión OCR
-            </Typography>
-
-            <FormControl component="fieldset" sx={{ mb: 3 }}>
-              <RadioGroup
-                value={ocrResultsPositive}
-                onChange={(e) => {
-                  const newValue = e.target.value;
-                  setOcrResultsPositive(newValue);
-                  // Mostrar botón solo cuando selecciona "no" (necesita OCR)
-                  setShowOcrButton(newValue === 'no');
-                  // Desactivar actualización automática cuando el usuario cambia manualmente
-                  setAutoUpdateRadio(false);
-                  
-                  // Guardar el cambio manual de OCR para el documento actual
-                  if (selectedDocument) {
-                    setOcrOverrides(prev => ({
-                      ...prev,
-                      [selectedDocument]: newValue === 'si'
-                    }));
-                  }
-                }}
-              >
-                <FormControlLabel 
-                  value="no" 
-                  control={<Radio size="small" />} 
-                  label="No" 
-                />
-                <FormControlLabel 
-                  value="si" 
-                  control={<Radio size="small" />} 
-                  label="Sí" 
-                />
-              </RadioGroup>
-            </FormControl>
-
-            {/* Botón Iniciar revisión OCR */}
-            {showOcrButton && (
+            {/* ESTADO PRE-OCR: Mostrar pregunta con radio buttons */}
+            {!ocrYaEjecutado && (
               <Box sx={{ mb: 3 }}>
-                <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
-                  Revisión OCR de documentos
+                <Typography variant="subtitle2" sx={{ fontWeight: 500, mb: 1, color: '#333' }}>
+                  Obtuvieron los archivos resultados positivos en la revisión OCR
                 </Typography>
-                <Button
-                  variant="contained"
-                  sx={{
-                    textTransform: 'none',
-                    backgroundColor: '#2563EB',
-                    '&:hover': { backgroundColor: '#1D4ED8' },
-                  }}
-                >
-                  Iniciar revisión OCR
-                </Button>
+                <FormControl component="fieldset">
+                  <RadioGroup
+                    value={ocrResultsPositive}
+                    onChange={(e) => setOcrResultsPositive(e.target.value)}
+                  >
+                    <FormControlLabel 
+                      value="no" 
+                      control={<Radio size="small" />} 
+                      label="No" 
+                    />
+                    <FormControlLabel 
+                      value="si" 
+                      control={<Radio size="small" />} 
+                      label="Sí" 
+                    />
+                  </RadioGroup>
+                </FormControl>
               </Box>
             )}
+
+            {/* ESTADO POST-OCR: Mostrar secciones de revisión */}
+            {ocrYaEjecutado && (
+              <>
+                {/* Sección: Revisión OCR de documentos */}
+                <Box sx={{ mb: 3 }}>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 500, mb: 2, color: '#333' }}>
+                    Revisión OCR de documentos
+                  </Typography>
+                  <Button
+                    variant="contained"
+                    startIcon={<ScannerIcon />}
+                    sx={{
+                      textTransform: 'none',
+                      backgroundColor: '#0e5fa6',
+                      color: 'white',
+                      height: 52,
+                      px: 2,
+                      '&:hover': { backgroundColor: '#0d5391' },
+                    }}
+                  >
+                    Iniciar revisión OCR
+                  </Button>
+                </Box>
+
+                {/* Línea divisoria gris */}
+                <Box sx={{ width: '100%', height: 4, backgroundColor: '#f3f3f3', mb: 3 }} />
+              </>
+            )}
+
+            {/* Sección: Revisión manual de documentos */}
+            <Typography variant="subtitle2" sx={{ fontWeight: 500, mb: 2, color: '#333' }}>
+              Revisión manual de documentos
+            </Typography>
 
             {/* Tabla de documentos */}
             <DocumentChecklistTable 
@@ -379,6 +367,12 @@ export const RevisionRequisitos = () => {
               <Button
                 variant="outlined"
                 onClick={() => navigate('/solicitudes')}
+                sx={{
+                  textTransform: 'none',
+                  borderColor: '#0e5fa6',
+                  color: '#0e5fa6',
+                  '&:hover': { borderColor: '#0d5391', backgroundColor: 'rgba(14, 95, 166, 0.04)' },
+                }}
               >
                 Cancelar
               </Button>
@@ -387,8 +381,8 @@ export const RevisionRequisitos = () => {
                 onClick={handleGuardar}
                 sx={{
                   textTransform: 'none',
-                  backgroundColor: '#2563EB',
-                  '&:hover': { backgroundColor: '#1D4ED8' },
+                  backgroundColor: '#0e5fa6',
+                  '&:hover': { backgroundColor: '#0d5391' },
                 }}
               >
                 Guardar

@@ -37,25 +37,18 @@ export const DocumentChecklistTable = ({
   onDocumentSelect,
 }: DocumentChecklistTableProps) => {
   return (
-    <Box>
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-        <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-          Revisión manual de documentos
-        </Typography>
-      </Box>
-
-      <TableContainer>
-        <Table size="small">
-          <TableHead sx={{ backgroundColor: '#F9FAFB' }}>
-            <TableRow>
-              <TableCell sx={{ fontWeight: 600, color: '#374151', width: 80 }}>
-                OCR
-              </TableCell>
-              <TableCell sx={{ fontWeight: 600, color: '#374151' }}>
-                Documento
-              </TableCell>
-            </TableRow>
-          </TableHead>
+    <TableContainer>
+      <Table size="small">
+        <TableHead sx={{ backgroundColor: '#F9FAFB' }}>
+          <TableRow>
+            <TableCell sx={{ fontWeight: 600, color: '#374151', width: 80 }}>
+              OCR
+            </TableCell>
+            <TableCell sx={{ fontWeight: 600, color: '#374151' }}>
+              Documento
+            </TableCell>
+          </TableRow>
+        </TableHead>
           <TableBody>
             {documents.map((doc) => {
               const isSelected = selectedDocumentId === doc.id;
@@ -67,12 +60,16 @@ export const DocumentChecklistTable = ({
                   onClick={() => onDocumentSelect?.(doc.id)}
                   sx={{
                     cursor: 'pointer',
-                    backgroundColor: isSelected 
-                      ? (hasError ? '#FEF2F2' : '#EFF6FF') // Rosado si tiene error, azul si está OK
-                      : 'transparent', // Sin color si no está seleccionado
+                    backgroundColor: hasError 
+                      ? '#fbe7e7' // Fondo rojo para documentos con OCR fallido (Figma)
+                      : isSelected 
+                      ? '#EFF6FF' // Fondo azul claro si está seleccionado y OK
+                      : 'transparent',
                     '&:hover': { 
-                      backgroundColor: isSelected 
-                        ? (hasError ? '#FEE2E2' : '#DBEAFE')
+                      backgroundColor: hasError 
+                        ? '#f5d5d5' // Hover más oscuro para documentos con error
+                        : isSelected 
+                        ? '#DBEAFE'
                         : '#F9FAFB' 
                     },
                   }}
@@ -110,6 +107,5 @@ export const DocumentChecklistTable = ({
           </TableBody>
         </Table>
       </TableContainer>
-    </Box>
   );
 };

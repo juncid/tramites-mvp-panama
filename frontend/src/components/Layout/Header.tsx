@@ -6,6 +6,7 @@ import {
   Tab,
 } from '@mui/material';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { LogoMigracion } from './LogoMigracion';
 
 interface TabItem {
   label: string;
@@ -49,7 +50,7 @@ export const Header = () => {
       <Box
         sx={{
           backgroundColor: '#131414',
-          px: 3,
+          px: '7.69rem',
           py: 1.5,
           display: 'flex',
           justifyContent: 'space-between',
@@ -58,25 +59,7 @@ export const Header = () => {
       >
         {/* Logo y título */}
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            {/* Placeholder para logos del gobierno */}
-            <Box
-              sx={{
-                height: 32,
-                width: 100,
-                backgroundColor: 'rgba(255,255,255,0.1)',
-                borderRadius: 0.5,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <Typography sx={{ fontSize: '0.6rem', color: 'white' }}>LOGO</Typography>
-            </Box>
-          </Box>
-          <Typography sx={{ color: 'white', fontSize: '0.875rem', fontWeight: 400 }}>
-            Servicio Nacional de Migración
-          </Typography>
+          <LogoMigracion />
         </Box>
 
         {/* Usuario y logout */}
@@ -104,7 +87,7 @@ export const Header = () => {
       <Box
         sx={{
           backgroundColor: '#2563EB',
-          px: 3,
+          px: '7.69rem',
         }}
       >
         <Tabs
@@ -140,7 +123,7 @@ export const Header = () => {
       <Box
         sx={{
           backgroundColor: '#F3F4F6',
-          px: 3,
+          px: '7.69rem',
           py: 0.75,
           display: 'flex',
           justifyContent: 'flex-end',

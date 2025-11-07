@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, Fragment } from 'react';
 import {
   Box,
   Typography,
@@ -169,9 +169,8 @@ export const ProcesosList = () => {
           </TableHead>
           <TableBody>
             {mockProcesos.map((proceso) => (
-              <>
+              <Fragment key={proceso.id}>
                 <TableRow 
-                  key={proceso.id}
                   sx={{ 
                     '&:hover': { backgroundColor: '#F9FAFB' },
                   }}
@@ -271,7 +270,7 @@ export const ProcesosList = () => {
                     </Collapse>
                   </TableCell>
                 </TableRow>
-              </>
+              </Fragment>
             ))}
           </TableBody>
         </Table>

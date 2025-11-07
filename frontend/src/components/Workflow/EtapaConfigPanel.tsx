@@ -14,11 +14,27 @@ import {
   Divider,
   OutlinedInput,
   SelectChangeEvent,
+  Checkbox,
+  FormControlLabel,
 } from '@mui/material';
 import {
   Close as CloseIcon,
   Add as AddIcon,
   Delete as DeleteIcon,
+  TextFields as TextIcon,
+  Numbers as NumberIcon,
+  CalendarToday as DateIcon,
+  RadioButtonChecked as RadioIcon,
+  CheckBox as CheckBoxIcon,
+  List as ListIcon,
+  CloudUpload as UploadIcon,
+  CloudDownload as DownloadIcon,
+  Folder as FolderIcon,
+  DocumentScanner as ScannerIcon,
+  Print as PrintIcon,
+  Draw as SignatureIcon,
+  Payment as PaymentIcon,
+  Notifications as NotificationIcon,
 } from '@mui/icons-material';
 import type { WorkflowEtapa, WorkflowPregunta, TipoEtapa, TipoPregunta } from '../../types/workflow';
 
@@ -26,6 +42,7 @@ interface EtapaConfigPanelProps {
   etapa: Partial<WorkflowEtapa>;
   onSave: (etapa: Partial<WorkflowEtapa>) => void;
   onClose: () => void;
+  onDelete?: () => void;
 }
 
 const PERFILES_DISPONIBLES = [
@@ -55,10 +72,49 @@ const TIPOS_PREGUNTA: { value: TipoPregunta; label: string }[] = [
   { value: 'NOTIFICACION', label: 'Notificación' },
 ];
 
+const getTipoPreguntaIcon = (tipo: TipoPregunta) => {
+  switch (tipo) {
+    case 'TEXTO':
+      return <TextIcon />;
+    case 'NUMERO':
+      return <NumberIcon />;
+    case 'FECHA':
+    case 'SELECCION_FECHA':
+      return <DateIcon />;
+    case 'SELECCION_SIMPLE':
+      return <RadioIcon />;
+    case 'SELECCION_MULTIPLE':
+      return <CheckBoxIcon />;
+    case 'LISTA':
+      return <ListIcon />;
+    case 'CARGA_ARCHIVO':
+      return <UploadIcon />;
+    case 'DESCARGA_ARCHIVOS':
+      return <DownloadIcon />;
+    case 'DATOS_CASO':
+      return <FolderIcon />;
+    case 'REVISION_MANUAL_DOCUMENTOS':
+      return <FolderIcon />;
+    case 'REVISION_OCR':
+      return <ScannerIcon />;
+    case 'IMPRESION':
+      return <PrintIcon />;
+    case 'FIRMA_DIGITAL':
+      return <SignatureIcon />;
+    case 'PAGO':
+      return <PaymentIcon />;
+    case 'NOTIFICACION':
+      return <NotificationIcon />;
+    default:
+      return <TextIcon />;
+  }
+};
+
 export const EtapaConfigPanel: React.FC<EtapaConfigPanelProps> = ({
   etapa,
   onSave,
   onClose,
+  onDelete,
 }) => {
   const [formData, setFormData] = useState<Partial<WorkflowEtapa>>(etapa);
   const [preguntas, setPreguntas] = useState<WorkflowPregunta[]>(etapa.preguntas || []);
@@ -103,6 +159,12 @@ export const EtapaConfigPanel: React.FC<EtapaConfigPanelProps> = ({
   };
 
   const handleSave = () => {
+    console.log('📝 EtapaConfigPanel - Guardando:', {
+      formData,
+      preguntas,
+      datosCompletos: { ...formData, preguntas },
+      cantidadPreguntas: preguntas.length
+    });
     onSave({ ...formData, preguntas });
   };
 
@@ -175,6 +237,8 @@ export const EtapaConfigPanel: React.FC<EtapaConfigPanelProps> = ({
             </Select>
           </FormControl>
 
+          <Divider />
+
           {/* Título del formulario */}
           <TextField
             fullWidth
@@ -225,9 +289,25 @@ export const EtapaConfigPanel: React.FC<EtapaConfigPanelProps> = ({
                 >
                   <Stack spacing={2}>
                     <Stack direction="row" justifyContent="space-between" alignItems="center">
-                      <Typography variant="caption" color="text.secondary">
-                        Pregunta {index + 1}
-                      </Typography>
+                      <Stack direction="row" spacing={1} alignItems="center">
+                        <Box
+                          sx={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            width: 32,
+                            height: 32,
+                            borderRadius: 1,
+                            bgcolor: 'primary.light',
+                            color: 'primary.main',
+                          }}
+                        >
+                          {getTipoPreguntaIcon(pregunta.tipo)}
+                        </Box>
+                        <Typography variant="caption" color="text.secondary">
+                          Pregunta {index + 1}
+                        </Typography>
+                      </Stack>
                       <IconButton size="small" onClick={() => handleDeletePregunta(index)}>
                         <DeleteIcon fontSize="small" />
                       </IconButton>
@@ -258,6 +338,17 @@ export const EtapaConfigPanel: React.FC<EtapaConfigPanelProps> = ({
                       onChange={(e) => handlePreguntaChange(index, 'texto', e.target.value)}
                     />
 
+                    <FormControlLabel
+                      control={
+                        <Checkbox
+                          checked={pregunta.es_obligatoria}
+                          onChange={(e) => handlePreguntaChange(index, 'es_obligatoria', e.target.checked)}
+                          size="small"
+                        />
+                      }
+                      label="Obligatoria"
+                    />
+
                     <TextField
                       fullWidth
                       size="small"
@@ -266,6 +357,29 @@ export const EtapaConfigPanel: React.FC<EtapaConfigPanelProps> = ({
                       onChange={(e) => handlePreguntaChange(index, 'ayuda', e.target.value)}
                       placeholder="Texto de ayuda opcional"
                     />
+
+                    {/* Campos específicos para CARGA_ARCHIVO */}
+                    {pregunta.tipo === 'CARGA_ARCHIVO' && (
+                      <>
+                        <TextField
+                          fullWidth
+                          size="small"
+                          label="Número máximo de archivos"
+                          type="number"
+                          defaultValue={1}
+                          InputProps={{ inputProps: { min: 1, max: 10 } }}
+                        />
+                        <FormControl fullWidth size="small">
+                          <InputLabel>Tamaño máximo</InputLabel>
+                          <Select defaultValue="100MB" label="Tamaño máximo">
+                            <MenuItem value="10MB">10MB</MenuItem>
+                            <MenuItem value="50MB">50MB</MenuItem>
+                            <MenuItem value="100MB">100MB</MenuItem>
+                            <MenuItem value="500MB">500MB</MenuItem>
+                          </Select>
+                        </FormControl>
+                      </>
+                    )}
                   </Stack>
                 </Box>
               ))}
@@ -290,12 +404,26 @@ export const EtapaConfigPanel: React.FC<EtapaConfigPanelProps> = ({
         }}
       >
         <Stack direction="row" spacing={2} justifyContent="space-between">
-          <Button variant="outlined" onClick={onClose}>
-            Cancelar
-          </Button>
-          <Button variant="contained" onClick={handleSave}>
-            Guardar
-          </Button>
+          <Box>
+            {onDelete && !etapa.es_inicial && !etapa.es_etapa_inicial && (
+              <Button 
+                variant="outlined" 
+                color="error"
+                startIcon={<DeleteIcon />}
+                onClick={onDelete}
+              >
+                Eliminar
+              </Button>
+            )}
+          </Box>
+          <Stack direction="row" spacing={2}>
+            <Button variant="outlined" onClick={onClose}>
+              Cancelar
+            </Button>
+            <Button variant="contained" onClick={handleSave}>
+              Guardar
+            </Button>
+          </Stack>
         </Stack>
       </Box>
     </Box>

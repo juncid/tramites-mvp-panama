@@ -149,6 +149,7 @@ export const Solicitudes = () => {
           <Table>
             <TableHead>
               <TableRow sx={{ backgroundColor: '#F9FAFB' }}>
+                <TableCell sx={{ fontWeight: 600, color: '#374151', width: 80 }}>ID</TableCell>
                 <TableCell sx={{ fontWeight: 600, color: '#374151' }}>Solicitud</TableCell>
                 <TableCell sx={{ fontWeight: 600, color: '#374151' }}>Solicitante</TableCell>
                 <TableCell sx={{ fontWeight: 600, color: '#374151' }}>RUEX</TableCell>
@@ -160,7 +161,7 @@ export const Solicitudes = () => {
             <TableBody>
               {filteredSolicitudes.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} sx={{ textAlign: 'center', py: 4, color: '#6B7280' }}>
+                  <TableCell colSpan={7} sx={{ textAlign: 'center', py: 4, color: '#6B7280' }}>
                     No se encontraron solicitudes
                   </TableCell>
                 </TableRow>
@@ -172,6 +173,9 @@ export const Solicitudes = () => {
                       '&:hover': { backgroundColor: '#F9FAFB' },
                     }}
                   >
+                    <TableCell sx={{ fontWeight: 600, color: '#2563EB' }}>
+                      #{solicitud.id_solicitud}
+                    </TableCell>
                     <TableCell sx={{ fontWeight: 500, color: '#1F2937' }}>
                       {solicitud.tipo_solicitud}
                     </TableCell>
