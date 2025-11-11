@@ -35,7 +35,6 @@ import EtapaConfigPanel from '../components/Workflow/EtapaConfigPanel';
 import CustomNode from '../components/Workflow/CustomNode';
 import type { Workflow, WorkflowEtapa, WorkflowConexion } from '../types/workflow';
 import { GeneralView, StatusView, HistoryView } from '../components/PPSH/views';
-import { PageHero } from '../components/common/PageHero';
 
 const nodeTypes: NodeTypes = {
   custom: CustomNode,
@@ -434,16 +433,10 @@ export const WorkflowEditor: React.FC = () => {
 
   return (
     <Box>
-      {/* Hero con breadcrumbs y acciones */}
-      <PageHero
-        title={isEditMode ? `Editar: ${workflow?.nombre || ''}` : 'Nuevo Proceso'}
-        breadcrumbs={[
-          { label: 'Inicio', path: '/' },
-          { label: 'Flujos', path: '/flujos' },
-          { label: isEditMode ? 'Editar' : 'Nuevo' },
-        ]}
-        fullWidth={false}
-      />
+      {/* Título de la página */}
+      <Typography variant="h4" sx={{ fontWeight: 600, mb: 2 }}>
+        {isEditMode ? `Editar: ${workflow?.nombre || ''}` : 'Nuevo Proceso'}
+      </Typography>
 
       {/* Barra de acciones */}
       <Box sx={{ 
