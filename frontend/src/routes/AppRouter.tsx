@@ -9,6 +9,7 @@ import { Procesos } from '../pages/Procesos';
 import { WorkflowEditor } from '../pages/WorkflowEditor';
 import { CargaDocumentosPPSH } from '../pages/CargaDocumentosPPSH';
 import { DetalleProcesoPPSH } from '../pages/DetalleProcesoPPSH';
+import { TestVisa } from '../pages/TestVisa';
 
 export const AppRouter = () => {
   return (
@@ -100,6 +101,14 @@ export const AppRouter = () => {
         element={
           <MainLayout>
             <DetalleProcesoPPSH />
+          </MainLayout>
+        }
+      />
+      <Route
+        path="/test-visa"
+        element={
+          <MainLayout>
+            <TestVisa />
           </MainLayout>
         }
       />
