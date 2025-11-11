@@ -2,7 +2,6 @@ import React, { useCallback } from 'react';
 import ReactFlow, {
   Node,
   Edge,
-  Controls,
   Background,
   useNodesState,
   useEdgesState,
@@ -10,14 +9,12 @@ import ReactFlow, {
   Connection,
   MarkerType,
   BackgroundVariant,
+  NodeProps,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import {
   Box,
   Typography,
-  Select,
-  MenuItem,
-  FormControl,
   IconButton,
 } from '@mui/material';
 import {
@@ -25,6 +22,13 @@ import {
   Description as DescriptionIcon,
   Print as PrintIcon,
 } from '@mui/icons-material';
+
+interface StepNodeData {
+  label: string;
+  hasPerson?: boolean;
+  hasForm?: boolean;
+  type?: string;
+}
 
 // Componente para nodo personalizado de inicio
 const StartNode = () => {
@@ -60,7 +64,7 @@ const StartNode = () => {
 };
 
 // Componente para nodo de etapa personalizado
-const StepNode = ({ data }: any) => {
+const StepNode = ({ data }: NodeProps<StepNodeData>) => {
   const isDecision = data.type === 'decision';
   
   return (
@@ -134,7 +138,7 @@ const nodeTypes = {
   stepNode: StepNode,
 };
 
-const initialNodes: Node[] = [
+const initialNodes: Node<StepNodeData>[] = [
   {
     id: '1',
     type: 'startNode',
@@ -348,49 +352,41 @@ export const TestVisa: React.FC = () => {
             justifyContent: 'space-between',
             alignItems: 'center',
             zIndex: 10,
+            pointerEvents: 'none',
           }}
         >
           {/* Filtro izquierdo */}
-          <FormControl size="small" sx={{ minWidth: 206 }}>
-            <Select
-              defaultValue="todos"
-              sx={{
-                backgroundColor: '#fff',
-                border: '1px solid #788093',
-                height: 24,
-                fontSize: 14,
-                color: '#788093',
-                '& .MuiOutlinedInput-notchedOutline': { border: 'none' },
-              }}
-              startAdornment={<PersonIcon sx={{ fontSize: 20, color: '#788093', mr: 0.5 }} />}
-            >
-              <MenuItem value="todos">Todos</MenuItem>
-              <MenuItem value="persona">Persona</MenuItem>
-              <MenuItem value="formulario">Formulario</MenuItem>
-            </Select>
-          </FormControl>
-
-          {/* Controles centrales */}
-          <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-            <Controls
-              showZoom={false}
-              showFitView={false}
-              showInteractive={false}
-              style={{
-                position: 'static',
-                display: 'flex',
-                gap: '16px',
-              }}
-            />
+          <Box
+            sx={{
+              pointerEvents: 'auto',
+              backgroundColor: '#fff',
+              border: '1px solid #788093',
+              borderRadius: '4px',
+              px: 1,
+              py: 0.5,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1,
+              minWidth: 206,
+              height: 24,
+            }}
+          >
+            <PersonIcon sx={{ fontSize: 20, color: '#788093' }} />
+            <Typography sx={{ fontSize: 14, color: '#788093' }}>Todos</Typography>
           </Box>
+
+          {/* Espacio central */}
+          <Box />
 
           {/* Botón de imprimir derecho */}
           <IconButton
             size="small"
             sx={{
+              pointerEvents: 'auto',
               border: '1px solid #788093',
               borderRadius: '4px',
               padding: '4px',
+              backgroundColor: '#fff',
             }}
           >
             <PrintIcon sx={{ fontSize: 16, color: '#788093' }} />
