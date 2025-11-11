@@ -482,13 +482,19 @@ export const WorkflowEditor: React.FC = () => {
       </Box>
 
       <TabPanel value={tabValue} index={0}>
-        <Box sx={{ p: 3, height: 'calc(100vh - 200px)', overflow: 'auto' }}>
+        <Box sx={{ p: 3, height: 'calc(100vh - 180px)', overflow: 'auto' }}>
           <GeneralView procesoId={id} solicitudId={undefined} />
         </Box>
       </TabPanel>
 
       <TabPanel value={tabValue} index={1}>
-        <Box sx={{ width: '100%', height: 'calc(100vh - 200px)' }}>
+        <Box sx={{ 
+          width: '100%', 
+          height: 'calc(100vh - 180px)',
+          '& .react-flow__attribution': {
+            display: 'none',
+          },
+        }}>
           <ReactFlow
             nodes={nodes}
             edges={edges}
@@ -498,7 +504,7 @@ export const WorkflowEditor: React.FC = () => {
             onNodeClick={handleNodeClick}
             nodeTypes={nodeTypes}
             fitView
-            attributionPosition="bottom-left"
+            proOptions={{ hideAttribution: true }}
             defaultEdgeOptions={{
               type: 'smoothstep',
               animated: true,
