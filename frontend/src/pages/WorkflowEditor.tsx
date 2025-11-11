@@ -434,9 +434,27 @@ export const WorkflowEditor: React.FC = () => {
   return (
     <Box>
       {/* Título de la página */}
-      <Typography variant="h4" sx={{ fontWeight: 600, mb: 2 }}>
-        {workflow?.nombre || 'Nuevo Proceso'}
-      </Typography>
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+        <Typography variant="h4" sx={{ fontWeight: 600 }}>
+          {workflow?.nombre || 'Nuevo Proceso'}
+        </Typography>
+        
+        <Button
+          variant="outlined"
+          onClick={() => navigate('/procesos')}
+          sx={{
+            borderColor: '#0e5fa6',
+            color: '#0e5fa6',
+            textTransform: 'none',
+            '&:hover': {
+              borderColor: '#0d5494',
+              backgroundColor: 'rgba(14, 95, 166, 0.04)',
+            },
+          }}
+        >
+          Volver a Procesos
+        </Button>
+      </Box>
 
       {/* Barra de acciones */}
       <Box sx={{ 
