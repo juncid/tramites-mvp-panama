@@ -65,11 +65,19 @@ export const AppRouter = () => {
       {/* Rutas de workflows - deben ir ANTES de /procesos/:id */}
       <Route
         path="/flujos/nuevo"
-        element={<WorkflowEditor />}
+        element={
+          <MainLayout>
+            <WorkflowEditor />
+          </MainLayout>
+        }
       />
       <Route
         path="/flujos/:id/editar"
-        element={<WorkflowEditor />}
+        element={
+          <MainLayout>
+            <WorkflowEditor />
+          </MainLayout>
+        }
       />
       <Route
         path="/procesos/:id"

@@ -15,11 +15,8 @@ import ReactFlow, {
 import 'reactflow/dist/style.css';
 import {
   Box,
-  AppBar,
-  Toolbar,
   Typography,
   Button,
-  IconButton,
   Tabs,
   Tab,
   Drawer,
@@ -30,7 +27,6 @@ import {
 } from '@mui/material';
 import {
   Save as SaveIcon,
-  ArrowBack as ArrowBackIcon,
   Add as AddIcon,
   Code as CodeIcon,
 } from '@mui/icons-material';
@@ -39,6 +35,7 @@ import EtapaConfigPanel from '../components/Workflow/EtapaConfigPanel';
 import CustomNode from '../components/Workflow/CustomNode';
 import type { Workflow, WorkflowEtapa, WorkflowConexion } from '../types/workflow';
 import { GeneralView, StatusView, HistoryView } from '../components/PPSH/views';
+import { PageHero } from '../components/common/PageHero';
 
 const nodeTypes: NodeTypes = {
   custom: CustomNode,
@@ -436,42 +433,76 @@ export const WorkflowEditor: React.FC = () => {
   };
 
   return (
-    <Box sx={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
-      <AppBar position="static" color="default" elevation={1}>
-        <Toolbar>
-          <IconButton edge="start" onClick={() => navigate('/flujos')}>
-            <ArrowBackIcon />
-          </IconButton>
-          <Typography variant="h6" sx={{ flexGrow: 1, ml: 2 }}>
-            {isEditMode ? `Editar: ${workflow?.nombre || ''}` : 'Nuevo Proceso'}
-          </Typography>
-          <Button
-            variant="outlined"
-            startIcon={<AddIcon />}
-            onClick={handleAddNode}
-            sx={{ mr: 2 }}
-          >
-            Añadir Etapa
-          </Button>
-          <Button
-            variant="contained"
-            startIcon={<SaveIcon />}
-            onClick={handleSaveWorkflow}
-            disabled={loading}
-          >
-            Guardar
-          </Button>
-          <Button
-            variant="outlined"
-            startIcon={<CodeIcon />}
-            onClick={() => setJsonDialogOpen(true)}
-            sx={{ ml: 2 }}
-          >
-            Vista Previa JSON
-          </Button>
-        </Toolbar>
-      </AppBar>
+    <Box>
+      {/* Hero con breadcrumbs y acciones */}
+      <PageHero
+        title={isEditMode ? `Editar: ${workflow?.nombre || ''}` : 'Nuevo Proceso'}
+        breadcrumbs={[
+          { label: 'Inicio', path: '/' },
+          { label: 'Flujos', path: '/flujos' },
+          { label: isEditMode ? 'Editar' : 'Nuevo' },
+        ]}
+        fullWidth={false}
+      />
 
+      {/* Barra de acciones */}
+      <Box sx={{ 
+        display: 'flex', 
+        justifyContent: 'flex-end', 
+        gap: 2, 
+        mb: 2,
+        pt: 2,
+      }}>
+        <Button
+          variant="outlined"
+          startIcon={<AddIcon />}
+          onClick={handleAddNode}
+          sx={{
+            borderColor: '#0e5fa6',
+            color: '#0e5fa6',
+            textTransform: 'none',
+            '&:hover': {
+              borderColor: '#0d5494',
+              backgroundColor: 'rgba(14, 95, 166, 0.04)',
+            },
+          }}
+        >
+          Añadir Etapa
+        </Button>
+        <Button
+          variant="outlined"
+          startIcon={<CodeIcon />}
+          onClick={() => setJsonDialogOpen(true)}
+          sx={{
+            borderColor: '#0e5fa6',
+            color: '#0e5fa6',
+            textTransform: 'none',
+            '&:hover': {
+              borderColor: '#0d5494',
+              backgroundColor: 'rgba(14, 95, 166, 0.04)',
+            },
+          }}
+        >
+          Vista Previa JSON
+        </Button>
+        <Button
+          variant="contained"
+          startIcon={<SaveIcon />}
+          onClick={handleSaveWorkflow}
+          disabled={loading}
+          sx={{
+            backgroundColor: '#0e5fa6',
+            textTransform: 'none',
+            '&:hover': {
+              backgroundColor: '#0d5494',
+            },
+          }}
+        >
+          Guardar
+        </Button>
+      </Box>
+
+      {/* Tabs de navegación */}
       <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
         <Tabs value={tabValue} onChange={(_, value) => setTabValue(value)}>
           <Tab label="General" />
@@ -482,7 +513,7 @@ export const WorkflowEditor: React.FC = () => {
       </Box>
 
       <TabPanel value={tabValue} index={0}>
-        <Box sx={{ p: 3, height: 'calc(100vh - 180px)', overflow: 'auto' }}>
+        <Box sx={{ py: 3, maxHeight: 'calc(100vh - 400px)', overflow: 'auto' }}>
           <GeneralView procesoId={id} solicitudId={undefined} />
         </Box>
       </TabPanel>
@@ -490,7 +521,7 @@ export const WorkflowEditor: React.FC = () => {
       <TabPanel value={tabValue} index={1}>
         <Box sx={{ 
           width: '100%', 
-          height: 'calc(100vh - 180px)',
+          height: 'calc(100vh - 400px)',
           '& .react-flow__attribution': {
             display: 'none',
           },
@@ -523,13 +554,13 @@ export const WorkflowEditor: React.FC = () => {
       </TabPanel>
 
       <TabPanel value={tabValue} index={2}>
-        <Box sx={{ p: 3, height: 'calc(100vh - 200px)', overflow: 'auto' }}>
+        <Box sx={{ py: 3, maxHeight: 'calc(100vh - 400px)', overflow: 'auto' }}>
           <StatusView procesoId={id} solicitudId={undefined} />
         </Box>
       </TabPanel>
 
       <TabPanel value={tabValue} index={3}>
-        <Box sx={{ p: 3, height: 'calc(100vh - 200px)', overflow: 'auto' }}>
+        <Box sx={{ py: 3, maxHeight: 'calc(100vh - 400px)', overflow: 'auto' }}>
           <HistoryView procesoId={id} solicitudId={undefined} />
         </Box>
       </TabPanel>
