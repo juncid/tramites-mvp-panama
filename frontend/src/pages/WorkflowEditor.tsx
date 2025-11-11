@@ -11,12 +11,10 @@ import ReactFlow, {
   Connection,
   MarkerType,
   NodeTypes,
-  ConnectionLineType,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import {
   Box,
-  Stack,
   AppBar,
   Toolbar,
   Typography,
@@ -40,6 +38,7 @@ import { workflowService } from '../services/workflow.service';
 import EtapaConfigPanel from '../components/Workflow/EtapaConfigPanel';
 import CustomNode from '../components/Workflow/CustomNode';
 import type { Workflow, WorkflowEtapa, WorkflowConexion } from '../types/workflow';
+import { GeneralView, StatusView, HistoryView } from '../components/PPSH/views';
 
 const nodeTypes: NodeTypes = {
   custom: CustomNode,
@@ -483,12 +482,8 @@ export const WorkflowEditor: React.FC = () => {
       </Box>
 
       <TabPanel value={tabValue} index={0}>
-        <Box sx={{ p: 3 }}>
-          <Stack spacing={2} sx={{ maxWidth: 600 }}>
-            <Typography variant="body2" color="text.secondary">
-              Configuración general del proceso
-            </Typography>
-          </Stack>
+        <Box sx={{ p: 3, height: 'calc(100vh - 200px)', overflow: 'auto' }}>
+          <GeneralView procesoId={id} solicitudId={undefined} />
         </Box>
       </TabPanel>
 
@@ -522,14 +517,14 @@ export const WorkflowEditor: React.FC = () => {
       </TabPanel>
 
       <TabPanel value={tabValue} index={2}>
-        <Box sx={{ p: 3 }}>
-          <Typography>Estado del workflow</Typography>
+        <Box sx={{ p: 3, height: 'calc(100vh - 200px)', overflow: 'auto' }}>
+          <StatusView procesoId={id} solicitudId={undefined} />
         </Box>
       </TabPanel>
 
       <TabPanel value={tabValue} index={3}>
-        <Box sx={{ p: 3 }}>
-          <Typography>Historial de cambios</Typography>
+        <Box sx={{ p: 3, height: 'calc(100vh - 200px)', overflow: 'auto' }}>
+          <HistoryView procesoId={id} solicitudId={undefined} />
         </Box>
       </TabPanel>
 
