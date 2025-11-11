@@ -7,6 +7,7 @@ import { RevisionRequisitos } from '../pages/RevisionRequisitos';
 import { Etapas } from '../pages/Etapas';
 import { Procesos } from '../pages/Procesos';
 import { WorkflowEditor } from '../pages/WorkflowEditor';
+import { CargaDocumentosPPSH } from '../pages/CargaDocumentosPPSH';
 
 export const AppRouter = () => {
   return (
@@ -74,6 +75,14 @@ export const AppRouter = () => {
         element={
           <MainLayout>
             <Tramites />
+          </MainLayout>
+        }
+      />
+      <Route
+        path="/procesos/:procesoId/solicitud/:solicitudId/documentos"
+        element={
+          <MainLayout>
+            <CargaDocumentosPPSH />
           </MainLayout>
         }
       />

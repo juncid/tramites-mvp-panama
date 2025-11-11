@@ -15,8 +15,8 @@ export const MainLayout = ({ children }: MainLayoutProps) => {
         sx={{
           flexGrow: 1,
           backgroundColor: '#F9FAFB',
-          px: '7.69rem',
-          py: 3,
+          px: { xs: 2, sm: 3, md: '7.69rem' },
+          py: { xs: 0, sm: 3 },
         }}
       >
         {children}
