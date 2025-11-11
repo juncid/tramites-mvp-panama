@@ -435,7 +435,7 @@ export const WorkflowEditor: React.FC = () => {
     <Box>
       {/* Título de la página */}
       <Typography variant="h4" sx={{ fontWeight: 600, mb: 2 }}>
-        {isEditMode ? `Editar: ${workflow?.nombre || ''}` : 'Nuevo Proceso'}
+        {workflow?.nombre || 'Nuevo Proceso'}
       </Typography>
 
       {/* Barra de acciones */}
