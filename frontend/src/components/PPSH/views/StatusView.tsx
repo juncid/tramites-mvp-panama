@@ -81,22 +81,6 @@ export const StatusView = ({ procesoId, solicitudId }: StatusViewProps) => {
 
   return (
     <Box sx={{ maxWidth: 800 }}>
-      {/* Indicaciones extra (primera sección) */}
-      <Box sx={{ mb: 4 }}>
-        <Typography
-          variant="subtitle2"
-          sx={{
-            fontSize: '14px',
-            color: '#666',
-            mb: 1,
-            fontWeight: 500,
-          }}
-        >
-          Indicaciones extra
-        </Typography>
-        <Box sx={{ height: 8 }} />
-      </Box>
-
       {/* Estado del proceso */}
       <Box sx={{ mb: 4 }}>
         <Typography
@@ -138,22 +122,6 @@ export const StatusView = ({ procesoId, solicitudId }: StatusViewProps) => {
             </Typography>
           }
         />
-      </Box>
-
-      {/* Indicaciones extra (segunda sección) */}
-      <Box sx={{ mb: 6 }}>
-        <Typography
-          variant="subtitle2"
-          sx={{
-            fontSize: '14px',
-            color: '#666',
-            mb: 1,
-            fontWeight: 500,
-          }}
-        >
-          Indicaciones extra
-        </Typography>
-        <Box sx={{ height: 8 }} />
       </Box>
 
       {/* Botones de acción */}
