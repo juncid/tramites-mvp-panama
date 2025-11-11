@@ -19,66 +19,79 @@ const REQUISITOS_PPSH = [
     id: 1,
     titulo: 'Poder y solicitud mediante apoderado legal',
     indicaciones: 'Documento notariado que autoriza al apoderado legal a realizar el trámite',
+    opcional: false,
   },
   {
     id: 2,
     titulo: 'Dos fotos tamaño carnet, fondo blanco o a color',
     indicaciones: 'Fotografías recientes tipo carnet',
+    opcional: false,
   },
   {
     id: 3,
     titulo: 'Copia completa del pasaporte debidamente notariado',
     indicaciones: 'Todas las páginas del pasaporte vigente',
+    opcional: false,
   },
   {
     id: 4,
     titulo: 'Comprobante de domicilio del solicitante',
     indicaciones: 'Contrato de arrendamiento notariado (copia de cédula del arrendador) O Recibo de servicios públicos (Luz, agua, Cable e Internet - Copia Notariada)',
+    opcional: false,
   },
   {
     id: 5,
     titulo: 'Certificado de antecedentes penales de su país de origen debidamente autenticado o apostillado',
     indicaciones: 'Del país de origen, según sea el caso',
+    opcional: false,
   },
   {
     id: 6,
     titulo: 'Declaración jurada de antecedentes personales',
     indicaciones: 'Documento legal que declara los antecedentes del solicitante',
+    opcional: false,
   },
   {
     id: 7,
     titulo: 'Certificado de salud expedido por un profesional idóneo',
     indicaciones: 'Certificado médico emitido por profesional autorizado',
+    opcional: false,
   },
   {
     id: 8,
     titulo: 'Copia del registro de mano de obra migrante solicitado ante el Ministerio de Trabajo y Desarrollo Laboral',
     indicaciones: 'Registro oficial del Ministerio de Trabajo',
+    opcional: false,
   },
   {
     id: 9,
-    titulo: 'Documentación para menores de edad (si aplica)',
-    indicaciones: 'Poder notariado otorgado por ambos padres o tutor legal, documento que compruebe el parentesco y carta de responsabilidad debidamente autenticada o apostillada',
+    titulo: 'Documentación para menores de edad (opcional)',
+    indicaciones: 'Poder notariado otorgado por ambos padres o tutor legal, documento que compruebe el parentesco y carta de responsabilidad debidamente autenticada o apostillada. Este documento solo aplica si el solicitante es menor de edad.',
+    opcional: true,
   },
   {
     id: 10,
     titulo: 'Cheque Certificado o de Gerencia del Banco Nacional por B/.800.00',
     indicaciones: 'A favor del Servicio Nacional de Migración en concepto de repatriación',
+    opcional: false,
   },
   {
     id: 11,
     titulo: 'Cheque Certificado o de Gerencia del Banco Nacional por B/.250.00',
     indicaciones: 'A favor del Servicio Nacional de Migración en concepto de servicio migratorio',
+    opcional: false,
   },
   {
     id: 12,
     titulo: 'Pago de B/.100.00 en concepto de carnet y visa múltiple',
     indicaciones: 'Comprobante de pago por el permiso solicitado',
+    opcional: false,
   },
   {
     id: 13,
     titulo: 'Cheque Certificado o de Gerencia del Banco Nacional por B/.100.00',
     indicaciones: 'A favor del Tesoro Nacional de Panamá en concepto de Permiso de Trabajo',
+    opcional: false,
   },
 ];
 
@@ -129,6 +142,16 @@ export const CargaDocumentosPPSH = () => {
     if (isInitialScreen) {
       // De pantalla inicial a primer documento
       setCurrentStep(1);
+      return;
+    }
+
+    // Si el documento es opcional y no tiene archivo, permitir avanzar directamente
+    if (isCurrentDocOptional && !currentDocumento?.file) {
+      if (currentStep < REQUISITOS_PPSH.length) {
+        setCurrentStep(currentStep + 1);
+      } else {
+        handleComplete();
+      }
       return;
     }
 
@@ -207,7 +230,11 @@ export const CargaDocumentosPPSH = () => {
     navigate('/solicitudes');
   };
 
-  const canProceed = isInitialScreen || (currentDocumento?.file !== null && currentDocumento?.file !== undefined);
+  // Verificar si el documento actual es opcional
+  const isCurrentDocOptional = currentRequisito?.opcional || false;
+
+  // Puede proceder si: es pantalla inicial, tiene archivo cargado, o el documento es opcional
+  const canProceed = isInitialScreen || (currentDocumento?.file !== null && currentDocumento?.file !== undefined) || isCurrentDocOptional;
 
   return (
     <Box>
@@ -314,6 +341,18 @@ export const CargaDocumentosPPSH = () => {
             width: '100%',
             maxWidth: { xs: 'calc(100% - 32px)', sm: '100%' },
           }}>
+            {currentRequisito.opcional && (
+              <Typography
+                sx={{
+                  color: '#666',
+                  fontSize: '14px',
+                  fontStyle: 'italic',
+                  mb: 2,
+                }}
+              >
+                Este documento es opcional. Puede omitirlo si no aplica a su caso.
+              </Typography>
+            )}
             <DocumentUploadField
               titulo={currentRequisito.titulo}
               indicaciones={currentRequisito.indicaciones}
