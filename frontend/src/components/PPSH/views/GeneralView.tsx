@@ -103,22 +103,6 @@ export const GeneralView = ({ procesoId, solicitudId }: GeneralViewProps) => {
         />
       </Box>
 
-      {/* Indicaciones extra */}
-      <Box sx={{ mb: 4 }}>
-        <Typography
-          variant="subtitle2"
-          sx={{
-            fontSize: '14px',
-            color: '#666',
-            mb: 1,
-            fontWeight: 500,
-          }}
-        >
-          Indicaciones extra
-        </Typography>
-        <Box sx={{ height: 8 }} />
-      </Box>
-
       {/* Detalles del proceso */}
       <Box sx={{ mb: 4 }}>
         <Typography
@@ -145,22 +129,6 @@ export const GeneralView = ({ procesoId, solicitudId }: GeneralViewProps) => {
             },
           }}
         />
-      </Box>
-
-      {/* Indicaciones extra (segunda sección) */}
-      <Box sx={{ mb: 6 }}>
-        <Typography
-          variant="subtitle2"
-          sx={{
-            fontSize: '14px',
-            color: '#666',
-            mb: 1,
-            fontWeight: 500,
-          }}
-        >
-          Indicaciones extra
-        </Typography>
-        <Box sx={{ height: 8 }} />
       </Box>
 
       {/* Botones de acción */}
