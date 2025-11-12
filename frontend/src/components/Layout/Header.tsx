@@ -8,10 +8,19 @@ import {
   ListItem,
   ListItemButton,
   ListItemText,
+  Menu,
+  MenuItem,
+  Avatar,
+  Divider,
+  ListItemIcon,
 } from '@mui/material';
 import {
   KeyboardArrowDown as MenuIcon,
   Close as CloseIcon,
+  Person as PersonIcon,
+  Settings as SettingsIcon,
+  Logout as LogoutIcon,
+  KeyboardArrowDown as ArrowDownIcon,
 } from '@mui/icons-material';
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -32,10 +41,35 @@ export const Header = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [userMenuAnchor, setUserMenuAnchor] = useState<null | HTMLElement>(null);
 
   const handleMobileMenuClick = (path: string) => {
     navigate(path);
     setMobileMenuOpen(false);
+  };
+
+  const handleUserMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
+    setUserMenuAnchor(event.currentTarget);
+  };
+
+  const handleUserMenuClose = () => {
+    setUserMenuAnchor(null);
+  };
+
+  const handleNavigateProfile = () => {
+    navigate('/perfil');
+    handleUserMenuClose();
+  };
+
+  const handleNavigateSettings = () => {
+    navigate('/configuracion');
+    handleUserMenuClose();
+  };
+
+  const handleLogout = () => {
+    // TODO: Implementar lógica de logout
+    handleUserMenuClose();
+    navigate('/login');
   };
 
   // Fecha actual
@@ -98,23 +132,87 @@ export const Header = () => {
 
         {/* Usuario y logout - solo desktop */}
         <Box sx={{ display: { xs: 'none', sm: 'flex' }, alignItems: 'center', gap: 1 }}>
-          <Typography sx={{ color: 'white', fontSize: '0.875rem' }}>
-            Nombre Apellido (apellido)
-          </Typography>
-          <Typography sx={{ color: '#999', fontSize: '0.875rem' }}>
-            |
-          </Typography>
-          <Typography 
-            sx={{ 
-              color: '#999', 
-              fontSize: '0.875rem',
+          <Box
+            onClick={handleUserMenuOpen}
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1,
               cursor: 'pointer',
-              '&:hover': { color: 'white' }
+              px: 1.5,
+              py: 0.5,
+              borderRadius: 1,
+              '&:hover': { bgcolor: 'rgba(255,255,255,0.1)' },
             }}
           >
-            Cerrar sesión
-          </Typography>
+            <Avatar
+              sx={{
+                width: 28,
+                height: 28,
+                bgcolor: '#0e5fa6',
+                fontSize: '0.875rem',
+                fontWeight: 600,
+              }}
+            >
+              JP
+            </Avatar>
+            <Typography sx={{ color: 'white', fontSize: '0.875rem' }}>
+              Juan Pérez
+            </Typography>
+            <ArrowDownIcon sx={{ color: 'white', fontSize: 18 }} />
+          </Box>
         </Box>
+
+        {/* Menú desplegable de usuario */}
+        <Menu
+          anchorEl={userMenuAnchor}
+          open={Boolean(userMenuAnchor)}
+          onClose={handleUserMenuClose}
+          anchorOrigin={{
+            vertical: 'bottom',
+            horizontal: 'right',
+          }}
+          transformOrigin={{
+            vertical: 'top',
+            horizontal: 'right',
+          }}
+          PaperProps={{
+            sx: {
+              mt: 1,
+              minWidth: 200,
+              boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
+            },
+          }}
+        >
+          <Box sx={{ px: 2, py: 1.5 }}>
+            <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: '#333333' }}>
+              Juan Pérez
+            </Typography>
+            <Typography sx={{ fontSize: '0.75rem', color: '#788093' }}>
+              juan.perez@migracion.gob.pa
+            </Typography>
+          </Box>
+          <Divider />
+          <MenuItem onClick={handleNavigateProfile} sx={{ py: 1.5 }}>
+            <ListItemIcon>
+              <PersonIcon fontSize="small" sx={{ color: '#788093' }} />
+            </ListItemIcon>
+            <Typography sx={{ fontSize: '0.875rem', color: '#333333' }}>Mi Perfil</Typography>
+          </MenuItem>
+          <MenuItem onClick={handleNavigateSettings} sx={{ py: 1.5 }}>
+            <ListItemIcon>
+              <SettingsIcon fontSize="small" sx={{ color: '#788093' }} />
+            </ListItemIcon>
+            <Typography sx={{ fontSize: '0.875rem', color: '#333333' }}>Configuración</Typography>
+          </MenuItem>
+          <Divider />
+          <MenuItem onClick={handleLogout} sx={{ py: 1.5 }}>
+            <ListItemIcon>
+              <LogoutIcon fontSize="small" sx={{ color: '#d32f2f' }} />
+            </ListItemIcon>
+            <Typography sx={{ fontSize: '0.875rem', color: '#d32f2f' }}>Cerrar sesión</Typography>
+          </MenuItem>
+        </Menu>
       </Box>
 
       {/* Barra azul con tabs de navegación - solo desktop */}

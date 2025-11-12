@@ -11,6 +11,8 @@ import { WorkflowEditorFigma } from '../pages/WorkflowEditorFigma';
 import { CargaDocumentosPPSH } from '../pages/CargaDocumentosPPSH';
 import { DetalleProcesoPPSH } from '../pages/DetalleProcesoPPSH';
 import { TestVisa } from '../pages/TestVisa';
+import Profile from '../pages/Profile';
+import Settings from '../pages/Settings';
 
 export const AppRouter = () => {
   return (
@@ -118,6 +120,22 @@ export const AppRouter = () => {
         element={
           <MainLayout>
             <WorkflowEditorFigma />
+          </MainLayout>
+        }
+      />
+      <Route
+        path="/perfil"
+        element={
+          <MainLayout>
+            <Profile />
+          </MainLayout>
+        }
+      />
+      <Route
+        path="/configuracion"
+        element={
+          <MainLayout>
+            <Settings />
           </MainLayout>
         }
       />
