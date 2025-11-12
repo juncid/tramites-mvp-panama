@@ -13,10 +13,16 @@ import { DetalleProcesoPPSH } from '../pages/DetalleProcesoPPSH';
 import { TestVisa } from '../pages/TestVisa';
 import Profile from '../pages/Profile';
 import Settings from '../pages/Settings';
+import PublicAccess from '../pages/PublicAccess';
+import PublicSolicitudView from '../pages/PublicSolicitudView';
 
 export const AppRouter = () => {
   return (
     <Routes>
+      {/* Rutas públicas SIN layout */}
+      <Route path="/acceso-publico" element={<PublicAccess />} />
+      <Route path="/consulta-publica/:numeroSolicitud" element={<PublicSolicitudView />} />
+
       {/* Rutas con layout */}
       <Route
         path="/"
