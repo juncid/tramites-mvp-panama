@@ -1,280 +1,195 @@
-# 🚀 Plan de Implementación - Mini CMS de Vistas Dinámicas
+# 🚀 Plan de Implementación - Mini CMS Vistas Dinámicas (MVP)
 
-## 📅 Timeline General
+## 🎯 Plan Ejecutivo - 2 Semanas
 
-**Duración Estimada:** 5-6 semanas  
-**Inicio:** Noviembre 13, 2025  
-**Metodología:** Desarrollo iterativo con entregables funcionales cada semana
-
----
-
-## 🎯 Objetivos del Proyecto
-
-1. ✅ Permitir configurar vistas dinámicas sin escribir código
-2. ✅ Reutilizar layout común entre todos los flujos
-3. ✅ Asociar componentes a preguntas del workflow
-4. ✅ Renderizar interfaces personalizadas por etapa/actividad
-5. ✅ Soportar 20+ tipos de componentes configurables
+**Versión:** MVP 1.0  
+**Duración:** 10 días hábiles (13-26 Noviembre 2025)  
+**Enfoque:** Mínimo producto viable - Pragmático y ejecutable
 
 ---
 
-## 📋 FASE 1: Foundation & Backend (Semana 1)
+## 📊 Análisis de Situación
 
-### DÍA 1 (Nov 13) - Setup de Base de Datos
+### ✅ Contexto Actual
+- **Producto Nº1**: 100% completado (Backend, APIs, BBDD, Documentación)
+- **Estado**: Sistema funcional con workflows dinámicos
+- **Problema**: Cada flujo requiere vistas hardcodeadas (no escalable)
 
-#### Tarea 1.1: Diseñar Esquema de Base de Datos
-**Duración:** 2 horas  
-**Responsable:** Backend Developer
+### ⚠️ Problema con el Plan Original (6 semanas)
+- **Demasiado ambicioso** para MVP
+- **Riesgo alto** de retrasar entregables
+- **Over-engineering** para necesidades inmediatas
+- **No alineado con filosofía MVP**: Mínimo producto viable
 
-**Archivos a crear:**
-```
-backend/alembic/versions/XXX_crear_tablas_vistas_dinamicas.py
-```
+---
 
-**Tablas a crear:**
+## 🚀 PROPUESTA: Plan MVP Pragmático (2 semanas)
 
-1. **`workflow_vistas_config`**
-   ```sql
-   CREATE TABLE workflow_vistas_config (
-       id SERIAL PRIMARY KEY,
-       etapa_id INTEGER REFERENCES workflow_etapas(id) ON DELETE CASCADE,
-       layout_tipo VARCHAR(50) DEFAULT 'SIMPLE',
-       titulo_vista VARCHAR(255),
-       descripcion_vista TEXT,
-       mostrar_breadcrumbs BOOLEAN DEFAULT true,
-       mostrar_timeline BOOLEAN DEFAULT false,
-       config_json JSONB,
-       activo BOOLEAN DEFAULT true,
-       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-       created_by VARCHAR(100),
-       updated_by VARCHAR(100)
-   );
-   
-   CREATE INDEX idx_vistas_etapa ON workflow_vistas_config(etapa_id);
-   ```
+### Filosofía
+> **"Lo suficientemente dinámico para evitar hardcodear, lo suficientemente simple para entregar rápido"**
 
-2. **`workflow_vistas_secciones`**
-   ```sql
-   CREATE TABLE workflow_vistas_secciones (
-       id SERIAL PRIMARY KEY,
-       vista_config_id INTEGER REFERENCES workflow_vistas_config(id) ON DELETE CASCADE,
-       codigo VARCHAR(100) NOT NULL,
-       titulo VARCHAR(255) NOT NULL,
-       descripcion TEXT,
-       orden INTEGER NOT NULL,
-       columna INTEGER DEFAULT 1,
-       ancho INTEGER DEFAULT 12,
-       icono VARCHAR(50),
-       color_fondo VARCHAR(20),
-       mostrar_borde BOOLEAN DEFAULT true,
-       colapsable BOOLEAN DEFAULT false,
-       visible_para_perfiles JSONB,
-       visible_en_estados JSONB,
-       activo BOOLEAN DEFAULT true,
-       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-   );
-   
-   CREATE INDEX idx_secciones_vista ON workflow_vistas_secciones(vista_config_id);
-   CREATE INDEX idx_secciones_orden ON workflow_vistas_secciones(vista_config_id, orden);
-   ```
+**Objetivo Real:** 
+- ✅ Configurar vistas desde JSON sin cambiar código
+- ✅ Reutilizar componentes entre flujos
+- ✅ Base sólida para iterar después del MVP
 
-3. **`workflow_vistas_componentes`**
-   ```sql
-   CREATE TABLE workflow_vistas_componentes (
-       id SERIAL PRIMARY KEY,
-       seccion_id INTEGER REFERENCES workflow_vistas_secciones(id) ON DELETE CASCADE,
-       codigo VARCHAR(100) NOT NULL,
-       tipo VARCHAR(50) NOT NULL,
-       orden INTEGER NOT NULL,
-       fuente_datos VARCHAR(50) DEFAULT 'PREGUNTA',
-       pregunta_id INTEGER REFERENCES workflow_preguntas(id),
-       campo_proceso VARCHAR(100),
-       config_json JSONB NOT NULL DEFAULT '{}',
-       es_obligatorio BOOLEAN DEFAULT false,
-       es_editable BOOLEAN DEFAULT true,
-       es_visible BOOLEAN DEFAULT true,
-       dependencias_json JSONB,
-       validaciones_json JSONB,
-       activo BOOLEAN DEFAULT true,
-       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-   );
-   
-   CREATE INDEX idx_componentes_seccion ON workflow_vistas_componentes(seccion_id);
-   CREATE INDEX idx_componentes_pregunta ON workflow_vistas_componentes(pregunta_id);
-   CREATE INDEX idx_componentes_orden ON workflow_vistas_componentes(seccion_id, orden);
-   ```
+**NO incluir en MVP:**
+- ❌ Editor visual sofisticado
+- ❌ 20+ tipos de componentes
+- ❌ Sistema complejo de dependencias
+- ❌ Features avanzados
 
-**Comandos:**
+---
+
+## 📋 SEMANA 1: Foundation (Backend + Renderer)
+
+### 🗓️ DÍA 1 (Miércoles 13 Nov) - Backend: Base de Datos Simple
+
+**Objetivo:** Crear tabla única con JSON para máxima flexibilidad
+
+#### ✅ Checklist del Día
+
+**Tarea 1.1: Crear migración Alembic** (1 hora)
+
 ```bash
 cd backend
-alembic revision --autogenerate -m "crear_tablas_vistas_dinamicas"
+alembic revision -m "crear_tabla_vista_config_json"
+```
+
+**Archivo:** `backend/alembic/versions/XXX_crear_tabla_vista_config_json.py`
+
+```python
+"""crear tabla vista config json
+
+Revision ID: xxx
+"""
+from alembic import op
+import sqlalchemy as sa
+from sqlalchemy.dialects import mssql
+
+def upgrade():
+    op.create_table(
+        'workflow_vista_config',
+        sa.Column('id', sa.Integer, primary_key=True),
+        sa.Column('etapa_id', sa.Integer, sa.ForeignKey('workflow_etapas.id', ondelete='CASCADE'), nullable=False),
+        sa.Column('config_json', mssql.NVARCHAR(length='MAX'), nullable=False),
+        sa.Column('activo', sa.Boolean, default=True),
+        sa.Column('created_at', sa.DateTime, server_default=sa.func.getdate()),
+        sa.Column('updated_at', sa.DateTime, server_default=sa.func.getdate(), onupdate=sa.func.getdate()),
+        sa.Column('created_by', sa.String(100)),
+        sa.Column('updated_by', sa.String(100))
+    )
+    
+    op.create_index('idx_vista_config_etapa', 'workflow_vista_config', ['etapa_id'])
+    op.create_index('idx_vista_config_activo', 'workflow_vista_config', ['activo'])
+
+def downgrade():
+    op.drop_index('idx_vista_config_activo', 'workflow_vista_config')
+    op.drop_index('idx_vista_config_etapa', 'workflow_vista_config')
+    op.drop_table('workflow_vista_config')
+```
+
+**Ejecutar:**
+```bash
 alembic upgrade head
 ```
 
-**Validación:**
+**Validar:**
 ```bash
-# Verificar que las tablas existen
-psql -U postgres -d tramites_panama -c "\dt workflow_vistas*"
+# Verificar tabla existe
+python -c "from app.database import engine; print(engine.table_names())"
 ```
 
 ---
 
-#### Tarea 1.2: Crear Modelos SQLAlchemy
-**Duración:** 2 horas
+**Tarea 1.2: Crear modelo SQLAlchemy** (30 min)
 
-**Archivos a crear:**
-```
-backend/app/models/vista_dinamica.py
-```
+**Archivo:** `backend/app/models/vista_config.py`
 
-**Contenido:** Ver archivo completo con VistaConfig, VistaSeccion, VistaComponente
-
-**Actualizar:**
-```
-backend/app/models/__init__.py
-```
-
-**Validación:**
-```bash
-cd backend
-python -c "from app.models.vista_dinamica import VistaConfig; print('OK')"
-```
-
----
-
-#### Tarea 1.3: Crear Schemas Pydantic
-**Duración:** 1.5 horas
-
-**Archivos a crear:**
-```
-backend/app/schemas/vista_dinamica.py
-```
-
-**Contenido:**
 ```python
-from pydantic import BaseModel, Field
-from typing import Optional, List, Dict, Any
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Text
+from sqlalchemy.orm import relationship
+from sqlalchemy.sql import func
+from app.database import Base
+import json
+
+class VistaConfig(Base):
+    __tablename__ = 'workflow_vista_config'
+    
+    id = Column(Integer, primary_key=True, index=True)
+    etapa_id = Column(Integer, ForeignKey('workflow_etapas.id', ondelete='CASCADE'), nullable=False)
+    config_json = Column(Text, nullable=False)  # Almacena JSON como string
+    activo = Column(Boolean, default=True)
+    created_at = Column(DateTime, server_default=func.getdate())
+    updated_at = Column(DateTime, server_default=func.getdate(), onupdate=func.getdate())
+    created_by = Column(String(100))
+    updated_by = Column(String(100))
+    
+    # Relación con etapa
+    etapa = relationship("WorkflowEtapa", back_populates="vista_config")
+    
+    @property
+    def config(self):
+        """Parse JSON string to dict"""
+        return json.loads(self.config_json) if self.config_json else {}
+    
+    @config.setter
+    def config(self, value):
+        """Convert dict to JSON string"""
+        self.config_json = json.dumps(value, ensure_ascii=False)
+```
+
+**Actualizar:** `backend/app/models/__init__.py`
+```python
+from .vista_config import VistaConfig
+```
+
+**Actualizar:** `backend/app/models/models_workflow.py`
+```python
+# En clase WorkflowEtapa, añadir:
+vista_config = relationship("VistaConfig", back_populates="etapa", uselist=False, cascade="all, delete-orphan")
+```
+
+---
+
+**Tarea 1.3: Crear Pydantic Schema** (30 min)
+
+**Archivo:** `backend/app/schemas/vista_config.py`
+
+```python
+from pydantic import BaseModel, Field, validator
+from typing import Optional, Dict, Any, List
 from datetime import datetime
+import json
 
-# Enums
-class LayoutTipo(str):
-    SIMPLE = "SIMPLE"
-    DOS_COLUMNAS = "DOS_COLUMNAS"
-    TRES_COLUMNAS = "TRES_COLUMNAS"
-    TABS = "TABS"
-
-class FuenteDatos(str):
-    PREGUNTA = "PREGUNTA"
-    PROCESO = "PROCESO"
-    SOLICITUD = "SOLICITUD"
-    ESTATICO = "ESTATICO"
-    API = "API"
-
-# Componente
-class ComponenteBase(BaseModel):
-    codigo: str
-    tipo: str
-    orden: int
-    fuente_datos: FuenteDatos = FuenteDatos.PREGUNTA
-    pregunta_id: Optional[int] = None
-    campo_proceso: Optional[str] = None
-    config_json: Dict[str, Any] = {}
-    es_obligatorio: bool = False
-    es_editable: bool = True
-    es_visible: bool = True
-    dependencias_json: Optional[Dict[str, Any]] = None
-    validaciones_json: Optional[Dict[str, Any]] = None
-
-class ComponenteCreate(ComponenteBase):
-    seccion_id: Optional[int] = None
-
-class ComponenteUpdate(BaseModel):
-    codigo: Optional[str] = None
-    tipo: Optional[str] = None
-    orden: Optional[int] = None
-    fuente_datos: Optional[FuenteDatos] = None
-    pregunta_id: Optional[int] = None
-    config_json: Optional[Dict[str, Any]] = None
-    es_obligatorio: Optional[bool] = None
-    es_editable: Optional[bool] = None
-
-class Componente(ComponenteBase):
-    id: int
-    seccion_id: int
-    activo: bool
-    created_at: datetime
-    updated_at: Optional[datetime]
-    
-    class Config:
-        from_attributes = True
-
-# Seccion
-class SeccionBase(BaseModel):
-    codigo: str
-    titulo: str
-    descripcion: Optional[str] = None
-    orden: int
-    columna: int = 1
-    ancho: int = 12
-    icono: Optional[str] = None
-    color_fondo: Optional[str] = None
-    mostrar_borde: bool = True
-    colapsable: bool = False
-    visible_para_perfiles: Optional[List[str]] = None
-    visible_en_estados: Optional[List[str]] = None
-
-class SeccionCreate(SeccionBase):
-    vista_config_id: Optional[int] = None
-    componentes: List[ComponenteCreate] = []
-
-class SeccionUpdate(BaseModel):
-    titulo: Optional[str] = None
-    descripcion: Optional[str] = None
-    orden: Optional[int] = None
-    columna: Optional[int] = None
-    ancho: Optional[int] = None
-    colapsable: Optional[bool] = None
-
-class Seccion(SeccionBase):
-    id: int
-    vista_config_id: int
-    activo: bool
-    componentes: List[Componente] = []
-    created_at: datetime
-    updated_at: Optional[datetime]
-    
-    class Config:
-        from_attributes = True
-
-# Vista Config
 class VistaConfigBase(BaseModel):
-    layout_tipo: str = "SIMPLE"
-    titulo_vista: Optional[str] = None
-    descripcion_vista: Optional[str] = None
-    mostrar_breadcrumbs: bool = True
-    mostrar_timeline: bool = False
-    config_json: Optional[Dict[str, Any]] = None
+    config_json: Dict[str, Any] = Field(..., description="Configuración de la vista en JSON")
+    
+    @validator('config_json')
+    def validate_json_structure(cls, v):
+        """Validar estructura mínima del JSON"""
+        if not isinstance(v, dict):
+            raise ValueError('config_json debe ser un diccionario')
+        
+        # Validar campos mínimos
+        if 'secciones' not in v:
+            raise ValueError('config_json debe tener campo "secciones"')
+            
+        if not isinstance(v['secciones'], list):
+            raise ValueError('"secciones" debe ser una lista')
+        
+        return v
 
 class VistaConfigCreate(VistaConfigBase):
     etapa_id: int
-    secciones: List[SeccionCreate] = []
 
 class VistaConfigUpdate(BaseModel):
-    layout_tipo: Optional[str] = None
-    titulo_vista: Optional[str] = None
-    descripcion_vista: Optional[str] = None
-    mostrar_breadcrumbs: Optional[bool] = None
-    mostrar_timeline: Optional[bool] = None
     config_json: Optional[Dict[str, Any]] = None
 
 class VistaConfig(VistaConfigBase):
     id: int
     etapa_id: int
     activo: bool
-    secciones: List[Seccion] = []
     created_at: datetime
     updated_at: Optional[datetime]
     created_by: Optional[str]
@@ -284,1997 +199,2729 @@ class VistaConfig(VistaConfigBase):
         from_attributes = True
 ```
 
-**Actualizar:**
-```
-backend/app/schemas/__init__.py
-```
-
-**Validación:**
-```bash
-python -c "from app.schemas.vista_dinamica import VistaConfig; print('OK')"
+**Actualizar:** `backend/app/schemas/__init__.py`
+```python
+from .vista_config import VistaConfig, VistaConfigCreate, VistaConfigUpdate
 ```
 
 ---
 
-### DÍA 2 (Nov 14) - API Backend
+**✅ Entregables Día 1:**
+- [x] 1 tabla en base de datos
+- [x] 1 modelo SQLAlchemy
+- [x] 1 schema Pydantic
+- [x] Validaciones básicas
+- [x] Tests de conexión
 
-#### Tarea 2.1: Crear CRUD Service
-**Duración:** 3 horas
+**⏰ Tiempo estimado:** 4 horas
 
-**Archivos a crear:**
-```
-backend/app/services/vista_config.service.py
-```
+---
 
-**Funciones principales:**
+### 🗓️ DÍA 2 (Jueves 14 Nov) - Backend: API REST Básica
+
+**Objetivo:** 3 endpoints CRUD funcionales
+
+#### ✅ Checklist del Día
+
+**Tarea 2.1: Crear service CRUD** (1.5 horas)
+
+**Archivo:** `backend/app/services/vista_config_service.py`
+
 ```python
+from sqlalchemy.orm import Session
+from app.models.vista_config import VistaConfig
+from app.schemas.vista_config import VistaConfigCreate, VistaConfigUpdate
+from typing import Optional
+import json
+
 class VistaConfigService:
-    def get_by_etapa_id(etapa_id: int) -> VistaConfig
-    def create_vista_config(data: VistaConfigCreate) -> VistaConfig
-    def update_vista_config(id: int, data: VistaConfigUpdate) -> VistaConfig
-    def delete_vista_config(id: int) -> bool
     
-    def create_seccion(data: SeccionCreate) -> Seccion
-    def update_seccion(id: int, data: SeccionUpdate) -> Seccion
-    def delete_seccion(id: int) -> bool
-    def reorder_secciones(vista_id: int, orden_ids: List[int]) -> bool
+    @staticmethod
+    def get_by_etapa_id(db: Session, etapa_id: int) -> Optional[VistaConfig]:
+        """Obtener configuración de vista por ID de etapa"""
+        return db.query(VistaConfig).filter(
+            VistaConfig.etapa_id == etapa_id,
+            VistaConfig.activo == True
+        ).first()
     
-    def create_componente(data: ComponenteCreate) -> Componente
-    def update_componente(id: int, data: ComponenteUpdate) -> Componente
-    def delete_componente(id: int) -> bool
-    def reorder_componentes(seccion_id: int, orden_ids: List[int]) -> bool
+    @staticmethod
+    def create(db: Session, data: VistaConfigCreate, user_id: str = None) -> VistaConfig:
+        """Crear nueva configuración de vista"""
+        # Verificar si ya existe config para esta etapa
+        existing = db.query(VistaConfig).filter(
+            VistaConfig.etapa_id == data.etapa_id,
+            VistaConfig.activo == True
+        ).first()
+        
+        if existing:
+            raise ValueError(f"Ya existe una configuración activa para la etapa {data.etapa_id}")
+        
+        # Crear nueva config
+        db_obj = VistaConfig(
+            etapa_id=data.etapa_id,
+            config_json=json.dumps(data.config_json, ensure_ascii=False),
+            created_by=user_id
+        )
+        
+        db.add(db_obj)
+        db.commit()
+        db.refresh(db_obj)
+        
+        return db_obj
+    
+    @staticmethod
+    def update(db: Session, config_id: int, data: VistaConfigUpdate, user_id: str = None) -> VistaConfig:
+        """Actualizar configuración existente"""
+        db_obj = db.query(VistaConfig).filter(VistaConfig.id == config_id).first()
+        
+        if not db_obj:
+            raise ValueError(f"Configuración {config_id} no encontrada")
+        
+        if data.config_json is not None:
+            db_obj.config_json = json.dumps(data.config_json, ensure_ascii=False)
+        
+        db_obj.updated_by = user_id
+        
+        db.commit()
+        db.refresh(db_obj)
+        
+        return db_obj
+    
+    @staticmethod
+    def delete(db: Session, config_id: int) -> bool:
+        """Soft delete de configuración"""
+        db_obj = db.query(VistaConfig).filter(VistaConfig.id == config_id).first()
+        
+        if not db_obj:
+            return False
+        
+        db_obj.activo = False
+        db.commit()
+        
+        return True
+
+vista_config_service = VistaConfigService()
 ```
 
 ---
 
-#### Tarea 2.2: Crear Endpoints REST
-**Duración:** 3 horas
+**Tarea 2.2: Crear endpoints REST** (2 horas)
 
-**Archivos a crear:**
-```
-backend/app/routes/vista_config.py
-```
+**Archivo:** `backend/app/routes/vista_config.py`
 
-**Endpoints:**
 ```python
-# Vistas Config
-GET    /api/v1/workflow/etapas/{etapa_id}/vista-config
-POST   /api/v1/workflow/vistas-config
-PUT    /api/v1/workflow/vistas-config/{id}
-DELETE /api/v1/workflow/vistas-config/{id}
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import Session
+from typing import Optional
+import json
 
-# Secciones
-POST   /api/v1/workflow/vistas-config/{vista_id}/secciones
-PUT    /api/v1/workflow/secciones/{id}
-DELETE /api/v1/workflow/secciones/{id}
-POST   /api/v1/workflow/vistas-config/{vista_id}/secciones/reorder
+from app.database import get_db
+from app.schemas.vista_config import VistaConfig, VistaConfigCreate, VistaConfigUpdate
+from app.services.vista_config_service import vista_config_service
 
-# Componentes
-POST   /api/v1/workflow/secciones/{seccion_id}/componentes
-PUT    /api/v1/workflow/componentes/{id}
-DELETE /api/v1/workflow/componentes/{id}
-POST   /api/v1/workflow/secciones/{seccion_id}/componentes/reorder
+router = APIRouter()
+
+@router.get("/etapas/{etapa_id}/vista-config", response_model=Optional[VistaConfig])
+def get_vista_config_by_etapa(
+    etapa_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    Obtener configuración de vista para una etapa específica.
+    
+    Si no existe configuración, retorna null (el frontend usará vista por defecto).
+    """
+    config = vista_config_service.get_by_etapa_id(db, etapa_id)
+    
+    if not config:
+        return None
+    
+    # Parse JSON para retornar como objeto
+    config_dict = {
+        "id": config.id,
+        "etapa_id": config.etapa_id,
+        "config_json": json.loads(config.config_json),
+        "activo": config.activo,
+        "created_at": config.created_at,
+        "updated_at": config.updated_at,
+        "created_by": config.created_by,
+        "updated_by": config.updated_by
+    }
+    
+    return config_dict
+
+@router.post("/vistas-config", response_model=VistaConfig, status_code=status.HTTP_201_CREATED)
+def create_vista_config(
+    data: VistaConfigCreate,
+    db: Session = Depends(get_db)
+):
+    """
+    Crear nueva configuración de vista para una etapa.
+    
+    Lanza error si ya existe una configuración activa para esa etapa.
+    """
+    try:
+        config = vista_config_service.create(db, data)
+        
+        return {
+            "id": config.id,
+            "etapa_id": config.etapa_id,
+            "config_json": json.loads(config.config_json),
+            "activo": config.activo,
+            "created_at": config.created_at,
+            "updated_at": config.updated_at,
+            "created_by": config.created_by,
+            "updated_by": config.updated_by
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.put("/vistas-config/{config_id}", response_model=VistaConfig)
+def update_vista_config(
+    config_id: int,
+    data: VistaConfigUpdate,
+    db: Session = Depends(get_db)
+):
+    """
+    Actualizar configuración de vista existente.
+    """
+    try:
+        config = vista_config_service.update(db, config_id, data)
+        
+        return {
+            "id": config.id,
+            "etapa_id": config.etapa_id,
+            "config_json": json.loads(config.config_json),
+            "activo": config.activo,
+            "created_at": config.created_at,
+            "updated_at": config.updated_at,
+            "created_by": config.created_by,
+            "updated_by": config.updated_by
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+@router.delete("/vistas-config/{config_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_vista_config(
+    config_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    Eliminar (soft delete) configuración de vista.
+    """
+    success = vista_config_service.delete(db, config_id)
+    
+    if not success:
+        raise HTTPException(status_code=404, detail="Configuración no encontrada")
+    
+    return None
 ```
 
-**Actualizar:**
-```
-backend/app/main.py
-```
+**Registrar router en:** `backend/app/main.py`
+
 ```python
 from app.routes import vista_config
-app.include_router(vista_config.router, prefix="/api/v1/workflow", tags=["vistas-dinamicas"])
-```
 
-**Validación:**
-```bash
-# Iniciar servidor
-uvicorn app.main:app --reload
-
-# Test endpoint
-curl http://localhost:8000/api/v1/workflow/etapas/1/vista-config
+# ... después de otros routers
+app.include_router(
+    vista_config.router,
+    prefix="/api/v1/workflow",
+    tags=["vistas-dinamicas"]
+)
 ```
 
 ---
 
-### DÍA 3 (Nov 15) - Frontend Types & Service
+**Tarea 2.3: Crear tests básicos** (1 hora)
 
-#### Tarea 3.1: Definir Tipos TypeScript
-**Duración:** 2 horas
+**Archivo:** `backend/tests/test_vista_config.py`
 
-**Archivos a crear:**
+```python
+import pytest
+from fastapi.testclient import TestClient
+from app.main import app
+
+client = TestClient(app)
+
+def test_create_vista_config():
+    """Test crear configuración de vista"""
+    payload = {
+        "etapa_id": 1,
+        "config_json": {
+            "titulo": "Test Vista",
+            "secciones": [
+                {
+                    "titulo": "Sección 1",
+                    "componentes": []
+                }
+            ]
+        }
+    }
+    
+    response = client.post("/api/v1/workflow/vistas-config", json=payload)
+    
+    assert response.status_code == 201
+    data = response.json()
+    assert data["etapa_id"] == 1
+    assert "id" in data
+
+def test_get_vista_config_by_etapa():
+    """Test obtener configuración por etapa"""
+    response = client.get("/api/v1/workflow/etapas/1/vista-config")
+    
+    assert response.status_code == 200
+    # Puede ser null si no existe
+
+def test_update_vista_config():
+    """Test actualizar configuración"""
+    # Primero crear
+    create_response = client.post("/api/v1/workflow/vistas-config", json={
+        "etapa_id": 2,
+        "config_json": {"titulo": "Original", "secciones": []}
+    })
+    
+    config_id = create_response.json()["id"]
+    
+    # Luego actualizar
+    update_response = client.put(
+        f"/api/v1/workflow/vistas-config/{config_id}",
+        json={"config_json": {"titulo": "Actualizado", "secciones": []}}
+    )
+    
+    assert update_response.status_code == 200
+    assert update_response.json()["config_json"]["titulo"] == "Actualizado"
 ```
-frontend/src/types/dynamic-views.ts
+
+**Ejecutar tests:**
+```bash
+pytest backend/tests/test_vista_config.py -v
 ```
 
-**Contenido:**
+---
+
+**✅ Entregables Día 2:**
+- [x] Service CRUD completo
+- [x] 3 endpoints REST (GET, POST, PUT)
+- [x] Tests básicos pasando
+- [x] Documentación automática en Swagger
+
+**⏰ Tiempo estimado:** 4.5 horas
+
+---
+
+### 🗓️ DÍA 3 (Viernes 15 Nov) - Frontend: Types + Service
+
+**Objetivo:** Tipos TypeScript y servicio API frontend
+
+#### ✅ Checklist del Día
+
+**Tarea 3.1: Definir tipos TypeScript** (1.5 horas)
+
+**Archivo:** `frontend/src/types/dynamic-view.ts`
+
 ```typescript
-export type LayoutTipo = 'SIMPLE' | 'DOS_COLUMNAS' | 'TRES_COLUMNAS' | 'TABS';
-export type FuenteDatos = 'PREGUNTA' | 'PROCESO' | 'SOLICITUD' | 'ESTATICO' | 'API';
+/**
+ * Tipos para sistema de vistas dinámicas (MVP)
+ */
 
-export type TipoComponenteVista = 
-  // Input
-  | 'TEXTO_INPUT'
-  | 'NUMERO_INPUT'
-  | 'FECHA_PICKER'
-  | 'SELECT_SIMPLE'
-  | 'SELECT_MULTIPLE'
-  | 'CHECKBOX'
-  | 'RADIO_BUTTONS'
-  | 'TEXTAREA'
-  // Files
-  | 'CARGA_ARCHIVOS'
-  | 'DESCARGA_ARCHIVOS'
-  | 'GALERIA_DOCUMENTOS'
-  | 'VISOR_PDF'
-  // Display
-  | 'TEXTO_ESTATICO'
-  | 'TITULO'
-  | 'ALERTA'
-  | 'CARD_INFO'
-  | 'TABLA'
-  | 'LISTA'
-  | 'TIMELINE'
-  // Actions
-  | 'BOTON'
-  | 'BOTON_DESCARGA'
-  | 'BOTON_FIRMA'
-  | 'BOTON_PAGO'
-  | 'BOTON_IMPRIMIR'
-  // Review
-  | 'REVISION_DOCUMENTOS'
-  | 'REVISION_OCR';
+// Tipos de componentes soportados en MVP
+export type TipoComponente = 
+  | 'TEXTO'
+  | 'NUMERO'
+  | 'FECHA'
+  | 'SELECT'
+  | 'ARCHIVO';
 
+// Configuración de un componente individual
+export interface Componente {
+  tipo: TipoComponente;
+  label: string;
+  pregunta_id?: number;
+  obligatorio?: boolean;
+  config?: ConfigComponente;
+}
+
+// Configuración específica por tipo de componente
 export interface ConfigComponente {
-  label?: string;
+  // Para TEXTO
   placeholder?: string;
-  ayuda?: string;
-  opciones?: OpcionComponente[];
+  multiline?: boolean;
+  maxLength?: number;
+  
+  // Para NUMERO
   min?: number;
   max?: number;
-  patron?: string;
-  mensaje_error?: string;
-  tipos_archivos_permitidos?: string[];
-  tamaño_maximo_mb?: number;
-  cantidad_maxima?: number;
-  color?: string;
-  icono?: string;
-  variant?: string;
-  [key: string]: any;
+  step?: number;
+  
+  // Para SELECT
+  opciones?: { valor: string | number; etiqueta: string }[];
+  
+  // Para ARCHIVO
+  tipos_permitidos?: string[];
+  max_size_mb?: number;
+  max_archivos?: number;
 }
 
-export interface OpcionComponente {
-  valor: string | number;
-  etiqueta: string;
-  descripcion?: string;
-  icono?: string;
-  deshabilitada?: boolean;
-}
-
-export interface DependenciaComponente {
-  componente_id: string;
-  condicion: 'IGUAL' | 'DIFERENTE' | 'MAYOR' | 'MENOR' | 'CONTIENE' | 'NO_VACIO';
-  valor: any;
-}
-
-export interface ComponenteVista {
-  id?: number;
-  codigo: string;
-  tipo: TipoComponenteVista;
-  orden: number;
-  fuente_datos: FuenteDatos;
-  pregunta_id?: number;
-  campo_proceso?: string;
-  config_json: ConfigComponente;
-  es_obligatorio: boolean;
-  es_editable: boolean;
-  es_visible: boolean;
-  dependencias_json?: DependenciaComponente[];
-  validaciones_json?: any;
-  activo?: boolean;
-  created_at?: string;
-  updated_at?: string;
-}
-
-export interface SeccionVista {
-  id?: number;
-  codigo: string;
+// Sección que agrupa componentes
+export interface Seccion {
   titulo: string;
   descripcion?: string;
-  orden: number;
-  columna: number;
-  ancho: number;
-  icono?: string;
-  color_fondo?: string;
-  mostrar_borde: boolean;
-  colapsable: boolean;
-  visible_para_perfiles?: string[];
-  visible_en_estados?: string[];
-  componentes: ComponenteVista[];
-  activo?: boolean;
-  created_at?: string;
-  updated_at?: string;
+  componentes: Componente[];
 }
 
+// Configuración completa de la vista
+export interface ConfigJson {
+  titulo?: string;
+  descripcion?: string;
+  secciones: Seccion[];
+}
+
+// Modelo completo de VistaConfig (coincide con backend)
 export interface VistaConfig {
-  id?: number;
+  id: number;
   etapa_id: number;
-  layout_tipo: LayoutTipo;
-  titulo_vista?: string;
-  descripcion_vista?: string;
-  mostrar_breadcrumbs: boolean;
-  mostrar_timeline: boolean;
-  config_json?: any;
-  secciones: SeccionVista[];
-  activo?: boolean;
-  created_at?: string;
+  config_json: ConfigJson;
+  activo: boolean;
+  created_at: string;
   updated_at?: string;
   created_by?: string;
   updated_by?: string;
 }
 
-// DTOs
-export interface VistaConfigCreate extends Omit<VistaConfig, 'id' | 'created_at' | 'updated_at'> {}
-export interface VistaConfigUpdate extends Partial<Omit<VistaConfig, 'id' | 'etapa_id'>> {}
-export interface SeccionCreate extends Omit<SeccionVista, 'id' | 'created_at' | 'updated_at'> {}
-export interface SeccionUpdate extends Partial<Omit<SeccionVista, 'id'>> {}
-export interface ComponenteCreate extends Omit<ComponenteVista, 'id' | 'created_at' | 'updated_at'> {}
-export interface ComponenteUpdate extends Partial<Omit<ComponenteVista, 'id'>> {}
+// DTOs para crear/actualizar
+export interface VistaConfigCreate {
+  etapa_id: number;
+  config_json: ConfigJson;
+}
+
+export interface VistaConfigUpdate {
+  config_json: ConfigJson;
+}
+
+// Estado del formulario renderizado
+export interface FormData {
+  [preguntaId: number]: any;
+}
+
+// Errores de validación
+export interface FormErrors {
+  [preguntaId: number]: string;
+}
 ```
 
 ---
 
-#### Tarea 3.2: Crear Service API
-**Duración:** 2 horas
+**Tarea 3.2: Crear servicio API** (1.5 horas)
 
-**Archivos a crear:**
-```
-frontend/src/services/vista-config.service.ts
-```
+**Archivo:** `frontend/src/services/vista-config.service.ts`
 
-**Contenido:**
 ```typescript
 import axios from 'axios';
-import type { 
-  VistaConfig, 
-  VistaConfigCreate, 
-  VistaConfigUpdate,
-  SeccionVista,
-  SeccionCreate,
-  SeccionUpdate,
-  ComponenteVista,
-  ComponenteCreate,
-  ComponenteUpdate
-} from '../types/dynamic-views';
+import type { VistaConfig, VistaConfigCreate, VistaConfigUpdate } from '../types/dynamic-view';
 
 const API_BASE = '/api/v1/workflow';
 
-export const vistaConfigService = {
-  // Vista Config
+class VistaConfigService {
+  
+  /**
+   * Obtener configuración de vista por ID de etapa
+   * Retorna null si no existe configuración (usar vista por defecto)
+   */
   async getByEtapaId(etapaId: number): Promise<VistaConfig | null> {
     try {
-      const response = await axios.get(`${API_BASE}/etapas/${etapaId}/vista-config`);
+      const response = await axios.get<VistaConfig>(`${API_BASE}/etapas/${etapaId}/vista-config`);
       return response.data;
     } catch (error: any) {
-      if (error.response?.status === 404) return null;
+      if (error.response?.status === 404) {
+        return null;
+      }
       throw error;
     }
-  },
+  }
 
+  /**
+   * Crear nueva configuración de vista
+   */
   async create(data: VistaConfigCreate): Promise<VistaConfig> {
-    const response = await axios.post(`${API_BASE}/vistas-config`, data);
+    const response = await axios.post<VistaConfig>(`${API_BASE}/vistas-config`, data);
     return response.data;
-  },
+  }
 
+  /**
+   * Actualizar configuración existente
+   */
   async update(id: number, data: VistaConfigUpdate): Promise<VistaConfig> {
-    const response = await axios.put(`${API_BASE}/vistas-config/${id}`, data);
+    const response = await axios.put<VistaConfig>(`${API_BASE}/vistas-config/${id}`, data);
     return response.data;
-  },
+  }
 
+  /**
+   * Eliminar configuración
+   */
   async delete(id: number): Promise<void> {
     await axios.delete(`${API_BASE}/vistas-config/${id}`);
-  },
+  }
 
-  // Secciones
-  async createSeccion(vistaId: number, data: SeccionCreate): Promise<SeccionVista> {
-    const response = await axios.post(`${API_BASE}/vistas-config/${vistaId}/secciones`, data);
-    return response.data;
-  },
+  /**
+   * Crear o actualizar configuración para una etapa
+   * Helper que decide automáticamente si crear o actualizar
+   */
+  async createOrUpdate(etapaId: number, configJson: any): Promise<VistaConfig> {
+    // Primero intentar obtener config existente
+    const existing = await this.getByEtapaId(etapaId);
+    
+    if (existing) {
+      // Ya existe, actualizar
+      return this.update(existing.id, { config_json: configJson });
+    } else {
+      // No existe, crear nueva
+      return this.create({ etapa_id: etapaId, config_json: configJson });
+    }
+  }
+}
 
-  async updateSeccion(id: number, data: SeccionUpdate): Promise<SeccionVista> {
-    const response = await axios.put(`${API_BASE}/secciones/${id}`, data);
-    return response.data;
-  },
-
-  async deleteSeccion(id: number): Promise<void> {
-    await axios.delete(`${API_BASE}/secciones/${id}`);
-  },
-
-  async reorderSecciones(vistaId: number, ordenIds: number[]): Promise<void> {
-    await axios.post(`${API_BASE}/vistas-config/${vistaId}/secciones/reorder`, { orden_ids: ordenIds });
-  },
-
-  // Componentes
-  async createComponente(seccionId: number, data: ComponenteCreate): Promise<ComponenteVista> {
-    const response = await axios.post(`${API_BASE}/secciones/${seccionId}/componentes`, data);
-    return response.data;
-  },
-
-  async updateComponente(id: number, data: ComponenteUpdate): Promise<ComponenteVista> {
-    const response = await axios.put(`${API_BASE}/componentes/${id}`, data);
-    return response.data;
-  },
-
-  async deleteComponente(id: number): Promise<void> {
-    await axios.delete(`${API_BASE}/componentes/${id}`);
-  },
-
-  async reorderComponentes(seccionId: number, ordenIds: number[]): Promise<void> {
-    await axios.post(`${API_BASE}/secciones/${seccionId}/componentes/reorder`, { orden_ids: ordenIds });
-  },
-};
-```
-
-**Validación:**
-```typescript
-// Test en consola de navegador
-import { vistaConfigService } from './services/vista-config.service';
-const vista = await vistaConfigService.getByEtapaId(1);
-console.log(vista);
+export const vistaConfigService = new VistaConfigService();
+export default vistaConfigService;
 ```
 
 ---
 
-### DÍA 4-5 (Nov 16-17) - Componentes Base del Renderer
+**Tarea 3.3: Crear templates de ejemplo** (1 hora)
 
-#### Tarea 4.1: Crear Componente DynamicViewRenderer
-**Duración:** 4 horas
+**Archivo:** `frontend/src/templates/vista-templates.ts`
 
-**Archivos a crear:**
+```typescript
+import type { ConfigJson } from '../types/dynamic-view';
+
+/**
+ * Templates predefinidos para crear vistas rápidamente
+ */
+
+export const TEMPLATE_SOLICITUD_BASICA: ConfigJson = {
+  titulo: 'Solicitud Básica',
+  descripcion: 'Formulario simple con datos personales',
+  secciones: [
+    {
+      titulo: 'Información Personal',
+      descripcion: 'Datos básicos del solicitante',
+      componentes: [
+        {
+          tipo: 'TEXTO',
+          label: 'Nombre Completo',
+          pregunta_id: 1,
+          obligatorio: true,
+          config: {
+            placeholder: 'Ingrese su nombre completo'
+          }
+        },
+        {
+          tipo: 'NUMERO',
+          label: 'Cédula de Identidad',
+          pregunta_id: 2,
+          obligatorio: true,
+          config: {
+            placeholder: '0-000-0000'
+          }
+        },
+        {
+          tipo: 'FECHA',
+          label: 'Fecha de Nacimiento',
+          pregunta_id: 3,
+          obligatorio: true
+        }
+      ]
+    },
+    {
+      titulo: 'Documentos',
+      descripcion: 'Adjuntar documentos requeridos',
+      componentes: [
+        {
+          tipo: 'ARCHIVO',
+          label: 'Cédula (Foto o escaneada)',
+          pregunta_id: 4,
+          obligatorio: true,
+          config: {
+            tipos_permitidos: ['pdf', 'jpg', 'png'],
+            max_size_mb: 10,
+            max_archivos: 2
+          }
+        }
+      ]
+    }
+  ]
+};
+
+export const TEMPLATE_REVISION_DOCUMENTOS: ConfigJson = {
+  titulo: 'Revisión de Documentos',
+  descripcion: 'Verificar documentos adjuntos por el solicitante',
+  secciones: [
+    {
+      titulo: 'Documentos a Revisar',
+      componentes: [
+        {
+          tipo: 'SELECT',
+          label: 'Estado de la Cédula',
+          pregunta_id: 1,
+          obligatorio: true,
+          config: {
+            opciones: [
+              { valor: 'APROBADO', etiqueta: 'Aprobado' },
+              { valor: 'RECHAZADO', etiqueta: 'Rechazado - Volver a subir' },
+              { valor: 'PENDIENTE', etiqueta: 'Pendiente de revisión' }
+            ]
+          }
+        },
+        {
+          tipo: 'TEXTO',
+          label: 'Comentarios',
+          pregunta_id: 2,
+          obligatorio: false,
+          config: {
+            multiline: true,
+            placeholder: 'Observaciones sobre los documentos...'
+          }
+        }
+      ]
+    }
+  ]
+};
+
+export const TEMPLATE_APROBACION: ConfigJson = {
+  titulo: 'Aprobación de Solicitud',
+  descripcion: 'Decisión final sobre la solicitud',
+  secciones: [
+    {
+      titulo: 'Decisión',
+      componentes: [
+        {
+          tipo: 'SELECT',
+          label: 'Estado Final',
+          pregunta_id: 1,
+          obligatorio: true,
+          config: {
+            opciones: [
+              { valor: 'APROBADO', etiqueta: '✅ Aprobar Solicitud' },
+              { valor: 'RECHAZADO', etiqueta: '❌ Rechazar Solicitud' },
+              { valor: 'REVISION', etiqueta: '⚠️ Solicitar Más Información' }
+            ]
+          }
+        },
+        {
+          tipo: 'TEXTO',
+          label: 'Justificación',
+          pregunta_id: 2,
+          obligatorio: true,
+          config: {
+            multiline: true,
+            placeholder: 'Explique brevemente la decisión...'
+          }
+        }
+      ]
+    }
+  ]
+};
+
+// Exportar todos los templates
+export const TEMPLATES = {
+  SOLICITUD_BASICA: TEMPLATE_SOLICITUD_BASICA,
+  REVISION_DOCUMENTOS: TEMPLATE_REVISION_DOCUMENTOS,
+  APROBACION: TEMPLATE_APROBACION,
+};
+
+// Helper para obtener template por nombre
+export function getTemplate(nombre: string): ConfigJson | null {
+  return TEMPLATES[nombre as keyof typeof TEMPLATES] || null;
+}
 ```
-frontend/src/components/DynamicView/DynamicViewRenderer.tsx
-```
 
-**Estructura básica:**
-```tsx
-import React, { useState, useEffect } from 'react';
-import { Box, Typography, Stack, Grid, CircularProgress } from '@mui/material';
-import { WorkflowEtapa } from '../../types/workflow';
-import { VistaConfig } from '../../types/dynamic-views';
-import { vistaConfigService } from '../../services/vista-config.service';
-import { SeccionRenderer } from './SeccionRenderer';
-import { DefaultView } from './DefaultView';
+---
 
-interface DynamicViewRendererProps {
-  etapa: WorkflowEtapa;
-  proceso?: any;
-  onSubmit?: (data: any) => void;
-  readonly?: boolean;
+**✅ Entregables Día 3:**
+- [x] Tipos TypeScript completos
+- [x] Servicio API funcional
+- [x] 3 templates predefinidos
+- [x] Helper createOrUpdate
+
+**⏰ Tiempo estimado:** 4 horas
+
+---
+
+### 🗓️ DÍA 4 (Lunes 18 Nov) - Frontend: Componentes Base (Parte 1)
+
+**Objetivo:** Crear 3 de 5 componentes renderizables
+
+#### ✅ Checklist del Día
+
+**Tarea 4.1: Componente TextInput** (45 min)
+
+**Archivo:** `frontend/src/components/DynamicView/TextInput.tsx`
+
+```typescript
+import React from 'react';
+import type { Componente, FormData, FormErrors } from '../../types/dynamic-view';
+
+interface TextInputProps {
+  componente: Componente;
+  value: any;
+  error?: string;
+  onChange: (preguntaId: number, value: any) => void;
 }
 
-export const DynamicViewRenderer: React.FC<DynamicViewRendererProps> = ({
-  etapa,
-  proceso,
-  onSubmit,
-  readonly = false,
+export const TextInput: React.FC<TextInputProps> = ({ 
+  componente, 
+  value, 
+  error,
+  onChange 
 }) => {
-  const [vistaConfig, setVistaConfig] = useState<VistaConfig | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [formData, setFormData] = useState<Record<string, any>>({});
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  const { label, pregunta_id, obligatorio, config } = componente;
+  const multiline = config?.multiline || false;
+  const placeholder = config?.placeholder || '';
+  const maxLength = config?.maxLength;
 
-  useEffect(() => {
-    loadVistaConfig();
-  }, [etapa.id]);
-
-  const loadVistaConfig = async () => {
-    if (!etapa.id) return;
-    
-    try {
-      setLoading(true);
-      const config = await vistaConfigService.getByEtapaId(etapa.id);
-      setVistaConfig(config);
-    } catch (error) {
-      console.error('Error cargando vista config:', error);
-    } finally {
-      setLoading(false);
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    if (pregunta_id) {
+      onChange(pregunta_id, e.target.value);
     }
   };
 
-  const handleChange = (componenteId: string, value: any) => {
-    setFormData(prev => ({ ...prev, [componenteId]: value }));
-    // Limpiar error si existe
-    if (errors[componenteId]) {
+  const inputClasses = `
+    w-full px-3 py-2 border rounded-md
+    ${error ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500'}
+    focus:outline-none focus:ring-2
+  `;
+
+  return (
+    <div className="mb-4">
+      <label className="block text-sm font-medium text-gray-700 mb-1">
+        {label}
+        {obligatorio && <span className="text-red-500 ml-1">*</span>}
+      </label>
+      
+      {multiline ? (
+        <textarea
+          value={value || ''}
+          onChange={handleChange}
+          placeholder={placeholder}
+          maxLength={maxLength}
+          rows={4}
+          className={inputClasses}
+        />
+      ) : (
+        <input
+          type="text"
+          value={value || ''}
+          onChange={handleChange}
+          placeholder={placeholder}
+          maxLength={maxLength}
+          className={inputClasses}
+        />
+      )}
+      
+      {error && (
+        <p className="text-red-500 text-sm mt-1">{error}</p>
+      )}
+      
+      {maxLength && (
+        <p className="text-gray-500 text-xs mt-1">
+          {(value || '').length}/{maxLength} caracteres
+        </p>
+      )}
+    </div>
+  );
+};
+```
+
+---
+
+**Tarea 4.2: Componente NumberInput** (45 min)
+
+**Archivo:** `frontend/src/components/DynamicView/NumberInput.tsx`
+
+```typescript
+import React from 'react';
+import type { Componente } from '../../types/dynamic-view';
+
+interface NumberInputProps {
+  componente: Componente;
+  value: any;
+  error?: string;
+  onChange: (preguntaId: number, value: any) => void;
+}
+
+export const NumberInput: React.FC<NumberInputProps> = ({ 
+  componente, 
+  value, 
+  error,
+  onChange 
+}) => {
+  const { label, pregunta_id, obligatorio, config } = componente;
+  const min = config?.min;
+  const max = config?.max;
+  const step = config?.step || 1;
+  const placeholder = config?.placeholder || '';
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (pregunta_id) {
+      const numValue = e.target.value === '' ? null : parseFloat(e.target.value);
+      onChange(pregunta_id, numValue);
+    }
+  };
+
+  return (
+    <div className="mb-4">
+      <label className="block text-sm font-medium text-gray-700 mb-1">
+        {label}
+        {obligatorio && <span className="text-red-500 ml-1">*</span>}
+      </label>
+      
+      <input
+        type="number"
+        value={value ?? ''}
+        onChange={handleChange}
+        placeholder={placeholder}
+        min={min}
+        max={max}
+        step={step}
+        className={`
+          w-full px-3 py-2 border rounded-md
+          ${error ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500'}
+          focus:outline-none focus:ring-2
+        `}
+      />
+      
+      {error && (
+        <p className="text-red-500 text-sm mt-1">{error}</p>
+      )}
+      
+      {(min !== undefined || max !== undefined) && (
+        <p className="text-gray-500 text-xs mt-1">
+          {min !== undefined && max !== undefined && `Rango: ${min} - ${max}`}
+          {min !== undefined && max === undefined && `Mínimo: ${min}`}
+          {min === undefined && max !== undefined && `Máximo: ${max}`}
+        </p>
+      )}
+    </div>
+  );
+};
+```
+
+---
+
+**Tarea 4.3: Componente DatePicker** (45 min)
+
+**Archivo:** `frontend/src/components/DynamicView/DatePicker.tsx`
+
+```typescript
+import React from 'react';
+import type { Componente } from '../../types/dynamic-view';
+
+interface DatePickerProps {
+  componente: Componente;
+  value: any;
+  error?: string;
+  onChange: (preguntaId: number, value: any) => void;
+}
+
+export const DatePicker: React.FC<DatePickerProps> = ({ 
+  componente, 
+  value, 
+  error,
+  onChange 
+}) => {
+  const { label, pregunta_id, obligatorio, config } = componente;
+  const min = config?.min; // Fecha mínima (formato: YYYY-MM-DD)
+  const max = config?.max; // Fecha máxima
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (pregunta_id) {
+      onChange(pregunta_id, e.target.value);
+    }
+  };
+
+  return (
+    <div className="mb-4">
+      <label className="block text-sm font-medium text-gray-700 mb-1">
+        {label}
+        {obligatorio && <span className="text-red-500 ml-1">*</span>}
+      </label>
+      
+      <input
+        type="date"
+        value={value || ''}
+        onChange={handleChange}
+        min={min}
+        max={max}
+        className={`
+          w-full px-3 py-2 border rounded-md
+          ${error ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500'}
+          focus:outline-none focus:ring-2
+        `}
+      />
+      
+      {error && (
+        <p className="text-red-500 text-sm mt-1">{error}</p>
+      )}
+    </div>
+  );
+};
+```
+
+---
+
+**Tarea 4.4: Componente SelectSimple** (1 hora)
+
+**Archivo:** `frontend/src/components/DynamicView/SelectSimple.tsx`
+
+```typescript
+import React from 'react';
+import type { Componente } from '../../types/dynamic-view';
+
+interface SelectSimpleProps {
+  componente: Componente;
+  value: any;
+  error?: string;
+  onChange: (preguntaId: number, value: any) => void;
+}
+
+export const SelectSimple: React.FC<SelectSimpleProps> = ({ 
+  componente, 
+  value, 
+  error,
+  onChange 
+}) => {
+  const { label, pregunta_id, obligatorio, config } = componente;
+  const opciones = config?.opciones || [];
+
+  const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    if (pregunta_id) {
+      // Convertir a número si la opción es numérica
+      const selectedValue = e.target.value;
+      const opcion = opciones.find(o => String(o.valor) === selectedValue);
+      onChange(pregunta_id, opcion?.valor ?? selectedValue);
+    }
+  };
+
+  return (
+    <div className="mb-4">
+      <label className="block text-sm font-medium text-gray-700 mb-1">
+        {label}
+        {obligatorio && <span className="text-red-500 ml-1">*</span>}
+      </label>
+      
+      <select
+        value={value ?? ''}
+        onChange={handleChange}
+        className={`
+          w-full px-3 py-2 border rounded-md
+          ${error ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500'}
+          focus:outline-none focus:ring-2
+          bg-white
+        `}
+      >
+        <option value="">-- Seleccione una opción --</option>
+        {opciones.map((opcion, index) => (
+          <option key={index} value={String(opcion.valor)}>
+            {opcion.etiqueta}
+          </option>
+        ))}
+      </select>
+      
+      {error && (
+        <p className="text-red-500 text-sm mt-1">{error}</p>
+      )}
+    </div>
+  );
+};
+```
+
+---
+
+**Tarea 4.5: Componente FileUpload** (1.5 horas)
+
+**Archivo:** `frontend/src/components/DynamicView/FileUpload.tsx`
+
+```typescript
+import React, { useRef, useState } from 'react';
+import type { Componente } from '../../types/dynamic-view';
+
+interface FileUploadProps {
+  componente: Componente;
+  value: any; // Array de archivos o IDs
+  error?: string;
+  onChange: (preguntaId: number, value: any) => void;
+}
+
+export const FileUpload: React.FC<FileUploadProps> = ({ 
+  componente, 
+  value, 
+  error,
+  onChange 
+}) => {
+  const { label, pregunta_id, obligatorio, config } = componente;
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  
+  const tiposPermitidos = config?.tipos_permitidos || [];
+  const maxSizeMB = config?.max_size_mb || 10;
+  const maxArchivos = config?.max_archivos || 1;
+  
+  const archivos = Array.isArray(value) ? value : [];
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    
+    if (archivos.length + files.length > maxArchivos) {
+      alert(`Máximo ${maxArchivos} archivo(s) permitido(s)`);
+      return;
+    }
+
+    // Validar tipo y tamaño
+    for (const file of files) {
+      const ext = file.name.split('.').pop()?.toLowerCase();
+      if (tiposPermitidos.length > 0 && ext && !tiposPermitidos.includes(ext)) {
+        alert(`Tipo de archivo no permitido: ${ext}. Permitidos: ${tiposPermitidos.join(', ')}`);
+        return;
+      }
+      
+      if (file.size > maxSizeMB * 1024 * 1024) {
+        alert(`Archivo muy grande: ${file.name}. Máximo: ${maxSizeMB} MB`);
+        return;
+      }
+    }
+
+    // Aquí iría la lógica de subida al backend
+    // Por ahora solo guardamos los nombres (MVP)
+    setUploading(true);
+    try {
+      // TODO: Implementar upload real
+      const nuevosArchivos = files.map(f => ({
+        nombre: f.name,
+        size: f.size,
+        uploaded_at: new Date().toISOString()
+      }));
+      
+      if (pregunta_id) {
+        onChange(pregunta_id, [...archivos, ...nuevosArchivos]);
+      }
+    } catch (err) {
+      alert('Error al subir archivo');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleRemove = (index: number) => {
+    if (pregunta_id) {
+      const nuevos = archivos.filter((_, i) => i !== index);
+      onChange(pregunta_id, nuevos);
+    }
+  };
+
+  return (
+    <div className="mb-4">
+      <label className="block text-sm font-medium text-gray-700 mb-1">
+        {label}
+        {obligatorio && <span className="text-red-500 ml-1">*</span>}
+      </label>
+      
+      <div className="space-y-2">
+        {/* Lista de archivos */}
+        {archivos.length > 0 && (
+          <div className="space-y-1">
+            {archivos.map((archivo: any, index: number) => (
+              <div 
+                key={index} 
+                className="flex items-center justify-between bg-gray-50 p-2 rounded border border-gray-200"
+              >
+                <span className="text-sm text-gray-700 truncate flex-1">
+                  📄 {archivo.nombre || archivo}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => handleRemove(index)}
+                  className="ml-2 text-red-500 hover:text-red-700 text-sm font-medium"
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Input de archivo */}
+        {archivos.length < maxArchivos && (
+          <>
+            <input
+              ref={inputRef}
+              type="file"
+              onChange={handleFileChange}
+              className="hidden"
+              accept={tiposPermitidos.map(t => `.${t}`).join(',')}
+              multiple={maxArchivos > 1}
+            />
+            <button
+              type="button"
+              onClick={() => inputRef.current?.click()}
+              disabled={uploading}
+              className={`
+                w-full px-4 py-2 border-2 border-dashed rounded-md
+                ${uploading ? 'bg-gray-100 cursor-not-allowed' : 'bg-white hover:bg-gray-50'}
+                ${error ? 'border-red-300' : 'border-gray-300'}
+                text-sm text-gray-600
+              `}
+            >
+              {uploading ? '⏳ Subiendo...' : '📎 Seleccionar archivo(s)'}
+            </button>
+          </>
+        )}
+      </div>
+
+      {error && (
+        <p className="text-red-500 text-sm mt-1">{error}</p>
+      )}
+
+      {/* Ayuda */}
+      <div className="text-xs text-gray-500 mt-1 space-y-0.5">
+        {tiposPermitidos.length > 0 && (
+          <p>Tipos permitidos: {tiposPermitidos.join(', ')}</p>
+        )}
+        <p>Tamaño máximo: {maxSizeMB} MB por archivo</p>
+        {maxArchivos > 1 && <p>Máximo {maxArchivos} archivos</p>}
+      </div>
+    </div>
+  );
+};
+```
+
+---
+
+**Tarea 4.6: Índice de exportación** (15 min)
+
+**Archivo:** `frontend/src/components/DynamicView/index.ts`
+
+```typescript
+export { TextInput } from './TextInput';
+export { NumberInput } from './NumberInput';
+export { DatePicker } from './DatePicker';
+export { SelectSimple } from './SelectSimple';
+export { FileUpload } from './FileUpload';
+```
+
+---
+
+**✅ Entregables Día 4:**
+- [x] 5 componentes base completos
+- [x] Estilos Tailwind aplicados
+- [x] Validación de entrada
+- [x] Manejo de errores
+
+**⏰ Tiempo estimado:** 4.5 horas
+
+---
+
+### 🗓️ DÍA 5 (Martes 19 Nov) - Frontend: DynamicRenderer + Validación
+
+**Objetivo:** Componente orquestador que renderiza vistas dinámicamente
+
+#### ✅ Checklist del Día
+
+**Tarea 5.1: DynamicRenderer core** (2 horas)
+
+**Archivo:** `frontend/src/components/DynamicView/DynamicRenderer.tsx`
+
+```typescript
+import React, { useState, useEffect } from 'react';
+import type { ConfigJson, FormData, FormErrors } from '../../types/dynamic-view';
+import { TextInput, NumberInput, DatePicker, SelectSimple, FileUpload } from './index';
+
+interface DynamicRendererProps {
+  config: ConfigJson;
+  initialData?: FormData;
+  onSubmit: (data: FormData) => void;
+  onCancel?: () => void;
+}
+
+export const DynamicRenderer: React.FC<DynamicRendererProps> = ({
+  config,
+  initialData = {},
+  onSubmit,
+  onCancel
+}) => {
+  const [formData, setFormData] = useState<FormData>(initialData);
+  const [errors, setErrors] = useState<FormErrors>({});
+  const [submitting, setSubmitting] = useState(false);
+
+  // Actualizar cuando cambian los datos iniciales
+  useEffect(() => {
+    setFormData(initialData);
+  }, [initialData]);
+
+  // Handler genérico para cambios
+  const handleChange = (preguntaId: number, value: any) => {
+    setFormData(prev => ({
+      ...prev,
+      [preguntaId]: value
+    }));
+    
+    // Limpiar error si existía
+    if (errors[preguntaId]) {
       setErrors(prev => {
         const newErrors = { ...prev };
-        delete newErrors[componenteId];
+        delete newErrors[preguntaId];
         return newErrors;
       });
     }
   };
 
-  const handleSubmit = () => {
-    // Validar
-    const newErrors: Record<string, string> = {};
-    // TODO: Implementar validaciones
+  // Validación
+  const validate = (): boolean => {
+    const newErrors: FormErrors = {};
+
+    config.secciones.forEach(seccion => {
+      seccion.componentes.forEach(componente => {
+        if (componente.obligatorio && componente.pregunta_id) {
+          const value = formData[componente.pregunta_id];
+          
+          // Validar campo obligatorio
+          if (value === null || value === undefined || value === '') {
+            newErrors[componente.pregunta_id] = 'Campo obligatorio';
+          }
+          
+          // Validación específica por tipo
+          if (componente.tipo === 'NUMERO' && value !== null && value !== undefined) {
+            const num = Number(value);
+            if (isNaN(num)) {
+              newErrors[componente.pregunta_id] = 'Debe ser un número válido';
+            } else {
+              if (componente.config?.min !== undefined && num < componente.config.min) {
+                newErrors[componente.pregunta_id] = `Mínimo: ${componente.config.min}`;
+              }
+              if (componente.config?.max !== undefined && num > componente.config.max) {
+                newErrors[componente.pregunta_id] = `Máximo: ${componente.config.max}`;
+              }
+            }
+          }
+          
+          // Validación de archivos
+          if (componente.tipo === 'ARCHIVO' && Array.isArray(value) && value.length === 0) {
+            newErrors[componente.pregunta_id] = 'Debe subir al menos un archivo';
+          }
+        }
+      });
+    });
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  // Submit
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
     
-    if (Object.keys(newErrors).length > 0) {
-      setErrors(newErrors);
+    if (!validate()) {
       return;
     }
 
-    onSubmit?.(formData);
+    setSubmitting(true);
+    try {
+      await onSubmit(formData);
+    } catch (error) {
+      alert('Error al guardar');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
-  if (loading) {
-    return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
-        <CircularProgress />
-      </Box>
-    );
-  }
+  // Renderizar componente según tipo
+  const renderComponente = (componente: any) => {
+    const commonProps = {
+      componente,
+      value: componente.pregunta_id ? formData[componente.pregunta_id] : undefined,
+      error: componente.pregunta_id ? errors[componente.pregunta_id] : undefined,
+      onChange: handleChange
+    };
 
-  // Si no hay configuración, usar vista por defecto
-  if (!vistaConfig) {
-    return <DefaultView etapa={etapa} proceso={proceso} onSubmit={onSubmit} />;
-  }
-
-  const renderLayout = () => {
-    switch (vistaConfig.layout_tipo) {
-      case 'SIMPLE':
-        return (
-          <Stack spacing={3}>
-            {vistaConfig.secciones
-              .sort((a, b) => a.orden - b.orden)
-              .map(seccion => (
-                <SeccionRenderer
-                  key={seccion.id || seccion.codigo}
-                  seccion={seccion}
-                  formData={formData}
-                  errors={errors}
-                  onChange={handleChange}
-                  readonly={readonly}
-                />
-              ))}
-          </Stack>
-        );
-
-      case 'DOS_COLUMNAS':
-        return (
-          <Grid container spacing={3}>
-            <Grid item xs={12} md={6}>
-              {vistaConfig.secciones
-                .filter(s => s.columna === 1)
-                .sort((a, b) => a.orden - b.orden)
-                .map(seccion => (
-                  <SeccionRenderer
-                    key={seccion.id || seccion.codigo}
-                    seccion={seccion}
-                    formData={formData}
-                    errors={errors}
-                    onChange={handleChange}
-                    readonly={readonly}
-                  />
-                ))}
-            </Grid>
-            <Grid item xs={12} md={6}>
-              {vistaConfig.secciones
-                .filter(s => s.columna === 2)
-                .sort((a, b) => a.orden - b.orden)
-                .map(seccion => (
-                  <SeccionRenderer
-                    key={seccion.id || seccion.codigo}
-                    seccion={seccion}
-                    formData={formData}
-                    errors={errors}
-                    onChange={handleChange}
-                    readonly={readonly}
-                  />
-                ))}
-            </Grid>
-          </Grid>
-        );
-
+    switch (componente.tipo) {
+      case 'TEXTO':
+        return <TextInput key={componente.pregunta_id} {...commonProps} />;
+      case 'NUMERO':
+        return <NumberInput key={componente.pregunta_id} {...commonProps} />;
+      case 'FECHA':
+        return <DatePicker key={componente.pregunta_id} {...commonProps} />;
+      case 'SELECT':
+        return <SelectSimple key={componente.pregunta_id} {...commonProps} />;
+      case 'ARCHIVO':
+        return <FileUpload key={componente.pregunta_id} {...commonProps} />;
       default:
-        return <Typography>Layout no soportado: {vistaConfig.layout_tipo}</Typography>;
+        return (
+          <div key={componente.pregunta_id} className="text-red-500 p-2 border border-red-300 rounded">
+            ⚠️ Tipo de componente no soportado: {componente.tipo}
+          </div>
+        );
     }
   };
 
   return (
-    <Box>
-      {/* Título */}
-      <Typography variant="h4" sx={{ mb: 2 }}>
-        {vistaConfig.titulo_vista || etapa.nombre}
-      </Typography>
-
-      {/* Descripción */}
-      {vistaConfig.descripcion_vista && (
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-          {vistaConfig.descripcion_vista}
-        </Typography>
+    <form onSubmit={handleSubmit} className="max-w-4xl mx-auto bg-white p-6 rounded-lg shadow">
+      {/* Título y descripción */}
+      {config.titulo && (
+        <h2 className="text-2xl font-bold text-gray-800 mb-2">{config.titulo}</h2>
+      )}
+      {config.descripcion && (
+        <p className="text-gray-600 mb-6">{config.descripcion}</p>
       )}
 
-      {/* Layout dinámico */}
-      {renderLayout()}
-    </Box>
-  );
-};
-```
+      {/* Secciones */}
+      {config.secciones.map((seccion, index) => (
+        <div key={index} className="mb-8 last:mb-0">
+          <div className="border-l-4 border-blue-500 pl-4 mb-4">
+            <h3 className="text-xl font-semibold text-gray-800">{seccion.titulo}</h3>
+            {seccion.descripcion && (
+              <p className="text-sm text-gray-600 mt-1">{seccion.descripcion}</p>
+            )}
+          </div>
+          
+          <div className="space-y-3 pl-4">
+            {seccion.componentes.map(componente => renderComponente(componente))}
+          </div>
+        </div>
+      ))}
 
----
-
-#### Tarea 4.2: Crear SeccionRenderer y ComponenteRenderer
-**Duración:** 3 horas
-
-**Archivos a crear:**
-```
-frontend/src/components/DynamicView/SeccionRenderer.tsx
-frontend/src/components/DynamicView/ComponenteRenderer.tsx
-```
-
-**SeccionRenderer.tsx:**
-```tsx
-import React from 'react';
-import { Card, CardHeader, CardContent, Grid, Collapse, IconButton } from '@mui/material';
-import { ExpandMore } from '@mui/icons-material';
-import { SeccionVista } from '../../types/dynamic-views';
-import { ComponenteRenderer } from './ComponenteRenderer';
-
-interface SeccionRendererProps {
-  seccion: SeccionVista;
-  formData: Record<string, any>;
-  errors: Record<string, string>;
-  onChange: (componenteId: string, value: any) => void;
-  readonly?: boolean;
-}
-
-export const SeccionRenderer: React.FC<SeccionRendererProps> = ({
-  seccion,
-  formData,
-  errors,
-  onChange,
-  readonly = false,
-}) => {
-  const [expanded, setExpanded] = React.useState(!seccion.colapsable);
-
-  const renderComponentes = () => {
-    return seccion.componentes
-      .filter(c => c.es_visible)
-      .sort((a, b) => a.orden - b.orden)
-      .map(componente => (
-        <Grid 
-          item 
-          xs={12} 
-          sm={componente.config_json.ancho || 12}
-          key={componente.id || componente.codigo}
+      {/* Acciones */}
+      <div className="flex justify-end gap-3 mt-8 pt-4 border-t border-gray-200">
+        {onCancel && (
+          <button
+            type="button"
+            onClick={onCancel}
+            className="px-6 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+          >
+            Cancelar
+          </button>
+        )}
+        <button
+          type="submit"
+          disabled={submitting}
+          className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400"
         >
-          <ComponenteRenderer
-            componente={componente}
-            value={formData[componente.codigo]}
-            onChange={(value) => onChange(componente.codigo, value)}
-            error={errors[componente.codigo]}
-            readonly={readonly || !componente.es_editable}
-          />
-        </Grid>
-      ));
-  };
-
-  return (
-    <Card 
-      sx={{ 
-        mb: 2,
-        border: seccion.mostrar_borde ? 1 : 0,
-        borderColor: 'divider',
-        bgcolor: seccion.color_fondo || 'background.paper',
-      }}
-    >
-      <CardHeader
-        title={seccion.titulo}
-        subheader={seccion.descripcion}
-        action={
-          seccion.colapsable ? (
-            <IconButton onClick={() => setExpanded(!expanded)}>
-              <ExpandMore sx={{ transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)' }} />
-            </IconButton>
-          ) : null
-        }
-      />
-      <Collapse in={expanded} timeout="auto" unmountOnExit>
-        <CardContent>
-          <Grid container spacing={2}>
-            {renderComponentes()}
-          </Grid>
-        </CardContent>
-      </Collapse>
-    </Card>
+          {submitting ? 'Guardando...' : 'Guardar'}
+        </button>
+      </div>
+    </form>
   );
 };
 ```
 
-**ComponenteRenderer.tsx:**
-```tsx
-import React from 'react';
-import { Box, Typography } from '@mui/material';
-import { ComponenteVista } from '../../types/dynamic-views';
-import { COMPONENTE_MAP } from './components/ComponenteMap';
+---
 
-interface ComponenteRendererProps {
-  componente: ComponenteVista;
-  value: any;
-  onChange: (value: any) => void;
-  error?: string;
-  readonly?: boolean;
+**Tarea 5.2: Hook personalizado para manejo de estado** (1 hora)
+
+**Archivo:** `frontend/src/hooks/useDynamicView.ts`
+
+```typescript
+import { useState, useEffect } from 'react';
+import { vistaConfigService } from '../services/vista-config.service';
+import type { VistaConfig, ConfigJson, FormData } from '../types/dynamic-view';
+
+interface UseDynamicViewReturn {
+  config: ConfigJson | null;
+  loading: boolean;
+  error: string | null;
+  refetch: () => Promise<void>;
 }
 
-export const ComponenteRenderer: React.FC<ComponenteRendererProps> = ({
-  componente,
-  value,
-  onChange,
-  error,
-  readonly = false,
-}) => {
-  const Component = COMPONENTE_MAP[componente.tipo];
+/**
+ * Hook para cargar configuración de vista por etapa
+ */
+export function useDynamicView(etapaId: number | null): UseDynamicViewReturn {
+  const [config, setConfig] = useState<ConfigJson | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  if (!Component) {
-    return (
-      <Box sx={{ p: 2, bgcolor: 'error.light', borderRadius: 1 }}>
-        <Typography color="error">
-          Componente no encontrado: {componente.tipo}
-        </Typography>
-      </Box>
-    );
-  }
-
-  return (
-    <Component
-      config={componente.config_json}
-      value={value}
-      onChange={onChange}
-      readonly={readonly}
-      error={error}
-      required={componente.es_obligatorio}
-    />
-  );
-};
-```
-
----
-
-#### Tarea 4.3: Crear 5 Componentes Básicos
-**Duración:** 5 horas (1 hora cada uno)
-
-**Archivos a crear:**
-```
-frontend/src/components/DynamicView/components/
-├── ComponenteMap.tsx
-├── Input/
-│   ├── TextInput.tsx
-│   ├── NumberInput.tsx
-│   └── DatePicker.tsx
-├── Select/
-│   ├── SelectSimple.tsx
-│   └── SelectMultiple.tsx
-└── File/
-    └── FileUpload.tsx
-```
-
-**ComponenteMap.tsx:**
-```tsx
-import React from 'react';
-import { TipoComponenteVista } from '../../../types/dynamic-views';
-import { TextInput } from './Input/TextInput';
-import { NumberInput } from './Input/NumberInput';
-import { DatePicker } from './Input/DatePicker';
-import { SelectSimple } from './Select/SelectSimple';
-import { FileUpload } from './File/FileUpload';
-
-export interface ComponenteProps {
-  config: any;
-  value: any;
-  onChange: (value: any) => void;
-  readonly?: boolean;
-  error?: string;
-  required?: boolean;
-}
-
-export const COMPONENTE_MAP: Record<TipoComponenteVista, React.FC<ComponenteProps>> = {
-  TEXTO_INPUT: TextInput,
-  NUMERO_INPUT: NumberInput,
-  FECHA_PICKER: DatePicker,
-  SELECT_SIMPLE: SelectSimple,
-  CARGA_ARCHIVOS: FileUpload,
-  
-  // Placeholders para otros tipos (implementar en Fase 3)
-  SELECT_MULTIPLE: TextInput, // Temporal
-  CHECKBOX: TextInput,
-  RADIO_BUTTONS: TextInput,
-  TEXTAREA: TextInput,
-  DESCARGA_ARCHIVOS: TextInput,
-  GALERIA_DOCUMENTOS: TextInput,
-  VISOR_PDF: TextInput,
-  TEXTO_ESTATICO: TextInput,
-  TITULO: TextInput,
-  ALERTA: TextInput,
-  CARD_INFO: TextInput,
-  TABLA: TextInput,
-  LISTA: TextInput,
-  TIMELINE: TextInput,
-  BOTON: TextInput,
-  BOTON_DESCARGA: TextInput,
-  BOTON_FIRMA: TextInput,
-  BOTON_PAGO: TextInput,
-  BOTON_IMPRIMIR: TextInput,
-  REVISION_DOCUMENTOS: TextInput,
-  REVISION_OCR: TextInput,
-} as any;
-```
-
-**TextInput.tsx:**
-```tsx
-import React from 'react';
-import { TextField } from '@mui/material';
-import { ComponenteProps } from '../ComponenteMap';
-
-export const TextInput: React.FC<ComponenteProps> = ({
-  config,
-  value,
-  onChange,
-  readonly = false,
-  error,
-  required = false,
-}) => {
-  return (
-    <TextField
-      fullWidth
-      label={config.label}
-      placeholder={config.placeholder}
-      helperText={error || config.ayuda}
-      value={value || ''}
-      onChange={(e) => onChange(e.target.value)}
-      disabled={readonly}
-      required={required}
-      error={!!error}
-      variant="outlined"
-    />
-  );
-};
-```
-
-**NumberInput.tsx:**
-```tsx
-import React from 'react';
-import { TextField } from '@mui/material';
-import { ComponenteProps } from '../ComponenteMap';
-
-export const NumberInput: React.FC<ComponenteProps> = ({
-  config,
-  value,
-  onChange,
-  readonly = false,
-  error,
-  required = false,
-}) => {
-  return (
-    <TextField
-      fullWidth
-      type="number"
-      label={config.label}
-      placeholder={config.placeholder}
-      helperText={error || config.ayuda}
-      value={value || ''}
-      onChange={(e) => onChange(e.target.value ? parseFloat(e.target.value) : null)}
-      disabled={readonly}
-      required={required}
-      error={!!error}
-      InputProps={{
-        inputProps: {
-          min: config.min,
-          max: config.max,
-        }
-      }}
-    />
-  );
-};
-```
-
-**DatePicker.tsx:**
-```tsx
-import React from 'react';
-import { TextField } from '@mui/material';
-import { ComponenteProps } from '../ComponenteMap';
-
-export const DatePicker: React.FC<ComponenteProps> = ({
-  config,
-  value,
-  onChange,
-  readonly = false,
-  error,
-  required = false,
-}) => {
-  return (
-    <TextField
-      fullWidth
-      type="date"
-      label={config.label}
-      helperText={error || config.ayuda}
-      value={value || ''}
-      onChange={(e) => onChange(e.target.value)}
-      disabled={readonly}
-      required={required}
-      error={!!error}
-      InputLabelProps={{ shrink: true }}
-    />
-  );
-};
-```
-
-**SelectSimple.tsx:**
-```tsx
-import React from 'react';
-import { FormControl, InputLabel, Select, MenuItem, FormHelperText } from '@mui/material';
-import { ComponenteProps } from '../ComponenteMap';
-
-export const SelectSimple: React.FC<ComponenteProps> = ({
-  config,
-  value,
-  onChange,
-  readonly = false,
-  error,
-  required = false,
-}) => {
-  return (
-    <FormControl fullWidth error={!!error} required={required}>
-      <InputLabel>{config.label}</InputLabel>
-      <Select
-        value={value || ''}
-        onChange={(e) => onChange(e.target.value)}
-        disabled={readonly}
-        label={config.label}
-      >
-        {config.opciones?.map((opcion: any) => (
-          <MenuItem key={opcion.valor} value={opcion.valor} disabled={opcion.deshabilitada}>
-            {opcion.etiqueta}
-          </MenuItem>
-        ))}
-      </Select>
-      {(error || config.ayuda) && <FormHelperText>{error || config.ayuda}</FormHelperText>}
-    </FormControl>
-  );
-};
-```
-
-**FileUpload.tsx:**
-```tsx
-import React from 'react';
-import { Box, Button, Typography, List, ListItem, ListItemText } from '@mui/material';
-import { CloudUpload } from '@mui/icons-material';
-import { ComponenteProps } from '../ComponenteMap';
-
-export const FileUpload: React.FC<ComponenteProps> = ({
-  config,
-  value,
-  onChange,
-  readonly = false,
-  error,
-  required = false,
-}) => {
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(event.target.files || []);
-    onChange(files);
-  };
-
-  return (
-    <Box>
-      <Typography variant="body2" sx={{ mb: 1 }}>
-        {config.label} {required && '*'}
-      </Typography>
-      
-      <Button
-        variant="outlined"
-        component="label"
-        startIcon={<CloudUpload />}
-        disabled={readonly}
-        fullWidth
-      >
-        Seleccionar archivos
-        <input
-          type="file"
-          hidden
-          multiple={config.cantidad_maxima > 1}
-          accept={config.tipos_archivos_permitidos?.join(',')}
-          onChange={handleFileChange}
-        />
-      </Button>
-
-      {config.ayuda && (
-        <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-          {config.ayuda}
-        </Typography>
-      )}
-
-      {value && value.length > 0 && (
-        <List dense>
-          {value.map((file: File, index: number) => (
-            <ListItem key={index}>
-              <ListItemText 
-                primary={file.name}
-                secondary={`${(file.size / 1024).toFixed(2)} KB`}
-              />
-            </ListItem>
-          ))}
-        </List>
-      )}
-
-      {error && (
-        <Typography variant="caption" color="error" sx={{ mt: 1, display: 'block' }}>
-          {error}
-        </Typography>
-      )}
-    </Box>
-  );
-};
-```
-
----
-
-### ENTREGABLE SEMANA 1 ✅
-
-**Backend:**
-- ✅ 3 tablas en base de datos
-- ✅ 3 modelos SQLAlchemy
-- ✅ 3 schemas Pydantic
-- ✅ CRUD service completo
-- ✅ 12 endpoints REST
-
-**Frontend:**
-- ✅ Tipos TypeScript completos
-- ✅ Service API con 12 métodos
-- ✅ DynamicViewRenderer base
-- ✅ SeccionRenderer
-- ✅ ComponenteRenderer
-- ✅ 5 componentes funcionales
-
-**Demo:**
-```bash
-# Crear vista config para etapa 1
-curl -X POST http://localhost:8000/api/v1/workflow/vistas-config \
-  -H "Content-Type: application/json" \
-  -d '{
-    "etapa_id": 1,
-    "layout_tipo": "SIMPLE",
-    "secciones": [...]
-  }'
-
-# Ver renderizado en frontend
-http://localhost:5173/workflow/etapas/1
-```
-
----
-
-## 📋 FASE 2: Editor de Vistas (Semana 2)
-
-### DÍA 6 (Nov 18) - Integración con WorkflowEditor
-
-#### Tarea 6.1: Añadir Tab "Vista Dinámica" a EtapaConfigPanel
-**Duración:** 3 horas
-
-**Archivo a modificar:**
-```
-frontend/src/components/Workflow/EtapaConfigPanel.tsx
-```
-
-**Cambios:**
-```tsx
-// Importar componente editor
-import { VistaEditor } from '../DynamicView/Editor/VistaEditor';
-
-// Añadir estado para tabs
-const [tabValue, setTabValue] = useState(0);
-
-// Añadir tabs
-<Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
-  <Tabs value={tabValue} onChange={(_, v) => setTabValue(v)}>
-    <Tab label="General" />
-    <Tab label="Preguntas" />
-    <Tab label="Vista Dinámica" /> {/* NUEVO */}
-  </Tabs>
-</Box>
-
-// Tab Panel para Vista Dinámica
-<TabPanel value={tabValue} index={2}>
-  <VistaEditor
-    etapa={formData}
-    onSave={handleSaveVista}
-  />
-</TabPanel>
-```
-
----
-
-#### Tarea 6.2: Crear VistaEditor Component
-**Duración:** 5 horas
-
-**Archivos a crear:**
-```
-frontend/src/components/DynamicView/Editor/VistaEditor.tsx
-```
-
-**Estructura:**
-```tsx
-import React, { useState, useEffect } from 'react';
-import {
-  Box,
-  Typography,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  Switch,
-  FormControlLabel,
-  Button,
-  Stack,
-  Alert,
-  CircularProgress,
-} from '@mui/material';
-import { Add as AddIcon } from '@mui/icons-material';
-import { WorkflowEtapa } from '../../../types/workflow';
-import { VistaConfig, SeccionVista } from '../../../types/dynamic-views';
-import { vistaConfigService } from '../../../services/vista-config.service';
-import { SeccionCard } from './SeccionCard';
-import { SeccionDialog } from './SeccionDialog';
-
-interface VistaEditorProps {
-  etapa: Partial<WorkflowEtapa>;
-  onSave: (vistaConfig: VistaConfig) => void;
-}
-
-export const VistaEditor: React.FC<VistaEditorProps> = ({ etapa, onSave }) => {
-  const [vistaConfig, setVistaConfig] = useState<Partial<VistaConfig>>({
-    layout_tipo: 'SIMPLE',
-    mostrar_breadcrumbs: true,
-    mostrar_timeline: false,
-    secciones: [],
-  });
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [seccionDialogOpen, setSeccionDialogOpen] = useState(false);
-  const [editingSeccion, setEditingSeccion] = useState<SeccionVista | null>(null);
-
-  useEffect(() => {
-    loadVistaConfig();
-  }, [etapa.id]);
-
-  const loadVistaConfig = async () => {
-    if (!etapa.id) {
-      setLoading(false);
+  const fetchConfig = async () => {
+    if (!etapaId) {
+      setConfig(null);
       return;
     }
+
+    setLoading(true);
+    setError(null);
 
     try {
-      setLoading(true);
-      const config = await vistaConfigService.getByEtapaId(etapa.id);
-      if (config) {
-        setVistaConfig(config);
+      const vistaConfig = await vistaConfigService.getByEtapaId(etapaId);
+      
+      if (vistaConfig) {
+        setConfig(vistaConfig.config_json);
+      } else {
+        // No hay configuración, usar vista por defecto
+        setConfig(null);
       }
-    } catch (error) {
-      console.error('Error cargando vista config:', error);
+    } catch (err: any) {
+      setError(err.message || 'Error al cargar configuración');
+      setConfig(null);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleLayoutChange = (layoutTipo: string) => {
-    setVistaConfig(prev => ({ ...prev, layout_tipo: layoutTipo as any }));
+  useEffect(() => {
+    fetchConfig();
+  }, [etapaId]);
+
+  return {
+    config,
+    loading,
+    error,
+    refetch: fetchConfig
   };
+}
 
-  const handleAddSeccion = () => {
-    setEditingSeccion(null);
-    setSeccionDialogOpen(true);
-  };
+/**
+ * Helper para validar estructura de ConfigJson
+ */
+export function validateConfigJson(config: any): { valid: boolean; errors: string[] } {
+  const errors: string[] = [];
 
-  const handleEditSeccion = (seccion: SeccionVista) => {
-    setEditingSeccion(seccion);
-    setSeccionDialogOpen(true);
-  };
+  if (!config || typeof config !== 'object') {
+    errors.push('Configuración debe ser un objeto');
+    return { valid: false, errors };
+  }
 
-  const handleSaveSeccion = (seccion: SeccionVista) => {
-    setVistaConfig(prev => {
-      const secciones = [...(prev.secciones || [])];
-      
-      if (editingSeccion) {
-        // Editar existente
-        const index = secciones.findIndex(s => s.id === editingSeccion.id || s.codigo === editingSeccion.codigo);
-        if (index !== -1) {
-          secciones[index] = seccion;
-        }
-      } else {
-        // Añadir nueva
-        secciones.push(seccion);
-      }
+  if (!Array.isArray(config.secciones)) {
+    errors.push('Debe tener array "secciones"');
+    return { valid: false, errors };
+  }
 
-      return { ...prev, secciones };
-    });
-    
-    setSeccionDialogOpen(false);
-    setEditingSeccion(null);
-  };
-
-  const handleDeleteSeccion = (seccion: SeccionVista) => {
-    if (!confirm('¿Eliminar esta sección?')) return;
-
-    setVistaConfig(prev => ({
-      ...prev,
-      secciones: prev.secciones?.filter(s => 
-        s.id !== seccion.id && s.codigo !== seccion.codigo
-      ) || [],
-    }));
-  };
-
-  const handleSave = async () => {
-    if (!etapa.id) {
-      alert('Debe guardar la etapa primero');
-      return;
+  config.secciones.forEach((seccion: any, i: number) => {
+    if (!seccion.titulo) {
+      errors.push(`Sección ${i + 1}: falta título`);
     }
+    if (!Array.isArray(seccion.componentes)) {
+      errors.push(`Sección ${i + 1}: falta array "componentes"`);
+    } else {
+      seccion.componentes.forEach((comp: any, j: number) => {
+        if (!comp.tipo) {
+          errors.push(`Sección ${i + 1}, Componente ${j + 1}: falta tipo`);
+        }
+        if (!comp.label) {
+          errors.push(`Sección ${i + 1}, Componente ${j + 1}: falta label`);
+        }
+      });
+    }
+  });
 
+  return { valid: errors.length === 0, errors };
+}
+```
+
+---
+
+**✅ Entregables Día 5:**
+- [x] DynamicRenderer funcional
+- [x] Validación completa
+- [x] Hook useDynamicView
+- [x] Helper de validación JSON
+
+**⏰ Tiempo estimado:** 3 horas
+
+---
+
+### 🗓️ DÍA 6 (Miércoles 20 Nov) - Editor JSON Simple
+
+**Objetivo:** Editor para crear/modificar configuraciones JSON
+
+#### ✅ Checklist del Día
+
+**Tarea 6.1: Componente JsonEditor** (2.5 horas)
+
+**Archivo:** `frontend/src/components/DynamicView/JsonEditor.tsx`
+
+```typescript
+import React, { useState } from 'react';
+import { validateConfigJson } from '../../hooks/useDynamicView';
+import { TEMPLATES } from '../../templates/vista-templates';
+import type { ConfigJson } from '../../types/dynamic-view';
+
+interface JsonEditorProps {
+  initialValue?: ConfigJson;
+  onSave: (config: ConfigJson) => void;
+  onCancel: () => void;
+}
+
+export const JsonEditor: React.FC<JsonEditorProps> = ({
+  initialValue,
+  onSave,
+  onCancel
+}) => {
+  const [jsonText, setJsonText] = useState(
+    initialValue ? JSON.stringify(initialValue, null, 2) : ''
+  );
+  const [errors, setErrors] = useState<string[]>([]);
+  const [saving, setSaving] = useState(false);
+
+  // Cargar template
+  const loadTemplate = (templateName: string) => {
+    const template = TEMPLATES[templateName as keyof typeof TEMPLATES];
+    if (template) {
+      setJsonText(JSON.stringify(template, null, 2));
+      setErrors([]);
+    }
+  };
+
+  // Validar y guardar
+  const handleSave = () => {
     try {
-      setSaving(true);
+      const parsed = JSON.parse(jsonText);
+      const validation = validateConfigJson(parsed);
       
-      const dataToSave = {
-        ...vistaConfig,
-        etapa_id: etapa.id,
-      } as VistaConfig;
-
-      let saved: VistaConfig;
-      
-      if (vistaConfig.id) {
-        saved = await vistaConfigService.update(vistaConfig.id, dataToSave);
-      } else {
-        saved = await vistaConfigService.create(dataToSave);
+      if (!validation.valid) {
+        setErrors(validation.errors);
+        return;
       }
 
-      setVistaConfig(saved);
-      onSave(saved);
-      
-      alert('Vista guardada correctamente');
-    } catch (error) {
-      console.error('Error guardando vista:', error);
-      alert('Error al guardar la vista');
+      setSaving(true);
+      onSave(parsed);
+    } catch (err: any) {
+      setErrors([`JSON inválido: ${err.message}`]);
     } finally {
       setSaving(false);
     }
   };
 
+  // Formatear JSON
+  const formatJson = () => {
+    try {
+      const parsed = JSON.parse(jsonText);
+      setJsonText(JSON.stringify(parsed, null, 2));
+      setErrors([]);
+    } catch (err: any) {
+      setErrors([`No se puede formatear: ${err.message}`]);
+    }
+  };
+
+  return (
+    <div className="h-full flex flex-col bg-white rounded-lg shadow-lg">
+      {/* Header */}
+      <div className="p-4 border-b border-gray-200">
+        <h3 className="text-lg font-semibold text-gray-800">Editor de Vista JSON</h3>
+        <p className="text-sm text-gray-600 mt-1">
+          Edita la configuración JSON de la vista dinámica
+        </p>
+      </div>
+
+      {/* Templates */}
+      <div className="p-4 border-b border-gray-200 bg-gray-50">
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          Cargar Template:
+        </label>
+        <div className="flex gap-2">
+          <button
+            onClick={() => loadTemplate('SOLICITUD_BASICA')}
+            className="px-3 py-1 bg-white border border-gray-300 rounded hover:bg-gray-50 text-sm"
+          >
+            📝 Solicitud Básica
+          </button>
+          <button
+            onClick={() => loadTemplate('REVISION_DOCUMENTOS')}
+            className="px-3 py-1 bg-white border border-gray-300 rounded hover:bg-gray-50 text-sm"
+          >
+            🔍 Revisión
+          </button>
+          <button
+            onClick={() => loadTemplate('APROBACION')}
+            className="px-3 py-1 bg-white border border-gray-300 rounded hover:bg-gray-50 text-sm"
+          >
+            ✅ Aprobación
+          </button>
+          <button
+            onClick={formatJson}
+            className="px-3 py-1 bg-blue-50 border border-blue-300 rounded hover:bg-blue-100 text-sm ml-auto"
+          >
+            ✨ Formatear
+          </button>
+        </div>
+      </div>
+
+      {/* Editor */}
+      <div className="flex-1 p-4 overflow-auto">
+        <textarea
+          value={jsonText}
+          onChange={(e) => setJsonText(e.target.value)}
+          className="w-full h-full font-mono text-sm border border-gray-300 rounded p-3 resize-none"
+          placeholder={`{
+  "titulo": "Mi Vista",
+  "descripcion": "Descripción...",
+  "secciones": [
+    {
+      "titulo": "Sección 1",
+      "componentes": [
+        {
+          "tipo": "TEXTO",
+          "label": "Nombre",
+          "pregunta_id": 1,
+          "obligatorio": true
+        }
+      ]
+    }
+  ]
+}`}
+        />
+      </div>
+
+      {/* Errores */}
+      {errors.length > 0 && (
+        <div className="p-4 bg-red-50 border-t border-red-200">
+          <h4 className="text-sm font-semibold text-red-800 mb-2">❌ Errores de Validación:</h4>
+          <ul className="list-disc list-inside space-y-1">
+            {errors.map((error, i) => (
+              <li key={i} className="text-sm text-red-700">{error}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* Actions */}
+      <div className="p-4 border-t border-gray-200 flex justify-end gap-3">
+        <button
+          onClick={onCancel}
+          className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+        >
+          Cancelar
+        </button>
+        <button
+          onClick={handleSave}
+          disabled={saving || !jsonText.trim()}
+          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400"
+        >
+          {saving ? 'Guardando...' : 'Guardar Configuración'}
+        </button>
+      </div>
+    </div>
+  );
+};
+```
+
+---
+
+**Tarea 6.2: Integrar editor en WorkflowEditor** (1.5 horas)
+
+**Archivo:** `frontend/src/pages/WorkflowEditor.tsx` (modificar)
+
+Agregar nuevo tab "Vista Dinámica" después del tab "JSON":
+
+```typescript
+// Importar
+import { JsonEditor } from '../components/DynamicView/JsonEditor';
+import { vistaConfigService } from '../services/vista-config.service';
+
+// En el componente, agregar state
+const [vistaConfigTab, setVistaConfigTab] = useState(false);
+const [editingVistaConfig, setEditingVistaConfig] = useState<any>(null);
+
+// Función para guardar vista config
+const handleSaveVistaConfig = async (config: any) => {
+  if (!selectedEtapa) return;
+  
+  try {
+    await vistaConfigService.createOrUpdate(selectedEtapa.id, config);
+    alert('✅ Vista dinámica guardada');
+    setVistaConfigTab(false);
+  } catch (error) {
+    alert('❌ Error al guardar vista');
+  }
+};
+
+// En el JSX, agregar tab
+<button
+  onClick={() => setVistaConfigTab(true)}
+  className="px-4 py-2 text-sm bg-purple-100 hover:bg-purple-200 rounded"
+>
+  🎨 Vista Dinámica
+</button>
+
+// Modal para editor
+{vistaConfigTab && (
+  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div className="bg-white rounded-lg w-11/12 h-5/6">
+      <JsonEditor
+        initialValue={editingVistaConfig}
+        onSave={handleSaveVistaConfig}
+        onCancel={() => setVistaConfigTab(false)}
+      />
+    </div>
+  </div>
+)}
+```
+
+---
+
+**✅ Entregables Día 6:**
+- [x] Editor JSON funcional
+- [x] Carga de templates
+- [x] Validación en tiempo real
+- [x] Integrado en WorkflowEditor
+
+**⏰ Tiempo estimado:** 4 horas
+
+---
+
+### 🗓️ DÍA 7-8 (Jueves-Viernes 21-22 Nov) - Integración y Testing
+
+**Objetivo:** Conectar todo y probar flujo completo
+
+#### ✅ Checklist Días 7-8
+
+**Tarea 7.1: Usar DynamicRenderer en Workflow.tsx** (2 horas)
+
+**Archivo:** `frontend/src/pages/Workflow.tsx` (reemplazar contenido)
+
+```typescript
+import React, { useState } from 'react';
+import { useParams } from 'react-router-dom';
+import { DynamicRenderer } from '../components/DynamicView/DynamicRenderer';
+import { useDynamicView } from '../hooks/useDynamicView';
+import type { FormData } from '../types/dynamic-view';
+
+export default function Workflow() {
+  const { etapaId } = useParams<{ etapaId: string }>();
+  const { config, loading, error } = useDynamicView(etapaId ? parseInt(etapaId) : null);
+  const [savedData, setSavedData] = useState<FormData>({});
+
+  const handleSubmit = async (data: FormData) => {
+    // TODO: Enviar al backend para guardar respuestas
+    console.log('Datos del formulario:', data);
+    setSavedData(data);
+    alert('✅ Formulario guardado exitosamente');
+  };
+
   if (loading) {
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-        <CircularProgress />
-      </Box>
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Cargando vista...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-6 max-w-md">
+          <h3 className="text-red-800 font-semibold mb-2">❌ Error</h3>
+          <p className="text-red-700">{error}</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!config) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 max-w-md">
+          <h3 className="text-yellow-800 font-semibold mb-2">⚠️ Sin Configuración</h3>
+          <p className="text-yellow-700">
+            Esta etapa no tiene una vista dinámica configurada.
+            <br />
+            Por favor, configura una vista desde el editor de workflow.
+          </p>
+        </div>
+      </div>
     );
   }
 
   return (
-    <Box>
-      <Typography variant="h6" sx={{ mb: 3 }}>
-        Configuración de Vista Dinámica
-      </Typography>
-
-      {!etapa.id && (
-        <Alert severity="warning" sx={{ mb: 3 }}>
-          Debe guardar la etapa antes de configurar la vista dinámica
-        </Alert>
-      )}
-
-      {/* Layout */}
-      <Box sx={{ mb: 4, p: 3, border: 1, borderColor: 'divider', borderRadius: 1 }}>
-        <Typography variant="subtitle1" sx={{ mb: 2, fontWeight: 600 }}>
-          📐 Layout
-        </Typography>
-
-        <FormControl fullWidth sx={{ mb: 2 }}>
-          <InputLabel>Tipo de layout</InputLabel>
-          <Select
-            value={vistaConfig.layout_tipo || 'SIMPLE'}
-            label="Tipo de layout"
-            onChange={(e) => handleLayoutChange(e.target.value)}
-          >
-            <MenuItem value="SIMPLE">Simple (1 columna)</MenuItem>
-            <MenuItem value="DOS_COLUMNAS">Dos columnas</MenuItem>
-            <MenuItem value="TRES_COLUMNAS">Tres columnas</MenuItem>
-            <MenuItem value="TABS">Tabs</MenuItem>
-          </Select>
-        </FormControl>
-
-        <Stack spacing={1}>
-          <FormControlLabel
-            control={
-              <Switch
-                checked={vistaConfig.mostrar_breadcrumbs}
-                onChange={(e) => setVistaConfig(prev => ({ 
-                  ...prev, 
-                  mostrar_breadcrumbs: e.target.checked 
-                }))}
-              />
-            }
-            label="Mostrar breadcrumbs"
-          />
-          
-          <FormControlLabel
-            control={
-              <Switch
-                checked={vistaConfig.mostrar_timeline}
-                onChange={(e) => setVistaConfig(prev => ({ 
-                  ...prev, 
-                  mostrar_timeline: e.target.checked 
-                }))}
-              />
-            }
-            label="Mostrar timeline del proceso"
-          />
-        </Stack>
-      </Box>
-
-      {/* Secciones */}
-      <Box sx={{ mb: 4 }}>
-        <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
-          <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-            📦 Secciones ({vistaConfig.secciones?.length || 0})
-          </Typography>
-          
-          <Button
-            variant="outlined"
-            startIcon={<AddIcon />}
-            onClick={handleAddSeccion}
-            disabled={!etapa.id}
-          >
-            Añadir Sección
-          </Button>
-        </Stack>
-
-        <Stack spacing={2}>
-          {vistaConfig.secciones && vistaConfig.secciones.length > 0 ? (
-            vistaConfig.secciones
-              .sort((a, b) => a.orden - b.orden)
-              .map((seccion, index) => (
-                <SeccionCard
-                  key={seccion.id || seccion.codigo}
-                  seccion={seccion}
-                  index={index}
-                  onEdit={handleEditSeccion}
-                  onDelete={handleDeleteSeccion}
-                />
-              ))
-          ) : (
-            <Alert severity="info">
-              No hay secciones configuradas. Añade una sección para comenzar.
-            </Alert>
-          )}
-        </Stack>
-      </Box>
-
-      {/* Botón guardar */}
-      <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2 }}>
-        <Button
-          variant="contained"
-          onClick={handleSave}
-          disabled={!etapa.id || saving}
-        >
-          {saving ? 'Guardando...' : 'Guardar Configuración'}
-        </Button>
-      </Box>
-
-      {/* Dialog para editar sección */}
-      <SeccionDialog
-        open={seccionDialogOpen}
-        seccion={editingSeccion}
-        etapa={etapa}
-        onClose={() => {
-          setSeccionDialogOpen(false);
-          setEditingSeccion(null);
-        }}
-        onSave={handleSaveSeccion}
+    <div className="min-h-screen bg-gray-50 py-8 px-4">
+      <DynamicRenderer
+        config={config}
+        initialData={savedData}
+        onSubmit={handleSubmit}
+        onCancel={() => window.history.back()}
       />
-    </Box>
+    </div>
   );
-};
-```
-
----
-
-### DÍA 7 (Nov 19) - Editor de Secciones
-
-#### Tarea 7.1: Crear SeccionCard
-**Duración:** 2 horas
-
-**Archivo:**
-```
-frontend/src/components/DynamicView/Editor/SeccionCard.tsx
-```
-
-**Contenido:** Tarjeta que muestra resumen de la sección con botones editar/eliminar
-
----
-
-#### Tarea 7.2: Crear SeccionDialog
-**Duración:** 4 horas
-
-**Archivo:**
-```
-frontend/src/components/DynamicView/Editor/SeccionDialog.tsx
-```
-
-**Características:**
-- Form para título, descripción, orden
-- Selector de columna (para layouts multi-columna)
-- Selector de ancho (1-12)
-- Lista de componentes de la sección
-- Botón "Añadir Componente"
-
----
-
-### DÍA 8 (Nov 20) - Editor de Componentes
-
-#### Tarea 8.1: Crear ComponenteDialog
-**Duración:** 6 horas
-
-**Archivo:**
-```
-frontend/src/components/DynamicView/Editor/ComponenteDialog.tsx
-```
-
-**Características:**
-- Selector de tipo de componente
-- Radio buttons para fuente de datos
-- Select de preguntas disponibles (si fuente = PREGUNTA)
-- Form dinámico según tipo de componente
-- Checkbox obligatorio/editable
-- Editor de validaciones básicas
-
----
-
-### DÍA 9-10 (Nov 21-22) - Testing & Refinamiento
-
-#### Tarea 9.1: Tests del Editor
-**Duración:** 4 horas
-
-**Archivos:**
-```
-frontend/src/test/components/DynamicView/VistaEditor.test.tsx
-frontend/src/test/components/DynamicView/SeccionDialog.test.tsx
-```
-
----
-
-#### Tarea 9.2: Integración End-to-End
-**Duración:** 4 horas
-
-**Flujo a probar:**
-1. Crear workflow
-2. Añadir etapa
-3. Configurar preguntas
-4. Configurar vista dinámica
-5. Guardar todo
-6. Ver renderizado en proceso real
-
----
-
-### ENTREGABLE SEMANA 2 ✅
-
-**Editor Completo:**
-- ✅ Tab "Vista Dinámica" integrado en EtapaConfigPanel
-- ✅ VistaEditor con config de layout
-- ✅ SeccionDialog para crear/editar secciones
-- ✅ ComponenteDialog para crear/editar componentes
-- ✅ Drag & drop para reordenar (opcional)
-
-**Demo:**
-- Crear una vista con 2 secciones y 5 componentes
-- Guardar y verificar en base de datos
-- Renderizar vista en DynamicViewRenderer
-
----
-
-## 📋 FASE 3: Componentes Avanzados (Semana 3-4)
-
-### DÍA 11-12 (Nov 23-24) - Componentes de Input Avanzados
-
-#### Tarea 11.1: Textarea y Checkbox
-**Duración:** 3 horas
-
-**Archivos:**
-```
-frontend/src/components/DynamicView/components/Input/Textarea.tsx
-frontend/src/components/DynamicView/components/Input/Checkbox.tsx
-frontend/src/components/DynamicView/components/Input/RadioButtons.tsx
-```
-
-**Actualizar ComponenteMap:**
-```tsx
-TEXTAREA: Textarea,
-CHECKBOX: Checkbox,
-RADIO_BUTTONS: RadioButtons,
-```
-
----
-
-#### Tarea 11.2: SelectMultiple
-**Duración:** 2 horas
-
-**Archivo:**
-```
-frontend/src/components/DynamicView/components/Select/SelectMultiple.tsx
-```
-
-**Características:**
-- Multi-select con chips
-- Opciones configurables
-- Búsqueda (opcional)
-
----
-
-### DÍA 13-14 (Nov 25-26) - Componentes de Display
-
-#### Tarea 13.1: Componentes de Texto
-**Duración:** 4 horas
-
-**Archivos:**
-```
-frontend/src/components/DynamicView/components/Display/TextoEstatico.tsx
-frontend/src/components/DynamicView/components/Display/Titulo.tsx
-frontend/src/components/DynamicView/components/Display/Alerta.tsx
-frontend/src/components/DynamicView/components/Display/InfoCard.tsx
-```
-
-**TextoEstatico:**
-- Muestra texto con formato Markdown
-- Soporte para variables del proceso
-
-**Titulo:**
-- Typography configurable (h1-h6)
-- Estilos personalizables
-
-**Alerta:**
-- Tipos: info, success, warning, error
-- Configurable si es dismissible
-
-**InfoCard:**
-- Card con icono, título, valor
-- Útil para mostrar métricas
-
----
-
-#### Tarea 13.2: Tabla y Lista
-**Duración:** 4 horas
-
-**Archivos:**
-```
-frontend/src/components/DynamicView/components/Display/Tabla.tsx
-frontend/src/components/DynamicView/components/Display/Lista.tsx
-frontend/src/components/DynamicView/components/Display/Timeline.tsx
-```
-
-**Tabla:**
-- Columnas configurables
-- Datos desde API o estático
-- Paginación opcional
-
-**Lista:**
-- Items con icono y texto
-- Ordenada o desordenada
-
-**Timeline:**
-- Muestra historial de proceso
-- Integración con backend
-
----
-
-### DÍA 15-17 (Nov 27-29) - Componentes de Archivo
-
-#### Tarea 15.1: Mejorar FileUpload
-**Duración:** 4 horas
-
-**Mejoras:**
-- Preview de imágenes
-- Progress bar
-- Validación de tipo y tamaño
-- Integración con OCR (si aplicable)
-
----
-
-#### Tarea 15.2: Componentes de Descarga
-**Duración:** 4 horas
-
-**Archivos:**
-```
-frontend/src/components/DynamicView/components/File/FileDownload.tsx
-frontend/src/components/DynamicView/components/File/FileGallery.tsx
-frontend/src/components/DynamicView/components/File/PDFViewer.tsx
-```
-
-**FileDownload:**
-- Lista de archivos para descargar
-- Botón de descarga individual o masiva
-
-**FileGallery:**
-- Galería de imágenes/documentos
-- Modal para ver en grande
-
-**PDFViewer:**
-- Visor embebido de PDF
-- Zoom, rotación, navegación de páginas
-
----
-
-### DÍA 18-19 (Nov 30 - Dic 1) - Componentes de Acción
-
-#### Tarea 18.1: Botones de Acción
-**Duración:** 6 horas
-
-**Archivos:**
-```
-frontend/src/components/DynamicView/components/Action/Boton.tsx
-frontend/src/components/DynamicView/components/Action/BotonDescarga.tsx
-frontend/src/components/DynamicView/components/Action/BotonImprimir.tsx
-```
-
-**Boton:**
-- Configurable (label, icono, color)
-- Acciones: API call, navegación, modal
-
-**BotonDescarga:**
-- Descarga archivo generado
-- Integración con backend
-
-**BotonImprimir:**
-- Imprimir sección o documento
-- Preview antes de imprimir
-
----
-
-### DÍA 20 (Dic 2) - Componentes de Revisión
-
-#### Tarea 20.1: Revisión de Documentos
-**Duración:** 6 horas
-
-**Archivos:**
-```
-frontend/src/components/DynamicView/components/Review/DocumentReview.tsx
-frontend/src/components/DynamicView/components/Review/OCRReview.tsx
-```
-
-**DocumentReview:**
-- Lista de documentos con estados
-- Aprobar/Rechazar individual
-- Comentarios por documento
-
-**OCRReview:**
-- Mostrar resultado OCR
-- Comparar con datos ingresados
-- Validar campos extraídos
-
----
-
-### ENTREGABLE SEMANA 3-4 ✅
-
-**15 Componentes Adicionales:**
-- ✅ 4 Input avanzados (Textarea, Checkbox, Radio, SelectMultiple)
-- ✅ 4 Display (TextoEstatico, Titulo, Alerta, InfoCard)
-- ✅ 3 Display avanzados (Tabla, Lista, Timeline)
-- ✅ 3 File (FileDownload, FileGallery, PDFViewer)
-- ✅ 3 Action (Boton, BotonDescarga, BotonImprimir)
-- ✅ 2 Review (DocumentReview, OCRReview)
-
-**Total: 20 componentes funcionales**
-
----
-
-## 📋 FASE 4: Features Avanzados (Semana 5)
-
-### DÍA 21-22 (Dic 3-4) - Sistema de Dependencias
-
-#### Tarea 21.1: Motor de Dependencias
-**Duración:** 6 horas
-
-**Archivo:**
-```
-frontend/src/components/DynamicView/utils/dependencies.ts
-```
-
-**Funciones:**
-```typescript
-export const evaluarDependencia = (
-  dependencia: DependenciaComponente,
-  formData: Record<string, any>
-): boolean => {
-  const valor = formData[dependencia.componente_id];
-  
-  switch (dependencia.condicion) {
-    case 'IGUAL':
-      return valor === dependencia.valor;
-    case 'DIFERENTE':
-      return valor !== dependencia.valor;
-    case 'MAYOR':
-      return valor > dependencia.valor;
-    case 'MENOR':
-      return valor < dependencia.valor;
-    case 'CONTIENE':
-      return String(valor).includes(String(dependencia.valor));
-    case 'NO_VACIO':
-      return valor != null && valor !== '';
-    default:
-      return true;
-  }
-};
-
-export const esComponenteVisible = (
-  componente: ComponenteVista,
-  formData: Record<string, any>
-): boolean => {
-  if (!componente.dependencias_json || componente.dependencias_json.length === 0) {
-    return true;
-  }
-  
-  // Todas las dependencias deben cumplirse (AND)
-  return componente.dependencias_json.every(dep => 
-    evaluarDependencia(dep, formData)
-  );
-};
-```
-
-**Integrar en ComponenteRenderer:**
-```tsx
-// Solo renderizar si es visible
-if (!esComponenteVisible(componente, formData)) {
-  return null;
 }
 ```
 
 ---
 
-#### Tarea 21.2: Editor de Dependencias
-**Duración:** 4 horas
+**Tarea 7.2: Testing manual completo** (3 horas)
 
-**Archivo:**
-```
-frontend/src/components/DynamicView/Editor/DependenciasEditor.tsx
+**Checklist de pruebas:**
+
+```bash
+# 1. Iniciar backend
+cd backend
+python -m uvicorn app.main:app --reload
+
+# 2. Iniciar frontend
+cd frontend
+npm run dev
+
+# 3. Probar flujo completo
 ```
 
-**UI:**
-- Lista de dependencias del componente
-- Añadir nueva dependencia
-- Selector de componente fuente
-- Selector de condición
-- Input para valor de comparación
+**Casos de prueba:**
+
+1. **Crear workflow con vista dinámica**
+   - [ ] Abrir WorkflowEditor
+   - [ ] Crear una etapa nueva
+   - [ ] Click en "Vista Dinámica"
+   - [ ] Cargar template "Solicitud Básica"
+   - [ ] Guardar configuración
+   - [ ] Verificar en BD: tabla `workflow_vista_config`
+
+2. **Renderizar vista**
+   - [ ] Navegar a `/workflow/{etapa_id}`
+   - [ ] Verificar que se renderiza el formulario
+   - [ ] Llenar todos los campos
+   - [ ] Verificar validaciones (campos obligatorios)
+   - [ ] Subir archivo
+   - [ ] Guardar formulario
+
+3. **Editar configuración**
+   - [ ] Modificar JSON (agregar campo nuevo)
+   - [ ] Guardar
+   - [ ] Recargar vista
+   - [ ] Verificar que aparece nuevo campo
+
+4. **Validaciones**
+   - [ ] Dejar campo obligatorio vacío → debe mostrar error
+   - [ ] Ingresar número fuera de rango → debe mostrar error
+   - [ ] Intentar subir archivo muy grande → debe rechazar
+   - [ ] JSON inválido en editor → debe mostrar errores
+
+5. **Templates**
+   - [ ] Probar los 3 templates predefinidos
+   - [ ] Verificar que se cargan correctamente
+   - [ ] Modificar y guardar
 
 ---
 
-### DÍA 23-24 (Dic 5-6) - Sistema de Validaciones
+**Tarea 7.3: Tests unitarios básicos** (2 horas)
 
-#### Tarea 23.1: Motor de Validaciones
-**Duración:** 6 horas
+**Archivo:** `frontend/src/components/DynamicView/__tests__/DynamicRenderer.test.tsx`
 
-**Archivo:**
-```
-frontend/src/components/DynamicView/utils/validation.ts
-```
-
-**Validaciones soportadas:**
-- Obligatorio
-- Longitud mínima/máxima
-- Valor mínimo/máximo
-- Patrón regex
-- Email, teléfono, URL
-- Fecha mínima/máxima
-- Tamaño de archivo
-- Tipo de archivo
-
-**Función principal:**
 ```typescript
-export const validarComponente = (
-  componente: ComponenteVista,
-  valor: any
-): string | null => {
-  // Validar si es obligatorio
-  if (componente.es_obligatorio && !valor) {
-    return 'Este campo es obligatorio';
-  }
-  
-  // Validaciones custom del config
-  const validaciones = componente.validaciones_json;
-  
-  if (!validaciones) return null;
-  
-  // Aplicar cada validación
-  for (const [tipo, params] of Object.entries(validaciones)) {
-    const error = aplicarValidacion(tipo, valor, params);
-    if (error) return error;
-  }
-  
-  return null;
-};
-```
+import { render, screen, fireEvent } from '@testing-library/react';
+import { DynamicRenderer } from '../DynamicRenderer';
+import type { ConfigJson } from '../../../types/dynamic-view';
 
----
-
-#### Tarea 23.2: Integrar Validaciones en Renderer
-**Duración:** 2 horas
-
-**Modificar DynamicViewRenderer:**
-```tsx
-const handleSubmit = () => {
-  const newErrors: Record<string, string> = {};
-  
-  vistaConfig.secciones.forEach(seccion => {
-    seccion.componentes.forEach(componente => {
-      const valor = formData[componente.codigo];
-      const error = validarComponente(componente, valor);
-      
-      if (error) {
-        newErrors[componente.codigo] = error;
+describe('DynamicRenderer', () => {
+  const mockConfig: ConfigJson = {
+    titulo: 'Test Form',
+    secciones: [
+      {
+        titulo: 'Sección 1',
+        componentes: [
+          {
+            tipo: 'TEXTO',
+            label: 'Nombre',
+            pregunta_id: 1,
+            obligatorio: true
+          }
+        ]
       }
-    });
+    ]
+  };
+
+  const mockOnSubmit = vi.fn();
+
+  it('renderiza el título', () => {
+    render(<DynamicRenderer config={mockConfig} onSubmit={mockOnSubmit} />);
+    expect(screen.getByText('Test Form')).toBeInTheDocument();
   });
-  
-  if (Object.keys(newErrors).length > 0) {
-    setErrors(newErrors);
-    return;
-  }
-  
-  onSubmit(formData);
-};
-```
 
----
-
-### DÍA 25 (Dic 7) - Data Binding
-
-#### Tarea 25.1: Integración con Preguntas del Workflow
-**Duración:** 4 horas
-
-**Archivo:**
-```
-frontend/src/components/DynamicView/utils/dataBinding.ts
-```
-
-**Funciones:**
-```typescript
-export const cargarDatosIniciales = async (
-  vistaConfig: VistaConfig,
-  procesoId: number
-): Promise<Record<string, any>> => {
-  const formData: Record<string, any> = {};
-  
-  // Cargar respuestas existentes del proceso
-  const respuestas = await obtenerRespuestas(procesoId);
-  
-  vistaConfig.secciones.forEach(seccion => {
-    seccion.componentes.forEach(componente => {
-      if (componente.fuente_datos === 'PREGUNTA' && componente.pregunta_id) {
-        // Buscar respuesta existente
-        const respuesta = respuestas.find(r => r.pregunta_id === componente.pregunta_id);
-        if (respuesta) {
-          formData[componente.codigo] = respuesta.valor;
-        }
-      }
-    });
+  it('muestra error en campo obligatorio vacío', async () => {
+    render(<DynamicRenderer config={mockConfig} onSubmit={mockOnSubmit} />);
+    
+    const submitBtn = screen.getByText('Guardar');
+    fireEvent.click(submitBtn);
+    
+    expect(screen.getByText('Campo obligatorio')).toBeInTheDocument();
+    expect(mockOnSubmit).not.toHaveBeenCalled();
   });
-  
-  return formData;
-};
 
-export const guardarRespuestas = async (
-  vistaConfig: VistaConfig,
-  procesoId: number,
-  formData: Record<string, any>
-): Promise<void> => {
-  const respuestas: any[] = [];
-  
-  vistaConfig.secciones.forEach(seccion => {
-    seccion.componentes.forEach(componente => {
-      if (componente.fuente_datos === 'PREGUNTA' && componente.pregunta_id) {
-        respuestas.push({
-          pregunta_id: componente.pregunta_id,
-          valor: formData[componente.codigo],
-        });
-      }
-    });
-  });
-  
-  await guardarRespuestasProceso(procesoId, respuestas);
-};
-```
-
----
-
-### ENTREGABLE SEMANA 5 ✅
-
-**Features Avanzados:**
-- ✅ Sistema de dependencias entre componentes
-- ✅ Motor de validaciones completo
-- ✅ Data binding con preguntas del workflow
-- ✅ Carga y guardado de respuestas
-- ✅ Visibilidad condicional
-
-**Demo:**
-- Vista con 3 secciones
-- 10 componentes con dependencias
-- Validaciones en tiempo real
-- Guardado automático
-
----
-
-## 📋 FASE 5: Testing, Documentación y Migración (Semana 6)
-
-### DÍA 26-27 (Dic 8-9) - Testing Completo
-
-#### Tarea 26.1: Tests Unitarios de Componentes
-**Duración:** 6 horas
-
-**Archivos a crear:**
-```
-frontend/src/test/components/DynamicView/components/
-├── TextInput.test.tsx
-├── NumberInput.test.tsx
-├── DatePicker.test.tsx
-├── SelectSimple.test.tsx
-├── FileUpload.test.tsx
-├── Tabla.test.tsx
-└── ... (resto de componentes)
-```
-
-**Cobertura objetivo:** 80% en todos los componentes
-
----
-
-#### Tarea 26.2: Tests de Integración
-**Duración:** 4 horas
-
-**Archivos:**
-```
-frontend/src/test/components/DynamicView/DynamicViewRenderer.test.tsx
-frontend/src/test/components/DynamicView/Editor/VistaEditor.test.tsx
-```
-
-**Escenarios:**
-- Renderizar vista simple con 5 componentes
-- Editar vista existente
-- Crear sección con componentes
-- Validaciones en formulario
-- Dependencias entre componentes
-
----
-
-#### Tarea 26.3: Tests E2E
-**Duración:** 4 horas
-
-**Archivo:**
-```
-frontend/cypress/e2e/dynamic-views.cy.ts
-```
-
-**Flujo completo:**
-```typescript
-describe('Dynamic Views E2E', () => {
-  it('Crear workflow con vista dinámica completa', () => {
-    // 1. Login
-    cy.login('admin@test.com', 'password');
+  it('permite enviar formulario válido', async () => {
+    render(<DynamicRenderer config={mockConfig} onSubmit={mockOnSubmit} />);
     
-    // 2. Ir a Workflows
-    cy.visit('/workflows');
+    const input = screen.getByPlaceholderText(/nombre/i);
+    fireEvent.change(input, { target: { value: 'Juan Pérez' } });
     
-    // 3. Crear nuevo workflow
-    cy.get('[data-testid="nuevo-workflow"]').click();
-    cy.get('[name="nombre"]').type('Solicitud de Ejemplo');
-    cy.get('[data-testid="guardar-workflow"]').click();
+    const submitBtn = screen.getByText('Guardar');
+    fireEvent.click(submitBtn);
     
-    // 4. Añadir etapa
-    cy.get('[data-testid="añadir-etapa"]').click();
-    
-    // 5. Configurar preguntas
-    cy.get('[data-testid="tab-preguntas"]').click();
-    cy.get('[data-testid="añadir-pregunta"]').click();
-    cy.get('[name="texto"]').type('Nombre completo');
-    cy.get('[name="tipo"]').select('TEXTO');
-    cy.get('[data-testid="guardar-pregunta"]').click();
-    
-    // 6. Configurar vista dinámica
-    cy.get('[data-testid="tab-vista-dinamica"]').click();
-    cy.get('[data-testid="añadir-seccion"]').click();
-    cy.get('[name="titulo"]').type('Datos Personales');
-    cy.get('[data-testid="añadir-componente"]').click();
-    cy.get('[name="tipo"]').select('TEXTO_INPUT');
-    cy.get('[name="fuente_datos"]').check('PREGUNTA');
-    cy.get('[name="pregunta_id"]').select('1');
-    cy.get('[data-testid="guardar-componente"]').click();
-    cy.get('[data-testid="guardar-seccion"]').click();
-    cy.get('[data-testid="guardar-vista"]').click();
-    
-    // 7. Verificar renderizado
-    cy.get('[data-testid="vista-preview"]').should('exist');
-    cy.get('[data-testid="seccion-datos-personales"]').should('be.visible');
-    cy.get('input[label="Nombre completo"]').should('exist');
+    expect(mockOnSubmit).toHaveBeenCalledWith({ 1: 'Juan Pérez' });
   });
 });
 ```
 
 ---
 
-### DÍA 28 (Dic 10) - Documentación
+**Tarea 7.4: Documentación de uso** (1 hora)
 
-#### Tarea 28.1: Documentación Técnica
-**Duración:** 4 horas
+**Archivo:** `frontend/DYNAMIC_VIEWS_MANUAL.md`
 
-**Archivos a crear:**
-```
-frontend/docs/
-├── DYNAMIC_VIEWS_API.md          # API Reference
-├── DYNAMIC_VIEWS_COMPONENTS.md   # Catálogo de componentes
-├── DYNAMIC_VIEWS_GUIDE.md        # Guía de uso
-└── DYNAMIC_VIEWS_EXAMPLES.md     # Ejemplos
-```
+```markdown
+# Manual de Uso - Vistas Dinámicas
 
-**Contenido DYNAMIC_VIEWS_API.md:**
-- Lista de tipos TypeScript
-- Endpoints REST disponibles
-- Servicios frontend
-- Hooks personalizados
+## 📖 Introducción
 
-**Contenido DYNAMIC_VIEWS_COMPONENTS.md:**
-- Cada componente con:
-  - Screenshot
-  - Props disponibles
-  - Ejemplo de configuración JSON
-  - Casos de uso
+El sistema de vistas dinámicas permite crear formularios personalizados para cada etapa del workflow sin necesidad de programar.
 
-**Contenido DYNAMIC_VIEWS_GUIDE.md:**
-- Guía paso a paso para crear vista
-- Best practices
-- Troubleshooting común
+## 🚀 Inicio Rápido
 
----
+### 1. Crear Vista desde Template
 
-#### Tarea 28.2: Video Tutorial
-**Duración:** 2 horas
+1. Abrir **WorkflowEditor**
+2. Seleccionar una etapa
+3. Click en **"🎨 Vista Dinámica"**
+4. Elegir un template:
+   - **Solicitud Básica**: Formulario con datos personales
+   - **Revisión**: Para revisar documentos
+   - **Aprobación**: Para aprobar/rechazar
 
-**Grabar video demostrando:**
-1. Crear workflow desde cero
-2. Configurar 3 etapas con diferentes tipos de vistas
-3. Añadir preguntas y componentes
-4. Configurar dependencias y validaciones
-5. Ver renderizado final
-6. Llenar formulario como usuario
+5. Click **"Guardar Configuración"**
 
-**Publicar en:** Wiki del proyecto o YouTube privado
+### 2. Personalizar Vista
 
----
+Editar el JSON para agregar/modificar campos:
 
-### DÍA 29 (Dic 11) - Migración de Vistas Existentes
-
-#### Tarea 29.1: Migrar GeneralView a Vista Dinámica
-**Duración:** 3 horas
-
-**Crear configuración JSON para reemplazar:**
-```
-frontend/src/components/PPSH/views/GeneralView.tsx
-```
-
-**Nueva estructura:**
-```json
+\`\`\`json
 {
-  "layout_tipo": "SIMPLE",
+  "titulo": "Mi Formulario",
   "secciones": [
     {
-      "titulo": "Información General",
+      "titulo": "Datos Personales",
       "componentes": [
         {
-          "tipo": "TEXTO_INPUT",
-          "config_json": {
-            "label": "Nombre del proceso"
+          "tipo": "TEXTO",
+          "label": "Nombre Completo",
+          "pregunta_id": 1,
+          "obligatorio": true
+        }
+      ]
+    }
+  ]
+}
+\`\`\`
+
+### 3. Tipos de Componentes
+
+| Tipo | Descripción | Ejemplo |
+|------|-------------|---------|
+| `TEXTO` | Entrada de texto | Nombre, dirección |
+| `NUMERO` | Números con validación | Edad, cantidad |
+| `FECHA` | Selector de fecha | Fecha nacimiento |
+| `SELECT` | Lista desplegable | Estado civil |
+| `ARCHIVO` | Subir archivos | Cédula PDF |
+
+## ⚙️ Configuración Avanzada
+
+### Opciones de Componentes
+
+**TEXTO:**
+\`\`\`json
+{
+  "tipo": "TEXTO",
+  "config": {
+    "placeholder": "Ej: Juan Pérez",
+    "multiline": true,
+    "maxLength": 500
+  }
+}
+\`\`\`
+
+**NUMERO:**
+\`\`\`json
+{
+  "tipo": "NUMERO",
+  "config": {
+    "min": 18,
+    "max": 100,
+    "step": 1
+  }
+}
+\`\`\`
+
+**SELECT:**
+\`\`\`json
+{
+  "tipo": "SELECT",
+  "config": {
+    "opciones": [
+      { "valor": "APROBADO", "etiqueta": "Aprobado" },
+      { "valor": "RECHAZADO", "etiqueta": "Rechazado" }
+    ]
+  }
+}
+\`\`\`
+
+**ARCHIVO:**
+\`\`\`json
+{
+  "tipo": "ARCHIVO",
+  "config": {
+    "tipos_permitidos": ["pdf", "jpg", "png"],
+    "max_size_mb": 10,
+    "max_archivos": 3
+  }
+}
+\`\`\`
+
+## 🔍 Troubleshooting
+
+**Error: "Debe tener array 'secciones'"**
+→ Falta la estructura básica. Usa un template como base.
+
+**Error: "Campo obligatorio"**
+→ El usuario debe llenar el campo antes de enviar.
+
+**Componente no se muestra**
+→ Verifica que `pregunta_id` sea único y el tipo esté escrito correctamente.
+```
+
+---
+
+**✅ Entregables Días 7-8:**
+- [x] Integración completa
+- [x] Testing manual exhaustivo
+- [x] Tests unitarios básicos
+- [x] Manual de usuario
+
+**⏰ Tiempo estimado:** 6 horas (2 días)
+
+---
+
+### 🗓️ DÍA 9-10 (Lunes-Martes 25-26 Nov) - Pulido y Entrega
+
+**Objetivo:** Refinamiento, documentación técnica y demo
+
+#### ✅ Checklist Días 9-10
+
+**Tarea 9.1: Crear ejemplos de producción** (1.5 horas)
+
+**Script:** `backend/scripts/seed_vista_configs.py`
+
+```python
+"""
+Seed de configuraciones de vista para workflows reales
+"""
+import json
+from app.database import SessionLocal
+from app.models.workflow import VistaConfig, WorkflowEtapa
+
+CONFIGS = [
+    {
+        "etapa_nombre": "Solicitud PPSH - Datos Personales",
+        "config": {
+            "titulo": "Solicitud de Permiso de Permanencia para Solicitante de Habilidad (PPSH)",
+            "descripcion": "Complete los datos personales del solicitante",
+            "secciones": [
+                {
+                    "titulo": "Información Personal",
+                    "componentes": [
+                        {"tipo": "TEXTO", "label": "Nombre Completo", "pregunta_id": 1, "obligatorio": True},
+                        {"tipo": "TEXTO", "label": "Pasaporte", "pregunta_id": 2, "obligatorio": True},
+                        {"tipo": "FECHA", "label": "Fecha de Nacimiento", "pregunta_id": 3, "obligatorio": True},
+                        {"tipo": "SELECT", "label": "Género", "pregunta_id": 4, "obligatorio": True,
+                         "config": {
+                             "opciones": [
+                                 {"valor": "M", "etiqueta": "Masculino"},
+                                 {"valor": "F", "etiqueta": "Femenino"}
+                             ]
+                         }},
+                    ]
+                },
+                {
+                    "titulo": "Documentos Requeridos",
+                    "componentes": [
+                        {"tipo": "ARCHIVO", "label": "Pasaporte (copia)", "pregunta_id": 5, "obligatorio": True,
+                         "config": {"tipos_permitidos": ["pdf"], "max_size_mb": 5}},
+                        {"tipo": "ARCHIVO", "label": "Foto tamaño carnet", "pregunta_id": 6, "obligatorio": True,
+                         "config": {"tipos_permitidos": ["jpg", "png"], "max_size_mb": 2}},
+                    ]
+                }
+            ]
+        }
+    }
+]
+
+def seed():
+    db = SessionLocal()
+    try:
+        for config_data in CONFIGS:
+            # Buscar etapa por nombre
+            etapa = db.query(WorkflowEtapa).filter(
+                WorkflowEtapa.nombre == config_data["etapa_nombre"]
+            ).first()
+            
+            if not etapa:
+                print(f"⚠️ Etapa no encontrada: {config_data['etapa_nombre']}")
+                continue
+            
+            # Crear o actualizar VistaConfig
+            vista = db.query(VistaConfig).filter(VistaConfig.etapa_id == etapa.id).first()
+            
+            if vista:
+                vista.config_json = json.dumps(config_data["config"], ensure_ascii=False)
+                print(f"✅ Actualizado: {config_data['etapa_nombre']}")
+            else:
+                vista = VistaConfig(
+                    etapa_id=etapa.id,
+                    config_json=json.dumps(config_data["config"], ensure_ascii=False),
+                    activo=True
+                )
+                db.add(vista)
+                print(f"✅ Creado: {config_data['etapa_nombre']}")
+        
+        db.commit()
+        print(f"\n✅ Seed completado: {len(CONFIGS)} configuraciones")
+        
+    except Exception as e:
+        db.rollback()
+        print(f"❌ Error: {e}")
+    finally:
+        db.close()
+
+if __name__ == "__main__":
+    seed()
+```
+
+---
+
+**Tarea 9.2: Optimizaciones de rendimiento** (1.5 horas)
+
+1. **Memoización de componentes:**
+
+```typescript
+// DynamicRenderer.tsx
+import React, { memo } from 'react';
+
+export const DynamicRenderer = memo<DynamicRendererProps>(({
+  config,
+  // ...
+}) => {
+  // ...
+}, (prevProps, nextProps) => {
+  return JSON.stringify(prevProps.config) === JSON.stringify(nextProps.config);
+});
+```
+
+2. **Lazy loading de componentes:**
+
+```typescript
+// index.ts
+export const TextInput = React.lazy(() => import('./TextInput'));
+export const NumberInput = React.lazy(() => import('./NumberInput'));
+// ...
+```
+
+3. **Cache de configuraciones:**
+
+```typescript
+// vista-config.service.ts
+const cache = new Map<number, VistaConfig>();
+
+async getByEtapaId(etapaId: number): Promise<VistaConfig | null> {
+  if (cache.has(etapaId)) {
+    return cache.get(etapaId)!;
+  }
+  
+  const config = await axios.get<VistaConfig>(`${API_BASE}/etapas/${etapaId}/vista-config`);
+  cache.set(etapaId, config.data);
+  return config.data;
+}
+```
+
+---
+
+**Tarea 9.3: Documentación técnica completa** (2 horas)
+
+**Archivo:** `frontend/DYNAMIC_VIEWS_TECH.md`
+
+```markdown
+# Documentación Técnica - Sistema de Vistas Dinámicas
+
+## 🏗️ Arquitectura
+
+### Backend
+
+**Base de Datos:**
+- Tabla: `workflow_vista_config`
+- Campos: `id`, `etapa_id`, `config_json`, `activo`, timestamps
+- Relación: FK a `workflow_etapas`
+
+**API Endpoints:**
+- `GET /api/v1/workflow/etapas/{id}/vista-config` - Obtener config por etapa
+- `POST /api/v1/workflow/vistas-config` - Crear nueva config
+- `PUT /api/v1/workflow/vistas-config/{id}` - Actualizar config
+- `DELETE /api/v1/workflow/vistas-config/{id}` - Eliminar config
+
+### Frontend
+
+**Componentes:**
+```
+DynamicView/
+├── DynamicRenderer.tsx      (Orquestador principal)
+├── TextInput.tsx            (Componente TEXTO)
+├── NumberInput.tsx          (Componente NUMERO)
+├── DatePicker.tsx           (Componente FECHA)
+├── SelectSimple.tsx         (Componente SELECT)
+├── FileUpload.tsx           (Componente ARCHIVO)
+└── JsonEditor.tsx           (Editor de configuración)
+```
+
+**Tipos:**
+```typescript
+ConfigJson
+├── titulo?: string
+├── descripcion?: string
+└── secciones: Seccion[]
+    ├── titulo: string
+    ├── descripcion?: string
+    └── componentes: Componente[]
+        ├── tipo: TipoComponente
+        ├── label: string
+        ├── pregunta_id?: number
+        ├── obligatorio?: boolean
+        └── config?: ConfigComponente
+```
+
+## 🔄 Flujo de Datos
+
+1. **Configuración:**
+   WorkflowEditor → JsonEditor → vistaConfigService.create() → Backend → BD
+
+2. **Renderizado:**
+   Workflow.tsx → useDynamicView(etapaId) → vistaConfigService.getByEtapaId() → DynamicRenderer → Componentes
+
+3. **Envío de Datos:**
+   DynamicRenderer.handleSubmit() → FormData → Backend (TODO: Implementar endpoint)
+
+## 🧪 Testing
+
+**Unitarios:**
+- `DynamicRenderer.test.tsx` - Renderizado y validación
+- `TextInput.test.tsx` - Componente individual
+- Comando: `npm test`
+
+**Integración:**
+- Flujo completo crear → renderizar → guardar
+- Validar templates
+
+## 📊 Métricas de Rendimiento
+
+- Tiempo de carga de config: < 200ms
+- Renderizado inicial: < 500ms
+- Validación formulario: < 100ms
+
+## 🚀 Roadmap Futuro (v2.0)
+
+- [ ] Editor visual drag & drop
+- [ ] Más componentes (RadioGroup, Checkbox, DateRange)
+- [ ] Lógica condicional (mostrar/ocultar campos)
+- [ ] Validaciones personalizadas
+- [ ] Cálculos automáticos
+- [ ] Exportación a PDF
+- [ ] Versionado de configuraciones
+```
+
+---
+
+**Tarea 9.4: Video demo** (1 hora)
+
+Grabar screencast mostrando:
+
+1. Crear workflow nuevo
+2. Configurar vista dinámica con template
+3. Personalizar JSON (agregar campo)
+4. Guardar configuración
+5. Acceder a formulario como usuario
+6. Llenar y enviar
+7. Validaciones funcionando
+
+---
+
+**✅ Entregables Días 9-10:**
+- [x] Script de seed con datos reales
+- [x] Optimizaciones aplicadas
+- [x] Documentación técnica completa
+- [x] Manual de usuario
+- [x] Video demo
+- [x] Tests pasando
+
+**⏰ Tiempo estimado:** 6 horas (2 días)
+
+---
+
+## 📋 Checklist Final
+
+### Backend
+- [x] Migración Alembic ejecutada
+- [x] Modelo `VistaConfig` creado
+- [x] 3 endpoints REST funcionales
+- [x] Servicio CRUD implementado
+- [x] Tests del servicio
+
+### Frontend
+- [x] 5 componentes renderizables
+- [x] `DynamicRenderer` funcional
+- [x] `JsonEditor` funcional
+- [x] `useDynamicView` hook
+- [x] 3 templates predefinidos
+- [x] Integrado en `WorkflowEditor`
+- [x] Integrado en `Workflow.tsx`
+- [x] Tests unitarios
+
+### Documentación
+- [x] Manual de usuario
+- [x] Documentación técnica
+- [x] Scripts de seed
+- [x] Video demo
+
+### Testing
+- [x] Pruebas manuales completas
+- [x] Validaciones funcionando
+- [x] Templates probados
+- [x] Tests automatizados pasando
+
+---
+
+## 🎯 Resultado Final
+
+**¿Qué se logró en 10 días?**
+
+✅ Sistema funcional de vistas dinámicas sin hardcodear  
+✅ 5 tipos de componentes configurables  
+✅ Editor JSON simple y efectivo  
+✅ 3 templates listos para usar  
+✅ Integración completa con workflow existente  
+✅ Documentación y ejemplos  
+
+**¿Qué NO se hizo (para v2.0)?**
+
+❌ Editor visual drag & drop  
+❌ Componentes avanzados (30+ tipos)  
+❌ Lógica condicional compleja  
+❌ Base de datos normalizada (3 tablas)  
+
+**¿Por qué este enfoque funciona?**
+
+✔️ **Rápido**: 10 días vs 30 días  
+✔️ **Simple**: 1 tabla JSON vs 3 tablas  
+✔️ **Funcional**: Cubre 80% de casos de uso  
+✔️ **Iterativo**: Fácil evolucionar a v2.0  
+
+---
+
+## 🚀 Evolución Futura
+
+### v1.1 (Siguiente sprint, si se necesita)
+- Más componentes (RadioGroup, Checkbox)
+- Validaciones personalizadas
+- Preview en tiempo real
+
+### v2.0 (Si escala el proyecto)
+- Editor visual
+- Base de datos normalizada
+- Lógica condicional
+- Versiones de configuraciones
+
+---
+
+**📅 Cronograma Total: 10 días (13-26 Nov 2025)**
+
+**💡 Filosofía MVP:** *"Funcional hoy, perfecto mañana"*
+```sql
+CREATE TABLE workflow_vista_config (
+    id INT PRIMARY KEY IDENTITY,
+    etapa_id INT REFERENCES workflow_etapas(id),
+    config_json NVARCHAR(MAX),  -- Todo en JSON
+    activo BIT DEFAULT 1,
+    created_at DATETIME DEFAULT GETDATE(),
+    updated_at DATETIME DEFAULT GETDATE()
+);
+```
+
+**Tarea 2: Modelo y Schema mínimo**
+```python
+# backend/app/models/vista_config.py
+class VistaConfig(Base):
+    __tablename__ = 'workflow_vista_config'
+    id = Column(Integer, primary_key=True)
+    etapa_id = Column(Integer, ForeignKey('workflow_etapas.id'))
+    config_json = Column(JSON)  # TODO EN JSON
+    activo = Column(Boolean, default=True)
+
+# backend/app/schemas/vista_config.py
+class VistaConfigSchema(BaseModel):
+    etapa_id: int
+    config_json: dict
+```
+
+**Tarea 3: CRUD básico (3 endpoints)**
+```python
+GET  /api/v1/workflow/etapas/{etapa_id}/vista-config
+POST /api/v1/workflow/vistas-config
+PUT  /api/v1/workflow/vistas-config/{id}
+```
+
+**✅ Entregable Día 1-2:**
+- 1 tabla en BD
+- 2 modelos/schemas
+- 3 endpoints REST
+- **Tiempo:** 12 horas
+
+---
+
+#### DÍA 3-4 (Nov 15-16) - Frontend: Types + Renderer
+
+**Tarea 1: Tipos TypeScript mínimos**
+```typescript
+// types/dynamic-view.ts
+export interface VistaConfig {
+  etapa_id: number;
+  config_json: {
+    titulo?: string;
+    secciones: Seccion[];
+  };
+}
+
+export interface Seccion {
+  titulo: string;
+  componentes: Componente[];
+}
+
+export interface Componente {
+  tipo: 'TEXTO' | 'NUMERO' | 'FECHA' | 'ARCHIVO' | 'SELECT';
+  label: string;
+  pregunta_id?: number;
+  config?: any;
+}
+```
+
+**Tarea 2: DynamicRenderer súper simple**
+```tsx
+export const DynamicRenderer = ({ etapaId }) => {
+  const [config, setConfig] = useState(null);
+  
+  useEffect(() => {
+    // Cargar config desde API
+    fetch(`/api/v1/workflow/etapas/${etapaId}/vista-config`)
+      .then(r => r.json())
+      .then(setConfig);
+  }, [etapaId]);
+  
+  if (!config) return <Loading />;
+  
+  return (
+    <Box>
+      <Typography variant="h4">{config.config_json.titulo}</Typography>
+      {config.config_json.secciones.map(seccion => (
+        <Card key={seccion.titulo}>
+          <CardHeader title={seccion.titulo} />
+          <CardContent>
+            {seccion.componentes.map(comp => (
+              <ComponenteRenderer key={comp.label} componente={comp} />
+            ))}
+          </CardContent>
+        </Card>
+      ))}
+    </Box>
+  );
+};
+```
+
+**Tarea 3: 5 componentes básicos SOLAMENTE**
+- TextInput
+- NumberInput  
+- DatePicker
+- SelectSimple
+- FileUpload
+
+**✅ Entregable Día 3-4:**
+- Types TypeScript
+- DynamicRenderer funcional
+- 5 componentes reutilizables
+- **Tiempo:** 12 horas
+
+---
+
+### SEMANA 2: Editor JSON + Integración
+
+#### DÍA 5-6 (Nov 18-19) - Editor JSON Manual
+
+**NO crear UI sofisticada, solo editor de texto JSON**
+
+```tsx
+export const VistaJsonEditor = ({ etapa }) => {
+  const [json, setJson] = useState('');
+  
+  const templateExample = {
+    titulo: 'Mi Vista',
+    secciones: [
+      {
+        titulo: 'Datos Personales',
+        componentes: [
+          { tipo: 'TEXTO', label: 'Nombre', pregunta_id: 1 },
+          { tipo: 'FECHA', label: 'Fecha Nacimiento', pregunta_id: 2 }
+        ]
+      }
+    ]
+  };
+  
+  return (
+    <Box>
+      <Typography variant="h6">Editor de Vista (JSON)</Typography>
+      
+      {/* Botón para cargar template */}
+      <Button onClick={() => setJson(JSON.stringify(templateExample, null, 2))}>
+        Cargar Template
+      </Button>
+      
+      {/* Editor de texto simple */}
+      <TextField
+        multiline
+        fullWidth
+        rows={20}
+        value={json}
+        onChange={(e) => setJson(e.target.value)}
+        placeholder="Pegar JSON aquí..."
+      />
+      
+      {/* Guardar */}
+      <Button onClick={() => guardarConfig(etapa.id, JSON.parse(json))}>
+        Guardar
+      </Button>
+    </Box>
+  );
+};
+```
+
+**✅ Entregable Día 5-6:**
+- Editor JSON simple
+- 3 templates predefinidos
+- Validación básica de JSON
+- **Tiempo:** 12 horas
+
+---
+
+#### DÍA 7-8 (Nov 20-21) - Integración + Testing
+
+**Tarea 1: Integrar en WorkflowEditor**
+```tsx
+// Añadir tab simple en EtapaConfigPanel
+<Tabs>
+  <Tab label="General" />
+  <Tab label="Preguntas" />
+  <Tab label="Vista (JSON)" /> {/* NUEVO */}
+</Tabs>
+
+<TabPanel value={2}>
+  <VistaJsonEditor etapa={etapa} />
+</TabPanel>
+```
+
+**Tarea 2: Data binding básico**
+```typescript
+// Cargar respuestas existentes
+const loadFormData = async (procesoId) => {
+  const respuestas = await api.getRespuestas(procesoId);
+  const formData = {};
+  
+  config.secciones.forEach(seccion => {
+    seccion.componentes.forEach(comp => {
+      if (comp.pregunta_id) {
+        const resp = respuestas.find(r => r.pregunta_id === comp.pregunta_id);
+        formData[comp.pregunta_id] = resp?.valor;
+      }
+    });
+  });
+  
+  return formData;
+};
+```
+
+**Tarea 3: Tests básicos**
+- Renderizar vista con 1 sección
+- Guardar respuestas
+- Validaciones simples
+
+**✅ Entregable Día 7-8:**
+- Integración completa
+- Data binding funcional
+- Tests básicos
+- **Tiempo:** 12 horas
+
+---
+
+#### DÍA 9-10 (Nov 22-23) - Documentación + Demo
+
+**Tarea 1: Documentación**
+```markdown
+# VISTAS_DINAMICAS_MVP.md
+
+## Cómo crear una vista dinámica
+
+1. Ir a WorkflowEditor
+2. Seleccionar etapa
+3. Tab "Vista (JSON)"
+4. Pegar JSON:
+
+{
+  "titulo": "Solicitud PPSH",
+  "secciones": [...]
+}
+
+5. Guardar
+
+## Tipos de componentes disponibles
+
+- TEXTO: Input de texto
+- NUMERO: Input numérico
+- FECHA: Date picker
+- SELECT: Dropdown
+- ARCHIVO: Upload
+
+## Ejemplo completo
+
+[Ver ejemplos/solicitud_basica.json]
+```
+
+**Tarea 2: Crear 3 ejemplos reales**
+- Solicitud PPSH básica
+- Revisión de documentos
+- Aprobación simple
+
+**Tarea 3: Video demo 5 minutos**
+
+**✅ Entregable Día 9-10:**
+- Documentación completa
+- 3 ejemplos JSON
+- Video demo
+- **Tiempo:** 12 horas
+
+---
+
+## 📊 Comparación: Plan Original vs MVP
+
+| Aspecto | Plan Original (6 semanas) | Plan MVP (2 semanas) |
+|---------|---------------------------|----------------------|
+| **Complejidad** | Alta | Baja |
+| **Tablas BD** | 3 tablas normalizadas | 1 tabla (JSON) |
+| **Endpoints** | 12 REST completos | 3 básicos |
+| **Componentes** | 20+ tipos | 5 esenciales |
+| **Editor** | UI visual sofisticado | JSON editor simple |
+| **Dependencias** | Sistema complejo | No incluido |
+| **Validaciones** | Motor avanzado | Básicas |
+| **Testing** | Suite completa | Tests mínimos |
+| **Líneas código** | ~5000 | ~1500 |
+| **Riesgo** | Alto | Bajo |
+| **Time to Market** | 6 semanas | 10 días |
+
+---
+
+## ✅ Ventajas del Plan MVP
+
+### Para el Negocio
+- ✅ **Entrega rápida**: 10 días vs 6 semanas
+- ✅ **Menor riesgo**: Código simple, menos bugs
+- ✅ **Feedback temprano**: Usuarios prueban antes
+- ✅ **Iterativo**: Mejoras basadas en uso real
+
+### Para el Equipo
+- ✅ **Menos presión**: Timeline realista
+- ✅ **Aprendizaje gradual**: Complejidad incremental
+- ✅ **Fácil de mantener**: Código simple
+- ✅ **Refactoring seguro**: Base sólida para mejorar
+
+### Técnicas
+- ✅ **JSON flexible**: Fácil cambiar estructura
+- ✅ **Sin migrations complejas**: 1 tabla JSON
+- ✅ **Plug & play**: Añadir componentes después
+- ✅ **Backward compatible**: No rompe nada
+
+---
+
+## 🔄 Plan de Evolución Post-MVP
+
+### Versión 1.0 (MVP - 2 semanas)
+- ✅ 1 tabla JSON
+- ✅ 5 componentes básicos
+- ✅ Editor JSON manual
+- ✅ Integración básica
+
+### Versión 1.1 (Sprint siguiente - 1 semana)
+- ➕ 5 componentes adicionales
+- ➕ Validaciones mejoradas
+- ➕ Templates más completos
+
+### Versión 1.2 (Mes 2 - 2 semanas)
+- ➕ Editor UI básico (Form builder simple)
+- ➕ Preview en tiempo real
+- ➕ Dependencias simples
+
+### Versión 2.0 (Mes 3 - 3 semanas)
+- ➕ Normalizar BD (3 tablas)
+- ➕ Sistema de dependencias completo
+- ➕ 15+ componentes
+- ➕ Editor visual drag & drop
+
+**Criterio de evolución:** Solo mejorar cuando MVP esté en producción y usuarios lo usen
+
+---
+
+## 📝 Estructura Ejemplo JSON (MVP)
+
+```json
+{
+  "titulo": "Solicitud de Permiso PPSH",
+  "descripcion": "Complete los datos del solicitante",
+  "secciones": [
+    {
+      "titulo": "Información Personal",
+      "descripcion": "Datos básicos del solicitante",
+      "componentes": [
+        {
+          "tipo": "TEXTO",
+          "label": "Nombre Completo",
+          "pregunta_id": 1,
+          "obligatorio": true,
+          "config": {
+            "placeholder": "Ingrese su nombre"
           }
         },
         {
-          "tipo": "TEXTAREA",
-          "config_json": {
-            "label": "Detalles del proceso",
-            "rows": 6
+          "tipo": "NUMERO",
+          "label": "Cédula",
+          "pregunta_id": 2,
+          "obligatorio": true,
+          "config": {
+            "min": 0,
+            "pattern": "\\d{1,2}-\\d{3,4}-\\d{4,5}"
+          }
+        },
+        {
+          "tipo": "FECHA",
+          "label": "Fecha de Nacimiento",
+          "pregunta_id": 3,
+          "obligatorio": true
+        }
+      ]
+    },
+    {
+      "titulo": "Documentos",
+      "componentes": [
+        {
+          "tipo": "ARCHIVO",
+          "label": "Cédula (Foto)",
+          "pregunta_id": 4,
+          "obligatorio": true,
+          "config": {
+            "tipos": ["pdf", "jpg", "png"],
+            "max_size_mb": 10,
+            "max_files": 2
           }
         }
       ]
@@ -2285,327 +2932,80 @@ frontend/src/components/PPSH/views/GeneralView.tsx
 
 ---
 
-#### Tarea 29.2: Crear Templates Predefinidos
-**Duración:** 3 horas
+## 🎯 Criterios de Éxito MVP
 
-**Archivo:**
-```
-frontend/src/components/DynamicView/templates/index.ts
-```
+### Mínimo Aceptable (Must Have)
+- [ ] Crear vista desde JSON en <5 minutos
+- [ ] Renderizar vista con 5 tipos de componentes
+- [ ] Guardar/cargar respuestas correctamente
+- [ ] Funcionar en 3 flujos diferentes sin cambiar código
+- [ ] Documentación clara de cómo usarlo
 
-**Templates:**
-```typescript
-export const TEMPLATES = {
-  SOLICITUD_BASICA: {
-    nombre: 'Solicitud Básica',
-    descripcion: 'Formulario simple con datos personales y documentos',
-    config: { /* ... */ },
-  },
-  
-  REVISION_DOCUMENTOS: {
-    nombre: 'Revisión de Documentos',
-    descripcion: 'Vista para revisar y aprobar documentos',
-    config: { /* ... */ },
-  },
-  
-  APROBACION_MULTIPLE: {
-    nombre: 'Aprobación con Múltiples Niveles',
-    descripcion: 'Vista con tabla de items a aprobar',
-    config: { /* ... */ },
-  },
-  
-  FORMULARIO_COMPLEJO: {
-    nombre: 'Formulario Complejo',
-    descripcion: 'Vista con secciones, tabs y dependencias',
-    config: { /* ... */ },
-  },
-};
-```
-
-**Integrar en VistaEditor:**
-```tsx
-<Button onClick={() => aplicarTemplate('SOLICITUD_BASICA')}>
-  Usar Template: Solicitud Básica
-</Button>
-```
+### Deseable (Nice to Have - Post MVP)
+- [ ] Editor UI (puede ser Fase 2)
+- [ ] 10+ tipos de componentes (agregar gradualmente)
+- [ ] Validaciones avanzadas (iterar después)
+- [ ] Dependencias (v2.0)
 
 ---
 
-### DÍA 30 (Dic 12) - Optimización y Deploy
+## 💡 Recomendación Final
 
-#### Tarea 30.1: Optimización de Performance
-**Duración:** 4 horas
+### ✅ **APROBAR Plan MVP (2 semanas)**
 
-**Mejoras:**
-```typescript
-// 1. Memoizar componentes pesados
-export const ComponenteRenderer = React.memo(ComponenteRendererBase);
+**Razones:**
+1. **Cumple el objetivo**: Evita hardcodear vistas
+2. **Tiempo realista**: 10 días hábiles ejecutables
+3. **Riesgo controlado**: Código simple, menos bugs
+4. **Escalable**: JSON permite crecer sin refactor
+5. **Feedback rápido**: Usuarios lo prueban antes
 
-// 2. Lazy loading de componentes
-const FileUpload = React.lazy(() => import('./File/FileUpload'));
+### ❌ **POSPONER Plan Original (6 semanas)**
 
-// 3. Virtual scrolling para listas largas
-import { FixedSizeList } from 'react-window';
+**Razones:**
+1. **Over-engineering** para MVP
+2. **Timeline muy ambicioso** (riesgo de retraso)
+3. **Features no críticos** (drag&drop, 20 componentes)
+4. **Mejor iterar** después de validar con usuarios
 
-// 4. Debounce en validaciones
-const debouncedValidate = useDebouncedCallback(validate, 300);
+---
+
+## 📅 Propuesta de Ejecución
+
+### Opción A: Solo MVP (RECOMENDADO)
+```
+Semana 1: Backend + Renderer (4 días)
+Semana 2: Editor + Integración (4 días)
+Buffer: 2 días para imprevistos
+Total: 10 días hábiles
+```
+
+### Opción B: MVP + Mejoras Incrementales
+```
+Sprint 1 (2 semanas): MVP básico
+Sprint 2 (1 semana): +5 componentes
+Sprint 3 (1 semana): Editor UI básico
+Sprint 4 (2 semanas): Features avanzados (según feedback)
+Total: 6 semanas pero incremental
 ```
 
 ---
 
-#### Tarea 30.2: Preparar para Producción
-**Duración:** 2 horas
+## 🚦 Decisión
 
-**Checklist:**
-- [ ] Remover console.logs
-- [ ] Minificar bundle
-- [ ] Optimizar imágenes
-- [ ] Configurar cache de API
-- [ ] Actualizar CHANGELOG.md
-- [ ] Tag release v2.0.0
+**¿Cuál plan ejecutar?**
 
-**Comandos:**
-```bash
-# Build optimizado
-npm run build
+- **Plan MVP (2 semanas)**: ✅ Rápido, bajo riesgo, suficiente para MVP
+- **Plan Original (6 semanas)**: ⚠️ Completo pero arriesgado para MVP
+- **Plan Híbrido (4 semanas)**: ⚖️ MVP + algunas features del original
 
-# Analizar bundle
-npm run analyze
+**Mi recomendación profesional:**
 
-# Deploy a staging
-npm run deploy:staging
-
-# Test en staging
-npm run test:e2e:staging
-
-# Deploy a production
-npm run deploy:production
-```
+👉 **Ejecutar Plan MVP (2 semanas)**, validar con usuarios reales, y luego iterar basado en feedback. Es la forma más ágil y menos riesgosa.
 
 ---
 
-### ENTREGABLE SEMANA 6 ✅
-
-**Testing:**
-- ✅ 80%+ cobertura en componentes
-- ✅ Tests de integración completos
-- ✅ Suite E2E funcionando
-
-**Documentación:**
-- ✅ 4 documentos técnicos
-- ✅ Video tutorial
-- ✅ Ejemplos prácticos
-
-**Migración:**
-- ✅ Vistas legacy migradas
-- ✅ 4 templates predefinidos
-- ✅ Sistema optimizado
-
-**Producción:**
-- ✅ Build optimizado
-- ✅ Deploy en staging
-- ✅ Deploy en production
-
----
-
-## 📊 RESUMEN FINAL
-
-### Estadísticas del Proyecto
-
-| Métrica | Cantidad |
-|---------|----------|
-| **Backend** |
-| Tablas creadas | 3 |
-| Modelos SQLAlchemy | 3 |
-| Schemas Pydantic | 9 |
-| Endpoints REST | 12 |
-| **Frontend** |
-| Tipos TypeScript | 15+ |
-| Componentes creados | 25+ |
-| Archivos de código | 50+ |
-| Tests escritos | 30+ |
-| Líneas de código | ~5000 |
-| **Documentación** |
-| Documentos técnicos | 4 |
-| Ejemplos | 10+ |
-| Videos | 1 |
-
----
-
-### Timeline Consolidado
-
-```
-Semana 1 (Nov 13-17): Foundation & Backend
-├─ Día 1-2: Base de datos y modelos
-├─ Día 3: Frontend types y service
-└─ Día 4-5: Componentes base renderer
-
-Semana 2 (Nov 18-22): Editor de Vistas
-├─ Día 6: Integración con WorkflowEditor
-├─ Día 7: Editor de secciones
-├─ Día 8: Editor de componentes
-└─ Día 9-10: Testing y refinamiento
-
-Semana 3-4 (Nov 23 - Dic 2): Componentes Avanzados
-├─ Día 11-12: Input avanzados
-├─ Día 13-14: Display components
-├─ Día 15-17: File components
-├─ Día 18-19: Action buttons
-└─ Día 20: Review components
-
-Semana 5 (Dic 3-7): Features Avanzados
-├─ Día 21-22: Sistema de dependencias
-├─ Día 23-24: Sistema de validaciones
-└─ Día 25: Data binding
-
-Semana 6 (Dic 8-12): Testing & Deploy
-├─ Día 26-27: Testing completo
-├─ Día 28: Documentación
-├─ Día 29: Migración
-└─ Día 30: Optimización y deploy
-```
-
----
-
-### Riesgos y Mitigaciones
-
-| Riesgo | Probabilidad | Impacto | Mitigación |
-|--------|--------------|---------|------------|
-| Complejidad de dependencias | Media | Alto | Crear motor simple primero, iterar |
-| Performance con muchos componentes | Alta | Medio | Lazy loading, memoización, virtual scroll |
-| Curva de aprendizaje | Media | Medio | Documentación extensiva, templates |
-| Bugs en validaciones | Alta | Alto | Testing exhaustivo, validación dual (FE/BE) |
-| Cambios en requisitos | Media | Alto | Arquitectura flexible, componentes desacoplados |
-
----
-
-### Próximos Pasos Post-Implementación
-
-#### Corto Plazo (1 mes)
-- [ ] Recopilar feedback de usuarios
-- [ ] Crear más templates
-- [ ] Añadir componentes especializados (firma digital, pago)
-- [ ] Mejorar UX del editor
-
-#### Mediano Plazo (3 meses)
-- [ ] Drag & drop visual para diseñar vistas
-- [ ] Sistema de permisos granular por componente
-- [ ] Versionado de configuraciones
-- [ ] Analytics de uso de componentes
-
-#### Largo Plazo (6+ meses)
-- [ ] AI para sugerir configuraciones
-- [ ] Marketplace de templates
-- [ ] Multi-idioma en componentes
-- [ ] Exportar/importar configuraciones entre ambientes
-
----
-
-## 🎓 Lecciones Aprendidas (Para futuras implementaciones)
-
-### ✅ Best Practices
-
-1. **Empezar simple:** Los 5 componentes básicos primero, luego expandir
-2. **Testing desde el inicio:** No dejar para el final
-3. **Documentación continua:** Documentar mientras se desarrolla
-4. **Feedback temprano:** Mostrar prototipos desde semana 2
-5. **Arquitectura flexible:** Fácil añadir nuevos componentes sin cambiar core
-
-### ❌ Qué evitar
-
-1. **No hacer todo generic desde día 1:** Enfocarse en casos de uso reales
-2. **No hardcodear:** Todo debe ser configurable
-3. **No ignorar performance:** Pensar en escala desde el inicio
-4. **No omitir validaciones backend:** Frontend es solo UX, backend es seguridad
-5. **No sobre-ingenierizar:** KISS (Keep It Simple, Stupid)
-
----
-
-## 📞 Soporte y Mantenimiento
-
-### Responsabilidades
-
-**Backend Developer:**
-- Mantener API endpoints
-- Optimizar queries de base de datos
-- Revisar y aprobar cambios en modelos
-
-**Frontend Developer:**
-- Crear nuevos componentes según demanda
-- Mantener ComponenteMap actualizado
-- Optimizar performance del renderer
-
-**QA:**
-- Testing de regresión cada sprint
-- Validar nuevos componentes antes de merge
-- Mantener suite E2E actualizada
-
-### Proceso de Cambios
-
-1. **Nueva Feature Request**
-   - Crear issue en GitHub
-   - Discutir en daily standup
-   - Estimar esfuerzo
-
-2. **Desarrollo**
-   - Branch desde `main`
-   - Desarrollo + tests
-   - Code review
-
-3. **Testing**
-   - QA en staging
-   - Usuarios beta prueban
-   - Ajustes finales
-
-4. **Deploy**
-   - Merge a `main`
-   - Deploy a production
-   - Monitorear métricas
-
----
-
-## ✅ Checklist de Inicio Mañana
-
-### Preparación Pre-Inicio
-
-- [ ] Revisar este documento completo
-- [ ] Preparar ambiente de desarrollo
-- [ ] Tener acceso a:
-  - [ ] Base de datos de desarrollo
-  - [ ] Repositorio GitHub
-  - [ ] Herramientas de testing
-  - [ ] Documentación de API existente
-
-### Día 1 - Checklist Operativo
-
-- [ ] 08:00 - Daily standup, confirmar prioridades
-- [ ] 08:30 - Crear branch `feature/dynamic-views-cms`
-- [ ] 09:00 - Comenzar Tarea 1.1: Diseñar esquema BD
-- [ ] 11:00 - Review esquema con equipo
-- [ ] 11:30 - Crear migration Alembic
-- [ ] 14:00 - Ejecutar migration en DB dev
-- [ ] 14:30 - Comenzar Tarea 1.2: Modelos SQLAlchemy
-- [ ] 16:00 - Testing de modelos
-- [ ] 17:00 - Commit del día
-- [ ] 17:30 - Update de progreso en daily log
-
-### Recordatorios
-
-- ⏰ Commits frecuentes (cada 1-2 horas)
-- 📝 Documentar decisiones importantes
-- 🧪 Escribir tests mientras desarrollas
-- 💬 Pedir ayuda si te bloqueas >30 min
-- ☕ Tomar breaks cada 2 horas
-
----
-
-**Documento creado:** Noviembre 12, 2025  
+**Creado:** Noviembre 12, 2025  
 **Versión:** 1.0  
-**Autor:** Sistema de Desarrollo  
-**Estado:** ✅ Listo para ejecutar  
-**Próxima actualización:** Diaria durante implementación
-
----
-
-**¡Éxito en la implementación! 🚀**
-
+**Estado:** 🟢 Propuesta para aprobación  
+**Siguiente paso:** Decisión stakeholders
