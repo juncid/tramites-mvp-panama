@@ -28,6 +28,8 @@ import {
   OutlinedInput,
   SelectChangeEvent,
   Divider,
+  Checkbox,
+  FormControlLabel,
 } from '@mui/material';
 import {
   ZoomIn as ZoomInIcon,
@@ -35,6 +37,13 @@ import {
   PanTool as PanToolIcon,
   DocumentScanner as ScannerIcon,
   KeyboardArrowDown as ArrowDownIcon,
+  CloudUpload as UploadIcon,
+  RadioButtonChecked as RadioIcon,
+  CalendarToday as CalendarIcon,
+  Description as DescriptionIcon,
+  List as ListIcon,
+  TextFields as TextIcon,
+  Add as AddIcon,
 } from '@mui/icons-material';
 import { workflowService } from '../services/workflow.service';
 import CustomNode from '../components/Workflow/CustomNode';
@@ -56,15 +65,17 @@ const PERFILES_DISPONIBLES = [
 const TIPOS_ETAPA = [
   { value: 'ETAPA', label: 'Etapa' },
   { value: 'COMPUERTA', label: 'Compuerta' },
-  { value: 'PRESENCIAL', label: 'Presencial' },
+  { value: 'SUBPROCESO', label: 'Subproceso' },
 ];
 
 const TIPOS_PREGUNTA: { value: TipoPregunta; label: string; icon?: React.ReactNode }[] = [
   { value: 'REVISION_OCR', label: 'Revisión OCR por parte del sistema', icon: <ScannerIcon /> },
-  { value: 'CARGA_ARCHIVO', label: 'Carga de archivos' },
-  { value: 'TEXTO', label: 'Respuesta de texto' },
-  { value: 'LISTA', label: 'Lista' },
-  { value: 'SELECCION_SIMPLE', label: 'Opciones (selección simple)' },
+  { value: 'OPCIONES', label: 'Opciones', icon: <RadioIcon /> },
+  { value: 'SELECCION_FECHA', label: 'Selección de fecha', icon: <CalendarIcon /> },
+  { value: 'CARGA_ARCHIVO', label: 'Carga de archivos', icon: <UploadIcon /> },
+  { value: 'REVISION_MANUAL_DOCUMENTOS', label: 'Revisión manual de documentos', icon: <DescriptionIcon /> },
+  { value: 'LISTA', label: 'Lista', icon: <ListIcon /> },
+  { value: 'TEXTO', label: 'Respuesta de texto', icon: <TextIcon /> },
 ];
 
 export const WorkflowEditorFigma: React.FC = () => {
@@ -539,7 +550,7 @@ export const WorkflowEditorFigma: React.FC = () => {
               p: 2,
             }}
           >
-            <Stack spacing={5}>
+            <Stack spacing={3}>
               {/* Tipo de pregunta */}
               <FormControl fullWidth>
                 <InputLabel
@@ -556,7 +567,13 @@ export const WorkflowEditorFigma: React.FC = () => {
                 </InputLabel>
                 <Select
                   value={preguntas[0]?.tipo || 'REVISION_OCR'}
-                  onChange={(e) => handlePreguntaChange(0, 'tipo', e.target.value)}
+                  onChange={(e) => {
+                    const newTipo = e.target.value as TipoPregunta;
+                    if (preguntas.length === 0) {
+                      handleAddPregunta();
+                    }
+                    handlePreguntaChange(0, 'tipo', newTipo);
+                  }}
                   displayEmpty
                   IconComponent={ArrowDownIcon}
                   sx={{
@@ -593,87 +610,366 @@ export const WorkflowEditorFigma: React.FC = () => {
                 >
                   {TIPOS_PREGUNTA.map((tipo) => (
                     <MenuItem key={tipo.value} value={tipo.value}>
-                      {tipo.label}
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        {tipo.icon && React.cloneElement(tipo.icon as React.ReactElement, {
+                          sx: { fontSize: 18 },
+                        })}
+                        <span>{tipo.label}</span>
+                      </Box>
                     </MenuItem>
                   ))}
                 </Select>
               </FormControl>
 
-              {/* Etapa origen de documentos */}
-              <FormControl fullWidth>
-                <InputLabel
-                  shrink
-                  sx={{
+              {/* Campo Pregunta/Descripción */}
+              <TextField
+                fullWidth
+                label="Pregunta"
+                placeholder={
+                  preguntas[0]?.tipo === 'OPCIONES'
+                    ? 'Obtuvieron los archivos resultados positivos en la revisión OCR'
+                    : preguntas[0]?.tipo === 'TEXTO'
+                    ? 'Observaciones'
+                    : preguntas[0]?.tipo === 'SELECCION_FECHA'
+                    ? 'Lorem ipsum'
+                    : preguntas[0]?.tipo === 'CARGA_ARCHIVO'
+                    ? 'Documento'
+                    : 'Lorem ipsum'
+                }
+                value={preguntas[0]?.texto || ''}
+                onChange={(e) => handlePreguntaChange(0, 'texto', e.target.value)}
+                InputLabelProps={{ shrink: true }}
+                sx={{
+                  '& .MuiInputLabel-root': {
                     bgcolor: 'white',
                     px: 0.5,
                     fontSize: 14,
                     fontWeight: 500,
                     color: '#333333',
-                  }}
-                >
-                  Etapa origen de documentos
-                </InputLabel>
-                <Select
-                  displayEmpty
-                  IconComponent={ArrowDownIcon}
-                  defaultValue=""
-                  sx={{
-                    '& .MuiOutlinedInput-notchedOutline': {
+                  },
+                  '& .MuiOutlinedInput-root': {
+                    '& fieldset': {
                       borderColor: '#333333',
                     },
-                    '& .MuiSelect-select': {
+                    '& input': {
                       color: '#333333',
                       fontSize: 16,
                     },
+                  },
+                }}
+              />
+
+              {/* Checkbox Obligatoria */}
+              {(preguntas[0]?.tipo === 'OPCIONES' ||
+                preguntas[0]?.tipo === 'REVISION_MANUAL_DOCUMENTOS' ||
+                preguntas[0]?.tipo === 'LISTA' ||
+                preguntas[0]?.tipo === 'SELECCION_FECHA' ||
+                preguntas[0]?.tipo === 'TEXTO') && (
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={preguntas[0]?.es_obligatoria || false}
+                      onChange={(e) =>
+                        handlePreguntaChange(0, 'es_obligatoria', e.target.checked)
+                      }
+                      sx={{ color: '#333333' }}
+                    />
+                  }
+                  label={
+                    <Typography sx={{ fontSize: 16, color: '#333333' }}>
+                      Obligatoria
+                    </Typography>
+                  }
+                />
+              )}
+
+              {/* Campo Indicaciones (solo para tipo OPCIONES y TEXTO) */}
+              {(preguntas[0]?.tipo === 'OPCIONES' || preguntas[0]?.tipo === 'TEXTO') && (
+                <TextField
+                  fullWidth
+                  label="Indicaciones"
+                  placeholder="(Opcional), indicaciones para la persona que responda la pregunta"
+                  multiline
+                  rows={2}
+                  value={preguntas[0]?.ayuda || ''}
+                  onChange={(e) => handlePreguntaChange(0, 'ayuda', e.target.value)}
+                  InputLabelProps={{ shrink: true }}
+                  sx={{
+                    '& .MuiInputLabel-root': {
+                      bgcolor: 'white',
+                      px: 0.5,
+                      fontSize: 14,
+                      fontWeight: 500,
+                      color: '#333333',
+                    },
+                    '& .MuiOutlinedInput-root': {
+                      '& fieldset': {
+                        borderColor: '#333333',
+                      },
+                      '& textarea': {
+                        color: '#4d4d4d',
+                        fontSize: 14,
+                      },
+                    },
                   }}
-                >
-                  <MenuItem value="">
-                    Recolectar requisitos del trámite PPSH y los anexo en el sistema
-                  </MenuItem>
-                  {getEtapasAnteriores().map((etapa) => (
-                    <MenuItem key={etapa.id} value={etapa.id}>
-                      {etapa.nombre}
+                />
+              )}
+
+              {/* Opciones 1 y 2 (solo para tipo OPCIONES) */}
+              {preguntas[0]?.tipo === 'OPCIONES' && (
+                <>
+                  <TextField
+                    fullWidth
+                    label="Opción 1"
+                    placeholder="Sí"
+                    InputLabelProps={{ shrink: true }}
+                    sx={{
+                      '& .MuiInputLabel-root': {
+                        bgcolor: 'white',
+                        px: 0.5,
+                        fontSize: 14,
+                        fontWeight: 500,
+                        color: '#333333',
+                      },
+                      '& .MuiOutlinedInput-root': {
+                        '& fieldset': {
+                          borderColor: '#333333',
+                        },
+                        '& input': {
+                          color: '#333333',
+                          fontSize: 16,
+                        },
+                      },
+                    }}
+                  />
+                  <TextField
+                    fullWidth
+                    label="Opción 2"
+                    placeholder="No"
+                    InputLabelProps={{ shrink: true }}
+                    sx={{
+                      '& .MuiInputLabel-root': {
+                        bgcolor: 'white',
+                        px: 0.5,
+                        fontSize: 14,
+                        fontWeight: 500,
+                        color: '#333333',
+                      },
+                      '& .MuiOutlinedInput-root': {
+                        '& fieldset': {
+                          borderColor: '#333333',
+                        },
+                        '& input': {
+                          color: '#333333',
+                          fontSize: 16,
+                        },
+                      },
+                    }}
+                  />
+                  <Button
+                    variant="text"
+                    startIcon={<AddIcon />}
+                    sx={{
+                      color: '#0e5fa6',
+                      textTransform: 'none',
+                      fontSize: 14,
+                      justifyContent: 'flex-start',
+                    }}
+                  >
+                    Añadir opción
+                  </Button>
+                </>
+              )}
+
+              {/* Etapa origen de documentos (para REVISION_OCR y REVISION_MANUAL_DOCUMENTOS) */}
+              {(preguntas[0]?.tipo === 'REVISION_OCR' ||
+                preguntas[0]?.tipo === 'REVISION_MANUAL_DOCUMENTOS') && (
+                <FormControl fullWidth>
+                  <InputLabel
+                    shrink
+                    sx={{
+                      bgcolor: 'white',
+                      px: 0.5,
+                      fontSize: 14,
+                      fontWeight: 500,
+                      color: '#333333',
+                    }}
+                  >
+                    Etapa origen de documentos
+                  </InputLabel>
+                  <Select
+                    displayEmpty
+                    IconComponent={ArrowDownIcon}
+                    defaultValue=""
+                    sx={{
+                      '& .MuiOutlinedInput-notchedOutline': {
+                        borderColor: '#333333',
+                      },
+                      '& .MuiSelect-select': {
+                        color: '#333333',
+                        fontSize: 16,
+                      },
+                    }}
+                  >
+                    <MenuItem value="">
+                      {preguntas[0]?.tipo === 'REVISION_OCR'
+                        ? 'Recolectar requisitos del trámite PPSH y los anexo en el sistema'
+                        : 'Resultado revisión OCR'}
                     </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
+                    {getEtapasAnteriores().map((etapa) => (
+                      <MenuItem key={etapa.id} value={etapa.id}>
+                        {etapa.nombre}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              )}
+
+              {/* Origen selección de fechas (solo para SELECCION_FECHA) */}
+              {preguntas[0]?.tipo === 'SELECCION_FECHA' && (
+                <FormControl fullWidth>
+                  <InputLabel
+                    shrink
+                    sx={{
+                      bgcolor: 'white',
+                      px: 0.5,
+                      fontSize: 14,
+                      fontWeight: 500,
+                      color: '#333333',
+                    }}
+                  >
+                    Origen selección de fechas
+                  </InputLabel>
+                  <Select
+                    displayEmpty
+                    IconComponent={ArrowDownIcon}
+                    defaultValue=""
+                    sx={{
+                      '& .MuiOutlinedInput-notchedOutline': {
+                        borderColor: '#333333',
+                      },
+                      '& .MuiSelect-select': {
+                        color: '#333333',
+                        fontSize: 16,
+                      },
+                    }}
+                  >
+                    <MenuItem value="">Agenda PPSH</MenuItem>
+                  </Select>
+                </FormControl>
+              )}
+
+              {/* Descripción y Documento (para CARGA_ARCHIVO cuando no hay preguntas tipo formulario) */}
+              {preguntas[0]?.tipo === 'CARGA_ARCHIVO' && !preguntas[0]?.pregunta && (
+                <>
+                  <TextField
+                    fullWidth
+                    label="Descripción"
+                    placeholder="Lorem"
+                    multiline
+                    rows={2}
+                    InputLabelProps={{ shrink: true }}
+                    sx={{
+                      '& .MuiInputLabel-root': {
+                        bgcolor: 'white',
+                        px: 0.5,
+                        fontSize: 14,
+                        fontWeight: 500,
+                        color: '#333333',
+                      },
+                      '& .MuiOutlinedInput-root': {
+                        '& fieldset': {
+                          borderColor: '#333333',
+                        },
+                        '& textarea': {
+                          color: '#4d4d4d',
+                          fontSize: 14,
+                        },
+                      },
+                    }}
+                  />
+                  <Typography sx={{ fontSize: 14, color: '#4d4d4d', fontWeight: 300 }}>
+                    Información adicional opcional
+                  </Typography>
+                  <TextField
+                    fullWidth
+                    label="Documento"
+                    InputLabelProps={{ shrink: true }}
+                    sx={{
+                      '& .MuiInputLabel-root': {
+                        bgcolor: 'white',
+                        px: 0.5,
+                        fontSize: 14,
+                        fontWeight: 500,
+                        color: '#333333',
+                      },
+                      '& .MuiOutlinedInput-root': {
+                        '& fieldset': {
+                          borderColor: '#333333',
+                        },
+                      },
+                    }}
+                  />
+                  <Button
+                    variant="contained"
+                    startIcon={<UploadIcon />}
+                    sx={{
+                      bgcolor: '#0e5fa6',
+                      color: 'white',
+                      textTransform: 'none',
+                      fontSize: 14,
+                      alignSelf: 'flex-start',
+                      '&:hover': {
+                        bgcolor: '#0d5494',
+                      },
+                    }}
+                  >
+                    Cargar archivo
+                  </Button>
+                  <Typography sx={{ fontSize: 12, color: '#788093', fontWeight: 300 }}>
+                    (Opcional), indicaciones para la persona que responda la pregunta
+                  </Typography>
+                </>
+              )}
 
               {/* Botones Cancelar y Añadir */}
-              <Stack direction="row" spacing={3}>
-                <Button
-                  variant="outlined"
-                  sx={{
-                    width: 124,
-                    borderColor: '#0e5fa6',
-                    color: '#0e5fa6',
-                    textTransform: 'none',
-                    fontSize: 16,
-                    '&:hover': {
-                      borderColor: '#0d5494',
-                      bgcolor: 'transparent',
-                    },
-                  }}
-                  onClick={() => handleDeletePregunta(0)}
-                >
-                  Cancelar
-                </Button>
-                <Button
-                  variant="contained"
-                  sx={{
-                    width: 124,
-                    bgcolor: '#0e5fa6',
-                    color: 'white',
-                    textTransform: 'none',
-                    fontSize: 16,
-                    '&:hover': {
-                      bgcolor: '#0d5494',
-                    },
-                  }}
-                  onClick={handleAddPregunta}
-                >
-                  Añadir
-                </Button>
-              </Stack>
+              {!(preguntas[0]?.tipo === 'CARGA_ARCHIVO' && !preguntas[0]?.pregunta) && (
+                <Stack direction="row" spacing={3}>
+                  <Button
+                    variant="outlined"
+                    sx={{
+                      width: 124,
+                      borderColor: '#0e5fa6',
+                      color: '#0e5fa6',
+                      textTransform: 'none',
+                      fontSize: 16,
+                      '&:hover': {
+                        borderColor: '#0d5494',
+                        bgcolor: 'transparent',
+                      },
+                    }}
+                    onClick={() => handleDeletePregunta(0)}
+                  >
+                    Cancelar
+                  </Button>
+                  <Button
+                    variant="contained"
+                    sx={{
+                      width: 124,
+                      bgcolor: '#0e5fa6',
+                      color: 'white',
+                      textTransform: 'none',
+                      fontSize: 16,
+                      '&:hover': {
+                        bgcolor: '#0d5494',
+                      },
+                    }}
+                    onClick={handleAddPregunta}
+                  >
+                    Añadir
+                  </Button>
+                </Stack>
+              )}
             </Stack>
           </Box>
 
