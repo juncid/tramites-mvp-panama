@@ -44,6 +44,11 @@ import {
   List as ListIcon,
   TextFields as TextIcon,
   Add as AddIcon,
+  Folder as FolderIcon,
+  Print as PrintIcon,
+  ContentCopy as DuplicateIcon,
+  Edit as EditIcon,
+  Delete as DeleteIcon,
 } from '@mui/icons-material';
 import { workflowService } from '../services/workflow.service';
 import CustomNode from '../components/Workflow/CustomNode';
@@ -66,16 +71,19 @@ const TIPOS_ETAPA = [
   { value: 'ETAPA', label: 'Etapa' },
   { value: 'COMPUERTA', label: 'Compuerta' },
   { value: 'SUBPROCESO', label: 'Subproceso' },
+  { value: 'PRESENCIAL', label: 'Presencial' },
 ];
 
 const TIPOS_PREGUNTA: { value: TipoPregunta; label: string; icon?: React.ReactNode }[] = [
   { value: 'REVISION_OCR', label: 'Revisión OCR por parte del sistema', icon: <ScannerIcon /> },
+  { value: 'DATOS_CASO', label: 'Data del caso', icon: <FolderIcon /> },
   { value: 'OPCIONES', label: 'Opciones', icon: <RadioIcon /> },
   { value: 'SELECCION_FECHA', label: 'Selección de fecha', icon: <CalendarIcon /> },
   { value: 'CARGA_ARCHIVO', label: 'Carga de archivos', icon: <UploadIcon /> },
   { value: 'REVISION_MANUAL_DOCUMENTOS', label: 'Revisión manual de documentos', icon: <DescriptionIcon /> },
   { value: 'LISTA', label: 'Lista', icon: <ListIcon /> },
   { value: 'TEXTO', label: 'Respuesta de texto', icon: <TextIcon /> },
+  { value: 'IMPRESION', label: 'Impresión', icon: <PrintIcon /> },
 ];
 
 export const WorkflowEditorFigma: React.FC = () => {
@@ -207,6 +215,16 @@ export const WorkflowEditorFigma: React.FC = () => {
 
   const handleDeletePregunta = (index: number) => {
     setPreguntas(preguntas.filter((_, i) => i !== index));
+  };
+
+  const handleDuplicatePregunta = (index: number) => {
+    const preguntaToDuplicate = preguntas[index];
+    const newPregunta: WorkflowPregunta = {
+      ...preguntaToDuplicate,
+      codigo: `PREGUNTA_${preguntas.length + 1}`,
+      orden: preguntas.length,
+    };
+    setPreguntas([...preguntas, newPregunta]);
   };
 
   const handlePreguntaChange = (index: number, field: keyof WorkflowPregunta, value: any) => {
@@ -380,8 +398,8 @@ export const WorkflowEditorFigma: React.FC = () => {
                 </MenuItem>
               ))}
             </Select>
-            <Typography sx={{ fontSize: 14, color: '#333333', mt: 0.5, fontWeight: 300 }}>
-              Indicaciones extra
+            <Typography sx={{ fontSize: 14, color: '#788093', mt: 0.5, fontWeight: 300 }}>
+              Seleccione el tipo de etapa que mejor describa esta actividad en el flujo
             </Typography>
           </FormControl>
 
@@ -415,8 +433,8 @@ export const WorkflowEditorFigma: React.FC = () => {
                 },
               }}
             />
-            <Typography sx={{ fontSize: 14, color: '#333333', mt: 0.5, fontWeight: 300 }}>
-              Nombre con el que se identificara la etapa en el diagrama de flujo
+            <Typography sx={{ fontSize: 14, color: '#788093', mt: 0.5, fontWeight: 300 }}>
+              Nombre descriptivo que se mostrará en el diagrama de flujo del proceso
             </Typography>
           </FormControl>
 
@@ -469,8 +487,8 @@ export const WorkflowEditorFigma: React.FC = () => {
                 </MenuItem>
               ))}
             </Select>
-            <Typography sx={{ fontSize: 14, color: '#333333', mt: 0.5, fontWeight: 300 }}>
-              Indicaciones extra
+            <Typography sx={{ fontSize: 14, color: '#788093', mt: 0.5, fontWeight: 300 }}>
+              Seleccione uno o más perfiles que pueden ejecutar esta etapa (Sistema, Funcionario, Usuario)
             </Typography>
           </FormControl>
 
@@ -781,6 +799,113 @@ export const WorkflowEditorFigma: React.FC = () => {
                 </>
               )}
 
+              {/* Data del caso (DATOS_CASO) - Con checkboxes de campos */}
+              {preguntas[0]?.tipo === 'DATOS_CASO' && (
+                <Stack spacing={1.5}>
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        defaultChecked
+                        sx={{ color: '#333333' }}
+                      />
+                    }
+                    label={
+                      <Typography sx={{ fontSize: 16, color: '#333333' }}>
+                        REDEX
+                      </Typography>
+                    }
+                  />
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        defaultChecked
+                        sx={{ color: '#333333' }}
+                      />
+                    }
+                    label={
+                      <Typography sx={{ fontSize: 16, color: '#333333' }}>
+                        Nombre
+                      </Typography>
+                    }
+                  />
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        defaultChecked
+                        sx={{ color: '#333333' }}
+                      />
+                    }
+                    label={
+                      <Typography sx={{ fontSize: 16, color: '#333333' }}>
+                        Nacionalidad
+                      </Typography>
+                    }
+                  />
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        defaultChecked
+                        sx={{ color: '#333333' }}
+                      />
+                    }
+                    label={
+                      <Typography sx={{ fontSize: 16, color: '#333333' }}>
+                        Tramite
+                      </Typography>
+                    }
+                  />
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        defaultChecked
+                        sx={{ color: '#333333' }}
+                      />
+                    }
+                    label={
+                      <Typography sx={{ fontSize: 16, color: '#333333' }}>
+                        Pasaporte
+                      </Typography>
+                    }
+                  />
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        sx={{ color: '#333333' }}
+                      />
+                    }
+                    label={
+                      <Typography sx={{ fontSize: 16, color: '#333333' }}>
+                        Sexo
+                      </Typography>
+                    }
+                  />
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        sx={{ color: '#333333' }}
+                      />
+                    }
+                    label={
+                      <Typography sx={{ fontSize: 16, color: '#333333' }}>
+                        N° de Expediente
+                      </Typography>
+                    }
+                  />
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        sx={{ color: '#333333' }}
+                      />
+                    }
+                    label={
+                      <Typography sx={{ fontSize: 16, color: '#333333' }}>
+                        Fecha de nacimiento
+                      </Typography>
+                    }
+                  />
+                </Stack>
+              )}
+
               {/* Etapa origen de documentos (para REVISION_OCR y REVISION_MANUAL_DOCUMENTOS) */}
               {(preguntas[0]?.tipo === 'REVISION_OCR' ||
                 preguntas[0]?.tipo === 'REVISION_MANUAL_DOCUMENTOS') && (
@@ -932,6 +1057,147 @@ export const WorkflowEditorFigma: React.FC = () => {
                 </>
               )}
 
+              {/* Campos adicionales para CARGA_ARCHIVO cuando hay pregunta */}
+              {preguntas[0]?.tipo === 'CARGA_ARCHIVO' && preguntas[0]?.pregunta && (
+                <>
+                  <TextField
+                    fullWidth
+                    label="Indicaciones"
+                    placeholder="Lorem"
+                    multiline
+                    rows={2}
+                    InputLabelProps={{ shrink: true }}
+                    sx={{
+                      '& .MuiInputLabel-root': {
+                        bgcolor: 'white',
+                        px: 0.5,
+                        fontSize: 14,
+                        fontWeight: 500,
+                        color: '#333333',
+                      },
+                      '& .MuiOutlinedInput-root': {
+                        '& fieldset': {
+                          borderColor: '#333333',
+                        },
+                        '& textarea': {
+                          color: '#4d4d4d',
+                          fontSize: 14,
+                        },
+                      },
+                    }}
+                  />
+                  <Typography sx={{ fontSize: 12, color: '#788093', fontWeight: 300 }}>
+                    (Opcional), indicaciones para la persona que responda la pregunta
+                  </Typography>
+                  <FormControl fullWidth>
+                    <InputLabel
+                      shrink
+                      sx={{
+                        bgcolor: 'white',
+                        px: 0.5,
+                        fontSize: 14,
+                        fontWeight: 500,
+                        color: '#333333',
+                      }}
+                    >
+                      Número máximo de archivos
+                    </InputLabel>
+                    <Select
+                      displayEmpty
+                      IconComponent={ArrowDownIcon}
+                      defaultValue="1"
+                      sx={{
+                        '& .MuiOutlinedInput-notchedOutline': {
+                          borderColor: '#333333',
+                        },
+                        '& .MuiSelect-select': {
+                          color: '#333333',
+                          fontSize: 16,
+                        },
+                      }}
+                    >
+                      <MenuItem value="1">1</MenuItem>
+                      <MenuItem value="2">2</MenuItem>
+                      <MenuItem value="3">3</MenuItem>
+                      <MenuItem value="5">5</MenuItem>
+                      <MenuItem value="10">10</MenuItem>
+                    </Select>
+                  </FormControl>
+                  <FormControl fullWidth>
+                    <InputLabel
+                      shrink
+                      sx={{
+                        bgcolor: 'white',
+                        px: 0.5,
+                        fontSize: 14,
+                        fontWeight: 500,
+                        color: '#333333',
+                      }}
+                    >
+                      Tamaño máximo
+                    </InputLabel>
+                    <Select
+                      displayEmpty
+                      IconComponent={ArrowDownIcon}
+                      defaultValue="100MB"
+                      sx={{
+                        '& .MuiOutlinedInput-notchedOutline': {
+                          borderColor: '#333333',
+                        },
+                        '& .MuiSelect-select': {
+                          color: '#333333',
+                          fontSize: 16,
+                        },
+                      }}
+                    >
+                      <MenuItem value="100MB">100MB</MenuItem>
+                      <MenuItem value="50MB">50MB</MenuItem>
+                      <MenuItem value="20MB">20MB</MenuItem>
+                      <MenuItem value="10MB">10MB</MenuItem>
+                      <MenuItem value="5MB">5MB</MenuItem>
+                    </Select>
+                  </FormControl>
+                  <TextField
+                    fullWidth
+                    label="Documento"
+                    InputLabelProps={{ shrink: true }}
+                    sx={{
+                      '& .MuiInputLabel-root': {
+                        bgcolor: 'white',
+                        px: 0.5,
+                        fontSize: 14,
+                        fontWeight: 500,
+                        color: '#333333',
+                      },
+                      '& .MuiOutlinedInput-root': {
+                        '& fieldset': {
+                          borderColor: '#333333',
+                        },
+                      },
+                    }}
+                  />
+                  <Button
+                    variant="contained"
+                    startIcon={<UploadIcon />}
+                    sx={{
+                      bgcolor: '#0e5fa6',
+                      color: 'white',
+                      textTransform: 'none',
+                      fontSize: 14,
+                      alignSelf: 'flex-start',
+                      '&:hover': {
+                        bgcolor: '#0d5494',
+                      },
+                    }}
+                  >
+                    Cargar archivo
+                  </Button>
+                  <Typography sx={{ fontSize: 12, color: '#788093', fontWeight: 300 }}>
+                    (Opcional), indicaciones para la persona que responda la pregunta
+                  </Typography>
+                </>
+              )}
+
               {/* Botones Cancelar y Añadir */}
               {!(preguntas[0]?.tipo === 'CARGA_ARCHIVO' && !preguntas[0]?.pregunta) && (
                 <Stack direction="row" spacing={3}>
@@ -972,6 +1238,243 @@ export const WorkflowEditorFigma: React.FC = () => {
               )}
             </Stack>
           </Box>
+
+          {/* Preguntas agregadas */}
+          {preguntas.length > 1 && (
+            <Stack spacing={2} sx={{ mt: 3 }}>
+              {preguntas.slice(1).map((pregunta, index) => {
+                const tipoInfo = TIPOS_PREGUNTA.find((t) => t.value === pregunta.tipo);
+                return (
+                  <Box
+                    key={pregunta.codigo}
+                    sx={{
+                      border: '1px solid #e0e0e0',
+                      borderRadius: 1,
+                      p: 2,
+                    }}
+                  >
+                    <Stack spacing={2}>
+                      {/* Header con tipo y botones de acción */}
+                      <Stack direction="row" justifyContent="space-between" alignItems="center">
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          {tipoInfo?.icon && (
+                            <Box
+                              sx={{
+                                border: '1px solid #333333',
+                                borderRadius: '4px',
+                                p: 0.5,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                              }}
+                            >
+                              {React.cloneElement(tipoInfo.icon as React.ReactElement, {
+                                sx: { fontSize: 16, color: '#333333' },
+                              })}
+                            </Box>
+                          )}
+                          <Typography sx={{ fontSize: 16, fontWeight: 500, color: '#333333' }}>
+                            {tipoInfo?.label}
+                          </Typography>
+                        </Box>
+                        <Stack direction="row" spacing={1}>
+                          <IconButton
+                            size="small"
+                            onClick={() => handleDuplicatePregunta(index + 1)}
+                            sx={{ color: '#333333' }}
+                          >
+                            <DuplicateIcon fontSize="small" />
+                          </IconButton>
+                          <IconButton
+                            size="small"
+                            onClick={() => {
+                              // TODO: Implementar edición
+                            }}
+                            sx={{ color: '#333333' }}
+                          >
+                            <EditIcon fontSize="small" />
+                          </IconButton>
+                          <IconButton
+                            size="small"
+                            onClick={() => handleDeletePregunta(index + 1)}
+                            sx={{ color: '#333333' }}
+                          >
+                            <DeleteIcon fontSize="small" />
+                          </IconButton>
+                        </Stack>
+                      </Stack>
+
+                      {/* Contenido según tipo de pregunta */}
+                      {pregunta.tipo === 'DATOS_CASO' && (
+                        <Stack spacing={1}>
+                          <Typography sx={{ fontSize: 14, color: '#4d4d4d', fontWeight: 600 }}>
+                            {pregunta.pregunta || 'Data del caso'}
+                          </Typography>
+                          <Stack direction="row" spacing={2} flexWrap="wrap">
+                            <FormControlLabel
+                              control={<Checkbox defaultChecked size="small" disabled />}
+                              label={
+                                <Typography sx={{ fontSize: 14, color: '#4d4d4d' }}>REDEX</Typography>
+                              }
+                            />
+                            <FormControlLabel
+                              control={<Checkbox defaultChecked size="small" disabled />}
+                              label={
+                                <Typography sx={{ fontSize: 14, color: '#4d4d4d' }}>Nombre</Typography>
+                              }
+                            />
+                            <FormControlLabel
+                              control={<Checkbox defaultChecked size="small" disabled />}
+                              label={
+                                <Typography sx={{ fontSize: 14, color: '#4d4d4d' }}>
+                                  Nacionalidad
+                                </Typography>
+                              }
+                            />
+                            <FormControlLabel
+                              control={<Checkbox defaultChecked size="small" disabled />}
+                              label={
+                                <Typography sx={{ fontSize: 14, color: '#4d4d4d' }}>Tramite</Typography>
+                              }
+                            />
+                            <FormControlLabel
+                              control={<Checkbox defaultChecked size="small" disabled />}
+                              label={
+                                <Typography sx={{ fontSize: 14, color: '#4d4d4d' }}>
+                                  Pasaporte
+                                </Typography>
+                              }
+                            />
+                          </Stack>
+                        </Stack>
+                      )}
+
+                      {pregunta.tipo === 'LISTA' && (
+                        <Stack spacing={1}>
+                          <Typography sx={{ fontSize: 14, color: '#4d4d4d', fontWeight: 600 }}>
+                            {pregunta.pregunta || 'Lista'}
+                          </Typography>
+                          <Stack spacing={0.5}>
+                            <FormControlLabel
+                              control={<Checkbox defaultChecked size="small" disabled />}
+                              label={
+                                <Typography sx={{ fontSize: 14, color: '#4d4d4d' }}>
+                                  832/Carnet de Tramite B/.50.00
+                                </Typography>
+                              }
+                            />
+                            <FormControlLabel
+                              control={<Checkbox defaultChecked size="small" disabled />}
+                              label={
+                                <Typography sx={{ fontSize: 14, color: '#4d4d4d' }}>
+                                  770/Cheque de 250
+                                </Typography>
+                              }
+                            />
+                          </Stack>
+                        </Stack>
+                      )}
+
+                      {pregunta.tipo === 'TEXTO' && (
+                        <Stack spacing={1}>
+                          <Typography sx={{ fontSize: 14, color: '#4d4d4d', fontWeight: 600 }}>
+                            {pregunta.pregunta || 'Respuesta texto'}
+                          </Typography>
+                          <TextField
+                            size="small"
+                            disabled
+                            placeholder="Escribe tu respuesta aquí..."
+                            sx={{
+                              '& .MuiOutlinedInput-root': {
+                                fontSize: 14,
+                                color: '#4d4d4d',
+                              },
+                            }}
+                          />
+                        </Stack>
+                      )}
+
+                      {pregunta.tipo === 'OPCIONES' && (
+                        <Stack spacing={1}>
+                          <Typography sx={{ fontSize: 14, color: '#4d4d4d', fontWeight: 600 }}>
+                            {pregunta.pregunta || 'Opciones'}
+                          </Typography>
+                          <Stack spacing={0.5}>
+                            <FormControlLabel
+                              control={<Checkbox size="small" disabled />}
+                              label={<Typography sx={{ fontSize: 14, color: '#4d4d4d' }}>Sí</Typography>}
+                            />
+                            <FormControlLabel
+                              control={<Checkbox size="small" disabled />}
+                              label={<Typography sx={{ fontSize: 14, color: '#4d4d4d' }}>No</Typography>}
+                            />
+                          </Stack>
+                        </Stack>
+                      )}
+
+                      {pregunta.tipo === 'IMPRESION' && (
+                        <Typography sx={{ fontSize: 14, color: '#4d4d4d', fontWeight: 600 }}>
+                          {pregunta.pregunta || 'Impresión'}
+                        </Typography>
+                      )}
+
+                      {pregunta.tipo === 'SELECCION_FECHA' && (
+                        <Stack spacing={1}>
+                          <Typography sx={{ fontSize: 14, color: '#4d4d4d', fontWeight: 600 }}>
+                            {pregunta.pregunta || 'Selección de fecha'}
+                          </Typography>
+                          <TextField
+                            size="small"
+                            type="date"
+                            disabled
+                            sx={{
+                              '& .MuiOutlinedInput-root': {
+                                fontSize: 14,
+                                color: '#4d4d4d',
+                              },
+                            }}
+                          />
+                        </Stack>
+                      )}
+
+                      {pregunta.tipo === 'CARGA_ARCHIVO' && (
+                        <Stack spacing={1}>
+                          <Typography sx={{ fontSize: 14, color: '#4d4d4d', fontWeight: 600 }}>
+                            {pregunta.pregunta || 'Carga de archivo'}
+                          </Typography>
+                          <Button
+                            variant="outlined"
+                            size="small"
+                            disabled
+                            startIcon={<UploadIcon />}
+                            sx={{
+                              textTransform: 'none',
+                              fontSize: 14,
+                              alignSelf: 'flex-start',
+                            }}
+                          >
+                            Cargar archivo
+                          </Button>
+                        </Stack>
+                      )}
+
+                      {pregunta.tipo === 'REVISION_OCR' && (
+                        <Typography sx={{ fontSize: 14, color: '#4d4d4d', fontWeight: 600 }}>
+                          {pregunta.pregunta || 'Revisión OCR'}
+                        </Typography>
+                      )}
+
+                      {pregunta.tipo === 'REVISION_MANUAL_DOCUMENTOS' && (
+                        <Typography sx={{ fontSize: 14, color: '#4d4d4d', fontWeight: 600 }}>
+                          {pregunta.pregunta || 'Revisión manual de documentos'}
+                        </Typography>
+                      )}
+                    </Stack>
+                  </Box>
+                );
+              })}
+            </Stack>
+          )}
 
           {/* Botones finales Cancelar y Guardar */}
           <Stack direction="row" spacing={3} sx={{ pt: 2 }}>

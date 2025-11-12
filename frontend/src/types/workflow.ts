@@ -2,7 +2,7 @@
  * Tipos para el sistema de Workflows/Procesos dinámicos
  */
 
-export type TipoEtapa = 'ETAPA' | 'COMPUERTA' | 'SUBPROCESO';
+export type TipoEtapa = 'ETAPA' | 'COMPUERTA' | 'SUBPROCESO' | 'PRESENCIAL';
 export type TipoPregunta = 
   | 'TEXTO' 
   | 'NUMERO' 
