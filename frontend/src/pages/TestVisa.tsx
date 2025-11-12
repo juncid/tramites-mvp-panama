@@ -10,6 +10,8 @@ import ReactFlow, {
   MarkerType,
   BackgroundVariant,
   NodeProps,
+  Handle,
+  Position,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import {
@@ -59,6 +61,7 @@ const StartNode = () => {
       >
         Inicio
       </Typography>
+      <Handle type="source" position={Position.Right} style={{ background: '#555' }} />
     </Box>
   );
 };
@@ -81,8 +84,12 @@ const StepNode = ({ data }: NodeProps<StepNodeData>) => {
         gap: 0.5,
         alignItems: 'center',
         justifyContent: 'center',
+        position: 'relative',
       }}
     >
+      <Handle type="target" position={Position.Left} style={{ background: '#555' }} />
+      <Handle type="source" position={Position.Right} style={{ background: '#555' }} />
+      
       {/* Badges */}
       <Box sx={{ display: 'flex', gap: 1.25, width: '100%' }}>
         {data.hasPerson && (

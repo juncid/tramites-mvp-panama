@@ -7,6 +7,7 @@ import { RevisionRequisitos } from '../pages/RevisionRequisitos';
 import { Etapas } from '../pages/Etapas';
 import { Procesos } from '../pages/Procesos';
 import { WorkflowEditor } from '../pages/WorkflowEditor';
+import { WorkflowEditorFigma } from '../pages/WorkflowEditorFigma';
 import { CargaDocumentosPPSH } from '../pages/CargaDocumentosPPSH';
 import { DetalleProcesoPPSH } from '../pages/DetalleProcesoPPSH';
 import { TestVisa } from '../pages/TestVisa';
@@ -109,6 +110,14 @@ export const AppRouter = () => {
         element={
           <MainLayout>
             <TestVisa />
+          </MainLayout>
+        }
+      />
+      <Route
+        path="/workflow-editor-figma"
+        element={
+          <MainLayout>
+            <WorkflowEditorFigma />
           </MainLayout>
         }
       />
