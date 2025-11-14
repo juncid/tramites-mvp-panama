@@ -29,6 +29,7 @@ import { ArrowBack as ArrowBackIcon } from '@mui/icons-material';
 import { workflowService } from '../services/workflow.service';
 import { vistaConfigService } from '../services/vista-config.service';
 import { DynamicRenderer } from '../components/DynamicView/DynamicRenderer';
+import { FormularioTradicional } from '../components/Workflow/FormularioTradicional';
 import type {
   WorkflowInstancia,
   WorkflowEtapa,
@@ -254,17 +255,21 @@ export const ProcesoEjecucion: React.FC = () => {
               </Alert>
               <DynamicRenderer config={vistaConfig} onSubmit={handleSubmit} />
             </Box>
-          ) : (
+          ) : etapaActual.preguntas && etapaActual.preguntas.length > 0 ? (
             <Box>
-              <Alert severity="warning" sx={{ mb: 2 }}>
-                Esta etapa no tiene vista dinámica configurada. Se mostrará el formulario
-                tradicional (en desarrollo).
+              <Alert severity="info" sx={{ mb: 2 }}>
+                Formulario tradicional ({etapaActual.preguntas.length} preguntas)
               </Alert>
-              {/* TODO: Implementar FormularioTradicional */}
-              <Typography variant="body2" color="text.secondary">
-                Preguntas tradicionales: {etapaActual.preguntas?.length || 0}
-              </Typography>
+              <FormularioTradicional
+                preguntas={etapaActual.preguntas}
+                onSubmit={handleSubmit}
+              />
             </Box>
+          ) : (
+            <Alert severity="warning">
+              Esta etapa no tiene formulario configurado (ni vista dinámica ni preguntas
+              tradicionales).
+            </Alert>
           )}
 
           {/* Mostrar errores */}
