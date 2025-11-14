@@ -137,3 +137,63 @@ export interface WorkflowEdge {
   target: string;
   label?: string;
 }
+
+// Tipos para instancias de workflow (ejecución)
+export type EstadoInstancia = 
+  | 'PENDIENTE' 
+  | 'EN_PROGRESO' 
+  | 'COMPLETADA' 
+  | 'RECHAZADA' 
+  | 'CANCELADA';
+
+export interface WorkflowInstancia {
+  id: number;
+  workflow_id: number;
+  workflow?: Workflow;
+  codigo_referencia: string;
+  estado: EstadoInstancia;
+  etapa_actual_id?: number;
+  etapa_actual?: WorkflowEtapa;
+  datos_contexto?: any;
+  fecha_inicio: string;
+  fecha_finalizacion?: string;
+  usuario_id?: string;
+  activo: boolean;
+  created_at: string;
+  created_by?: string;
+  updated_at?: string;
+  updated_by?: string;
+}
+
+export interface WorkflowRespuesta {
+  id: number;
+  instancia_id: number;
+  etapa_id: number;
+  pregunta_id?: number;
+  campo_id?: string; // Para vistas dinámicas
+  valor_texto?: string;
+  valor_numero?: number;
+  valor_fecha?: string;
+  valor_booleano?: boolean;
+  valor_json?: any;
+  archivos?: any[];
+  created_at: string;
+  created_by?: string;
+}
+
+export interface TransicionRequest {
+  etapa_destino_id: number;
+  respuestas: RespuestaFormulario[];
+  comentario?: string;
+}
+
+export interface RespuestaFormulario {
+  pregunta_id?: number;
+  campo_id?: string;
+  valor_texto?: string;
+  valor_numero?: number;
+  valor_fecha?: string;
+  valor_booleano?: boolean;
+  valor_json?: any;
+  archivos?: any[];
+}

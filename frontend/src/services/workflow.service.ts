@@ -9,6 +9,9 @@ import type {
   WorkflowEtapa,
   WorkflowPregunta,
   WorkflowConexion,
+  WorkflowInstancia,
+  TransicionRequest,
+  WorkflowRespuesta,
 } from '../types/workflow';
 
 export const workflowService = {
@@ -108,5 +111,60 @@ export const workflowService = {
    */
   async deleteConexion(id: number): Promise<void> {
     return apiClient.delete(`/workflow/conexiones/${id}`);
+  },
+
+  // ==========================================
+  // MÉTODOS DE INSTANCIAS (EJECUCIÓN)
+  // ==========================================
+
+  /**
+   * Obtener una instancia por ID
+   */
+  async getInstancia(id: number): Promise<WorkflowInstancia> {
+    return apiClient.get<WorkflowInstancia>(`/workflow/instancias/${id}`);
+  },
+
+  /**
+   * Crear una nueva instancia de workflow
+   */
+  async createInstancia(workflowId: number, data?: any): Promise<WorkflowInstancia> {
+    return apiClient.post<WorkflowInstancia>('/workflow/instancias', {
+      workflow_id: workflowId,
+      datos_contexto: data,
+    });
+  },
+
+  /**
+   * Transicionar instancia a siguiente etapa
+   */
+  async transicionarInstancia(
+    instanciaId: number,
+    data: TransicionRequest
+  ): Promise<WorkflowInstancia> {
+    return apiClient.post<WorkflowInstancia>(
+      `/workflow/instancias/${instanciaId}/transicionar`,
+      data
+    );
+  },
+
+  /**
+   * Obtener respuestas de una etapa
+   */
+  async getRespuestas(
+    instanciaId: number,
+    etapaId?: number
+  ): Promise<WorkflowRespuesta[]> {
+    const params = etapaId ? { etapa_id: etapaId } : {};
+    return apiClient.get<WorkflowRespuesta[]>(
+      `/workflow/instancias/${instanciaId}/respuestas`,
+      { params }
+    );
+  },
+
+  /**
+   * Obtener una etapa por ID
+   */
+  async getEtapa(id: number): Promise<WorkflowEtapa> {
+    return apiClient.get<WorkflowEtapa>(`/workflow/etapas/${id}`);
   },
 };
