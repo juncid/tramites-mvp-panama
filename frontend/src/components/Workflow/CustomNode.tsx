@@ -1,12 +1,30 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Handle, Position, NodeProps } from 'reactflow';
 import { Box, Paper, Typography, Chip } from '@mui/material';
-import { Add as AddIcon } from '@mui/icons-material';
+import { Add as AddIcon, AutoAwesome as AutoAwesomeIcon } from '@mui/icons-material';
 import type { WorkflowEtapa } from '../../types/workflow';
+import { vistaConfigService } from '../../services/vista-config.service';
 
 export const CustomNode: React.FC<NodeProps<WorkflowEtapa>> = ({ data }) => {
   const isInicio = data.es_inicial || data.es_etapa_inicial;
   const isPlaceholder = (data as any).is_placeholder || !data.nombre;
+  const [tieneVistaDinamica, setTieneVistaDinamica] = useState(false);
+  
+  // Verificar si existe configuración de vista dinámica
+  useEffect(() => {
+    const checkVistaConfig = async () => {
+      if (data.id && !isInicio && !isPlaceholder) {
+        try {
+          const config = await vistaConfigService.getByEtapaId(data.id);
+          setTieneVistaDinamica(!!config);
+        } catch {
+          setTieneVistaDinamica(false);
+        }
+      }
+    };
+
+    checkVistaConfig();
+  }, [data.id, isInicio, isPlaceholder]);
   
   const getNodeColor = () => {
     switch (data.tipo_etapa) {
@@ -128,6 +146,27 @@ export const CustomNode: React.FC<NodeProps<WorkflowEtapa>> = ({ data }) => {
           <Typography variant="caption" color="text.secondary">
             {data.codigo}
           </Typography>
+          
+          {/* Badge de Vista Dinámica */}
+          {tieneVistaDinamica && (
+            <Box sx={{ mt: 1 }}>
+              <Chip
+                icon={<AutoAwesomeIcon sx={{ fontSize: '0.9rem' }} />}
+                label="Vista Dinámica"
+                size="small"
+                color="primary"
+                sx={{ 
+                  fontSize: '0.65rem', 
+                  height: 20, 
+                  fontWeight: 600,
+                  '& .MuiChip-icon': {
+                    marginLeft: '4px'
+                  }
+                }}
+              />
+            </Box>
+          )}
+          
           {data.perfiles_permitidos && data.perfiles_permitidos.length > 0 && (
             <Box sx={{ mt: 1 }}>
               {data.perfiles_permitidos.map((perfil) => (
