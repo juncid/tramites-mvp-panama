@@ -137,12 +137,13 @@ class WorkflowService:
         limit: int = 100,
         estado: Optional[str] = None,
         categoria: Optional[str] = None,
-        activo: Optional[bool] = None
+        activo: bool = True
     ) -> List[Dict[str, Any]]:
-        """Lista workflows con filtros"""
+        """Lista workflows con filtros. Por defecto solo muestra workflows activos."""
         query = db.query(models.Workflow)
-        if activo is not None:
-            query = query.filter(models.Workflow.activo == activo)
+        
+        # Filtrar por workflows activos (por defecto)
+        query = query.filter(models.Workflow.activo == activo)
         
         if estado:
             query = query.filter(models.Workflow.estado == estado)
@@ -301,10 +302,10 @@ class EtapaService:
         etapa_update: schemas.WorkflowEtapaUpdate,
         updated_by: str
     ) -> models.WorkflowEtapa:
-        """Actualiza una etapa"""
+        """Actualiza una etapa y sus preguntas"""
         db_etapa = EtapaService.obtener_etapa(db, etapa_id)
         
-        update_data = etapa_update.model_dump(exclude_unset=True)
+        update_data = etapa_update.model_dump(exclude_unset=True, exclude={'preguntas'})
         
         # Si se actualiza el código, verificar unicidad
         if "codigo" in update_data:
@@ -316,6 +317,26 @@ class EtapaService:
             setattr(db_etapa, field, value)
         
         db_etapa.updated_by = updated_by
+        
+        # Actualizar preguntas si se proporcionan
+        if etapa_update.preguntas is not None:
+            # Eliminar preguntas existentes
+            db.query(models.WorkflowPregunta).filter(
+                models.WorkflowPregunta.etapa_id == etapa_id
+            ).delete()
+            
+            # Crear nuevas preguntas
+            for pregunta_data in etapa_update.preguntas:
+                # Convertir a dict si no lo es
+                if hasattr(pregunta_data, 'model_dump'):
+                    pregunta_dict = pregunta_data.model_dump()
+                else:
+                    pregunta_dict = pregunta_data
+                
+                # Crear como WorkflowPreguntaCreate con etapa_id
+                pregunta_create = schemas.WorkflowPreguntaCreate(**pregunta_dict, etapa_id=etapa_id)
+                PreguntaService.crear_pregunta(db, pregunta_create, etapa_id, updated_by)
+        
         db.commit()
         db.refresh(db_etapa)
         return db_etapa

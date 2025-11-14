@@ -55,10 +55,10 @@ def listar_workflows(
     limit: int = Query(100, ge=1, le=1000),
     estado: Optional[schemas.EstadoWorkflowEnum] = None,
     categoria: Optional[str] = None,
-    activo: Optional[bool] = None,
+    activo: bool = Query(True, description="Filtrar por workflows activos (True) o inactivos (False)"),
     db: Session = Depends(get_db)
 ):
-    """Lista todos los workflows disponibles"""
+    """Lista todos los workflows disponibles. Por defecto solo muestra workflows activos."""
     return WorkflowService.listar_workflows(db, skip, limit, estado, categoria, activo)
 
 

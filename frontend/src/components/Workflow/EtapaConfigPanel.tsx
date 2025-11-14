@@ -23,15 +23,16 @@ import {
   Close as CloseIcon,
   Add as AddIcon,
   Delete as DeleteIcon,
+  Edit as EditIcon,
   TextFields as TextIcon,
   Numbers as NumberIcon,
   CalendarToday as DateIcon,
   RadioButtonChecked as RadioIcon,
   CheckBox as CheckBoxIcon,
-  List as ListIcon,
   CloudUpload as UploadIcon,
   CloudDownload as DownloadIcon,
-  Folder as FolderIcon,
+  TableChart as DataTableIcon,
+  FindInPage as DocumentSearchIcon,
   DocumentScanner as ScannerIcon,
   Print as PrintIcon,
   Draw as SignatureIcon,
@@ -59,49 +60,45 @@ const PERFILES_DISPONIBLES = [
 
 const TIPOS_PREGUNTA: { value: TipoPregunta; label: string }[] = [
   { value: 'TEXTO', label: 'Respuesta de texto' },
-  { value: 'NUMERO', label: 'Número' },
-  { value: 'FECHA', label: 'Selección de fecha' },
-  { value: 'SELECCION_SIMPLE', label: 'Opciones (selección simple)' },
-  { value: 'SELECCION_MULTIPLE', label: 'Opciones (selección múltiple)' },
   { value: 'LISTA', label: 'Lista' },
+  { value: 'SELECCION_SIMPLE', label: 'Opciones' },
   { value: 'CARGA_ARCHIVO', label: 'Carga de archivos' },
   { value: 'DESCARGA_ARCHIVOS', label: 'Descarga de archivos' },
   { value: 'DATOS_CASO', label: 'Data del caso' },
   { value: 'REVISION_MANUAL_DOCUMENTOS', label: 'Revisión manual de documentos' },
-  { value: 'REVISION_OCR', label: 'Revisión OCR' },
+  { value: 'REVISION_OCR', label: 'Revisión OCR por parte del sistema' },
+  { value: 'FECHA', label: 'Selección de fecha' },
   { value: 'IMPRESION', label: 'Impresión' },
-  { value: 'FIRMA_DIGITAL', label: 'Firma digital' },
-  { value: 'PAGO', label: 'Pago' },
-  { value: 'NOTIFICACION', label: 'Notificación' },
 ];
 
 const getTipoPreguntaIcon = (tipo: TipoPregunta) => {
   switch (tipo) {
     case 'TEXTO':
       return <TextIcon />;
-    case 'NUMERO':
-      return <NumberIcon />;
-    case 'FECHA':
-    case 'SELECCION_FECHA':
-      return <DateIcon />;
+    case 'LISTA':
+      return <CheckBoxIcon />;
     case 'SELECCION_SIMPLE':
       return <RadioIcon />;
-    case 'SELECCION_MULTIPLE':
-      return <CheckBoxIcon />;
-    case 'LISTA':
-      return <ListIcon />;
     case 'CARGA_ARCHIVO':
       return <UploadIcon />;
     case 'DESCARGA_ARCHIVOS':
       return <DownloadIcon />;
     case 'DATOS_CASO':
-      return <FolderIcon />;
+      return <DataTableIcon />;
     case 'REVISION_MANUAL_DOCUMENTOS':
-      return <FolderIcon />;
+      return <DocumentSearchIcon />;
     case 'REVISION_OCR':
       return <ScannerIcon />;
+    case 'FECHA':
+    case 'SELECCION_FECHA':
+      return <DateIcon />;
     case 'IMPRESION':
       return <PrintIcon />;
+    // Tipos legacy que pueden estar en BD
+    case 'NUMERO':
+      return <NumberIcon />;
+    case 'SELECCION_MULTIPLE':
+      return <CheckBoxIcon />;
     case 'FIRMA_DIGITAL':
       return <SignatureIcon />;
     case 'PAGO':
@@ -140,6 +137,9 @@ export const EtapaConfigPanel: React.FC<EtapaConfigPanelProps> = ({
   const [formData, setFormData] = useState<Partial<WorkflowEtapa>>(etapa);
   const [preguntas, setPreguntas] = useState<WorkflowPregunta[]>(etapa.preguntas || []);
   const [tabIndex, setTabIndex] = useState(0);
+  const [editingIndex, setEditingIndex] = useState<number | null>(null); // null = no editing, -1 = new question, >= 0 = editing existing
+  const [tempPregunta, setTempPregunta] = useState<WorkflowPregunta | null>(null);
+  const [newListItem, setNewListItem] = useState<string>('');
 
   useEffect(() => {
     setFormData(etapa);
@@ -167,27 +167,67 @@ export const EtapaConfigPanel: React.FC<EtapaConfigPanelProps> = ({
       es_visible: true,
       activo: true,
     };
-    setPreguntas([...preguntas, newPregunta]);
+    setTempPregunta(newPregunta);
+    setEditingIndex(-1); // -1 indicates new question
+  };
+
+  const handleEditPregunta = (index: number) => {
+    setTempPregunta({ ...preguntas[index] });
+    setEditingIndex(index);
+  };
+
+  const handleCancelEdit = () => {
+    setTempPregunta(null);
+    setEditingIndex(null);
+  };
+
+  const handleConfirmPregunta = () => {
+    if (!tempPregunta) return;
+
+    if (editingIndex === -1) {
+      // Adding new question
+      setPreguntas([...preguntas, tempPregunta]);
+    } else if (editingIndex !== null) {
+      // Editing existing question
+      const updated = [...preguntas];
+      updated[editingIndex] = tempPregunta;
+      setPreguntas(updated);
+    }
+
+    setTempPregunta(null);
+    setEditingIndex(null);
+  };
+
+  const handleDuplicatePregunta = (index: number) => {
+    const duplicated = { ...preguntas[index], codigo: `PREGUNTA_${preguntas.length + 1}`, orden: preguntas.length };
+    setPreguntas([...preguntas, duplicated]);
   };
 
   const handleDeletePregunta = (index: number) => {
     setPreguntas(preguntas.filter((_, i) => i !== index));
   };
 
-  const handlePreguntaChange = (index: number, field: keyof WorkflowPregunta, value: any) => {
-    const updated = [...preguntas];
-    updated[index] = { ...updated[index], [field]: value };
-    setPreguntas(updated);
+  const handlePreguntaChange = (field: string, value: any) => {
+    if (!tempPregunta) return;
+    setTempPregunta({ ...tempPregunta, [field]: value });
+    
+    // Sync 'texto' with 'pregunta' field
+    if (field === 'texto') {
+      setTempPregunta((prev) => prev ? { ...prev, texto: value, pregunta: value } : null);
+    } else if (field === 'pregunta') {
+      setTempPregunta((prev) => prev ? { ...prev, pregunta: value, texto: value } : null);
+    }
+    
+    // Sync 'tipo' with 'tipo_pregunta' field
+    if (field === 'tipo') {
+      setTempPregunta((prev) => prev ? { ...prev, tipo: value as TipoPregunta, tipo_pregunta: value as TipoPregunta } : null);
+    } else if (field === 'tipo_pregunta') {
+      setTempPregunta((prev) => prev ? { ...prev, tipo_pregunta: value as TipoPregunta, tipo: value as TipoPregunta } : null);
+    }
   };
 
   const handleSave = () => {
-    console.log('📝 EtapaConfigPanel - Guardando:', {
-      formData,
-      preguntas,
-      datosCompletos: { ...formData, preguntas },
-      cantidadPreguntas: preguntas.length
-    });
-    onSave({ ...formData, preguntas });
+        onSave({ ...formData, preguntas });
   };
 
   return (
@@ -315,55 +355,131 @@ export const EtapaConfigPanel: React.FC<EtapaConfigPanelProps> = ({
             </Stack>
 
             <Stack spacing={2}>
-              {preguntas.map((pregunta, index) => (
+              {/* Fase 1: Tarjetas compactas para preguntas guardadas */}
+              {preguntas.filter((_, idx) => editingIndex !== idx).map((pregunta, index) => (
                 <Box
                   key={index}
                   sx={{
-                    p: 2,
-                    border: 1,
-                    borderColor: 'divider',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1.5,
+                    p: 1.5,
+                    border: '2px solid #333333',
                     borderRadius: 1,
-                    bgcolor: 'background.paper',
+                    bgcolor: 'white',
+                  }}
+                >
+                  {/* Icono del tipo */}
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      minWidth: 32,
+                      height: 32,
+                      color: '#333333',
+                    }}
+                  >
+                    {getTipoPreguntaIcon(pregunta.tipo)}
+                  </Box>
+
+                  {/* Texto de la pregunta */}
+                  <Typography
+                    sx={{
+                      flex: 1,
+                      fontSize: '14px',
+                      color: '#333333',
+                    }}
+                  >
+                    {pregunta.texto}
+                  </Typography>
+
+                  {/* Checkbox obligatoria */}
+                  <Checkbox
+                    checked={pregunta.es_obligatoria}
+                    disabled
+                    size="small"
+                    sx={{ color: '#333333' }}
+                  />
+
+                  {/* Botones de acción */}
+                  <Button
+                    size="small"
+                    onClick={() => handleDuplicatePregunta(index)}
+                    sx={{
+                      minWidth: 'auto',
+                      px: 1,
+                      color: '#333333',
+                      textTransform: 'none',
+                      fontSize: '13px',
+                    }}
+                  >
+                    Duplicar
+                  </Button>
+                  <Button
+                    size="small"
+                    startIcon={<EditIcon />}
+                    onClick={() => handleEditPregunta(index)}
+                    sx={{
+                      minWidth: 'auto',
+                      px: 1,
+                      color: '#333333',
+                      textTransform: 'none',
+                      fontSize: '13px',
+                    }}
+                  >
+                    Editar
+                  </Button>
+                  <Button
+                    size="small"
+                    onClick={() => handleDeletePregunta(index)}
+                    sx={{
+                      minWidth: 'auto',
+                      px: 1,
+                      color: '#cc3333',
+                      textTransform: 'none',
+                      fontSize: '13px',
+                    }}
+                  >
+                    Borrar
+                  </Button>
+                </Box>
+              ))}
+
+              {/* Fase 2: Formulario de edición (cuando editingIndex !== null) */}
+              {editingIndex !== null && tempPregunta && (
+                <Box
+                  sx={{
+                    p: 2,
+                    border: '2px dashed #333333',
+                    borderRadius: 1,
+                    bgcolor: '#fafafa',
                   }}
                 >
                   <Stack spacing={2}>
-                    <Stack direction="row" justifyContent="space-between" alignItems="center">
-                      <Stack direction="row" spacing={1} alignItems="center">
-                        <Box
-                          sx={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            width: 32,
-                            height: 32,
-                            borderRadius: 1,
-                            bgcolor: 'primary.light',
-                            color: 'primary.main',
-                          }}
-                        >
-                          {getTipoPreguntaIcon(pregunta.tipo)}
-                        </Box>
-                        <Typography variant="caption" color="text.secondary">
-                          Pregunta {index + 1}
-                        </Typography>
-                      </Stack>
-                      <IconButton size="small" onClick={() => handleDeletePregunta(index)}>
-                        <DeleteIcon fontSize="small" />
-                      </IconButton>
-                    </Stack>
-
                     <FormControl fullWidth size="small">
                       <InputLabel>Tipo de pregunta</InputLabel>
                       <Select
-                        value={pregunta.tipo}
+                        value={tempPregunta.tipo}
                         label="Tipo de pregunta"
-                        onChange={(e) =>
-                          handlePreguntaChange(index, 'tipo', e.target.value as TipoPregunta)
-                        }
+                        onChange={(e) => handlePreguntaChange('tipo', e.target.value as TipoPregunta)}
                       >
                         {TIPOS_PREGUNTA.map((tipo) => (
                           <MenuItem key={tipo.value} value={tipo.value}>
-                            {tipo.label}
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <Box
+                                sx={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  border: '1px solid #333333',
+                                  borderRadius: '4px',
+                                  p: 0.5,
+                                }}
+                              >
+                                {getTipoPreguntaIcon(tipo.value)}
+                              </Box>
+                              {tipo.label}
+                            </Box>
                           </MenuItem>
                         ))}
                       </Select>
@@ -373,15 +489,15 @@ export const EtapaConfigPanel: React.FC<EtapaConfigPanelProps> = ({
                       fullWidth
                       size="small"
                       label="Texto de la pregunta"
-                      value={pregunta.texto}
-                      onChange={(e) => handlePreguntaChange(index, 'texto', e.target.value)}
+                      value={tempPregunta.texto}
+                      onChange={(e) => handlePreguntaChange('texto', e.target.value)}
                     />
 
                     <FormControlLabel
                       control={
                         <Checkbox
-                          checked={pregunta.es_obligatoria}
-                          onChange={(e) => handlePreguntaChange(index, 'es_obligatoria', e.target.checked)}
+                          checked={tempPregunta.es_obligatoria}
+                          onChange={(e) => handlePreguntaChange('es_obligatoria', e.target.checked)}
                           size="small"
                         />
                       }
@@ -392,40 +508,181 @@ export const EtapaConfigPanel: React.FC<EtapaConfigPanelProps> = ({
                       fullWidth
                       size="small"
                       label="Ayuda"
-                      value={pregunta.ayuda || ''}
-                      onChange={(e) => handlePreguntaChange(index, 'ayuda', e.target.value)}
+                      value={tempPregunta.ayuda || ''}
+                      onChange={(e) => handlePreguntaChange('ayuda', e.target.value)}
                       placeholder="Texto de ayuda opcional"
                     />
 
-                    {/* Campos específicos para CARGA_ARCHIVO */}
-                    {pregunta.tipo === 'CARGA_ARCHIVO' && (
+                    {/* Campos específicos según tipo de pregunta */}
+                    
+                    {/* TEXTO */}
+                    {tempPregunta.tipo === 'TEXTO' && (
+                      <>
+                        <TextField
+                          fullWidth
+                          size="small"
+                          label="Número mínimo de caracteres"
+                          type="number"
+                          value={tempPregunta.min_caracteres || ''}
+                          onChange={(e) => handlePreguntaChange('min_caracteres', e.target.value ? parseInt(e.target.value) : undefined)}
+                          InputProps={{ inputProps: { min: 0 } }}
+                        />
+                        <TextField
+                          fullWidth
+                          size="small"
+                          label="Número máximo de caracteres"
+                          type="number"
+                          value={tempPregunta.max_caracteres || ''}
+                          onChange={(e) => handlePreguntaChange('max_caracteres', e.target.value ? parseInt(e.target.value) : undefined)}
+                          InputProps={{ inputProps: { min: 1 } }}
+                        />
+                      </>
+                    )}
+
+                    {/* LISTA */}
+                    {tempPregunta.tipo === 'LISTA' && (
+                      <Box>
+                        <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block' }}>
+                          Elementos de la lista
+                        </Typography>
+                        <Stack direction="row" spacing={1} sx={{ mb: 1 }}>
+                          <TextField
+                            fullWidth
+                            size="small"
+                            placeholder="Agregar elemento"
+                            value={newListItem}
+                            onChange={(e) => setNewListItem(e.target.value)}
+                            onKeyPress={(e) => {
+                              if (e.key === 'Enter' && newListItem.trim()) {
+                                const currentItems = tempPregunta.lista_elementos || [];
+                                handlePreguntaChange('lista_elementos', [...currentItems, newListItem.trim()]);
+                                setNewListItem('');
+                              }
+                            }}
+                          />
+                          <Button
+                            variant="outlined"
+                            size="small"
+                            onClick={() => {
+                              if (newListItem.trim()) {
+                                const currentItems = tempPregunta.lista_elementos || [];
+                                handlePreguntaChange('lista_elementos', [...currentItems, newListItem.trim()]);
+                                setNewListItem('');
+                              }
+                            }}
+                            sx={{ minWidth: 'auto', px: 2 }}
+                          >
+                            <AddIcon />
+                          </Button>
+                        </Stack>
+                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                          {(tempPregunta.lista_elementos || []).map((item, idx) => (
+                            <Chip
+                              key={idx}
+                              label={item}
+                              onDelete={() => {
+                                const currentItems = tempPregunta.lista_elementos || [];
+                                handlePreguntaChange(
+                                  'lista_elementos',
+                                  currentItems.filter((_, i) => i !== idx)
+                                );
+                              }}
+                              size="small"
+                              sx={{ bgcolor: '#f5f5f5' }}
+                            />
+                          ))}
+                        </Box>
+                        {(tempPregunta.lista_elementos || []).length === 0 && (
+                          <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                            No hay elementos en la lista
+                          </Typography>
+                        )}
+                      </Box>
+                    )}
+
+                    {/* CARGA_ARCHIVO */}
+                    {tempPregunta.tipo === 'CARGA_ARCHIVO' && (
                       <>
                         <TextField
                           fullWidth
                           size="small"
                           label="Número máximo de archivos"
                           type="number"
-                          defaultValue={1}
+                          value={tempPregunta.max_archivos || 1}
+                          onChange={(e) => handlePreguntaChange('max_archivos', parseInt(e.target.value))}
                           InputProps={{ inputProps: { min: 1, max: 10 } }}
                         />
-                        <FormControl fullWidth size="small">
-                          <InputLabel>Tamaño máximo</InputLabel>
-                          <Select defaultValue="100MB" label="Tamaño máximo">
-                            <MenuItem value="10MB">10MB</MenuItem>
-                            <MenuItem value="50MB">50MB</MenuItem>
-                            <MenuItem value="100MB">100MB</MenuItem>
-                            <MenuItem value="500MB">500MB</MenuItem>
-                          </Select>
-                        </FormControl>
+                        <TextField
+                          fullWidth
+                          size="small"
+                          label="Tamaño máximo (MB)"
+                          type="number"
+                          value={tempPregunta.max_size_mb || 100}
+                          onChange={(e) => handlePreguntaChange('max_size_mb', parseInt(e.target.value))}
+                          InputProps={{ inputProps: { min: 1 } }}
+                        />
                       </>
                     )}
+
+                    {/* Botones Cancelar / Añadir o Guardar */}
+                    <Stack direction="row" spacing={1} justifyContent="flex-end">
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        onClick={handleCancelEdit}
+                        sx={{
+                          color: '#333333',
+                          borderColor: '#333333',
+                          textTransform: 'none',
+                        }}
+                      >
+                        Cancelar
+                      </Button>
+                      <Button
+                        variant="contained"
+                        size="small"
+                        onClick={handleConfirmPregunta}
+                        sx={{
+                          bgcolor: '#0e5fa6',
+                          textTransform: 'none',
+                          '&:hover': {
+                            bgcolor: '#0d5494',
+                          },
+                        }}
+                      >
+                        {editingIndex === -1 ? 'Añadir' : 'Guardar'}
+                      </Button>
+                    </Stack>
                   </Stack>
                 </Box>
-              ))}
+              )}
 
-              {preguntas.length === 0 && (
+              {/* Fase 3: Botón para agregar nueva pregunta (solo cuando no se está editando) */}
+              {editingIndex === null && (
+                <Box
+                  onClick={handleAddPregunta}
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    p: 3,
+                    border: '2px dashed #333333',
+                    borderRadius: 1,
+                    cursor: 'pointer',
+                    bgcolor: 'transparent',
+                    '&:hover': {
+                      bgcolor: '#fafafa',
+                    },
+                  }}
+                >
+                  <AddIcon sx={{ fontSize: 40, color: '#333333' }} />
+                </Box>
+              )}
+
+              {/* Mensaje cuando no hay preguntas */}
+              {preguntas.length === 0 && editingIndex === null && (
                 <Typography variant="body2" color="text.secondary" align="center" sx={{ py: 2 }}>
-                  No hay preguntas configuradas
+                  No hay preguntas configuradas. Haz clic en + para agregar una.
                 </Typography>
               )}
             </Stack>
@@ -439,8 +696,7 @@ export const EtapaConfigPanel: React.FC<EtapaConfigPanelProps> = ({
           <VistaConfiguratorPanel 
             etapaId={etapa.id}
             onSave={() => {
-              console.log('Vista dinámica guardada exitosamente');
-            }}
+                          }}
           />
         </TabPanel>
       </Box>

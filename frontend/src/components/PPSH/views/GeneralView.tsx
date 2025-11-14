@@ -93,6 +93,7 @@ export const GeneralView = ({ procesoId, solicitudId }: GeneralViewProps) => {
         <TextField
           fullWidth
           value={proceso.nombre}
+          onChange={(e) => setProceso({ ...proceso, nombre: e.target.value })}
           disabled={!isEditing}
           variant="outlined"
           sx={{
@@ -121,6 +122,7 @@ export const GeneralView = ({ procesoId, solicitudId }: GeneralViewProps) => {
           multiline
           rows={6}
           value={proceso.descripcion}
+          onChange={(e) => setProceso({ ...proceso, descripcion: e.target.value })}
           disabled={!isEditing}
           variant="outlined"
           sx={{
@@ -133,42 +135,64 @@ export const GeneralView = ({ procesoId, solicitudId }: GeneralViewProps) => {
 
       {/* Botones de acción */}
       <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-start' }}>
-        <Button
-          variant="outlined"
-          onClick={handleCancel}
-          sx={{
-            borderColor: '#0e5fa6',
-            color: '#0e5fa6',
-            textTransform: 'none',
-            minWidth: 120,
-            height: 40,
-            fontSize: '16px',
-            '&:hover': {
-              borderColor: '#0d5494',
-              backgroundColor: 'rgba(14, 95, 166, 0.04)',
-            },
-          }}
-        >
-          Cancelar
-        </Button>
+        {!isEditing ? (
+          <Button
+            variant="contained"
+            onClick={() => setIsEditing(true)}
+            sx={{
+              backgroundColor: '#0e5fa6',
+              color: 'white',
+              textTransform: 'none',
+              minWidth: 120,
+              height: 40,
+              fontSize: '16px',
+              '&:hover': {
+                backgroundColor: '#0d5494',
+              },
+            }}
+          >
+            Editar
+          </Button>
+        ) : (
+          <>
+            <Button
+              variant="outlined"
+              onClick={handleCancel}
+              sx={{
+                borderColor: '#0e5fa6',
+                color: '#0e5fa6',
+                textTransform: 'none',
+                minWidth: 120,
+                height: 40,
+                fontSize: '16px',
+                '&:hover': {
+                  borderColor: '#0d5494',
+                  backgroundColor: 'rgba(14, 95, 166, 0.04)',
+                },
+              }}
+            >
+              Cancelar
+            </Button>
 
-        <Button
-          variant="contained"
-          onClick={handleSave}
-          sx={{
-            backgroundColor: '#0e5fa6',
-            color: 'white',
-            textTransform: 'none',
-            minWidth: 120,
-            height: 40,
-            fontSize: '16px',
-            '&:hover': {
-              backgroundColor: '#0d5494',
-            },
-          }}
-        >
-          Guardar cambios
-        </Button>
+            <Button
+              variant="contained"
+              onClick={handleSave}
+              sx={{
+                backgroundColor: '#0e5fa6',
+                color: 'white',
+                textTransform: 'none',
+                minWidth: 120,
+                height: 40,
+                fontSize: '16px',
+                '&:hover': {
+                  backgroundColor: '#0d5494',
+                },
+              }}
+            >
+              Guardar cambios
+            </Button>
+          </>
+        )}
       </Box>
     </Box>
   );

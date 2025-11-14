@@ -22,6 +22,11 @@ import {
   InputAdornment,
   Collapse,
   IconButton,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
 } from '@mui/material';
 import {
   Edit as EditIcon,
@@ -44,6 +49,8 @@ export const Procesos: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [estadoFilter, setEstadoFilter] = useState<EstadoWorkflow | 'TODOS'>('TODOS');
   const [expandedRows, setExpandedRows] = useState<number[]>([]);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [workflowToDelete, setWorkflowToDelete] = useState<number | null>(null);
 
   useEffect(() => {
     loadWorkflows();
@@ -76,18 +83,35 @@ export const Procesos: React.FC = () => {
   };
 
   const handleView = (id: number) => {
-    navigate(`/flujos/${id}`);
+    navigate(`/flujos/${id}/ver`);
   };
 
-  const handleDelete = async (id: number) => {
-    if (window.confirm('¿Está seguro de eliminar este proceso?')) {
+  const handleDelete = (id: number) => {
+    setWorkflowToDelete(id);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (workflowToDelete) {
       try {
-        await workflowService.deleteWorkflow(id);
-        loadWorkflows();
+        await workflowService.deleteWorkflow(workflowToDelete);
+        // Actualizar estado local inmediatamente
+        setWorkflows(prevWorkflows => prevWorkflows.filter(w => w.id !== workflowToDelete));
+        setDeleteDialogOpen(false);
+        setWorkflowToDelete(null);
       } catch (error) {
         console.error('Error al eliminar workflow:', error);
+        setDeleteDialogOpen(false);
+        setWorkflowToDelete(null);
+        // Si hay error, recargar la lista completa
+        loadWorkflows();
       }
     }
+  };
+
+  const handleCancelDelete = () => {
+    setDeleteDialogOpen(false);
+    setWorkflowToDelete(null);
   };
 
   const filteredWorkflows = workflows.filter((workflow) => {
@@ -242,10 +266,10 @@ export const Procesos: React.FC = () => {
                           sx={{
                             backgroundColor: '#e1fcef',
                             color: '#40775f',
-                            height: 32,
+                            height: 28,
                             borderRadius: '16px',
                             fontWeight: 400,
-                            fontSize: 16,
+                            fontSize: 14,
                             '& .MuiChip-icon': {
                               color: '#40775f',
                             }
@@ -259,10 +283,10 @@ export const Procesos: React.FC = () => {
                           sx={{
                             backgroundColor: '#eaeef6',
                             color: '#6a6e7c',
-                            height: 32,
+                            height: 28,
                             borderRadius: '16px',
                             fontWeight: 400,
-                            fontSize: 16,
+                            fontSize: 14,
                             '& .MuiChip-icon': {
                               color: '#6a6e7c',
                             }
@@ -282,7 +306,6 @@ export const Procesos: React.FC = () => {
                             fontSize: 14,
                             minWidth: 'auto',
                             px: 1,
-                            '&:hover': { backgroundColor: 'transparent', color: '#0e5fa6' }
                           }}
                         >
                           Ver
@@ -297,7 +320,6 @@ export const Procesos: React.FC = () => {
                             fontSize: 14,
                             minWidth: 'auto',
                             px: 1,
-                            '&:hover': { backgroundColor: 'transparent', color: '#0e5fa6' }
                           }}
                         >
                           Editar
@@ -309,11 +331,10 @@ export const Procesos: React.FC = () => {
                           disabled={workflow.estado === 'ACTIVO'}
                           sx={{ 
                             textTransform: 'none',
-                            color: '#333333',
+                            color: '#cc3333',
                             fontSize: 14,
                             minWidth: 'auto',
                             px: 1,
-                            '&:hover': { backgroundColor: 'transparent', color: '#cc3333' },
                             '&.Mui-disabled': { color: '#ccc' }
                           }}
                         >
@@ -377,6 +398,53 @@ export const Procesos: React.FC = () => {
           </TableBody>
         </Table>
       </TableContainer>
+
+      {/* Modal de confirmación para eliminar */}
+      <Dialog
+        open={deleteDialogOpen}
+        onClose={handleCancelDelete}
+        PaperProps={{
+          sx: {
+            borderRadius: '8px',
+            minWidth: '400px',
+          }
+        }}
+      >
+        <DialogTitle sx={{ fontWeight: 600, fontSize: 20, color: '#333333' }}>
+          Confirmar eliminación
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{ color: '#666666', fontSize: 16 }}>
+            ¿Está seguro de que desea eliminar este proceso? Esta acción no se puede deshacer.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button 
+            onClick={handleCancelDelete}
+            sx={{ 
+              textTransform: 'none',
+              color: '#666666',
+              fontSize: 14,
+            }}
+          >
+            Cancelar
+          </Button>
+          <Button 
+            onClick={handleConfirmDelete}
+            variant="contained"
+            sx={{ 
+              textTransform: 'none',
+              backgroundColor: '#cc3333',
+              fontSize: 14,
+              '&:hover': {
+                backgroundColor: '#b32929',
+              }
+            }}
+          >
+            Eliminar
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };

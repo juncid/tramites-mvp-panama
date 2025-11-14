@@ -6,9 +6,19 @@ import type { WorkflowEtapa } from '../../types/workflow';
 import { vistaConfigService } from '../../services/vista-config.service';
 
 export const CustomNode: React.FC<NodeProps<WorkflowEtapa>> = ({ data }) => {
-  const isInicio = data.es_inicial || data.es_etapa_inicial;
+  const isInicio = data.codigo === 'INICIO' || data.es_inicial || data.es_etapa_inicial;
   const isPlaceholder = (data as any).is_placeholder || !data.nombre;
   const [tieneVistaDinamica, setTieneVistaDinamica] = useState(false);
+  
+  // Debug: Log cuando cambian los datos importantes del nodo
+  useEffect(() => {
+    console.log('🔄 CustomNode actualizado:', {
+      codigo: data.codigo,
+      nombre: data.nombre,
+      tipo_etapa: data.tipo_etapa,
+      perfiles: data.perfiles_permitidos
+    });
+  }, [data.codigo, data.nombre, data.tipo_etapa, data.perfiles_permitidos]);
   
   // Verificar si existe configuración de vista dinámica
   useEffect(() => {
@@ -31,9 +41,11 @@ export const CustomNode: React.FC<NodeProps<WorkflowEtapa>> = ({ data }) => {
       case 'ETAPA':
         return '#e3f2fd';
       case 'COMPUERTA':
-        return '#fff3e0';
+        return '#FFFFCC';
       case 'SUBPROCESO':
         return '#f3e5f5';
+      case 'PRESENCIAL':
+        return '#f1f3f4';
       default:
         return '#f5f5f5';
     }
@@ -44,12 +56,18 @@ export const CustomNode: React.FC<NodeProps<WorkflowEtapa>> = ({ data }) => {
       case 'ETAPA':
         return '#1976d2';
       case 'COMPUERTA':
-        return '#f57c00';
+        return '#A7A71F';
       case 'SUBPROCESO':
         return '#7b1fa2';
+      case 'PRESENCIAL':
+        return '#000000';
       default:
         return '#757575';
     }
+  };
+  
+  const getNodeBorderStyle = () => {
+    return data.tipo_etapa === 'PRESENCIAL' ? 'dashed' : 'solid';
   };
 
   // Nodo circular para inicio
@@ -120,6 +138,11 @@ export const CustomNode: React.FC<NodeProps<WorkflowEtapa>> = ({ data }) => {
     );
   }
 
+  // Determinar tamaño según tipo de etapa
+  const isSubproceso = data.tipo_etapa === 'SUBPROCESO';
+  const isPresencial = data.tipo_etapa === 'PRESENCIAL';
+  const nodeWidth = (isSubproceso || isPresencial) ? 220 : 250;
+  
   // Nodo rectangular para etapas normales
   return (
     <>
@@ -128,11 +151,12 @@ export const CustomNode: React.FC<NodeProps<WorkflowEtapa>> = ({ data }) => {
         elevation={2}
         sx={{
           padding: 2,
-          minWidth: 180,
-          maxWidth: 250,
+          minWidth: nodeWidth,
+          maxWidth: nodeWidth,
+          width: nodeWidth,
           backgroundColor: getNodeColor(),
-          border: `2px solid ${getNodeBorderColor()}`,
-          borderRadius: 2,
+          border: `2px ${getNodeBorderStyle()} ${getNodeBorderColor()}`,
+          borderRadius: 1,
           cursor: 'pointer',
           '&:hover': {
             boxShadow: 4,
@@ -140,15 +164,49 @@ export const CustomNode: React.FC<NodeProps<WorkflowEtapa>> = ({ data }) => {
         }}
       >
         <Box>
-          <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
+          {/* Badges superiores para SUBPROCESO y PRESENCIAL */}
+          {(isSubproceso || isPresencial) && data.perfiles_permitidos && data.perfiles_permitidos.length > 0 && (
+            <Box sx={{ display: 'flex', gap: 0.5, mb: 1 }}>
+              {data.perfiles_permitidos.slice(0, 2).map((perfil) => (
+                <Chip
+                  key={perfil}
+                  label={perfil.charAt(0)}
+                  size="small"
+                  sx={{ 
+                    fontSize: '0.65rem', 
+                    height: 18, 
+                    minWidth: 18,
+                    bgcolor: isPresencial ? '#fce1e1' : '#e1fcef',
+                    color: isPresencial ? '#b71c1c' : '#1b5e20',
+                    '& .MuiChip-label': {
+                      px: 0.5
+                    }
+                  }}
+                />
+              ))}
+            </Box>
+          )}
+          
+          <Typography 
+            variant={(isSubproceso || isPresencial) ? "caption" : "subtitle2"} 
+            fontWeight="bold" 
+            gutterBottom
+            sx={{ 
+              fontSize: (isSubproceso || isPresencial) ? '0.875rem' : undefined,
+              lineHeight: (isSubproceso || isPresencial) ? 1.5 : undefined 
+            }}
+          >
             {data.nombre}
           </Typography>
-          <Typography variant="caption" color="text.secondary">
-            {data.codigo}
-          </Typography>
+          
+          {!isSubproceso && !isPresencial && (
+            <Typography variant="caption" color="text.secondary">
+              {data.codigo}
+            </Typography>
+          )}
           
           {/* Badge de Vista Dinámica */}
-          {tieneVistaDinamica && (
+          {tieneVistaDinamica && !isSubproceso && !isPresencial && (
             <Box sx={{ mt: 1 }}>
               <Chip
                 icon={<AutoAwesomeIcon sx={{ fontSize: '0.9rem' }} />}
@@ -167,7 +225,8 @@ export const CustomNode: React.FC<NodeProps<WorkflowEtapa>> = ({ data }) => {
             </Box>
           )}
           
-          {data.perfiles_permitidos && data.perfiles_permitidos.length > 0 && (
+          {/* Perfiles para etapas normales (no SUBPROCESO ni PRESENCIAL) */}
+          {!isSubproceso && !isPresencial && data.perfiles_permitidos && data.perfiles_permitidos.length > 0 && (
             <Box sx={{ mt: 1 }}>
               {data.perfiles_permitidos.map((perfil) => (
                 <Chip

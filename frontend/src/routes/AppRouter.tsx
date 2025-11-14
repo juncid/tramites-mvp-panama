@@ -90,6 +90,14 @@ export const AppRouter = () => {
           </MainLayout>
         }
       />
+      <Route
+        path="/flujos/:id/ver"
+        element={
+          <MainLayout>
+            <WorkflowEditor />
+          </MainLayout>
+        }
+      />
       {/* Ruta de ejecución de workflows */}
       <Route
         path="/instancias/:instanciaId/ejecutar"

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter } from 'react-router-dom';
 import { DetalleProcesoPPSH } from '../../pages/DetalleProcesoPPSH';
 
 // Mock de los componentes de vistas
@@ -21,25 +21,25 @@ vi.mock('../../components/PPSH/views', () => ({
 }));
 
 // Helper para renderizar con route params
-const renderWithRouter = (procesoId = '123', solicitudId = '456') => {
-  return render(
-    <BrowserRouter>
-      <Routes>
-        <Route path="/proceso/:procesoId/solicitud/:solicitudId" element={<DetalleProcesoPPSH />} />
-      </Routes>
-    </BrowserRouter>,
-    {
-      wrapper: ({ children }) => (
-        <BrowserRouter>
-          <Routes>
-            <Route path="/" element={children} />
-            <Route path="/proceso/:procesoId/solicitud/:solicitudId" element={<DetalleProcesoPPSH />} />
-          </Routes>
-        </BrowserRouter>
-      ),
-    }
-  );
-};
+// const renderWithRouter = (procesoId = '123', solicitudId = '456') => {
+//   return render(
+//     <BrowserRouter>
+//       <Routes>
+//         <Route path="/proceso/:procesoId/solicitud/:solicitudId" element={<DetalleProcesoPPSH />} />
+//       </Routes>
+//     </BrowserRouter>,
+//     {
+//       wrapper: ({ children }) => (
+//         <BrowserRouter>
+//           <Routes>
+//             <Route path="/" element={children} />
+//             <Route path="/proceso/:procesoId/solicitud/:solicitudId" element={<DetalleProcesoPPSH />} />
+//           </Routes>
+//         </BrowserRouter>
+//       ),
+//     }
+//   );
+// };
 
 describe('DetalleProcesoPPSH Component', () => {
   it('renderiza el título correctamente', () => {

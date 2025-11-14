@@ -172,8 +172,9 @@ class WorkflowEtapaBase(BaseModel):
     
     @model_validator(mode='after')
     def validar_perfiles(self):
-        """Valida que se especifiquen perfiles permitidos"""
-        if not self.perfiles_permitidos or len(self.perfiles_permitidos) == 0:
+        """Valida que se especifiquen perfiles permitidos (excepto para etapa INICIO)"""
+        # La etapa INICIO no requiere perfiles permitidos
+        if self.codigo != 'INICIO' and (not self.perfiles_permitidos or len(self.perfiles_permitidos) == 0):
             raise ValueError('La etapa debe tener al menos un perfil permitido')
         return self
 
@@ -207,6 +208,7 @@ class WorkflowEtapaUpdate(BaseModel):
     tiempo_estimado_minutos: Optional[int] = Field(None, ge=0)
     reglas_transicion: Optional[Dict[str, Any]] = None
     activo: Optional[bool] = None
+    preguntas: Optional[List[WorkflowPreguntaCreateNested]] = None
 
 
 class WorkflowEtapaResponse(WorkflowEtapaBase):
@@ -229,31 +231,31 @@ class WorkflowEtapaResponse(WorkflowEtapaBase):
 class WorkflowConexionBase(BaseModel):
     """Schema base para conexión"""
     nombre: Optional[str] = Field(None, max_length=255)
-    tipo_conexion: Optional[str] = Field(None, max_length=50)
+    # tipo_conexion: Optional[str] = Field(None, max_length=50)  # Comentado hasta crear migración en BD
     condicion: Optional[Dict[str, Any]] = None
     es_predeterminada: bool = False
     activo: bool = True
     
-    @field_validator('tipo_conexion')
-    @classmethod
-    def validar_tipo_conexion(cls, v: Optional[str]) -> Optional[str]:
-        """Valida que el tipo de conexión sea válido"""
-        if v is None:
-            return v
-        
-        tipos_validos = ['SECUENCIAL', 'CONDICIONAL', 'PARALELA']
-        if v not in tipos_validos:
-            raise ValueError(f'Tipo de conexión inválido. Tipos válidos: {", ".join(tipos_validos)}')
-        
-        return v
+    # @field_validator('tipo_conexion')
+    # @classmethod
+    # def validar_tipo_conexion(cls, v: Optional[str]) -> Optional[str]:
+    #     """Valida que el tipo de conexión sea válido"""
+    #     if v is None:
+    #         return v
+    #     
+    #     tipos_validos = ['SECUENCIAL', 'CONDICIONAL', 'PARALELA']
+    #     if v not in tipos_validos:
+    #         raise ValueError(f'Tipo de conexión inválido. Tipos válidos: {", ".join(tipos_validos)}')
+    #     
+    #     return v
     
-    @model_validator(mode='after')
-    def validar_condicion_condicional(self):
-        """Valida que las conexiones condicionales tengan condición"""
-        if self.tipo_conexion == 'CONDICIONAL':
-            if not self.condicion:
-                raise ValueError('Las conexiones condicionales deben tener una condición definida')
-        return self
+    # @model_validator(mode='after')
+    # def validar_condicion_condicional(self):
+    #     """Valida que las conexiones condicionales tengan condición"""
+    #     if self.tipo_conexion == 'CONDICIONAL':
+    #         if not self.condicion:
+    #             raise ValueError('Las conexiones condicionales deben tener una condición definida')
+    #     return self
 
 
 class WorkflowConexionCreate(WorkflowConexionBase):

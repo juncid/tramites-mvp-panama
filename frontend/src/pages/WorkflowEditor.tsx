@@ -100,9 +100,7 @@ export const WorkflowEditor: React.FC = () => {
   }, [id, setNodes]);
 
   useEffect(() => {
-    console.log('Nodos actuales:', nodes);
-    console.log('Conexiones actuales:', edges);
-  }, [nodes, edges]);
+          }, [nodes, edges]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -166,8 +164,7 @@ export const WorkflowEditor: React.FC = () => {
           type: MarkerType.ArrowClosed,
         },
       };
-      console.log('Conectando nodos:', params);
-      setEdges((eds) => addEdge(edge, eds));
+            setEdges((eds) => addEdge(edge, eds));
     },
     [setEdges]
   );
@@ -201,8 +198,7 @@ export const WorkflowEditor: React.FC = () => {
         is_placeholder: true, // Marcador para estilo placeholder
       },
     };
-    console.log('Agregando nodo placeholder:', newNode);
-    setNodes((nds) => [...nds, newNode]);
+        setNodes((nds) => [...nds, newNode]);
     
     // Abrir automáticamente el panel de configuración
     setTimeout(() => {
@@ -214,20 +210,11 @@ export const WorkflowEditor: React.FC = () => {
   const handleSaveNode = (updatedEtapa: Partial<WorkflowEtapa>) => {
     if (!selectedNode) return;
 
-    console.log('🔄 Guardando configuración de etapa:', {
-      nodoId: selectedNode.id,
-      datosAnteriores: selectedNode.data,
-      datosNuevos: updatedEtapa,
-      preguntasNuevas: updatedEtapa.preguntas,
-      cantidadPreguntas: updatedEtapa.preguntas?.length || 0,
-      datosCombinados: { ...selectedNode.data, ...updatedEtapa }
-    });
-
+    
     setNodes((nds) =>
       nds.map((node) => {
         if (node.id === selectedNode.id) {
-          console.log('✅ Actualizando nodo:', node.id);
-          // Remover el flag de placeholder al guardar
+                    // Remover el flag de placeholder al guardar
           const { is_placeholder, ...restData } = node.data as any;
           return { ...node, data: { ...restData, ...updatedEtapa } };
         }
@@ -235,8 +222,7 @@ export const WorkflowEditor: React.FC = () => {
       })
     );
     
-    console.log('✅ Nodo actualizado en estado local');
-    setDrawerOpen(false);
+        setDrawerOpen(false);
   };
 
   const handleDeleteNode = () => {
@@ -248,8 +234,7 @@ export const WorkflowEditor: React.FC = () => {
       return;
     }
 
-    console.log('🗑️ Eliminando nodo:', selectedNode.id);
-
+    
     // Eliminar el nodo
     setNodes((nds) => nds.filter((node) => node.id !== selectedNode.id));
     
@@ -260,16 +245,14 @@ export const WorkflowEditor: React.FC = () => {
       )
     );
 
-    console.log('✅ Nodo eliminado');
-    setDrawerOpen(false);
+        setDrawerOpen(false);
     setSelectedNode(null);
   };
 
   const handleCloseDrawer = () => {
     // Si es un nodo placeholder sin nombre, eliminarlo
     if (selectedNode && (selectedNode.data as any).is_placeholder && !selectedNode.data.nombre) {
-      console.log('🗑️ Eliminando nodo placeholder no guardado');
-      setNodes((nds) => nds.filter((node) => node.id !== selectedNode.id));
+            setNodes((nds) => nds.filter((node) => node.id !== selectedNode.id));
     }
     setDrawerOpen(false);
     setSelectedNode(null);
@@ -279,10 +262,7 @@ export const WorkflowEditor: React.FC = () => {
     try {
       setLoading(true);
 
-      console.group('🔵 GUARDANDO WORKFLOW COMPLETO');
-      console.log('📊 Estado actual de nodos:', nodes);
-      console.log('🔗 Estado actual de conexiones:', edges);
-
+                  
       // Preparar datos del workflow
       const workflowData: any = {
         codigo: workflow?.codigo || 'WF_' + Date.now(),
@@ -293,25 +273,20 @@ export const WorkflowEditor: React.FC = () => {
         categoria: workflow?.categoria,
       };
 
-      console.log('📝 Datos del workflow a guardar:', workflowData);
-
+      
       let savedWorkflow: Workflow;
 
       if (isEditMode && workflow?.id) {
         // Actualizar workflow existente
-        console.log('♻️ Actualizando workflow existente con ID:', workflow.id);
-        savedWorkflow = await workflowService.updateWorkflow(workflow.id, workflowData);
+                savedWorkflow = await workflowService.updateWorkflow(workflow.id, workflowData);
       } else {
         // Crear nuevo workflow
-        console.log('✨ Creando nuevo workflow');
-        savedWorkflow = await workflowService.createWorkflow(workflowData);
+                savedWorkflow = await workflowService.createWorkflow(workflowData);
       }
 
-      console.log('✅ Workflow guardado con ID:', savedWorkflow.id);
-
+      
       // Guardar etapas con posiciones
-      console.log('📦 Guardando', nodes.length, 'etapas...');
-      for (const node of nodes) {
+            for (const node of nodes) {
         const etapaData: Partial<WorkflowEtapa> = {
           ...node.data,
           workflow_id: savedWorkflow.id,
@@ -319,29 +294,16 @@ export const WorkflowEditor: React.FC = () => {
           posicion_y: node.position.y,
         };
 
-        console.log('  ⚙️ Etapa:', {
-          id: node.id,
-          codigo: etapaData.codigo,
-          nombre: etapaData.nombre,
-          tipo: etapaData.tipo_etapa,
-          perfiles: etapaData.perfiles_permitidos,
-          preguntas: etapaData.preguntas?.length || 0,
-          posicion: { x: node.position.x, y: node.position.y },
-          todosLosDatos: etapaData
-        });
-
+        
         if (node.data.id) {
           await workflowService.updateEtapa(node.data.id, etapaData);
-          console.log('    ✅ Etapa actualizada');
-        } else {
+                  } else {
           await workflowService.createEtapa(etapaData);
-          console.log('    ✅ Etapa creada');
-        }
+                  }
       }
 
       // Guardar conexiones
-      console.log('🔗 Guardando', edges.length, 'conexiones...');
-      for (const edge of edges) {
+            for (const edge of edges) {
         const conexionData: Partial<WorkflowConexion> = {
           workflow_id: savedWorkflow.id,
           etapa_origen_id: parseInt(edge.source),
@@ -349,30 +311,19 @@ export const WorkflowEditor: React.FC = () => {
           condicion: edge.label as string,
         };
 
-        console.log('  🔗 Conexión:', {
-          desde: edge.source,
-          hacia: edge.target,
-          condicion: edge.label,
-          todosLosDatos: conexionData
-        });
-
+        
         if (edge.data?.id) {
           await workflowService.updateConexion(edge.data.id, conexionData);
-          console.log('    ✅ Conexión actualizada');
-        } else {
+                  } else {
           await workflowService.createConexion(conexionData);
-          console.log('    ✅ Conexión creada');
-        }
+                  }
       }
 
-      console.log('🎉 WORKFLOW GUARDADO EXITOSAMENTE');
-      console.groupEnd();
-
+            
       navigate('/flujos');
     } catch (error) {
       console.error('❌ Error al guardar workflow:', error);
-      console.groupEnd();
-    } finally {
+          } finally {
       setLoading(false);
     }
   };

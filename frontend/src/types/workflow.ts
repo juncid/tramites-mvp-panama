@@ -87,6 +87,15 @@ export interface WorkflowPregunta {
   dependencias_json?: any;
   activo: boolean;
   es_visible: boolean;
+  // Campos específicos para TEXTO
+  min_caracteres?: number;
+  max_caracteres?: number;
+  // Campos específicos para LISTA
+  opciones?: string;
+  lista_elementos?: string[];
+  // Campos específicos para CARGA_ARCHIVO
+  max_archivos?: number;
+  max_size_mb?: number;
 }
 
 export interface WorkflowConexion {
