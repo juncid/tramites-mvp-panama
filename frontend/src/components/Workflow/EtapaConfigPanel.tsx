@@ -16,6 +16,8 @@ import {
   SelectChangeEvent,
   Checkbox,
   FormControlLabel,
+  Tabs,
+  Tab,
 } from '@mui/material';
 import {
   Close as CloseIcon,
@@ -110,6 +112,24 @@ const getTipoPreguntaIcon = (tipo: TipoPregunta) => {
   }
 };
 
+interface TabPanelProps {
+  children?: React.ReactNode;
+  index: number;
+  value: number;
+}
+
+const TabPanel: React.FC<TabPanelProps> = ({ children, value, index }) => {
+  return (
+    <div
+      role="tabpanel"
+      hidden={value !== index}
+      style={{ height: value === index ? '100%' : '0' }}
+    >
+      {value === index && <Box sx={{ height: '100%' }}>{children}</Box>}
+    </div>
+  );
+};
+
 export const EtapaConfigPanel: React.FC<EtapaConfigPanelProps> = ({
   etapa,
   onSave,
@@ -118,6 +138,7 @@ export const EtapaConfigPanel: React.FC<EtapaConfigPanelProps> = ({
 }) => {
   const [formData, setFormData] = useState<Partial<WorkflowEtapa>>(etapa);
   const [preguntas, setPreguntas] = useState<WorkflowPregunta[]>(etapa.preguntas || []);
+  const [tabIndex, setTabIndex] = useState(0);
 
   useEffect(() => {
     setFormData(etapa);
@@ -180,9 +201,21 @@ export const EtapaConfigPanel: React.FC<EtapaConfigPanelProps> = ({
         </Stack>
       </Box>
 
+      {/* Tabs */}
+      <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
+        <Tabs value={tabIndex} onChange={(_, newValue) => setTabIndex(newValue)}>
+          <Tab label="Configuración Básica" />
+          <Tab label="Preguntas Tradicionales" />
+          <Tab label="Vista Dinámica" />
+        </Tabs>
+      </Box>
+
       {/* Content */}
-      <Box sx={{ flexGrow: 1, overflow: 'auto', p: 2 }}>
-        <Stack spacing={3}>
+      <Box sx={{ flexGrow: 1, overflow: 'auto' }}>
+        {/* TAB 0: Configuración Básica */}
+        <TabPanel value={tabIndex} index={0}>
+          <Box sx={{ p: 2 }}>
+            <Stack spacing={3}>
           {/* Tipo de Etapa */}
           <FormControl fullWidth>
             <InputLabel>Tipo de etapa</InputLabel>
@@ -256,11 +289,16 @@ export const EtapaConfigPanel: React.FC<EtapaConfigPanelProps> = ({
             value={formData.descripcion_formulario || ''}
             onChange={(e) => handleChange('descripcion_formulario', e.target.value)}
           />
+            </Stack>
+          </Box>
+        </TabPanel>
 
-          <Divider />
-
-          {/* Preguntas */}
-          <Box>
+        {/* TAB 1: Preguntas Tradicionales */}
+        <TabPanel value={tabIndex} index={1}>
+          <Box sx={{ p: 2 }}>
+            <Stack spacing={3}>
+              {/* Preguntas */}
+              <Box>
             <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2}>
               <Typography variant="subtitle1" fontWeight="bold">
                 Preguntas del Formulario
@@ -390,8 +428,44 @@ export const EtapaConfigPanel: React.FC<EtapaConfigPanelProps> = ({
                 </Typography>
               )}
             </Stack>
+              </Box>
+            </Stack>
           </Box>
-        </Stack>
+        </TabPanel>
+
+        {/* TAB 2: Vista Dinámica */}
+        <TabPanel value={tabIndex} index={2}>
+          <Box sx={{ p: 2 }}>
+            <Stack spacing={3}>
+              <Typography variant="h6" color="text.secondary">
+                Vista Dinámica
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Configure el layout visual del formulario usando el sistema de vistas dinámicas.
+              </Typography>
+              <Box 
+                sx={{ 
+                  p: 4, 
+                  border: '2px dashed',
+                  borderColor: 'divider',
+                  borderRadius: 2,
+                  textAlign: 'center',
+                  bgcolor: 'background.default'
+                }}
+              >
+                <Typography variant="body2" color="text.secondary" gutterBottom>
+                  🎨 Configurador de Vista Dinámica
+                </Typography>
+                <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 2 }}>
+                  ID de Etapa: {etapa.id || 'Nueva etapa - guardar primero'}
+                </Typography>
+                <Typography variant="caption" color="warning.main">
+                  Componente VistaConfiguratorPanel - Próximamente
+                </Typography>
+              </Box>
+            </Stack>
+          </Box>
+        </TabPanel>
       </Box>
 
       {/* Footer */}
