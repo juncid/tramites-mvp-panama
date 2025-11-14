@@ -15,8 +15,8 @@ export const CustomNode: React.FC<NodeProps<WorkflowEtapa>> = ({ data }) => {
     const checkVistaConfig = async () => {
       if (data.id && !isInicio && !isPlaceholder) {
         try {
-          const config = await vistaConfigService.getByEtapaId(data.id);
-          setTieneVistaDinamica(!!config);
+          const resultado = await vistaConfigService.checkExists(data.id);
+          setTieneVistaDinamica(resultado.existe);
         } catch {
           setTieneVistaDinamica(false);
         }

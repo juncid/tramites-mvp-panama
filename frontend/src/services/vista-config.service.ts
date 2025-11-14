@@ -14,7 +14,33 @@ import type { VistaConfig, VistaConfigCreate, VistaConfigUpdate } from '../types
 
 const API_BASE = '/api/v1/workflow';
 
+/**
+ * Respuesta del endpoint de verificación de existencia
+ */
+export interface VistaConfigExistencia {
+  existe: boolean;
+  config_id: number | null;
+}
+
 class VistaConfigService {
+  
+  /**
+   * Verificar si existe configuración para una etapa (optimizado).
+   * Endpoint ligero para solo verificar existencia sin cargar config completa.
+   * 
+   * @param etapaId - ID de la etapa de workflow
+   * @returns {existe: boolean, config_id: number | null}
+   */
+  async checkExists(etapaId: number): Promise<VistaConfigExistencia> {
+    try {
+      const response = await axios.get<VistaConfigExistencia>(
+        `${API_BASE}/etapas/${etapaId}/vista-config/existe`
+      );
+      return response.data;
+    } catch (error) {
+      return { existe: false, config_id: null };
+    }
+  }
   
   /**
    * Obtener configuración de vista por ID de etapa.
