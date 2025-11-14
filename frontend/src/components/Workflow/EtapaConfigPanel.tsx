@@ -39,6 +39,7 @@ import {
   Notifications as NotificationIcon,
 } from '@mui/icons-material';
 import type { WorkflowEtapa, WorkflowPregunta, TipoEtapa, TipoPregunta } from '../../types/workflow';
+import { VistaConfiguratorPanel } from './VistaConfiguratorPanel';
 
 interface EtapaConfigPanelProps {
   etapa: Partial<WorkflowEtapa>;
@@ -435,36 +436,12 @@ export const EtapaConfigPanel: React.FC<EtapaConfigPanelProps> = ({
 
         {/* TAB 2: Vista Dinámica */}
         <TabPanel value={tabIndex} index={2}>
-          <Box sx={{ p: 2 }}>
-            <Stack spacing={3}>
-              <Typography variant="h6" color="text.secondary">
-                Vista Dinámica
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Configure el layout visual del formulario usando el sistema de vistas dinámicas.
-              </Typography>
-              <Box 
-                sx={{ 
-                  p: 4, 
-                  border: '2px dashed',
-                  borderColor: 'divider',
-                  borderRadius: 2,
-                  textAlign: 'center',
-                  bgcolor: 'background.default'
-                }}
-              >
-                <Typography variant="body2" color="text.secondary" gutterBottom>
-                  🎨 Configurador de Vista Dinámica
-                </Typography>
-                <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 2 }}>
-                  ID de Etapa: {etapa.id || 'Nueva etapa - guardar primero'}
-                </Typography>
-                <Typography variant="caption" color="warning.main">
-                  Componente VistaConfiguratorPanel - Próximamente
-                </Typography>
-              </Box>
-            </Stack>
-          </Box>
+          <VistaConfiguratorPanel 
+            etapaId={etapa.id}
+            onSave={() => {
+              console.log('Vista dinámica guardada exitosamente');
+            }}
+          />
         </TabPanel>
       </Box>
 
