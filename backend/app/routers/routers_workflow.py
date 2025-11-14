@@ -25,8 +25,14 @@ from app.services import (
     HistorialService
 )
 
+# Importar router de vista_config
+from app.routes.vista_config import router as vista_config_router
+
 # Router principal
 router = APIRouter(prefix="/workflow", tags=["Workflow Dinámico"])
+
+# Incluir sub-router de vistas dinámicas
+router.include_router(vista_config_router, tags=["Vistas Dinámicas"])
 
 
 # ==========================================

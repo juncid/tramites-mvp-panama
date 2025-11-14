@@ -404,3 +404,33 @@ class WorkflowComentario(Base):
     
     # Relaciones
     instancia = relationship("WorkflowInstancia", back_populates="comentarios")
+
+
+# ==========================================
+# CONFIGURACIÓN DE VISTAS DINÁMICAS
+# ==========================================
+
+class WorkflowVistaConfig(Base):
+    """
+    Configuración de vistas dinámicas para etapas de workflow.
+    Permite definir formularios personalizados usando JSON.
+    """
+    __tablename__ = "workflow_vista_config"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    etapa_id = Column(Integer, ForeignKey('WORKFLOW_ETAPA.id'), nullable=False, unique=True, index=True)
+    
+    # Configuración JSON de la vista dinámica
+    config_json = Column(Text, nullable=False)  # Almacenado como texto JSON
+    
+    # Estado
+    activo = Column(Boolean, nullable=False, default=True, index=True)
+    
+    # Auditoría
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    created_by = Column(String(50))
+    updated_by = Column(String(50))
+    
+    # Relación con etapa
+    etapa = relationship("WorkflowEtapa", backref="vista_config")
