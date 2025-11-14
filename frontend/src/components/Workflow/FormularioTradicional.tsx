@@ -32,7 +32,7 @@ import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { es } from 'date-fns/locale';
 
-import type { WorkflowPregunta, RespuestaFormulario } from '../../types/workflow';
+import type { WorkflowPregunta } from '../../types/workflow';
 
 interface FormularioTradicionalProps {
   preguntas: WorkflowPregunta[];
@@ -96,7 +96,7 @@ export const FormularioTradicional: React.FC<FormularioTradicionalProps> = ({
   const renderPregunta = (pregunta: WorkflowPregunta) => {
     const value = formData[pregunta.id!] || '';
     const error = errors[pregunta.id!];
-    const tipoPregunta = pregunta.tipo_pregunta || pregunta.tipo;
+    const tipoPregunta = (pregunta.tipo_pregunta || pregunta.tipo) as string;
 
     switch (tipoPregunta) {
       case 'TEXTO':
@@ -154,7 +154,7 @@ export const FormularioTradicional: React.FC<FormularioTradicionalProps> = ({
               key={pregunta.id}
               label={pregunta.pregunta || pregunta.texto}
               value={value ? new Date(value) : null}
-              onChange={(newValue) => handleChange(pregunta.id, newValue?.toISOString())}
+              onChange={(newValue: Date | null) => handleChange(pregunta.id, newValue?.toISOString())}
               slotProps={{
                 textField: {
                   fullWidth: true,

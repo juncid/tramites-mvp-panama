@@ -10,6 +10,7 @@ import { WorkflowEditor } from '../pages/WorkflowEditor';
 import { WorkflowEditorFigma } from '../pages/WorkflowEditorFigma';
 import { CargaDocumentosPPSH } from '../pages/CargaDocumentosPPSH';
 import { DetalleProcesoPPSH } from '../pages/DetalleProcesoPPSH';
+import { ProcesoEjecucion } from '../pages/ProcesoEjecucion';
 import { TestVisa } from '../pages/TestVisa';
 import Profile from '../pages/Profile';
 import Settings from '../pages/Settings';
@@ -86,6 +87,15 @@ export const AppRouter = () => {
         element={
           <MainLayout>
             <WorkflowEditor />
+          </MainLayout>
+        }
+      />
+      {/* Ruta de ejecución de workflows */}
+      <Route
+        path="/instancias/:instanciaId/ejecutar"
+        element={
+          <MainLayout>
+            <ProcesoEjecucion />
           </MainLayout>
         }
       />
