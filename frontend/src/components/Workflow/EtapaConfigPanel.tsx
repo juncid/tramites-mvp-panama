@@ -162,8 +162,8 @@ export const EtapaConfigPanel: React.FC<EtapaConfigPanelProps> = ({
       codigo: `PREGUNTA_${preguntas.length + 1}`,
       texto: '',
       pregunta: '',
-      tipo: 'TEXTO',
-      tipo_pregunta: 'TEXTO',
+      tipo: '' as any, // Iniciar sin tipo para mostrar "Seleccionar"
+      tipo_pregunta: '' as any,
       orden: preguntas.length,
       es_obligatoria: false,
       es_visible: true,
@@ -626,9 +626,36 @@ export const EtapaConfigPanel: React.FC<EtapaConfigPanelProps> = ({
                     <FormControl fullWidth size="small">
                       <InputLabel>Tipo de pregunta</InputLabel>
                       <Select
-                        value={tempPregunta.tipo}
+                        value={tempPregunta.tipo || ''}
                         label="Tipo de pregunta"
                         onChange={(e) => handlePreguntaChange('tipo', e.target.value as TipoPregunta)}
+                        displayEmpty
+                        renderValue={(selected) => {
+                          if (!selected) {
+                            return (
+                              <Typography sx={{ color: '#4d4d4d', fontSize: '16px' }}>
+                                Seleccionar
+                              </Typography>
+                            );
+                          }
+                          const tipo = TIPOS_PREGUNTA.find(t => t.value === selected);
+                          return (
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <Box
+                                sx={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  border: '1px solid #333333',
+                                  borderRadius: '4px',
+                                  p: 0.5,
+                                }}
+                              >
+                                {getTipoPreguntaIcon(selected as TipoPregunta)}
+                              </Box>
+                              {tipo?.label || selected}
+                            </Box>
+                          );
+                        }}
                       >
                         {TIPOS_PREGUNTA.map((tipo) => (
                           <MenuItem key={tipo.value} value={tipo.value}>
