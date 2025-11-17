@@ -632,11 +632,7 @@ export const EtapaConfigPanel: React.FC<EtapaConfigPanelProps> = ({
                         displayEmpty
                         renderValue={(selected) => {
                           if (!selected) {
-                            return (
-                              <Typography sx={{ color: '#4d4d4d', fontSize: '16px' }}>
-                                Seleccionar
-                              </Typography>
-                            );
+                            return '';
                           }
                           const tipo = TIPOS_PREGUNTA.find(t => t.value === selected);
                           return (
@@ -657,6 +653,9 @@ export const EtapaConfigPanel: React.FC<EtapaConfigPanelProps> = ({
                           );
                         }}
                       >
+                        <MenuItem value="" disabled>
+                          <em>Seleccionar</em>
+                        </MenuItem>
                         {TIPOS_PREGUNTA.map((tipo) => (
                           <MenuItem key={tipo.value} value={tipo.value}>
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
