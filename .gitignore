@@ -64,6 +64,10 @@ frontend/build/
 *.log
 logs/
 
+# Celery
+celerybeat-schedule
+celerybeat.pid
+
 # Database
 *.db
 *.sqlite
