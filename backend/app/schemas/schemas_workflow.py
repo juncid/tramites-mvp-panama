@@ -24,6 +24,7 @@ class TipoEtapaEnum(str, Enum):
     ETAPA = "ETAPA"
     COMPUERTA = "COMPUERTA"
     PRESENCIAL = "PRESENCIAL"
+    FIN = "FIN"
 
 
 class TipoPreguntaEnum(str, Enum):
@@ -154,6 +155,8 @@ class WorkflowEtapaBase(BaseModel):
     perfiles_permitidos: List[str] = Field(default_factory=list, description="Lista de perfiles que pueden ejecutar esta etapa")
     titulo_formulario: Optional[str] = Field(None, max_length=500)
     bajada_formulario: Optional[str] = None
+    descripcion_presencial: Optional[str] = None
+    documento_presencial: Optional[str] = Field(None, max_length=500)
     es_etapa_inicial: bool = False
     es_etapa_final: bool = False
     requiere_validacion: bool = False
@@ -172,9 +175,9 @@ class WorkflowEtapaBase(BaseModel):
     
     @model_validator(mode='after')
     def validar_perfiles(self):
-        """Valida que se especifiquen perfiles permitidos (excepto para etapa INICIO)"""
-        # La etapa INICIO no requiere perfiles permitidos
-        if self.codigo != 'INICIO' and (not self.perfiles_permitidos or len(self.perfiles_permitidos) == 0):
+        """Valida que se especifiquen perfiles permitidos (excepto para etapa INICIO y FIN)"""
+        # Las etapas INICIO y FIN no requieren perfiles permitidos
+        if self.codigo not in ['INICIO', 'FIN'] and (not self.perfiles_permitidos or len(self.perfiles_permitidos) == 0):
             raise ValueError('La etapa debe tener al menos un perfil permitido')
         return self
 
@@ -201,6 +204,8 @@ class WorkflowEtapaUpdate(BaseModel):
     perfiles_permitidos: Optional[List[str]] = None
     titulo_formulario: Optional[str] = Field(None, max_length=500)
     bajada_formulario: Optional[str] = None
+    descripcion_presencial: Optional[str] = None
+    documento_presencial: Optional[str] = Field(None, max_length=500)
     es_etapa_inicial: Optional[bool] = None
     es_etapa_final: Optional[bool] = None
     requiere_validacion: Optional[bool] = None

@@ -7,6 +7,7 @@ import { RevisionRequisitos } from '../pages/RevisionRequisitos';
 import { Etapas } from '../pages/Etapas';
 import { Procesos } from '../pages/Procesos';
 import { WorkflowEditor } from '../pages/WorkflowEditor';
+import { WorkflowViewer } from '../pages/WorkflowViewer';
 import { WorkflowEditorFigma } from '../pages/WorkflowEditorFigma';
 import { CargaDocumentosPPSH } from '../pages/CargaDocumentosPPSH';
 import { DetalleProcesoPPSH } from '../pages/DetalleProcesoPPSH';
@@ -94,7 +95,7 @@ export const AppRouter = () => {
         path="/flujos/:id/ver"
         element={
           <MainLayout>
-            <WorkflowEditor />
+            <WorkflowViewer />
           </MainLayout>
         }
       />

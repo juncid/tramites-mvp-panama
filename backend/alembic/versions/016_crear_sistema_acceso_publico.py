@@ -1,7 +1,7 @@
 """016_crear_sistema_acceso_publico
 
 Revision ID: 016_crear_sistema_acceso_publico
-Revises: 015_actualizar_documentos_ppsh_decreto_6
+Revises: 015_ppsh_decreto6
 Create Date: 2025-01-12 10:30:00
 
 Sistema de acceso público para ciudadanos y abogados sin contraseña.
@@ -13,7 +13,7 @@ from sqlalchemy.dialects import mssql
 
 # revision identifiers, used by Alembic.
 revision = '016_crear_sistema_acceso_publico'
-down_revision = '015_actualizar_documentos_ppsh_decreto_6'
+down_revision = '015_ppsh_decreto6'
 branch_labels = None
 depends_on = None
 

@@ -2,7 +2,7 @@
  * Tipos para el sistema de Workflows/Procesos dinámicos
  */
 
-export type TipoEtapa = 'ETAPA' | 'COMPUERTA' | 'SUBPROCESO' | 'PRESENCIAL';
+export type TipoEtapa = 'ETAPA' | 'COMPUERTA' | 'SUBPROCESO' | 'PRESENCIAL' | 'FIN';
 export type TipoPregunta = 
   | 'TEXTO' 
   | 'NUMERO' 
@@ -67,6 +67,9 @@ export interface WorkflowEtapa {
   reglas_transicion?: any;
   activo: boolean;
   preguntas?: WorkflowPregunta[];
+  // Campos específicos para tipo PRESENCIAL
+  descripcion_presencial?: string;
+  documento_presencial?: string;
 }
 
 export interface WorkflowPregunta {
@@ -93,9 +96,17 @@ export interface WorkflowPregunta {
   // Campos específicos para LISTA
   opciones?: string;
   lista_elementos?: string[];
+  // Campos específicos para SELECCION_SIMPLE
+  permite_multiple?: boolean;
   // Campos específicos para CARGA_ARCHIVO
   max_archivos?: number;
   max_size_mb?: number;
+  // Campos específicos para DATOS_CASO
+  campos_caso?: string[];
+  // Campos específicos para REVISION_OCR y REVISION_MANUAL_DOCUMENTOS
+  etapa_origen_id?: string;
+  // Campos específicos para FECHA
+  agenda_origen_id?: string;
 }
 
 export interface WorkflowConexion {

@@ -7,6 +7,7 @@ import { vistaConfigService } from '../../services/vista-config.service';
 
 export const CustomNode: React.FC<NodeProps<WorkflowEtapa>> = ({ data }) => {
   const isInicio = data.codigo === 'INICIO' || data.es_inicial || data.es_etapa_inicial;
+  const isFin = data.codigo === 'FIN' || data.es_final;
   const isPlaceholder = (data as any).is_placeholder || !data.nombre;
   const [tieneVistaDinamica, setTieneVistaDinamica] = useState(false);
   
@@ -23,7 +24,7 @@ export const CustomNode: React.FC<NodeProps<WorkflowEtapa>> = ({ data }) => {
   // Verificar si existe configuración de vista dinámica
   useEffect(() => {
     const checkVistaConfig = async () => {
-      if (data.id && !isInicio && !isPlaceholder) {
+      if (data.id && !isInicio && !isFin && !isPlaceholder) {
         try {
           const resultado = await vistaConfigService.checkExists(data.id);
           setTieneVistaDinamica(resultado.existe);
@@ -34,7 +35,7 @@ export const CustomNode: React.FC<NodeProps<WorkflowEtapa>> = ({ data }) => {
     };
 
     checkVistaConfig();
-  }, [data.id, isInicio, isPlaceholder]);
+  }, [data.id, isInicio, isFin, isPlaceholder]);
   
   const getNodeColor = () => {
     switch (data.tipo_etapa) {
@@ -80,15 +81,14 @@ export const CustomNode: React.FC<NodeProps<WorkflowEtapa>> = ({ data }) => {
             width: 80,
             height: 80,
             borderRadius: '50%',
-            backgroundColor: '#22C55E',
-            border: '3px solid #16A34A',
+            backgroundColor: '#4caf50',
+            border: '2px solid #4caf50',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             cursor: 'pointer',
-            boxShadow: 2,
             '&:hover': {
-              boxShadow: 4,
+              opacity: 0.9,
             },
           }}
         >
@@ -97,6 +97,36 @@ export const CustomNode: React.FC<NodeProps<WorkflowEtapa>> = ({ data }) => {
           </Typography>
         </Box>
         <Handle type="source" position={Position.Right} />
+      </>
+    );
+  }
+
+  // Nodo circular para fin
+  if (isFin) {
+    return (
+      <>
+        <Handle type="target" position={Position.Left} style={{ background: '#4d4d4d', border: 'none' }} />
+        <Box
+          sx={{
+            width: 80,
+            height: 80,
+            borderRadius: '50%',
+            backgroundColor: '#f44336',
+            border: '2px solid #f44336',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+            '&:hover': {
+              opacity: 0.9,
+            },
+          }}
+        >
+          <Typography variant="caption" fontWeight="bold" color="white" align="center">
+            Fin
+          </Typography>
+        </Box>
+        <Handle type="source" position={Position.Right} style={{ opacity: 0 }} />
       </>
     );
   }
@@ -141,25 +171,29 @@ export const CustomNode: React.FC<NodeProps<WorkflowEtapa>> = ({ data }) => {
   // Determinar tamaño según tipo de etapa
   const isSubproceso = data.tipo_etapa === 'SUBPROCESO';
   const isPresencial = data.tipo_etapa === 'PRESENCIAL';
-  const nodeWidth = (isSubproceso || isPresencial) ? 220 : 250;
+  const nodeWidth = 220;
+  const nodeMinHeight = 110;
   
   // Nodo rectangular para etapas normales
   return (
     <>
-      <Handle type="target" position={Position.Left} />
+      <Handle type="target" position={Position.Left} style={{ background: '#4d4d4d', border: 'none' }} />
       <Paper
-        elevation={2}
+        elevation={0}
         sx={{
-          padding: 2,
+          padding: 1,
           minWidth: nodeWidth,
           maxWidth: nodeWidth,
           width: nodeWidth,
+          minHeight: nodeMinHeight,
           backgroundColor: getNodeColor(),
           border: `2px ${getNodeBorderStyle()} ${getNodeBorderColor()}`,
           borderRadius: 1,
           cursor: 'pointer',
+          display: 'flex',
+          flexDirection: 'column',
           '&:hover': {
-            boxShadow: 4,
+            opacity: 0.95,
           },
         }}
       >
@@ -240,7 +274,7 @@ export const CustomNode: React.FC<NodeProps<WorkflowEtapa>> = ({ data }) => {
           )}
         </Box>
       </Paper>
-      <Handle type="source" position={Position.Right} />
+      <Handle type="source" position={Position.Right} style={{ background: '#4d4d4d', border: 'none' }} />
     </>
   );
 };

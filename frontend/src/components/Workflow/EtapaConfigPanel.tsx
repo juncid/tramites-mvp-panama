@@ -38,6 +38,7 @@ import {
   Draw as SignatureIcon,
   Payment as PaymentIcon,
   Notifications as NotificationIcon,
+  AttachFile as AttachFileIcon,
 } from '@mui/icons-material';
 import type { WorkflowEtapa, WorkflowPregunta, TipoEtapa, TipoPregunta } from '../../types/workflow';
 import { VistaConfiguratorPanel } from './VistaConfiguratorPanel';
@@ -140,6 +141,7 @@ export const EtapaConfigPanel: React.FC<EtapaConfigPanelProps> = ({
   const [editingIndex, setEditingIndex] = useState<number | null>(null); // null = no editing, -1 = new question, >= 0 = editing existing
   const [tempPregunta, setTempPregunta] = useState<WorkflowPregunta | null>(null);
   const [newListItem, setNewListItem] = useState<string>('');
+  const [uploadedFileName, setUploadedFileName] = useState<string>('');
 
   useEffect(() => {
     setFormData(etapa);
@@ -179,6 +181,7 @@ export const EtapaConfigPanel: React.FC<EtapaConfigPanelProps> = ({
   const handleCancelEdit = () => {
     setTempPregunta(null);
     setEditingIndex(null);
+    setUploadedFileName('');
   };
 
   const handleConfirmPregunta = () => {
@@ -196,6 +199,7 @@ export const EtapaConfigPanel: React.FC<EtapaConfigPanelProps> = ({
 
     setTempPregunta(null);
     setEditingIndex(null);
+    setUploadedFileName('');
   };
 
   const handleDuplicatePregunta = (index: number) => {
@@ -220,9 +224,23 @@ export const EtapaConfigPanel: React.FC<EtapaConfigPanelProps> = ({
     
     // Sync 'tipo' with 'tipo_pregunta' field
     if (field === 'tipo') {
-      setTempPregunta((prev) => prev ? { ...prev, tipo: value as TipoPregunta, tipo_pregunta: value as TipoPregunta } : null);
+      const tipoLabel = TIPOS_PREGUNTA.find(t => t.value === value)?.label || value;
+      setTempPregunta((prev) => prev ? { 
+        ...prev, 
+        tipo: value as TipoPregunta, 
+        tipo_pregunta: value as TipoPregunta,
+        // Para REVISION_OCR, establecer automáticamente el texto como el nombre del tipo y marcar como obligatoria
+        ...(value === 'REVISION_OCR' && { texto: tipoLabel, pregunta: tipoLabel, es_obligatoria: true })
+      } : null);
     } else if (field === 'tipo_pregunta') {
-      setTempPregunta((prev) => prev ? { ...prev, tipo_pregunta: value as TipoPregunta, tipo: value as TipoPregunta } : null);
+      const tipoLabel = TIPOS_PREGUNTA.find(t => t.value === value)?.label || value;
+      setTempPregunta((prev) => prev ? { 
+        ...prev, 
+        tipo_pregunta: value as TipoPregunta, 
+        tipo: value as TipoPregunta,
+        // Para REVISION_OCR, establecer automáticamente el texto como el nombre del tipo y marcar como obligatoria
+        ...(value === 'REVISION_OCR' && { texto: tipoLabel, pregunta: tipoLabel, es_obligatoria: true })
+      } : null);
     }
   };
 
@@ -268,6 +286,7 @@ export const EtapaConfigPanel: React.FC<EtapaConfigPanelProps> = ({
               <MenuItem value="ETAPA">Etapa</MenuItem>
               <MenuItem value="COMPUERTA">Compuerta</MenuItem>
               <MenuItem value="SUBPROCESO">Subproceso</MenuItem>
+              <MenuItem value="PRESENCIAL">Presencial</MenuItem>
             </Select>
           </FormControl>
 
@@ -310,6 +329,75 @@ export const EtapaConfigPanel: React.FC<EtapaConfigPanelProps> = ({
               ))}
             </Select>
           </FormControl>
+
+          {/* Sección PRESENCIAL - Mostrar solo cuando tipo_etapa es PRESENCIAL */}
+          {formData.tipo_etapa === 'PRESENCIAL' && (
+            <Box
+              sx={{
+                p: 2,
+                border: '2px dashed #333333',
+                borderRadius: '4px',
+                bgcolor: 'white',
+              }}
+            >
+              <Stack spacing={2}>
+                {/* Descripción */}
+                <TextField
+                  fullWidth
+                  multiline
+                  rows={3}
+                  label="Descripción"
+                  placeholder="Lorem"
+                  value={formData.descripcion_presencial || ''}
+                  onChange={(e) => handleChange('descripcion_presencial', e.target.value)}
+                />
+
+                {/* Documento con botón de carga */}
+                <Box>
+                  <TextField
+                    fullWidth
+                    label="Documento"
+                    value={formData.documento_presencial || ''}
+                    onChange={(e) => handleChange('documento_presencial', e.target.value)}
+                    InputProps={{
+                      readOnly: true,
+                      endAdornment: (
+                        <Button
+                          variant="contained"
+                          component="label"
+                          sx={{
+                            bgcolor: '#0e5fa6',
+                            '&:hover': { bgcolor: '#0a4a85' },
+                            textTransform: 'none',
+                            ml: 1,
+                          }}
+                        >
+                          Cargar archivo
+                          <input
+                            type="file"
+                            hidden
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                handleChange('documento_presencial', file.name);
+                              }
+                            }}
+                          />
+                        </Button>
+                      ),
+                    }}
+                  />
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    sx={{ display: 'block', mt: 0.5 }}
+                  >
+                    (Opcional), indicaciones para la persona que responda la pregunta
+                  </Typography>
+                </Box>
+              </Stack>
+            </Box>
+          )}
 
           <Divider />
 
@@ -355,94 +443,172 @@ export const EtapaConfigPanel: React.FC<EtapaConfigPanelProps> = ({
             </Stack>
 
             <Stack spacing={2}>
-              {/* Fase 1: Tarjetas compactas para preguntas guardadas */}
+              {/* Fase 1: Tarjetas para preguntas guardadas - Diseño Figma */}
               {preguntas.filter((_, idx) => editingIndex !== idx).map((pregunta, index) => (
                 <Box
                   key={index}
                   sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 1.5,
-                    p: 1.5,
+                    p: 2,
                     border: '2px solid #333333',
-                    borderRadius: 1,
+                    borderRadius: '4px',
                     bgcolor: 'white',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 2,
                   }}
                 >
-                  {/* Icono del tipo */}
-                  <Box
-                    sx={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      minWidth: 32,
-                      height: 32,
-                      color: '#333333',
-                    }}
-                  >
-                    {getTipoPreguntaIcon(pregunta.tipo)}
+                  {/* Tipo de pregunta */}
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Typography
+                      sx={{
+                        fontSize: '14px',
+                        fontWeight: 500,
+                        color: '#333333',
+                      }}
+                    >
+                      Tipo de pregunta
+                    </Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                      <Box
+                        sx={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          width: 24,
+                          height: 24,
+                          border: '1px solid #333333',
+                          borderRadius: '4px',
+                          p: 0.5,
+                        }}
+                      >
+                        {getTipoPreguntaIcon(pregunta.tipo)}
+                      </Box>
+                      <Typography
+                        sx={{
+                          fontSize: '16px',
+                          color: '#333333',
+                        }}
+                      >
+                        {TIPOS_PREGUNTA.find(t => t.value === pregunta.tipo)?.label || pregunta.tipo}
+                      </Typography>
+                    </Box>
                   </Box>
 
-                  {/* Texto de la pregunta */}
-                  <Typography
-                    sx={{
-                      flex: 1,
-                      fontSize: '14px',
-                      color: '#333333',
-                    }}
-                  >
-                    {pregunta.texto}
-                  </Typography>
+                  {/* Pregunta */}
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Typography
+                      sx={{
+                        fontSize: '14px',
+                        fontWeight: 500,
+                        color: '#333333',
+                      }}
+                    >
+                      Pregunta
+                    </Typography>
+                    <Typography
+                      sx={{
+                        fontSize: '16px',
+                        color: '#4d4d4d',
+                      }}
+                    >
+                      {pregunta.texto}
+                    </Typography>
+                  </Box>
 
-                  {/* Checkbox obligatoria */}
-                  <Checkbox
-                    checked={pregunta.es_obligatoria}
-                    disabled
-                    size="small"
-                    sx={{ color: '#333333' }}
-                  />
+                  {/* Obligatoria */}
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                    <Checkbox
+                      checked={pregunta.es_obligatoria}
+                      disabled
+                      size="small"
+                      sx={{ 
+                        p: 0,
+                        color: '#333333',
+                        '&.Mui-checked': {
+                          color: '#333333',
+                        },
+                      }}
+                    />
+                    <Typography
+                      sx={{
+                        fontSize: '16px',
+                        color: '#4d4d4d',
+                      }}
+                    >
+                      Obligatoria
+                    </Typography>
+                  </Box>
 
                   {/* Botones de acción */}
-                  <Button
-                    size="small"
-                    onClick={() => handleDuplicatePregunta(index)}
-                    sx={{
-                      minWidth: 'auto',
-                      px: 1,
-                      color: '#333333',
-                      textTransform: 'none',
-                      fontSize: '13px',
-                    }}
-                  >
-                    Duplicar
-                  </Button>
-                  <Button
-                    size="small"
-                    startIcon={<EditIcon />}
-                    onClick={() => handleEditPregunta(index)}
-                    sx={{
-                      minWidth: 'auto',
-                      px: 1,
-                      color: '#333333',
-                      textTransform: 'none',
-                      fontSize: '13px',
-                    }}
-                  >
-                    Editar
-                  </Button>
-                  <Button
-                    size="small"
-                    onClick={() => handleDeletePregunta(index)}
-                    sx={{
-                      minWidth: 'auto',
-                      px: 1,
-                      color: '#cc3333',
-                      textTransform: 'none',
-                      fontSize: '13px',
-                    }}
-                  >
-                    Borrar
-                  </Button>
+                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 3 }}>
+                    <Box
+                      sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 1,
+                        cursor: 'pointer',
+                        '&:hover': { opacity: 0.7 },
+                      }}
+                      onClick={() => handleDuplicatePregunta(index)}
+                    >
+                      <Box sx={{ width: 16, height: 16, display: 'flex', alignItems: 'center' }}>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#333333" strokeWidth="2">
+                          <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                        </svg>
+                      </Box>
+                      <Typography
+                        sx={{
+                          fontSize: '14px',
+                          color: '#333333',
+                        }}
+                      >
+                        Duplicar
+                      </Typography>
+                    </Box>
+
+                    <Box
+                      sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 1,
+                        cursor: 'pointer',
+                        '&:hover': { opacity: 0.7 },
+                      }}
+                      onClick={() => handleEditPregunta(index)}
+                    >
+                      <EditIcon sx={{ fontSize: 16, color: '#333333' }} />
+                      <Typography
+                        sx={{
+                          fontSize: '14px',
+                          color: '#333333',
+                        }}
+                      >
+                        Editar
+                      </Typography>
+                    </Box>
+
+                    <Box
+                      sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 1,
+                        cursor: 'pointer',
+                        '&:hover': { opacity: 0.7 },
+                      }}
+                      onClick={() => handleDeletePregunta(index)}
+                    >
+                      <DeleteIcon sx={{ fontSize: 16, color: '#cc3333' }} />
+                      <Typography
+                        sx={{
+                          fontSize: '14px',
+                          color: '#cc3333',
+                        }}
+                      >
+                        Borrar
+                      </Typography>
+                    </Box>
+                  </Box>
                 </Box>
               ))}
 
@@ -485,58 +651,68 @@ export const EtapaConfigPanel: React.FC<EtapaConfigPanelProps> = ({
                       </Select>
                     </FormControl>
 
-                    <TextField
-                      fullWidth
-                      size="small"
-                      label="Texto de la pregunta"
-                      value={tempPregunta.texto}
-                      onChange={(e) => handlePreguntaChange('texto', e.target.value)}
-                    />
+                    {/* Campo de texto - Oculto para REVISION_OCR y DATOS_CASO */}
+                    {(tempPregunta.tipo !== 'REVISION_OCR' && tempPregunta.tipo !== 'DATOS_CASO') && (
+                      <TextField
+                        fullWidth
+                        size="small"
+                        label={
+                          (tempPregunta.tipo === 'REVISION_MANUAL_DOCUMENTOS' || tempPregunta.tipo === 'FECHA') 
+                            ? 'Pregunta' 
+                            : 'Texto de la pregunta'
+                        }
+                        value={tempPregunta.texto}
+                        onChange={(e) => handlePreguntaChange('texto', e.target.value)}
+                      />
+                    )}
 
-                    <FormControlLabel
-                      control={
-                        <Checkbox
-                          checked={tempPregunta.es_obligatoria}
-                          onChange={(e) => handlePreguntaChange('es_obligatoria', e.target.checked)}
-                          size="small"
-                        />
-                      }
-                      label="Obligatoria"
-                    />
+                    {/* Campo de ayuda - Oculto para REVISION_MANUAL_DOCUMENTOS, FECHA, REVISION_OCR y DATOS_CASO */}
+                    {(tempPregunta.tipo !== 'REVISION_MANUAL_DOCUMENTOS' && 
+                      tempPregunta.tipo !== 'FECHA' && 
+                      tempPregunta.tipo !== 'REVISION_OCR' &&
+                      tempPregunta.tipo !== 'DATOS_CASO') && (
+                      <TextField
+                        fullWidth
+                        size="small"
+                        label="Ayuda"
+                        value={tempPregunta.ayuda || ''}
+                        onChange={(e) => handlePreguntaChange('ayuda', e.target.value)}
+                        placeholder="Texto de ayuda opcional"
+                      />
+                    )}
 
-                    <TextField
-                      fullWidth
-                      size="small"
-                      label="Ayuda"
-                      value={tempPregunta.ayuda || ''}
-                      onChange={(e) => handlePreguntaChange('ayuda', e.target.value)}
-                      placeholder="Texto de ayuda opcional"
-                    />
+                    {/* Checkbox Obligatoria - Oculto para REVISION_OCR y DATOS_CASO (tienen su propio checkbox) */}
+                    {(tempPregunta.tipo !== 'REVISION_OCR' && tempPregunta.tipo !== 'DATOS_CASO') && (
+                      <FormControlLabel
+                        control={
+                          <Checkbox
+                            checked={tempPregunta.es_obligatoria || false}
+                            onChange={(e) => handlePreguntaChange('es_obligatoria', e.target.checked)}
+                            size="small"
+                          />
+                        }
+                        label="Obligatoria"
+                      />
+                    )}
 
                     {/* Campos específicos según tipo de pregunta */}
                     
                     {/* TEXTO */}
                     {tempPregunta.tipo === 'TEXTO' && (
-                      <>
-                        <TextField
-                          fullWidth
-                          size="small"
-                          label="Número mínimo de caracteres"
-                          type="number"
-                          value={tempPregunta.min_caracteres || ''}
-                          onChange={(e) => handlePreguntaChange('min_caracteres', e.target.value ? parseInt(e.target.value) : undefined)}
-                          InputProps={{ inputProps: { min: 0 } }}
-                        />
-                        <TextField
-                          fullWidth
-                          size="small"
-                          label="Número máximo de caracteres"
-                          type="number"
+                      <FormControl fullWidth size="small">
+                        <InputLabel>Número máximo de caracteres</InputLabel>
+                        <Select
                           value={tempPregunta.max_caracteres || ''}
-                          onChange={(e) => handlePreguntaChange('max_caracteres', e.target.value ? parseInt(e.target.value) : undefined)}
-                          InputProps={{ inputProps: { min: 1 } }}
-                        />
-                      </>
+                          onChange={(e) => handlePreguntaChange('max_caracteres', e.target.value ? parseInt(e.target.value as string) : undefined)}
+                          label="Número máximo de caracteres"
+                        >
+                          <MenuItem value="">Sin límite</MenuItem>
+                          <MenuItem value={500}>500</MenuItem>
+                          <MenuItem value={1000}>1000</MenuItem>
+                          <MenuItem value={2000}>2000</MenuItem>
+                          <MenuItem value={5000}>5000</MenuItem>
+                        </Select>
+                      </FormControl>
                     )}
 
                     {/* LISTA */}
@@ -600,28 +776,306 @@ export const EtapaConfigPanel: React.FC<EtapaConfigPanelProps> = ({
                       </Box>
                     )}
 
+                    {/* SELECCION_SIMPLE (Opciones) */}
+                    {tempPregunta.tipo === 'SELECCION_SIMPLE' && (
+                      <Box>
+                        <FormControlLabel
+                          control={
+                            <Checkbox
+                              checked={tempPregunta.permite_multiple || false}
+                              onChange={(e) => handlePreguntaChange('permite_multiple', e.target.checked)}
+                              size="small"
+                            />
+                          }
+                          label="Permitir selección múltiple"
+                          sx={{ mb: 2 }}
+                        />
+                        
+                        {(tempPregunta.lista_elementos || []).map((opcion, index) => (
+                          <TextField
+                            key={index}
+                            fullWidth
+                            size="small"
+                            label={`Opción ${index + 1}`}
+                            value={opcion}
+                            onChange={(e) => {
+                              const currentItems = tempPregunta.lista_elementos || [];
+                              const newItems = [...currentItems];
+                              newItems[index] = e.target.value;
+                              handlePreguntaChange('lista_elementos', newItems);
+                            }}
+                            sx={{ mb: 1 }}
+                            InputProps={{
+                              endAdornment: (
+                                <IconButton
+                                  size="small"
+                                  onClick={() => {
+                                    const currentItems = tempPregunta.lista_elementos || [];
+                                    handlePreguntaChange(
+                                      'lista_elementos',
+                                      currentItems.filter((_, i) => i !== index)
+                                    );
+                                  }}
+                                >
+                                  <DeleteIcon fontSize="small" />
+                                </IconButton>
+                              ),
+                            }}
+                          />
+                        ))}
+                        
+                        <Box
+                          sx={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 0.5,
+                            bgcolor: '#0e5fa6',
+                            color: 'white',
+                            px: 0.5,
+                            py: 0.25,
+                            borderRadius: '2px',
+                            width: 'fit-content',
+                            cursor: 'pointer',
+                            '&:hover': {
+                              bgcolor: '#0d5494',
+                            },
+                          }}
+                          onClick={() => {
+                            const currentItems = tempPregunta.lista_elementos || [];
+                            handlePreguntaChange('lista_elementos', [...currentItems, '']);
+                          }}
+                        >
+                          <AddIcon sx={{ fontSize: 16 }} />
+                          <Typography variant="body2">Añadir opción</Typography>
+                        </Box>
+                      </Box>
+                    )}
+
                     {/* CARGA_ARCHIVO */}
                     {tempPregunta.tipo === 'CARGA_ARCHIVO' && (
-                      <>
+                      <Box>
+                        <FormControl fullWidth size="small" sx={{ mb: 2 }}>
+                          <InputLabel>Número máximo de archivos</InputLabel>
+                          <Select
+                            value={tempPregunta.max_archivos || 1}
+                            label="Número máximo de archivos"
+                            onChange={(e) => handlePreguntaChange('max_archivos', e.target.value as number)}
+                          >
+                            <MenuItem value={1}>1</MenuItem>
+                            <MenuItem value={2}>2</MenuItem>
+                            <MenuItem value={3}>3</MenuItem>
+                            <MenuItem value={5}>5</MenuItem>
+                            <MenuItem value={10}>10</MenuItem>
+                          </Select>
+                        </FormControl>
+
+                        <FormControl fullWidth size="small" sx={{ mb: 2 }}>
+                          <InputLabel>Tamaño máximo (MB)</InputLabel>
+                          <Select
+                            value={tempPregunta.max_size_mb || 100}
+                            label="Tamaño máximo (MB)"
+                            onChange={(e) => handlePreguntaChange('max_size_mb', e.target.value as number)}
+                          >
+                            <MenuItem value={10}>10MB</MenuItem>
+                            <MenuItem value={25}>25MB</MenuItem>
+                            <MenuItem value={50}>50MB</MenuItem>
+                            <MenuItem value={100}>100MB</MenuItem>
+                            <MenuItem value={200}>200MB</MenuItem>
+                          </Select>
+                        </FormControl>
+
+                        <Box sx={{ mb: 2 }}>
+                          <Box
+                            component="label"
+                            sx={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: 0.5,
+                              bgcolor: '#0e5fa6',
+                              color: 'white',
+                              px: 1.5,
+                              py: 1,
+                              borderRadius: '2px',
+                              cursor: 'pointer',
+                              '&:hover': {
+                                bgcolor: '#0d5494',
+                              },
+                            }}
+                          >
+                            <AttachFileIcon sx={{ fontSize: 16 }} />
+                            <Typography variant="body2">Cargar archivo</Typography>
+                            <input
+                              type="file"
+                              hidden
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                  setUploadedFileName(file.name);
+                                  console.log('Archivo seleccionado:', file.name);
+                                }
+                              }}
+                            />
+                          </Box>
+                        </Box>
+
                         <TextField
                           fullWidth
                           size="small"
-                          label="Número máximo de archivos"
-                          type="number"
-                          value={tempPregunta.max_archivos || 1}
-                          onChange={(e) => handlePreguntaChange('max_archivos', parseInt(e.target.value))}
-                          InputProps={{ inputProps: { min: 1, max: 10 } }}
+                          label="Documento"
+                          value={uploadedFileName}
+                          placeholder="Nombre del archivo aparecerá aquí"
+                          disabled
+                          sx={{ mb: 1 }}
                         />
+
+                        <Typography 
+                          variant="caption" 
+                          color="text.secondary" 
+                          sx={{ display: 'block', px: 2, fontSize: '12px' }}
+                        >
+                          (Opcional), indicaciones para la persona que responda la pregunta
+                        </Typography>
+                      </Box>
+                    )}
+
+                    {/* DATOS_CASO */}
+                    {tempPregunta.tipo === 'DATOS_CASO' && (
+                      <Box>
                         <TextField
                           fullWidth
                           size="small"
-                          label="Tamaño máximo (MB)"
-                          type="number"
-                          value={tempPregunta.max_size_mb || 100}
-                          onChange={(e) => handlePreguntaChange('max_size_mb', parseInt(e.target.value))}
-                          InputProps={{ inputProps: { min: 1 } }}
+                          label="Pregunta"
+                          value={tempPregunta.texto}
+                          onChange={(e) => handlePreguntaChange('texto', e.target.value)}
+                          placeholder="Data a incluir:"
+                          sx={{ mb: 2 }}
                         />
-                      </>
+
+                        <FormControlLabel
+                          control={
+                            <Checkbox
+                              checked={tempPregunta.es_obligatoria || false}
+                              onChange={(e) => handlePreguntaChange('es_obligatoria', e.target.checked)}
+                              size="small"
+                            />
+                          }
+                          label="Obligatoria"
+                          sx={{ mb: 2 }}
+                        />
+
+                        <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block' }}>
+                          Seleccione los datos del caso a incluir:
+                        </Typography>
+
+                        <Stack spacing={1}>
+                          {[
+                            { value: 'REUEX', label: 'REUEX' },
+                            { value: 'NOMBRE', label: 'Nombre' },
+                            { value: 'NACIONALIDAD', label: 'Nacionalidad' },
+                            { value: 'TRAMITE', label: 'Tramite' },
+                            { value: 'PASAPORTE', label: 'Pasaporte' },
+                            { value: 'SEXO', label: 'Sexo' },
+                            { value: 'EXPEDIENTE', label: 'Nº de Expediente' },
+                            { value: 'FECHA_NACIMIENTO', label: 'Fecha de nacimiento' },
+                          ].map((campo) => (
+                            <FormControlLabel
+                              key={campo.value}
+                              control={
+                                <Checkbox
+                                  size="small"
+                                  checked={(tempPregunta.campos_caso || []).includes(campo.value)}
+                                  onChange={(e) => {
+                                    const currentCampos = tempPregunta.campos_caso || [];
+                                    const newCampos = e.target.checked
+                                      ? [...currentCampos, campo.value]
+                                      : currentCampos.filter(c => c !== campo.value);
+                                    handlePreguntaChange('campos_caso', newCampos);
+                                  }}
+                                />
+                              }
+                              label={campo.label}
+                            />
+                          ))}
+                        </Stack>
+                      </Box>
+                    )}
+
+                    {/* REVISION_OCR */}
+                    {tempPregunta.tipo === 'REVISION_OCR' && (
+                      <Box>
+                        <FormControl fullWidth size="small" sx={{ mb: 2 }}>
+                          <InputLabel>Etapa origen de documentos</InputLabel>
+                          <Select
+                            value={tempPregunta.etapa_origen_id || ''}
+                            label="Etapa origen de documentos"
+                            onChange={(e) => handlePreguntaChange('etapa_origen_id', e.target.value)}
+                            displayEmpty
+                            renderValue={(selected) => {
+                              if (!selected) {
+                                return (
+                                  <Typography sx={{ color: '#4d4d4d', fontSize: '16px' }}>
+                                    Recolectar requisitos del trámite PPSH y los anexo en el sistema
+                                  </Typography>
+                                );
+                              }
+                              const pregunta = preguntas.find(p => p.codigo === selected);
+                              return pregunta?.texto || selected;
+                            }}
+                          >
+                            {preguntas
+                              .filter(p => p.tipo === 'CARGA_ARCHIVO')
+                              .map((p, idx) => (
+                                <MenuItem key={idx} value={p.codigo}>
+                                  {p.texto}
+                                </MenuItem>
+                              ))}
+                            {preguntas.filter(p => p.tipo === 'CARGA_ARCHIVO').length === 0 && (
+                              <MenuItem value="" disabled>
+                                <em>No hay etapas de carga de archivos disponibles</em>
+                              </MenuItem>
+                            )}
+                          </Select>
+                        </FormControl>
+                      </Box>
+                    )}
+
+                    {/* REVISION_MANUAL_DOCUMENTOS */}
+                    {tempPregunta.tipo === 'REVISION_MANUAL_DOCUMENTOS' && (
+                      <Box>
+                        <FormControl fullWidth size="small" sx={{ mb: 2 }}>
+                          <InputLabel>Etapa origen de documentos</InputLabel>
+                          <Select
+                            value={tempPregunta.etapa_origen_id || ''}
+                            label="Etapa origen de documentos"
+                            onChange={(e) => handlePreguntaChange('etapa_origen_id', e.target.value)}
+                          >
+                            {preguntas
+                              .filter(p => p.tipo === 'CARGA_ARCHIVO' || p.tipo === 'REVISION_OCR')
+                              .map((p, idx) => (
+                                <MenuItem key={idx} value={p.codigo}>
+                                  {p.texto}
+                                </MenuItem>
+                              ))}
+                          </Select>
+                        </FormControl>
+                      </Box>
+                    )}
+
+                    {/* FECHA */}
+                    {tempPregunta.tipo === 'FECHA' && (
+                      <Box>
+                        <FormControl fullWidth size="small" sx={{ mb: 2 }}>
+                          <InputLabel>Origen agenda selección de fechas</InputLabel>
+                          <Select
+                            value={tempPregunta.agenda_origen_id || ''}
+                            label="Origen agenda selección de fechas"
+                            onChange={(e) => handlePreguntaChange('agenda_origen_id', e.target.value)}
+                          >
+                            <MenuItem value="AGENDA_PPSH">Agenda PPSH</MenuItem>
+                            <MenuItem value="AGENDA_GENERAL">Agenda General</MenuItem>
+                          </Select>
+                        </FormControl>
+                      </Box>
                     )}
 
                     {/* Botones Cancelar / Añadir o Guardar */}

@@ -24,17 +24,22 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
+  Snackbar,
+  Alert,
 } from '@mui/material';
 import {
   Save as SaveIcon,
   Add as AddIcon,
   Code as CodeIcon,
+  AccountTree as AutoLayoutIcon,
+  StopCircle as StopCircleIcon,
 } from '@mui/icons-material';
 import { workflowService } from '../services/workflow.service';
 import EtapaConfigPanel from '../components/Workflow/EtapaConfigPanel';
 import CustomNode from '../components/Workflow/CustomNode';
 import type { Workflow, WorkflowEtapa, WorkflowConexion } from '../types/workflow';
 import { GeneralView, StatusView, HistoryView } from '../components/PPSH/views';
+import { getLayoutedElements } from '../utils/autoLayout';
 
 const nodeTypes: NodeTypes = {
   custom: CustomNode,
@@ -71,6 +76,11 @@ export const WorkflowEditor: React.FC = () => {
   const [tabValue, setTabValue] = useState(1); // Iniciar en tab "Flujo"
   const [loading, setLoading] = useState(false);
   const [jsonDialogOpen, setJsonDialogOpen] = useState(false);
+  const [snackbar, setSnackbar] = useState<{
+    open: boolean;
+    message: string;
+    severity: 'success' | 'error' | 'info' | 'warning';
+  }>({ open: false, message: '', severity: 'info' });
 
   useEffect(() => {
     if (isEditMode) {
@@ -133,21 +143,35 @@ export const WorkflowEditor: React.FC = () => {
             : { x: 0, y: 0 },
           data: etapa,
         }));
-        setNodes(flowNodes);
-      }
 
-      // Convertir conexiones a edges de react-flow
-      if (data.conexiones && data.conexiones.length > 0) {
-        const flowEdges: Edge[] = data.conexiones.map((conexion) => ({
-          id: conexion.id?.toString() || `${conexion.etapa_origen_id}-${conexion.etapa_destino_id}`,
-          source: conexion.etapa_origen_id.toString(),
-          target: conexion.etapa_destino_id.toString(),
-          label: conexion.condicion,
-          markerEnd: {
-            type: MarkerType.ArrowClosed,
-          },
-        }));
-        setEdges(flowEdges);
+        // Convertir conexiones a edges de react-flow
+        let flowEdges: Edge[] = [];
+        if (data.conexiones && data.conexiones.length > 0) {
+          flowEdges = data.conexiones.map((conexion) => ({
+            id: conexion.id?.toString() || `${conexion.etapa_origen_id}-${conexion.etapa_destino_id}`,
+            source: conexion.etapa_origen_id.toString(),
+            target: conexion.etapa_destino_id.toString(),
+            label: conexion.condicion,
+            type: 'straight',
+            style: { 
+              stroke: '#4d4d4d', 
+              strokeWidth: 2,
+            },
+            markerEnd: {
+              type: MarkerType.ArrowClosed,
+              color: '#4d4d4d',
+            },
+          }));
+        }
+
+        // Aplicar auto-layout
+        const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(
+          flowNodes,
+          flowEdges
+        );
+
+        setNodes(layoutedNodes);
+        setEdges(layoutedEdges);
       }
     } catch (error) {
       console.error('Error al cargar workflow:', error);
@@ -160,8 +184,14 @@ export const WorkflowEditor: React.FC = () => {
     (params: Connection) => {
       const edge = {
         ...params,
+        type: 'straight',
+        style: { 
+          stroke: '#4d4d4d', 
+          strokeWidth: 2,
+        },
         markerEnd: {
           type: MarkerType.ArrowClosed,
+          color: '#4d4d4d',
         },
       };
             setEdges((eds) => addEdge(edge, eds));
@@ -205,6 +235,44 @@ export const WorkflowEditor: React.FC = () => {
       setSelectedNode(newNode);
       setDrawerOpen(true);
     }, 100);
+  };
+
+  const handleAddFinNode = () => {
+    // Verificar si ya existe un nodo FIN
+    const existeFin = nodes.some(node => 
+      node.data.codigo === 'FIN' || node.data.tipo_etapa === 'FIN'
+    );
+
+    if (existeFin) {
+      alert('Ya existe un nodo de término en este proceso');
+      return;
+    }
+
+    // Calcular posición horizontal basada en el número de nodos
+    const horizontalSpacing = 300;
+    const verticalCenter = 200;
+    const newX = 50 + (nodes.length * horizontalSpacing);
+    
+    const finNode: Node = {
+      id: `node-fin-${Date.now()}`,
+      type: 'custom',
+      position: { x: newX, y: verticalCenter },
+      data: {
+        codigo: 'FIN',
+        nombre: 'Fin',
+        descripcion: 'Etapa de finalización del proceso',
+        tipo_etapa: 'FIN' as const,
+        orden: nodes.length,
+        perfiles_permitidos: [],
+        es_etapa_inicial: false,
+        es_etapa_final: true,
+        requiere_validacion: false,
+        permite_edicion_posterior: false,
+        activo: true,
+      },
+    };
+    
+    setNodes((nds) => [...nds, finNode]);
   };
 
   const handleSaveNode = (updatedEtapa: Partial<WorkflowEtapa>) => {
@@ -258,6 +326,15 @@ export const WorkflowEditor: React.FC = () => {
     setSelectedNode(null);
   };
 
+  const handleAutoLayout = () => {
+    const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(
+      nodes,
+      edges
+    );
+    setNodes(layoutedNodes);
+    setEdges(layoutedEdges);
+  };
+
   const handleSaveWorkflow = async () => {
     try {
       setLoading(true);
@@ -285,29 +362,49 @@ export const WorkflowEditor: React.FC = () => {
       }
 
       
-      // Guardar etapas con posiciones
-            for (const node of nodes) {
+      // Guardar etapas con posiciones y mapear IDs temporales a IDs reales
+      const nodeIdMap = new Map<string, number>(); // Mapea node.id temporal a etapa.id real
+      
+      for (const node of nodes) {
+        // Limpiar datos del nodo - remover propiedades que no son del schema
+        const { is_placeholder, label, es_inicial, ...cleanData } = node.data as any;
+        
         const etapaData: Partial<WorkflowEtapa> = {
-          ...node.data,
+          ...cleanData,
           workflow_id: savedWorkflow.id,
-          posicion_x: node.position.x,
-          posicion_y: node.position.y,
+          posicion_x: Math.round(node.position.x),
+          posicion_y: Math.round(node.position.y),
+          // Asegurar que FIN e INICIO tengan al menos un perfil para pasar validación
+          perfiles_permitidos: (cleanData.codigo === 'INICIO' || cleanData.codigo === 'FIN') 
+            ? ['SISTEMA'] 
+            : (cleanData.perfiles_permitidos || []),
         };
 
-        
+        let savedEtapa;
         if (node.data.id) {
-          await workflowService.updateEtapa(node.data.id, etapaData);
-                  } else {
-          await workflowService.createEtapa(etapaData);
-                  }
+          savedEtapa = await workflowService.updateEtapa(node.data.id, etapaData);
+          nodeIdMap.set(node.id, node.data.id);
+        } else {
+          savedEtapa = await workflowService.createEtapa(etapaData);
+          nodeIdMap.set(node.id, savedEtapa.id);
+        }
       }
 
-      // Guardar conexiones
-            for (const edge of edges) {
+      // Guardar conexiones usando los IDs reales
+      for (const edge of edges) {
+        const origenId = nodeIdMap.get(edge.source);
+        const destinoId = nodeIdMap.get(edge.target);
+        
+        // Solo guardar si ambos nodos tienen ID
+        if (!origenId || !destinoId) {
+          console.warn('⚠️ Saltando conexión sin IDs válidos:', edge);
+          continue;
+        }
+        
         const conexionData: Partial<WorkflowConexion> = {
           workflow_id: savedWorkflow.id,
-          etapa_origen_id: parseInt(edge.source),
-          etapa_destino_id: parseInt(edge.target),
+          etapa_origen_id: origenId,
+          etapa_destino_id: destinoId,
           condicion: edge.label as string,
         };
 
@@ -319,10 +416,23 @@ export const WorkflowEditor: React.FC = () => {
                   }
       }
 
-            
-      navigate('/flujos');
+      setSnackbar({
+        open: true,
+        message: 'Workflow guardado exitosamente',
+        severity: 'success',
+      });
+      
+      // Esperar un momento antes de navegar para que el usuario vea el mensaje
+      setTimeout(() => {
+        navigate('/flujos');
+      }, 1500);
     } catch (error) {
       console.error('❌ Error al guardar workflow:', error);
+      setSnackbar({
+        open: true,
+        message: 'Error al guardar el workflow. Por favor, intenta de nuevo.',
+        severity: 'error',
+      });
           } finally {
       setLoading(false);
     }
@@ -433,6 +543,38 @@ export const WorkflowEditor: React.FC = () => {
         </Button>
         <Button
           variant="outlined"
+          startIcon={<StopCircleIcon />}
+          onClick={handleAddFinNode}
+          sx={{
+            borderColor: '#f44336',
+            color: '#f44336',
+            textTransform: 'none',
+            '&:hover': {
+              borderColor: '#d32f2f',
+              backgroundColor: 'rgba(244, 67, 54, 0.04)',
+            },
+          }}
+        >
+          Añadir Término
+        </Button>
+        <Button
+          variant="outlined"
+          startIcon={<AutoLayoutIcon />}
+          onClick={handleAutoLayout}
+          sx={{
+            borderColor: '#0e5fa6',
+            color: '#0e5fa6',
+            textTransform: 'none',
+            '&:hover': {
+              borderColor: '#0d5494',
+              backgroundColor: 'rgba(14, 95, 166, 0.04)',
+            },
+          }}
+        >
+          Organizar
+        </Button>
+        <Button
+          variant="outlined"
           startIcon={<CodeIcon />}
           onClick={() => setJsonDialogOpen(true)}
           sx={{
@@ -487,6 +629,9 @@ export const WorkflowEditor: React.FC = () => {
           '& .react-flow__attribution': {
             display: 'none',
           },
+          '& .react-flow__edge-path': {
+            strokeDasharray: '0 !important',
+          },
         }}>
           <ReactFlow
             nodes={nodes}
@@ -499,11 +644,11 @@ export const WorkflowEditor: React.FC = () => {
             fitView
             proOptions={{ hideAttribution: true }}
             defaultEdgeOptions={{
-              type: 'smoothstep',
-              animated: true,
-              style: { stroke: '#1976d2', strokeWidth: 2 },
+              type: 'straight',
+              animated: false,
+              style: { stroke: '#4d4d4d', strokeWidth: 2 },
             }}
-            connectionLineStyle={{ stroke: '#1976d2', strokeWidth: 2 }}
+            connectionLineStyle={{ stroke: '#4d4d4d', strokeWidth: 2 }}
           >
             <Controls 
               showZoom={true}
@@ -584,6 +729,22 @@ export const WorkflowEditor: React.FC = () => {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Snackbar para notificaciones */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+      >
+        <Alert
+          onClose={() => setSnackbar({ ...snackbar, open: false })}
+          severity={snackbar.severity}
+          sx={{ width: '100%' }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };

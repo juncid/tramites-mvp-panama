@@ -29,6 +29,7 @@ class TipoEtapa(str, enum.Enum):
     ETAPA = "ETAPA"
     COMPUERTA = "COMPUERTA"
     PRESENCIAL = "PRESENCIAL"
+    FIN = "FIN"
 
 
 class TipoPregunta(str, enum.Enum):
@@ -134,6 +135,10 @@ class WorkflowEtapa(Base):
     # Configuración de formulario
     titulo_formulario = Column(String(500))
     bajada_formulario = Column(Text)
+    
+    # Campos específicos para tipo PRESENCIAL
+    descripcion_presencial = Column(Text)
+    documento_presencial = Column(String(500))
     
     # Configuración de comportamiento
     es_etapa_inicial = Column(Boolean, nullable=False, default=False)
