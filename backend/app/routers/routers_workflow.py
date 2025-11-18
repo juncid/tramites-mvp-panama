@@ -11,7 +11,7 @@ Date: 2025-10-20
 
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 
 from app.infrastructure import get_db
 from app.schemas import schemas_workflow as schemas
@@ -24,6 +24,7 @@ from app.services import (
     ComentarioService,
     HistorialService
 )
+from app.services.workflow_execution_service import WorkflowExecutionService
 
 # Importar router de vista_config
 from app.routes.vista_config import router as vista_config_router
@@ -307,3 +308,62 @@ def listar_comentarios(
 def obtener_historial(instancia_id: int, db: Session = Depends(get_db)):
     """Obtiene el historial completo de cambios de una instancia"""
     return HistorialService.obtener_historial(db, instancia_id)
+
+
+# ==========================================
+# ENDPOINTS DE EJECUCIÓN POR USUARIO
+# ==========================================
+
+@router.get("/workflows/{workflow_id}/etapas/by-perfil", response_model=List[schemas.WorkflowEtapaResponse])
+def obtener_etapas_por_perfil(
+    workflow_id: int,
+    perfil: str = Query(..., description="Perfil del usuario (ej: CIUDADANO, FUNCIONARIO, ABOGADO)"),
+    db: Session = Depends(get_db)
+):
+    """
+    Obtiene las etapas de un workflow filtradas por perfil de usuario.
+    Solo retorna etapas donde el perfil está asignado en perfiles_permitidos.
+    """
+    etapas = WorkflowExecutionService.obtener_etapas_por_perfil(db, workflow_id, perfil)
+    return etapas
+
+
+@router.get("/instancias/{instancia_id}/workflow-state")
+def obtener_estado_workflow_instancia(
+    instancia_id: int,
+    perfil: Optional[str] = Query(None, description="Perfil del usuario para filtrar etapas visibles"),
+    db: Session = Depends(get_db)
+):
+    """
+    Obtiene el estado completo del workflow para una instancia.
+    Incluye: etapa actual, etapas completadas, progreso, respuestas guardadas.
+    """
+    return WorkflowExecutionService.obtener_estado_workflow(db, instancia_id, perfil)
+
+
+@router.post("/instancias/{instancia_id}/etapas/{etapa_id}/ejecutar", response_model=schemas.EjecutarEtapaResponse)
+def ejecutar_etapa(
+    instancia_id: int,
+    etapa_id: int,
+    request: schemas.EjecutarEtapaRequest,
+    perfil: str = Query(..., description="Perfil del usuario ejecutando la etapa"),
+    db: Session = Depends(get_db),
+    current_user: str = "USER001"  # TODO: Obtener del sistema de autenticación
+):
+    """
+    Ejecuta una etapa del workflow: guarda respuestas y transiciona a la siguiente etapa.
+    
+    Body esperado:
+    {
+        "respuestas": {
+            "pregunta-codigo-1": "valor",
+            "pregunta-codigo-2": ["opcion1", "opcion2"]
+        },
+        "archivos": {
+            "pregunta-archivo": "file_id_123"
+        }
+    }
+    """
+    return WorkflowExecutionService.ejecutar_etapa(
+        db, instancia_id, etapa_id, request.respuestas, request.archivos, current_user, perfil
+    )

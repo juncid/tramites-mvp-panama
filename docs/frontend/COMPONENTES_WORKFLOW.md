@@ -66,7 +66,7 @@ export type TipoPregunta =
   | 'SI_NO'                         // Pregunta Sí/No
   | 'LISTA'                         // Dropdown
   | 'OPCIONES'                      // Opciones múltiples
-  | 'DESCARGA_ARCHIVOS'             // Descarga de documentos
+  | 'DESCARGA_ARCHIVO'             // Descarga de documentos
   | 'DATOS_CASO'                    // Datos del expediente
   | 'REVISION_MANUAL_DOCUMENTOS'    // Revisión manual de docs
   | 'REVISION_OCR'                  // Revisión OCR de documentos

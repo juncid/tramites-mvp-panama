@@ -597,3 +597,20 @@ class WorkflowTransicionResponse(BaseModel):
     etapa_anterior: WorkflowEtapaResponse
     etapa_nueva: WorkflowEtapaResponse
     mensaje: str
+
+
+# ==========================================
+# SCHEMAS PARA EJECUCIÓN DE ETAPAS
+# ==========================================
+
+class EjecutarEtapaRequest(BaseModel):
+    """Schema para ejecutar una etapa"""
+    respuestas: Dict[str, Any] = Field(..., description="Respuestas del formulario {codigo_pregunta: valor}")
+    archivos: Optional[Dict[str, Any]] = Field(None, description="Archivos subidos {codigo_pregunta: file_id}")
+
+
+class EjecutarEtapaResponse(BaseModel):
+    """Schema de respuesta para ejecución de etapa"""
+    success: bool
+    mensaje: str
+    workflow_state: Dict[str, Any]

@@ -3,25 +3,20 @@
  */
 
 export type TipoEtapa = 'ETAPA' | 'COMPUERTA' | 'SUBPROCESO' | 'PRESENCIAL' | 'FIN';
+// Tipos de pregunta - deben coincidir exactamente con TipoPregunta enum del backend
 export type TipoPregunta = 
-  | 'TEXTO' 
-  | 'NUMERO' 
-  | 'FECHA' 
-  | 'SELECCION_SIMPLE' 
-  | 'SELECCION_MULTIPLE' 
-  | 'CARGA_ARCHIVO' 
-  | 'SI_NO'
-  | 'LISTA'
-  | 'OPCIONES'
-  | 'DESCARGA_ARCHIVOS'
-  | 'DATOS_CASO'
-  | 'REVISION_MANUAL_DOCUMENTOS'
-  | 'REVISION_OCR'
-  | 'SELECCION_FECHA'
-  | 'IMPRESION'
-  | 'FIRMA_DIGITAL'
-  | 'PAGO'
-  | 'NOTIFICACION';
+  | 'RESPUESTA_TEXTO'      // Respuesta de texto corta
+  | 'RESPUESTA_LARGA'      // Respuesta de texto larga (textarea)
+  | 'LISTA'                // Lista de opciones
+  | 'OPCIONES'             // Selección de opciones (radio/checkbox)
+  | 'DOCUMENTOS'           // Carga de múltiples documentos
+  | 'CARGA_ARCHIVO'        // Carga de archivo
+  | 'DESCARGA_ARCHIVO'     // Descarga de archivo
+  | 'DATOS_CASO'           // Datos del caso (read-only)
+  | 'REVISION_MANUAL_DOCUMENTOS'  // Revisión manual de documentos
+  | 'REVISION_OCR'         // Revisión OCR
+  | 'IMPRESION'            // Impresión
+  | 'SELECCION_FECHA';     // Selección de fecha
 
 export type EstadoWorkflow = 'BORRADOR' | 'ACTIVO' | 'INACTIVO' | 'ARCHIVADO';
 

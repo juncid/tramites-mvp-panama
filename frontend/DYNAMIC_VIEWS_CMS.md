@@ -122,7 +122,7 @@ export type TipoComponenteVista =
   
   // Archivos
   | 'CARGA_ARCHIVOS'
-  | 'DESCARGA_ARCHIVOS'
+  | 'DESCARGA_ARCHIVO'
   | 'GALERIA_DOCUMENTOS'
   | 'VISOR_PDF'
   
@@ -491,7 +491,7 @@ export const COMPONENTE_MAP: Record<TipoComponenteVista, React.FC<any>> = {
   SELECT_SIMPLE: SelectSimple,
   SELECT_MULTIPLE: SelectMultiple,
   CARGA_ARCHIVOS: FileUpload,
-  DESCARGA_ARCHIVOS: FileDownload,
+  DESCARGA_ARCHIVO: FileDownload,
   TEXTO_ESTATICO: StaticText,
   TITULO: Title,
   ALERTA: Alert,

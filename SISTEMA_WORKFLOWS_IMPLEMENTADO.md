@@ -107,7 +107,7 @@ Se ha implementado un sistema completo de creación y edición de workflows pers
 5. `SELECCION_MULTIPLE`: Opciones (checkboxes)
 6. `LISTA`: Lista desplegable
 7. `CARGA_ARCHIVO`: Subir archivos
-8. `DESCARGA_ARCHIVOS`: Descargar archivos
+8. `DESCARGA_ARCHIVO`: Descargar archivos
 9. `DATOS_CASO`: Datos del caso
 10. `REVISION_MANUAL_DOCUMENTOS`: Revisión manual de documentos
 11. `REVISION_OCR`: Revisión OCR

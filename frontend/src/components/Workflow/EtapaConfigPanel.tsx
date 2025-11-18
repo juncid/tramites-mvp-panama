@@ -16,8 +16,6 @@ import {
   SelectChangeEvent,
   Checkbox,
   FormControlLabel,
-  Tabs,
-  Tab,
 } from '@mui/material';
 import {
   Close as CloseIcon,
@@ -41,7 +39,6 @@ import {
   AttachFile as AttachFileIcon,
 } from '@mui/icons-material';
 import type { WorkflowEtapa, WorkflowPregunta, TipoEtapa, TipoPregunta } from '../../types/workflow';
-import { VistaConfiguratorPanel } from './VistaConfiguratorPanel';
 
 interface EtapaConfigPanelProps {
   etapa: Partial<WorkflowEtapa>;
@@ -63,29 +60,30 @@ const PERFILES_DISPONIBLES = [
 ];
 
 const TIPOS_PREGUNTA: { value: TipoPregunta; label: string }[] = [
-  { value: 'TEXTO', label: 'Respuesta de texto' },
+  { value: 'RESPUESTA_TEXTO', label: 'Respuesta de texto' },
   { value: 'LISTA', label: 'Lista' },
-  { value: 'SELECCION_SIMPLE', label: 'Opciones' },
+  { value: 'OPCIONES', label: 'Opciones' },
   { value: 'CARGA_ARCHIVO', label: 'Carga de archivos' },
-  { value: 'DESCARGA_ARCHIVOS', label: 'Descarga de archivos' },
+  { value: 'DESCARGA_ARCHIVO', label: 'Descarga de archivos' },
   { value: 'DATOS_CASO', label: 'Data del caso' },
   { value: 'REVISION_MANUAL_DOCUMENTOS', label: 'Revisión manual de documentos' },
   { value: 'REVISION_OCR', label: 'Revisión OCR por parte del sistema' },
-  { value: 'FECHA', label: 'Selección de fecha' },
+  { value: 'SELECCION_FECHA', label: 'Selección de fecha' },
   { value: 'IMPRESION', label: 'Impresión' },
 ];
 
 const getTipoPreguntaIcon = (tipo: TipoPregunta) => {
   switch (tipo) {
-    case 'TEXTO':
+    case 'RESPUESTA_TEXTO':
+    case 'RESPUESTA_LARGA':
       return <TextIcon />;
     case 'LISTA':
       return <CheckBoxIcon />;
-    case 'SELECCION_SIMPLE':
+    case 'OPCIONES':
       return <RadioIcon />;
     case 'CARGA_ARCHIVO':
       return <UploadIcon />;
-    case 'DESCARGA_ARCHIVOS':
+    case 'DESCARGA_ARCHIVO':
       return <DownloadIcon />;
     case 'DATOS_CASO':
       return <DataTableIcon />;
@@ -93,7 +91,6 @@ const getTipoPreguntaIcon = (tipo: TipoPregunta) => {
       return <DocumentSearchIcon />;
     case 'REVISION_OCR':
       return <ScannerIcon />;
-    case 'FECHA':
     case 'SELECCION_FECHA':
       return <DateIcon />;
     case 'IMPRESION':
@@ -114,24 +111,6 @@ const getTipoPreguntaIcon = (tipo: TipoPregunta) => {
   }
 };
 
-interface TabPanelProps {
-  children?: React.ReactNode;
-  index: number;
-  value: number;
-}
-
-const TabPanel: React.FC<TabPanelProps> = ({ children, value, index }) => {
-  return (
-    <div
-      role="tabpanel"
-      hidden={value !== index}
-      style={{ height: value === index ? '100%' : '0' }}
-    >
-      {value === index && <Box sx={{ height: '100%' }}>{children}</Box>}
-    </div>
-  );
-};
-
 export const EtapaConfigPanel: React.FC<EtapaConfigPanelProps> = ({
   etapa,
   onSave,
@@ -140,7 +119,6 @@ export const EtapaConfigPanel: React.FC<EtapaConfigPanelProps> = ({
 }) => {
   const [formData, setFormData] = useState<Partial<WorkflowEtapa>>(etapa);
   const [preguntas, setPreguntas] = useState<WorkflowPregunta[]>(etapa.preguntas || []);
-  const [tabIndex, setTabIndex] = useState(0);
   const [editingIndex, setEditingIndex] = useState<number | null>(null); // null = no editing, -1 = new question, >= 0 = editing existing
   const [tempPregunta, setTempPregunta] = useState<WorkflowPregunta | null>(null);
   const [newListItem, setNewListItem] = useState<string>('');
@@ -149,7 +127,15 @@ export const EtapaConfigPanel: React.FC<EtapaConfigPanelProps> = ({
 
   useEffect(() => {
     setFormData(etapa);
-    setPreguntas(etapa.preguntas || []);
+    // Normalizar preguntas para asegurar que tipo, tipo_pregunta, texto y pregunta estén sincronizados
+    const preguntasNormalizadas = (etapa.preguntas || []).map(p => ({
+      ...p,
+      tipo: p.tipo_pregunta || p.tipo,
+      tipo_pregunta: p.tipo_pregunta || p.tipo,
+      texto: p.pregunta || p.texto || '',
+      pregunta: p.pregunta || p.texto || '',
+    }));
+    setPreguntas(preguntasNormalizadas);
   }, [etapa]);
 
   const handleChange = (field: keyof WorkflowEtapa, value: any) => {
@@ -179,7 +165,16 @@ export const EtapaConfigPanel: React.FC<EtapaConfigPanelProps> = ({
   };
 
   const handleEditPregunta = (index: number) => {
-    setTempPregunta({ ...preguntas[index] });
+    const pregunta = preguntas[index];
+    // Normalizar para asegurar que tipo, tipo_pregunta, texto y pregunta estén sincronizados
+    const preguntaNormalizada = {
+      ...pregunta,
+      tipo: pregunta.tipo_pregunta || pregunta.tipo,
+      tipo_pregunta: pregunta.tipo_pregunta || pregunta.tipo,
+      texto: pregunta.pregunta || pregunta.texto || '',
+      pregunta: pregunta.pregunta || pregunta.texto || '',
+    };
+    setTempPregunta(preguntaNormalizada);
     setEditingIndex(index);
   };
 
@@ -274,20 +269,13 @@ export const EtapaConfigPanel: React.FC<EtapaConfigPanelProps> = ({
         </Stack>
       </Box>
 
-      {/* Tabs */}
-      <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
-        <Tabs value={tabIndex} onChange={(_, newValue) => setTabIndex(newValue)}>
-          <Tab label="Configuración Básica" />
-          <Tab label="Preguntas Tradicionales" />
-          <Tab label="Vista Dinámica" />
-        </Tabs>
-      </Box>
-
-      {/* Content */}
+      {/* Content - Single column layout */}
       <Box sx={{ flexGrow: 1, overflow: 'auto' }}>
-        {/* TAB 0: Configuración Básica */}
-        <TabPanel value={tabIndex} index={0}>
-          <Box sx={{ p: 2 }}>
+        {/* Configuración Básica y Preguntas en una columna */}
+        <Box sx={{ p: 2 }}>
+          <Stack spacing={4}>
+            {/* Configuración Básica */}
+            <Box>
             <Stack spacing={3}>
           {/* Tipo de Etapa */}
           <FormControl fullWidth>
@@ -433,29 +421,14 @@ export const EtapaConfigPanel: React.FC<EtapaConfigPanelProps> = ({
             onChange={(e) => handleChange('descripcion_formulario', e.target.value)}
           />
             </Stack>
-          </Box>
-        </TabPanel>
+            </Box>
 
-        {/* TAB 1: Preguntas Tradicionales */}
-        <TabPanel value={tabIndex} index={1}>
+            {/* Preguntas Tradicionales */}
+            <Box>
           <Box sx={{ p: 2 }}>
             <Stack spacing={3}>
               {/* Preguntas */}
               <Box>
-            <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2}>
-              <Typography variant="subtitle1" fontWeight="bold">
-                Preguntas del Formulario
-              </Typography>
-              <Button
-                size="small"
-                startIcon={<AddIcon />}
-                onClick={handleAddPregunta}
-                variant="outlined"
-              >
-                Añadir
-              </Button>
-            </Stack>
-
             <Stack spacing={2}>
               {/* Fase 1: Tarjetas para preguntas guardadas - Diseño Figma */}
               {preguntas.filter((_, idx) => editingIndex !== idx).map((pregunta, index) => (
@@ -709,10 +682,10 @@ export const EtapaConfigPanel: React.FC<EtapaConfigPanelProps> = ({
                     {/* Mostrar campos solo si hay un tipo válido seleccionado */}
                     {tempPregunta.tipo && tempPregunta.tipo !== 'SELECCIONAR' && (
                       <>
-                        {/* Campo de texto - Oculto para REVISION_OCR, DATOS_CASO, DESCARGA_ARCHIVOS y CARGA_ARCHIVO */}
+                        {/* Campo de texto - Oculto para REVISION_OCR, DATOS_CASO, DESCARGA_ARCHIVO y CARGA_ARCHIVO */}
                         {(tempPregunta.tipo !== 'REVISION_OCR' && 
                           tempPregunta.tipo !== 'DATOS_CASO' && 
-                          tempPregunta.tipo !== 'DESCARGA_ARCHIVOS' &&
+                          tempPregunta.tipo !== 'DESCARGA_ARCHIVO' &&
                           tempPregunta.tipo !== 'CARGA_ARCHIVO') && (
                           <TextField
                             fullWidth
@@ -723,10 +696,10 @@ export const EtapaConfigPanel: React.FC<EtapaConfigPanelProps> = ({
                           />
                         )}
 
-                        {/* Checkbox Obligatoria - Oculto para REVISION_OCR, DATOS_CASO, DESCARGA_ARCHIVOS y CARGA_ARCHIVO (tienen su propio checkbox) */}
+                        {/* Checkbox Obligatoria - Oculto para REVISION_OCR, DATOS_CASO, DESCARGA_ARCHIVO y CARGA_ARCHIVO (tienen su propio checkbox) */}
                         {(tempPregunta.tipo !== 'REVISION_OCR' && 
                           tempPregunta.tipo !== 'DATOS_CASO' &&
-                          tempPregunta.tipo !== 'DESCARGA_ARCHIVOS' &&
+                          tempPregunta.tipo !== 'DESCARGA_ARCHIVO' &&
                           tempPregunta.tipo !== 'CARGA_ARCHIVO') && (
                           <FormControlLabel
                             control={
@@ -745,8 +718,8 @@ export const EtapaConfigPanel: React.FC<EtapaConfigPanelProps> = ({
                     {/* Campos específicos según tipo de pregunta - También solo si hay tipo seleccionado */}
                     {tempPregunta.tipo && (
                       <>
-                        {/* TEXTO */}
-                        {tempPregunta.tipo === 'TEXTO' && (
+                        {/* RESPUESTA_TEXTO */}
+                        {(tempPregunta.tipo === 'RESPUESTA_TEXTO' || tempPregunta.tipo === 'RESPUESTA_LARGA') && (
                       <FormControl fullWidth size="small">
                         <InputLabel>Número máximo de caracteres</InputLabel>
                         <Select
@@ -837,8 +810,8 @@ export const EtapaConfigPanel: React.FC<EtapaConfigPanelProps> = ({
                       </Box>
                     )}
 
-                    {/* SELECCION_SIMPLE (Opciones) */}
-                    {tempPregunta.tipo === 'SELECCION_SIMPLE' && (
+                    {/* OPCIONES (Seleccion Simple) */}
+                    {tempPregunta.tipo === 'OPCIONES' && (
                       <Box>
                         <FormControlLabel
                           control={
@@ -1042,8 +1015,8 @@ export const EtapaConfigPanel: React.FC<EtapaConfigPanelProps> = ({
                       </Box>
                     )}
 
-                    {/* DESCARGA_ARCHIVOS */}
-                    {tempPregunta.tipo === 'DESCARGA_ARCHIVOS' && (
+                    {/* DESCARGA_ARCHIVO */}
+                    {tempPregunta.tipo === 'DESCARGA_ARCHIVO' && (
                       <Box>
                         <TextField
                           fullWidth
@@ -1239,8 +1212,8 @@ export const EtapaConfigPanel: React.FC<EtapaConfigPanelProps> = ({
                       </Box>
                     )}
 
-                    {/* FECHA */}
-                    {tempPregunta.tipo === 'FECHA' && (
+                    {/* SELECCION_FECHA */}
+                    {tempPregunta.tipo === 'SELECCION_FECHA' && (
                       <Box>
                         <FormControl fullWidth size="small" sx={{ mb: 2 }}>
                           <InputLabel>Origen agenda selección de fechas</InputLabel>
@@ -1337,16 +1310,9 @@ export const EtapaConfigPanel: React.FC<EtapaConfigPanelProps> = ({
               </Box>
             </Stack>
           </Box>
-        </TabPanel>
-
-        {/* TAB 2: Vista Dinámica */}
-        <TabPanel value={tabIndex} index={2}>
-          <VistaConfiguratorPanel 
-            etapaId={etapa.id}
-            onSave={() => {
-                          }}
-          />
-        </TabPanel>
+            </Box>
+          </Stack>
+        </Box>
       </Box>
 
       {/* Footer */}

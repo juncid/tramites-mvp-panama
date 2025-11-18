@@ -82,7 +82,8 @@ const TIPOS_PREGUNTA: { value: TipoPregunta; label: string; icon?: React.ReactNo
   { value: 'CARGA_ARCHIVO', label: 'Carga de archivos', icon: <UploadIcon /> },
   { value: 'REVISION_MANUAL_DOCUMENTOS', label: 'Revisión manual de documentos', icon: <DescriptionIcon /> },
   { value: 'LISTA', label: 'Lista', icon: <ListIcon /> },
-  { value: 'TEXTO', label: 'Respuesta de texto', icon: <TextIcon /> },
+  { value: 'RESPUESTA_TEXTO', label: 'Respuesta de texto', icon: <TextIcon /> },
+  { value: 'RESPUESTA_LARGA', label: 'Respuesta de texto larga', icon: <TextIcon /> },
   { value: 'IMPRESION', label: 'Impresión', icon: <PrintIcon /> },
 ];
 
@@ -646,7 +647,7 @@ export const WorkflowEditorFigma: React.FC = () => {
                 placeholder={
                   preguntas[0]?.tipo === 'OPCIONES'
                     ? 'Obtuvieron los archivos resultados positivos en la revisión OCR'
-                    : preguntas[0]?.tipo === 'TEXTO'
+                    : preguntas[0]?.tipo === 'RESPUESTA_TEXTO'
                     ? 'Observaciones'
                     : preguntas[0]?.tipo === 'SELECCION_FECHA'
                     ? 'Lorem ipsum'
@@ -682,7 +683,7 @@ export const WorkflowEditorFigma: React.FC = () => {
                 preguntas[0]?.tipo === 'REVISION_MANUAL_DOCUMENTOS' ||
                 preguntas[0]?.tipo === 'LISTA' ||
                 preguntas[0]?.tipo === 'SELECCION_FECHA' ||
-                preguntas[0]?.tipo === 'TEXTO') && (
+                preguntas[0]?.tipo === 'RESPUESTA_TEXTO') && (
                 <FormControlLabel
                   control={
                     <Checkbox
@@ -701,8 +702,8 @@ export const WorkflowEditorFigma: React.FC = () => {
                 />
               )}
 
-              {/* Campo Indicaciones (solo para tipo OPCIONES y TEXTO) */}
-              {(preguntas[0]?.tipo === 'OPCIONES' || preguntas[0]?.tipo === 'TEXTO') && (
+              {/* Campo Indicaciones (solo para tipo OPCIONES y RESPUESTA_TEXTO) */}
+              {(preguntas[0]?.tipo === 'OPCIONES' || preguntas[0]?.tipo === 'RESPUESTA_TEXTO') && (
                 <TextField
                   fullWidth
                   label="Indicaciones"
@@ -1375,7 +1376,7 @@ export const WorkflowEditorFigma: React.FC = () => {
                         </Stack>
                       )}
 
-                      {pregunta.tipo === 'TEXTO' && (
+                      {pregunta.tipo === 'RESPUESTA_TEXTO' && (
                         <Stack spacing={1}>
                           <Typography sx={{ fontSize: 14, color: '#4d4d4d', fontWeight: 600 }}>
                             {pregunta.pregunta || 'Respuesta texto'}

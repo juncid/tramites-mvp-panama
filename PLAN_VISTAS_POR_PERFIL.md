@@ -11,7 +11,7 @@
 - **Perfiles definidos**: Ciudadano, Abogado, Funcionario, Recepcionista, Folio, Jefatura, Sistema, Supervisor, Administrador
 - **Configuración de workflows**: Sistema de etapas con asignación de perfiles
 - **Tipos de etapas**: Etapa, Presencial, Decision, Vista
-- **Tipos de preguntas**: TEXTO, LISTA, SELECCION_SIMPLE, CARGA_ARCHIVO, DESCARGA_ARCHIVOS, DATOS_CASO, REVISION_MANUAL_DOCUMENTOS, REVISION_OCR, FECHA, IMPRESION
+- **Tipos de preguntas**: TEXTO, LISTA, SELECCION_SIMPLE, CARGA_ARCHIVO, DESCARGA_ARCHIVO, DATOS_CASO, REVISION_MANUAL_DOCUMENTOS, REVISION_OCR, FECHA, IMPRESION
 - **Componentes existentes**:
   - `WorkflowEditor.tsx`: Editor de workflows con ReactFlow
   - `EtapaConfigPanel.tsx`: Panel de configuración de etapas
@@ -155,7 +155,7 @@ interface WorkflowProgressIndicatorProps {
    - LISTA → Checkboxes múltiples
    - SELECCION_SIMPLE → Radio/Checkboxes
    - CARGA_ARCHIVO → Upload component
-   - DESCARGA_ARCHIVOS → Download button
+   - DESCARGA_ARCHIVO → Download button
    - DATOS_CASO → Display only
    - FECHA → DatePicker
    - etc.
@@ -243,7 +243,7 @@ const QuestionRendererMap = {
   LISTA: ListQuestionRenderer,
   SELECCION_SIMPLE: RadioQuestionRenderer,
   CARGA_ARCHIVO: FileUploadRenderer,
-  DESCARGA_ARCHIVOS: FileDownloadRenderer,
+  DESCARGA_ARCHIVO: FileDownloadRenderer,
   DATOS_CASO: DataDisplayRenderer,
   REVISION_MANUAL_DOCUMENTOS: DocumentReviewRenderer,
   REVISION_OCR: OCRReviewRenderer,

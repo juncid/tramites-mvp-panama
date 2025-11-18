@@ -78,16 +78,13 @@ frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
 environment = os.getenv("ENVIRONMENT", "development")
 
 if environment == "development":
-    allowed_origins = [
-        "http://localhost:3000",
-        "http://127.0.0.1:3000", 
-        frontend_url,
-        "http://localhost:3001",  # En caso de que use otro puerto
-        "http://127.0.0.1:3001"
-    ]
-    logger.info(f"🌐 CORS configurado para desarrollo: {allowed_origins}")
+    # En desarrollo, permitir localhost y cualquier dominio ngrok
+    allowed_origins = ["*"]
+    logger.info(f"🌐 CORS configurado para desarrollo: permitiendo todos los orígenes (localhost + ngrok)")
 else:
-    allowed_origins = ["*"]  # En producción, especificar orígenes específicos
+    # Producción permite todos los orígenes por ahora
+    # En producción final, especificar dominios específicos
+    allowed_origins = ["*"]
     logger.info("🌐 CORS configurado para producción")
 
 app.add_middleware(
@@ -96,6 +93,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
 
 # Agregar middleware de logging

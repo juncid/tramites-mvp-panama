@@ -167,4 +167,61 @@ export const workflowService = {
   async getEtapa(id: number): Promise<WorkflowEtapa> {
     return apiClient.get<WorkflowEtapa>(`/workflow/etapas/${id}`);
   },
+
+  // ==========================================
+  // MÉTODOS PARA EJECUCIÓN POR USUARIO
+  // ==========================================
+
+  /**
+   * Obtener etapas de un workflow filtradas por perfil de usuario
+   */
+  async getEtapasByPerfil(workflowId: number, perfil: string): Promise<WorkflowEtapa[]> {
+    return apiClient.get<WorkflowEtapa[]>(
+      `/workflow/workflows/${workflowId}/etapas/by-perfil`,
+      { params: { perfil } }
+    );
+  },
+
+  /**
+   * Obtener estado completo del workflow para una instancia
+   */
+  async getWorkflowState(instanciaId: number, perfil?: string): Promise<any> {
+    const params = perfil ? { perfil } : {};
+    return apiClient.get<any>(
+      `/workflow/instancias/${instanciaId}/workflow-state`,
+      { params }
+    );
+  },
+
+  /**
+   * Ejecutar una etapa del workflow
+   */
+  async ejecutarEtapa(
+    instanciaId: number,
+    etapaId: number,
+    respuestas: Record<string, any>,
+    archivos?: Record<string, any>,
+    perfil?: string
+  ): Promise<any> {
+    const params = perfil ? { perfil } : {};
+    return apiClient.post<any>(
+      `/workflow/instancias/${instanciaId}/etapas/${etapaId}/ejecutar`,
+      { respuestas, archivos },
+      { params }
+    );
+  },
+
+  /**
+   * Listar instancias de workflows (mis trámites)
+   */
+  async getInstancias(params?: {
+    workflow_id?: number;
+    estado?: string;
+    creado_por?: string;
+    asignado_a?: string;
+    skip?: number;
+    limit?: number;
+  }): Promise<WorkflowInstancia[]> {
+    return apiClient.get<WorkflowInstancia[]>('/workflow/instancias', { params });
+  },
 };
