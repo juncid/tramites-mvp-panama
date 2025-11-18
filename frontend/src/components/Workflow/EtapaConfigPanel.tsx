@@ -54,6 +54,9 @@ const PERFILES_DISPONIBLES = [
   'Ciudadano',
   'Abogado',
   'Funcionario',
+  'Recepcionista',
+  'Folio',
+  'Jefatura',
   'Sistema',
   'Supervisor',
   'Administrador',
@@ -142,6 +145,7 @@ export const EtapaConfigPanel: React.FC<EtapaConfigPanelProps> = ({
   const [tempPregunta, setTempPregunta] = useState<WorkflowPregunta | null>(null);
   const [newListItem, setNewListItem] = useState<string>('');
   const [uploadedFileName, setUploadedFileName] = useState<string>('');
+  const [preguntaError, setPreguntaError] = useState<string>('');
 
   useEffect(() => {
     setFormData(etapa);
@@ -162,8 +166,8 @@ export const EtapaConfigPanel: React.FC<EtapaConfigPanelProps> = ({
       codigo: `PREGUNTA_${preguntas.length + 1}`,
       texto: '',
       pregunta: '',
-      tipo: '' as any, // Iniciar sin tipo para mostrar "Seleccionar"
-      tipo_pregunta: '' as any,
+      tipo: 'SELECCIONAR' as any, // Valor inicial para mostrar "Seleccionar"
+      tipo_pregunta: 'SELECCIONAR' as any,
       orden: preguntas.length,
       es_obligatoria: false,
       es_visible: true,
@@ -171,6 +175,7 @@ export const EtapaConfigPanel: React.FC<EtapaConfigPanelProps> = ({
     };
     setTempPregunta(newPregunta);
     setEditingIndex(-1); // -1 indicates new question
+    setPreguntaError('');
   };
 
   const handleEditPregunta = (index: number) => {
@@ -182,10 +187,19 @@ export const EtapaConfigPanel: React.FC<EtapaConfigPanelProps> = ({
     setTempPregunta(null);
     setEditingIndex(null);
     setUploadedFileName('');
+    setPreguntaError('');
   };
 
   const handleConfirmPregunta = () => {
     if (!tempPregunta) return;
+
+    // Validar que se haya seleccionado un tipo de pregunta
+    if (!tempPregunta.tipo || tempPregunta.tipo === 'SELECCIONAR') {
+      setPreguntaError('Debe seleccionar un tipo de pregunta');
+      return;
+    }
+
+    setPreguntaError('');
 
     if (editingIndex === -1) {
       // Adding new question
@@ -617,22 +631,30 @@ export const EtapaConfigPanel: React.FC<EtapaConfigPanelProps> = ({
                 <Box
                   sx={{
                     p: 2,
+                    pb: 7.5,
+                    pt: 2,
                     border: '2px dashed #333333',
                     borderRadius: 1,
-                    bgcolor: '#fafafa',
+                    bgcolor: 'transparent',
                   }}
                 >
-                  <Stack spacing={2}>
-                    <FormControl fullWidth size="small">
+                  <Stack spacing={2.5}>
+                    <FormControl fullWidth size="small" error={!!preguntaError}>
                       <InputLabel>Tipo de pregunta</InputLabel>
                       <Select
-                        value={tempPregunta.tipo || ''}
+                        value={tempPregunta.tipo === 'SELECCIONAR' ? 'SELECCIONAR' : (tempPregunta.tipo || 'SELECCIONAR')}
                         label="Tipo de pregunta"
-                        onChange={(e) => handlePreguntaChange('tipo', e.target.value as TipoPregunta)}
-                        displayEmpty
+                        onChange={(e) => {
+                          handlePreguntaChange('tipo', e.target.value as TipoPregunta);
+                          setPreguntaError('');
+                        }}
                         renderValue={(selected) => {
-                          if (!selected) {
-                            return '';
+                          if (selected === 'SELECCIONAR') {
+                            return (
+                              <Box sx={{ color: '#4d4d4d' }}>
+                                Seleccionar
+                              </Box>
+                            );
                           }
                           const tipo = TIPOS_PREGUNTA.find(t => t.value === selected);
                           return (
@@ -653,8 +675,10 @@ export const EtapaConfigPanel: React.FC<EtapaConfigPanelProps> = ({
                           );
                         }}
                       >
-                        <MenuItem value="" disabled>
-                          <em>Seleccionar</em>
+                        <MenuItem value="SELECCIONAR" disabled>
+                          <Box sx={{ color: 'text.secondary', fontStyle: 'italic' }}>
+                            Seleccionar
+                          </Box>
                         </MenuItem>
                         {TIPOS_PREGUNTA.map((tipo) => (
                           <MenuItem key={tipo.value} value={tipo.value}>
@@ -675,56 +699,54 @@ export const EtapaConfigPanel: React.FC<EtapaConfigPanelProps> = ({
                           </MenuItem>
                         ))}
                       </Select>
+                      {preguntaError && (
+                        <Typography variant="caption" color="error" sx={{ mt: 0.5, ml: 1.5 }}>
+                          {preguntaError}
+                        </Typography>
+                      )}
                     </FormControl>
 
-                    {/* Campo de texto - Oculto para REVISION_OCR y DATOS_CASO */}
-                    {(tempPregunta.tipo !== 'REVISION_OCR' && tempPregunta.tipo !== 'DATOS_CASO') && (
-                      <TextField
-                        fullWidth
-                        size="small"
-                        label={
-                          (tempPregunta.tipo === 'REVISION_MANUAL_DOCUMENTOS' || tempPregunta.tipo === 'FECHA') 
-                            ? 'Pregunta' 
-                            : 'Texto de la pregunta'
-                        }
-                        value={tempPregunta.texto}
-                        onChange={(e) => handlePreguntaChange('texto', e.target.value)}
-                      />
-                    )}
-
-                    {/* Campo de ayuda - Oculto para REVISION_MANUAL_DOCUMENTOS, FECHA, REVISION_OCR y DATOS_CASO */}
-                    {(tempPregunta.tipo !== 'REVISION_MANUAL_DOCUMENTOS' && 
-                      tempPregunta.tipo !== 'FECHA' && 
-                      tempPregunta.tipo !== 'REVISION_OCR' &&
-                      tempPregunta.tipo !== 'DATOS_CASO') && (
-                      <TextField
-                        fullWidth
-                        size="small"
-                        label="Ayuda"
-                        value={tempPregunta.ayuda || ''}
-                        onChange={(e) => handlePreguntaChange('ayuda', e.target.value)}
-                        placeholder="Texto de ayuda opcional"
-                      />
-                    )}
-
-                    {/* Checkbox Obligatoria - Oculto para REVISION_OCR y DATOS_CASO (tienen su propio checkbox) */}
-                    {(tempPregunta.tipo !== 'REVISION_OCR' && tempPregunta.tipo !== 'DATOS_CASO') && (
-                      <FormControlLabel
-                        control={
-                          <Checkbox
-                            checked={tempPregunta.es_obligatoria || false}
-                            onChange={(e) => handlePreguntaChange('es_obligatoria', e.target.checked)}
+                    {/* Mostrar campos solo si hay un tipo válido seleccionado */}
+                    {tempPregunta.tipo && tempPregunta.tipo !== 'SELECCIONAR' && (
+                      <>
+                        {/* Campo de texto - Oculto para REVISION_OCR, DATOS_CASO, DESCARGA_ARCHIVOS y CARGA_ARCHIVO */}
+                        {(tempPregunta.tipo !== 'REVISION_OCR' && 
+                          tempPregunta.tipo !== 'DATOS_CASO' && 
+                          tempPregunta.tipo !== 'DESCARGA_ARCHIVOS' &&
+                          tempPregunta.tipo !== 'CARGA_ARCHIVO') && (
+                          <TextField
+                            fullWidth
                             size="small"
+                            label="Pregunta"
+                            value={tempPregunta.texto}
+                            onChange={(e) => handlePreguntaChange('texto', e.target.value)}
                           />
-                        }
-                        label="Obligatoria"
-                      />
+                        )}
+
+                        {/* Checkbox Obligatoria - Oculto para REVISION_OCR, DATOS_CASO, DESCARGA_ARCHIVOS y CARGA_ARCHIVO (tienen su propio checkbox) */}
+                        {(tempPregunta.tipo !== 'REVISION_OCR' && 
+                          tempPregunta.tipo !== 'DATOS_CASO' &&
+                          tempPregunta.tipo !== 'DESCARGA_ARCHIVOS' &&
+                          tempPregunta.tipo !== 'CARGA_ARCHIVO') && (
+                          <FormControlLabel
+                            control={
+                              <Checkbox
+                                checked={tempPregunta.es_obligatoria || false}
+                                onChange={(e) => handlePreguntaChange('es_obligatoria', e.target.checked)}
+                                size="small"
+                              />
+                            }
+                            label="Obligatoria"
+                          />
+                        )}
+                      </>
                     )}
 
-                    {/* Campos específicos según tipo de pregunta */}
-                    
-                    {/* TEXTO */}
-                    {tempPregunta.tipo === 'TEXTO' && (
+                    {/* Campos específicos según tipo de pregunta - También solo si hay tipo seleccionado */}
+                    {tempPregunta.tipo && (
+                      <>
+                        {/* TEXTO */}
+                        {tempPregunta.tipo === 'TEXTO' && (
                       <FormControl fullWidth size="small">
                         <InputLabel>Número máximo de caracteres</InputLabel>
                         <Select
@@ -744,61 +766,74 @@ export const EtapaConfigPanel: React.FC<EtapaConfigPanelProps> = ({
                     {/* LISTA */}
                     {tempPregunta.tipo === 'LISTA' && (
                       <Box>
-                        <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block' }}>
-                          Elementos de la lista
-                        </Typography>
-                        <Stack direction="row" spacing={1} sx={{ mb: 1 }}>
-                          <TextField
-                            fullWidth
-                            size="small"
-                            placeholder="Agregar elemento"
-                            value={newListItem}
-                            onChange={(e) => setNewListItem(e.target.value)}
-                            onKeyPress={(e) => {
-                              if (e.key === 'Enter' && newListItem.trim()) {
-                                const currentItems = tempPregunta.lista_elementos || [];
-                                handlePreguntaChange('lista_elementos', [...currentItems, newListItem.trim()]);
-                                setNewListItem('');
-                              }
-                            }}
-                          />
-                          <Button
-                            variant="outlined"
-                            size="small"
-                            onClick={() => {
-                              if (newListItem.trim()) {
-                                const currentItems = tempPregunta.lista_elementos || [];
-                                handlePreguntaChange('lista_elementos', [...currentItems, newListItem.trim()]);
-                                setNewListItem('');
-                              }
-                            }}
-                            sx={{ minWidth: 'auto', px: 2 }}
-                          >
-                            <AddIcon />
-                          </Button>
-                        </Stack>
-                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                        <Stack spacing={1.25}>
                           {(tempPregunta.lista_elementos || []).map((item, idx) => (
-                            <Chip
-                              key={idx}
-                              label={item}
-                              onDelete={() => {
-                                const currentItems = tempPregunta.lista_elementos || [];
-                                handlePreguntaChange(
-                                  'lista_elementos',
-                                  currentItems.filter((_, i) => i !== idx)
-                                );
-                              }}
-                              size="small"
-                              sx={{ bgcolor: '#f5f5f5' }}
-                            />
+                            <Box key={idx} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <Checkbox size="small" disabled />
+                              <TextField
+                                fullWidth
+                                size="small"
+                                value={item}
+                                onChange={(e) => {
+                                  const currentItems = tempPregunta.lista_elementos || [];
+                                  const newItems = [...currentItems];
+                                  newItems[idx] = e.target.value;
+                                  handlePreguntaChange('lista_elementos', newItems);
+                                }}
+                                placeholder="Elemento de la lista"
+                                InputProps={{
+                                  endAdornment: (
+                                    <IconButton
+                                      size="small"
+                                      onClick={() => {
+                                        const currentItems = tempPregunta.lista_elementos || [];
+                                        handlePreguntaChange(
+                                          'lista_elementos',
+                                          currentItems.filter((_, i) => i !== idx)
+                                        );
+                                      }}
+                                    >
+                                      <DeleteIcon fontSize="small" />
+                                    </IconButton>
+                                  ),
+                                }}
+                              />
+                            </Box>
                           ))}
-                        </Box>
-                        {(tempPregunta.lista_elementos || []).length === 0 && (
-                          <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-                            No hay elementos en la lista
-                          </Typography>
-                        )}
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <Checkbox size="small" disabled />
+                            <TextField
+                              fullWidth
+                              size="small"
+                              placeholder="Agregar elemento"
+                              value={newListItem}
+                              onChange={(e) => setNewListItem(e.target.value)}
+                              onKeyPress={(e) => {
+                                if (e.key === 'Enter' && newListItem.trim()) {
+                                  const currentItems = tempPregunta.lista_elementos || [];
+                                  handlePreguntaChange('lista_elementos', [...currentItems, newListItem.trim()]);
+                                  setNewListItem('');
+                                }
+                              }}
+                              InputProps={{
+                                endAdornment: (
+                                  <IconButton
+                                    size="small"
+                                    onClick={() => {
+                                      if (newListItem.trim()) {
+                                        const currentItems = tempPregunta.lista_elementos || [];
+                                        handlePreguntaChange('lista_elementos', [...currentItems, newListItem.trim()]);
+                                        setNewListItem('');
+                                      }
+                                    }}
+                                  >
+                                    <AddIcon fontSize="small" />
+                                  </IconButton>
+                                ),
+                              }}
+                            />
+                          </Box>
+                        </Stack>
                       </Box>
                     )}
 
@@ -880,6 +915,46 @@ export const EtapaConfigPanel: React.FC<EtapaConfigPanelProps> = ({
                     {/* CARGA_ARCHIVO */}
                     {tempPregunta.tipo === 'CARGA_ARCHIVO' && (
                       <Box>
+                        <TextField
+                          fullWidth
+                          size="small"
+                          label="Pregunta"
+                          value={tempPregunta.texto}
+                          onChange={(e) => handlePreguntaChange('texto', e.target.value)}
+                          placeholder="Documento antecedentes ..."
+                          sx={{ mb: 1 }}
+                        />
+
+                        <FormControlLabel
+                          control={
+                            <Checkbox
+                              checked={tempPregunta.es_obligatoria || false}
+                              onChange={(e) => handlePreguntaChange('es_obligatoria', e.target.checked)}
+                              size="small"
+                            />
+                          }
+                          label="Obligatoria"
+                          sx={{ mb: 2, ml: 0 }}
+                        />
+
+                        <Box sx={{ mb: 2 }}>
+                          <TextField
+                            fullWidth
+                            size="small"
+                            label="Indicaciones"
+                            value={tempPregunta.ayuda || ''}
+                            onChange={(e) => handlePreguntaChange('ayuda', e.target.value)}
+                            placeholder="Documento apostillado lorem ipsum"
+                          />
+                          <Typography 
+                            variant="caption" 
+                            color="text.secondary" 
+                            sx={{ display: 'block', px: 2, mt: 0.5, fontSize: '14px', fontWeight: 300 }}
+                          >
+                            (Opcional), indicaciones para la persona que responda la pregunta
+                          </Typography>
+                        </Box>
+
                         <FormControl fullWidth size="small" sx={{ mb: 2 }}>
                           <InputLabel>Número máximo de archivos</InputLabel>
                           <Select
@@ -896,10 +971,10 @@ export const EtapaConfigPanel: React.FC<EtapaConfigPanelProps> = ({
                         </FormControl>
 
                         <FormControl fullWidth size="small" sx={{ mb: 2 }}>
-                          <InputLabel>Tamaño máximo (MB)</InputLabel>
+                          <InputLabel>Tamaño máximo</InputLabel>
                           <Select
                             value={tempPregunta.max_size_mb || 100}
-                            label="Tamaño máximo (MB)"
+                            label="Tamaño máximo"
                             onChange={(e) => handlePreguntaChange('max_size_mb', e.target.value as number)}
                           >
                             <MenuItem value={10}>10MB</MenuItem>
@@ -909,6 +984,88 @@ export const EtapaConfigPanel: React.FC<EtapaConfigPanelProps> = ({
                             <MenuItem value={200}>200MB</MenuItem>
                           </Select>
                         </FormControl>
+
+                        <Box sx={{ mb: 2 }}>
+                          <TextField
+                            fullWidth
+                            size="small"
+                            label="Documento"
+                            value={uploadedFileName}
+                            placeholder=""
+                            disabled
+                          />
+                          <Box sx={{ mt: 1 }}>
+                            <Box
+                              component="label"
+                              sx={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 0.5,
+                                bgcolor: '#0e5fa6',
+                                color: 'white',
+                                px: 1.5,
+                                py: 1,
+                                borderRadius: '2px',
+                                cursor: 'pointer',
+                                fontSize: '16px',
+                                lineHeight: '24px',
+                                '&:hover': {
+                                  bgcolor: '#0d5494',
+                                },
+                              }}
+                            >
+                              <AttachFileIcon sx={{ fontSize: 16 }} />
+                              <Typography variant="body2" sx={{ fontFamily: 'Roboto', fontWeight: 400 }}>
+                                Cargar archivo
+                              </Typography>
+                              <input
+                                type="file"
+                                hidden
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file) {
+                                    setUploadedFileName(file.name);
+                                    console.log('Archivo seleccionado:', file.name);
+                                  }
+                                }}
+                              />
+                            </Box>
+                          </Box>
+                          <Typography 
+                            variant="caption" 
+                            color="text.secondary" 
+                            sx={{ display: 'block', px: 2, mt: 0.5, fontSize: '14px', fontWeight: 300 }}
+                          >
+                            (Opcional), indicaciones para la persona que responda la pregunta
+                          </Typography>
+                        </Box>
+                      </Box>
+                    )}
+
+                    {/* DESCARGA_ARCHIVOS */}
+                    {tempPregunta.tipo === 'DESCARGA_ARCHIVOS' && (
+                      <Box>
+                        <TextField
+                          fullWidth
+                          size="small"
+                          label="Pregunta"
+                          value={tempPregunta.texto}
+                          onChange={(e) => handlePreguntaChange('texto', e.target.value)}
+                          placeholder="Lorem ipsum"
+                          sx={{ mb: 2 }}
+                        />
+
+                        <FormControlLabel
+                          control={
+                            <Checkbox
+                              checked={tempPregunta.es_obligatoria || false}
+                              onChange={(e) => handlePreguntaChange('es_obligatoria', e.target.checked)}
+                              size="small"
+                            />
+                          }
+                          label="Obligatoria"
+                          sx={{ mb: 2 }}
+                        />
 
                         <Box sx={{ mb: 2 }}>
                           <Box
@@ -923,13 +1080,17 @@ export const EtapaConfigPanel: React.FC<EtapaConfigPanelProps> = ({
                               py: 1,
                               borderRadius: '2px',
                               cursor: 'pointer',
+                              fontSize: '16px',
+                              lineHeight: '24px',
                               '&:hover': {
                                 bgcolor: '#0d5494',
                               },
                             }}
                           >
                             <AttachFileIcon sx={{ fontSize: 16 }} />
-                            <Typography variant="body2">Cargar archivo</Typography>
+                            <Typography variant="body2" sx={{ fontFamily: 'Roboto', fontWeight: 400 }}>
+                              Cargar archivo
+                            </Typography>
                             <input
                               type="file"
                               hidden
@@ -949,18 +1110,9 @@ export const EtapaConfigPanel: React.FC<EtapaConfigPanelProps> = ({
                           size="small"
                           label="Documento"
                           value={uploadedFileName}
-                          placeholder="Nombre del archivo aparecerá aquí"
+                          placeholder=""
                           disabled
-                          sx={{ mb: 1 }}
                         />
-
-                        <Typography 
-                          variant="caption" 
-                          color="text.secondary" 
-                          sx={{ display: 'block', px: 2, fontSize: '12px' }}
-                        >
-                          (Opcional), indicaciones para la persona que responda la pregunta
-                        </Typography>
                       </Box>
                     )}
 
@@ -1103,17 +1255,26 @@ export const EtapaConfigPanel: React.FC<EtapaConfigPanelProps> = ({
                         </FormControl>
                       </Box>
                     )}
+                      </>
+                    )}
 
                     {/* Botones Cancelar / Añadir o Guardar */}
-                    <Stack direction="row" spacing={1} justifyContent="flex-end">
+                    <Stack direction="row" spacing={3} justifyContent="flex-start">
                       <Button
                         variant="outlined"
                         size="small"
                         onClick={handleCancelEdit}
                         sx={{
-                          color: '#333333',
-                          borderColor: '#333333',
+                          color: '#0e5fa6',
+                          borderColor: '#0e5fa6',
                           textTransform: 'none',
+                          width: '124px',
+                          px: 2,
+                          py: 1,
+                          fontSize: '16px',
+                          lineHeight: '24px',
+                          fontFamily: 'Roboto',
+                          fontWeight: 400,
                         }}
                       >
                         Cancelar
@@ -1125,6 +1286,13 @@ export const EtapaConfigPanel: React.FC<EtapaConfigPanelProps> = ({
                         sx={{
                           bgcolor: '#0e5fa6',
                           textTransform: 'none',
+                          width: '124px',
+                          px: 2,
+                          py: 1,
+                          fontSize: '16px',
+                          lineHeight: '24px',
+                          fontFamily: 'Roboto',
+                          fontWeight: 400,
                           '&:hover': {
                             bgcolor: '#0d5494',
                           },
