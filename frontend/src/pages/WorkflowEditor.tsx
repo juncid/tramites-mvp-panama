@@ -35,7 +35,7 @@ import {
   StopCircle as StopCircleIcon,
 } from '@mui/icons-material';
 import { workflowService } from '../services/workflow.service';
-import EtapaConfigPanel from '../components/Workflow/EtapaConfigPanel';
+import { EtapaConfigPanel } from '../components/Workflow/EtapaConfigPanel';
 import CustomNode from '../components/Workflow/CustomNode';
 import type { Workflow, WorkflowEtapa, WorkflowConexion } from '../types/workflow';
 import { GeneralView, StatusView, HistoryView } from '../components/PPSH/views';

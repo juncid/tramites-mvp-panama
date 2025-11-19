@@ -44,7 +44,7 @@ import {
   RespuestaTextoFields,
 } from '../components/Workflow/PreguntaFields';
 */
-import EtapaConfigPanel from '../components/Workflow/EtapaConfigPanel';
+import { EtapaConfigPanel } from '../components/Workflow/EtapaConfigPanel';
 import {
   ZoomIn as ZoomInIcon,
   ZoomOut as ZoomOutIcon,
