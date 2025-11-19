@@ -1,5 +1,5 @@
 import React, { useCallback, useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import ReactFlow, {
   Node,
   Edge,
@@ -11,6 +11,8 @@ import ReactFlow, {
   MarkerType,
   NodeTypes,
   BackgroundVariant,
+  useReactFlow,
+  ReactFlowProvider,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import {
@@ -30,7 +32,19 @@ import {
   Divider,
   Checkbox,
   FormControlLabel,
+  Alert,
+  Snackbar,
 } from '@mui/material';
+/*
+// Imports comentados - ya no se usan directamente (EtapaConfigPanel los maneja)
+import {
+  CargaArchivoFields,
+  CargaArchivoConPreguntaFields,
+  OpcionesFields,
+  RespuestaTextoFields,
+} from '../components/Workflow/PreguntaFields';
+*/
+import EtapaConfigPanel from '../components/Workflow/EtapaConfigPanel';
 import {
   ZoomIn as ZoomInIcon,
   ZoomOut as ZoomOutIcon,
@@ -38,11 +52,15 @@ import {
   DocumentScanner as ScannerIcon,
   KeyboardArrowDown as ArrowDownIcon,
   CloudUpload as UploadIcon,
+  CloudDownload as DownloadIcon,
   RadioButtonChecked as RadioIcon,
   CalendarToday as CalendarIcon,
   Description as DescriptionIcon,
   List as ListIcon,
   TextFields as TextIcon,
+  CheckBox as CheckBoxIcon,
+  TableChart as DataTableIcon,
+  FindInPage as DocumentSearchIcon,
   Add as AddIcon,
   Folder as FolderIcon,
   Print as PrintIcon,
@@ -52,7 +70,7 @@ import {
 } from '@mui/icons-material';
 import { workflowService } from '../services/workflow.service';
 import CustomNode from '../components/Workflow/CustomNode';
-import type { WorkflowEtapa, WorkflowPregunta, TipoEtapa, TipoPregunta } from '../types/workflow';
+import type { WorkflowEtapa, WorkflowPregunta, TipoEtapa, TipoPregunta, Workflow, EstadoWorkflow } from '../types/workflow';
 
 const nodeTypes: NodeTypes = {
   custom: CustomNode,
@@ -75,31 +93,67 @@ const TIPOS_ETAPA = [
 ];
 
 const TIPOS_PREGUNTA: { value: TipoPregunta; label: string; icon?: React.ReactNode }[] = [
-  { value: 'REVISION_OCR', label: 'Revisión OCR por parte del sistema', icon: <ScannerIcon /> },
-  { value: 'DATOS_CASO', label: 'Data del caso', icon: <FolderIcon /> },
-  { value: 'OPCIONES', label: 'Opciones', icon: <RadioIcon /> },
-  { value: 'SELECCION_FECHA', label: 'Selección de fecha', icon: <CalendarIcon /> },
-  { value: 'CARGA_ARCHIVO', label: 'Carga de archivos', icon: <UploadIcon /> },
-  { value: 'REVISION_MANUAL_DOCUMENTOS', label: 'Revisión manual de documentos', icon: <DescriptionIcon /> },
-  { value: 'LISTA', label: 'Lista', icon: <ListIcon /> },
   { value: 'RESPUESTA_TEXTO', label: 'Respuesta de texto', icon: <TextIcon /> },
-  { value: 'RESPUESTA_LARGA', label: 'Respuesta de texto larga', icon: <TextIcon /> },
+  { value: 'LISTA', label: 'Lista', icon: <CheckBoxIcon /> },
+  { value: 'OPCIONES', label: 'Opciones', icon: <RadioIcon /> },
+  { value: 'CARGA_ARCHIVO', label: 'Carga de archivos', icon: <UploadIcon /> },
+  { value: 'DESCARGA_ARCHIVO', label: 'Descarga de archivos', icon: <DownloadIcon /> },
+  { value: 'DATOS_CASO', label: 'Data del caso', icon: <DataTableIcon /> },
+  { value: 'REVISION_MANUAL_DOCUMENTOS', label: 'Revisión manual de documentos', icon: <DocumentSearchIcon /> },
+  { value: 'REVISION_OCR', label: 'Revisión OCR por parte del sistema', icon: <ScannerIcon /> },
+  { value: 'SELECCION_FECHA', label: 'Selección de fecha', icon: <CalendarIcon /> },
   { value: 'IMPRESION', label: 'Impresión', icon: <PrintIcon /> },
 ];
 
-export const WorkflowEditorFigma: React.FC = () => {
+const WorkflowEditorFigmaContent: React.FC = () => {
+  console.log('💡 WorkflowEditorFigma: Componente renderizándose');
+  
   const { id } = useParams();
+  console.log('💡 WorkflowEditorFigma: id desde useParams =', id);
+  
+  const navigate = useNavigate();
   const isEditMode = !!id;
+  console.log('💡 WorkflowEditorFigma: isEditMode =', isEditMode);
+  
+  const { zoomIn, zoomOut, setViewport, getViewport } = useReactFlow();
 
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
+  const [currentZoom, setCurrentZoom] = useState<number>(100);
 
-  // Form state para el panel derecho
+  // Estado del workflow completo
+  const [workflowData, setWorkflowData] = useState<Partial<Workflow>>({
+    codigo: '',
+    nombre: '',
+    descripcion: '',
+    estado: 'BORRADOR' as EstadoWorkflow,
+    version: 1,
+    perfiles_creadores: [],
+    activo: true,
+  });
+
+  /*
+  ============================================================
+  ESTADOS DEL PANEL DERECHO - COMENTADOS (ahora usa EtapaConfigPanel)
+  ============================================================
+  
+  // Form state para el panel derecho (etapa individual)
   const [formData, setFormData] = useState<Partial<WorkflowEtapa>>({});
   const [preguntas, setPreguntas] = useState<WorkflowPregunta[]>([]);
+  
+  ============================================================
+  FIN DE ESTADOS DEL PANEL DERECHO COMENTADOS
+  ============================================================
+  */
+
+  // Estados de guardado
+  const [saving, setSaving] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   useEffect(() => {
+    console.log('🔍 useEffect ejecutado - isEditMode:', isEditMode, 'id:', id);
     if (isEditMode) {
       loadWorkflow();
     } else {
@@ -123,22 +177,53 @@ export const WorkflowEditorFigma: React.FC = () => {
       };
       setNodes([initialNode]);
       setSelectedNode(initialNode);
-      setFormData(initialNode.data);
     }
   }, [id, setNodes]);
 
+  /*
+  // Este useEffect ya no es necesario porque EtapaConfigPanel maneja su propio estado
   useEffect(() => {
     if (selectedNode) {
       setFormData(selectedNode.data);
       setPreguntas(selectedNode.data.preguntas || []);
     }
   }, [selectedNode]);
+  */
 
   const loadWorkflow = async () => {
+    console.log('🚀 loadWorkflow llamado con id:', id);
     if (!id) return;
     
     try {
+      console.log('🌐 Llamando a workflowService.getWorkflow con id:', parseInt(id));
       const data = await workflowService.getWorkflow(parseInt(id));
+
+      console.log('📋 Workflow cargado desde BD:', {
+        id: data.id,
+        codigo: data.codigo,
+        nombre: data.nombre,
+        descripcion: data.descripcion,
+        estado: data.estado,
+        version: data.version,
+        perfiles_creadores: data.perfiles_creadores,
+        activo: data.activo,
+        total_etapas: data.etapas?.length || 0,
+        total_conexiones: data.conexiones?.length || 0,
+        etapas: data.etapas,
+        conexiones: data.conexiones,
+      });
+
+      // Cargar información del workflow
+      setWorkflowData({
+        id: data.id,
+        codigo: data.codigo,
+        nombre: data.nombre,
+        descripcion: data.descripcion,
+        estado: data.estado,
+        version: data.version,
+        perfiles_creadores: data.perfiles_creadores,
+        activo: data.activo,
+      });
 
       if (data.etapas && data.etapas.length > 0) {
         const flowNodes: Node[] = data.etapas.map((etapa) => ({
@@ -170,6 +255,7 @@ export const WorkflowEditorFigma: React.FC = () => {
       }
     } catch (error) {
       console.error('Error al cargar workflow:', error);
+      setSaveError('Error al cargar el workflow');
     }
   };
 
@@ -190,6 +276,11 @@ export const WorkflowEditorFigma: React.FC = () => {
     setSelectedNode(node);
   };
 
+  /*
+  ============================================================
+  FUNCIONES DEL PANEL DERECHO - COMENTADAS (ahora usa EtapaConfigPanel)
+  ============================================================
+  
   const handleChange = (field: keyof WorkflowEtapa, value: any) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
@@ -247,14 +338,82 @@ export const WorkflowEditorFigma: React.FC = () => {
         return node;
       })
     );
-
-    console.log('Etapa guardada:', updatedData);
   };
 
   const handleCancel = () => {
     if (selectedNode) {
       setFormData(selectedNode.data);
       setPreguntas(selectedNode.data.preguntas || []);
+    }
+  };
+  
+  ============================================================
+  FIN DE FUNCIONES DEL PANEL DERECHO COMENTADAS
+  ============================================================
+  */
+
+  const handleZoomIn = () => {
+    zoomIn();
+    setTimeout(() => {
+      const viewport = getViewport();
+      setCurrentZoom(Math.round(viewport.zoom * 100));
+    }, 50);
+  };
+
+  const handleZoomOut = () => {
+    zoomOut();
+    setTimeout(() => {
+      const viewport = getViewport();
+      setCurrentZoom(Math.round(viewport.zoom * 100));
+    }, 50);
+  };
+
+  // Guardar todo el workflow en la base de datos
+  const handleSaveWorkflow = async () => {
+    setSaving(true);
+    setSaveError(null);
+
+    try {
+      // Preparar datos de las etapas
+      const etapas = nodes.map((node, index) => ({
+        ...node.data,
+        orden: index,
+        posicion_x: node.position.x,
+        posicion_y: node.position.y,
+      }));
+
+      // Preparar datos de las conexiones
+      const conexiones = edges.map((edge) => ({
+        etapa_origen_id: parseInt(edge.source),
+        etapa_destino_id: parseInt(edge.target),
+        condicion: edge.label,
+        es_predeterminada: true,
+        activo: true,
+      }));
+
+      const workflowPayload = {
+        ...workflowData,
+        etapas,
+        conexiones,
+      };
+
+      if (isEditMode && id) {
+        // Actualizar workflow existente
+        await workflowService.updateWorkflow(parseInt(id), workflowPayload);
+      } else {
+        // Crear nuevo workflow
+        await workflowService.createWorkflow(workflowPayload);
+      }
+
+      setSaveSuccess(true);
+      setTimeout(() => {
+        navigate('/flujos');
+      }, 1500);
+    } catch (error: any) {
+      console.error('Error al guardar workflow:', error);
+      setSaveError(error.response?.data?.detail || 'Error al guardar el workflow');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -271,7 +430,79 @@ export const WorkflowEditorFigma: React.FC = () => {
   };
 
   return (
-    <Box sx={{ height: 'calc(100vh - 140px)', display: 'flex', bgcolor: '#fff' }}>
+    <>
+      {/* Header del Workflow */}
+      <Box sx={{ bgcolor: '#f5f5f5', borderBottom: '1px solid #e0e0e0', px: 3, py: 2 }}>
+        <Stack direction="row" spacing={3} alignItems="center" justifyContent="space-between">
+          <Stack direction="row" spacing={2} alignItems="center" sx={{ flex: 1 }}>
+            <TextField
+              label="Código"
+              value={workflowData.codigo}
+              onChange={(e) => setWorkflowData({ ...workflowData, codigo: e.target.value })}
+              size="small"
+              sx={{ width: 150 }}
+            />
+            <TextField
+              label="Nombre del Workflow"
+              value={workflowData.nombre}
+              onChange={(e) => setWorkflowData({ ...workflowData, nombre: e.target.value })}
+              size="small"
+              sx={{ flex: 1, minWidth: 300 }}
+            />
+            <FormControl size="small" sx={{ width: 150 }}>
+              <InputLabel>Estado</InputLabel>
+              <Select
+                value={workflowData.estado}
+                onChange={(e) => setWorkflowData({ ...workflowData, estado: e.target.value as EstadoWorkflow })}
+                label="Estado"
+              >
+                <MenuItem value="BORRADOR">Borrador</MenuItem>
+                <MenuItem value="ACTIVO">Activo</MenuItem>
+                <MenuItem value="INACTIVO">Inactivo</MenuItem>
+                <MenuItem value="ARCHIVADO">Archivado</MenuItem>
+              </Select>
+            </FormControl>
+          </Stack>
+          
+          <Stack direction="row" spacing={2}>
+            <Button
+              variant="outlined"
+              onClick={() => navigate('/flujos')}
+              disabled={saving}
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="contained"
+              onClick={handleSaveWorkflow}
+              disabled={saving}
+            >
+              {saving ? 'Guardando...' : 'Guardar Workflow'}
+            </Button>
+          </Stack>
+        </Stack>
+      </Box>
+
+      {/* Snackbars para notificaciones */}
+      <Snackbar
+        open={saveSuccess}
+        autoHideDuration={3000}
+        onClose={() => setSaveSuccess(false)}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+      >
+        <Alert severity="success">Workflow guardado exitosamente</Alert>
+      </Snackbar>
+
+      <Snackbar
+        open={!!saveError}
+        autoHideDuration={6000}
+        onClose={() => setSaveError(null)}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+      >
+        <Alert severity="error">{saveError}</Alert>
+      </Snackbar>
+
+      <Box sx={{ height: 'calc(100vh - 200px)', display: 'flex', bgcolor: '#fff' }}>
       {/* Panel Izquierdo - Canvas ReactFlow */}
       <Box
         sx={{
@@ -308,14 +539,14 @@ export const WorkflowEditorFigma: React.FC = () => {
               gap: 0.5,
             }}
           >
-            <IconButton size="small" sx={{ p: 0.5 }}>
+            <IconButton size="small" sx={{ p: 0.5 }} onClick={handleZoomOut}>
               <ZoomOutIcon sx={{ fontSize: 20, color: '#788093' }} />
             </IconButton>
-            <IconButton size="small" sx={{ p: 0.5 }}>
+            <IconButton size="small" sx={{ p: 0.5 }} onClick={handleZoomIn}>
               <ZoomInIcon sx={{ fontSize: 20, color: '#788093' }} />
             </IconButton>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.25 }}>
-              <Typography sx={{ fontSize: 14, color: '#788093' }}>100%</Typography>
+              <Typography sx={{ fontSize: 14, color: '#788093' }}>{currentZoom}%</Typography>
               <ArrowDownIcon sx={{ fontSize: 8, color: '#788093' }} />
             </Box>
           </Box>
@@ -352,1172 +583,83 @@ export const WorkflowEditorFigma: React.FC = () => {
       </Box>
 
       {/* Panel Derecho - Configuración de Etapa */}
-      <Box
-        sx={{
-          width: '611px',
-          height: '100%',
-          border: '1px solid #788093',
-          borderLeft: 'none',
-          borderRadius: '0 4px 4px 0',
-          overflow: 'auto',
-          p: 3.5,
-        }}
-      >
-        <Stack spacing={3}>
-          {/* Tipo de etapa */}
-          <FormControl fullWidth>
-            <InputLabel
-              shrink
-              sx={{
-                bgcolor: 'white',
-                px: 0.5,
-                fontSize: 14,
-                fontWeight: 500,
-                color: '#333333',
-              }}
-            >
-              Tipo de etapa
-            </InputLabel>
-            <Select
-              value={formData.tipo_etapa || 'ETAPA'}
-              onChange={(e) => handleChange('tipo_etapa', e.target.value as TipoEtapa)}
-              displayEmpty
-              IconComponent={ArrowDownIcon}
-              sx={{
-                '& .MuiOutlinedInput-notchedOutline': {
-                  borderColor: '#333333',
-                },
-                '& .MuiSelect-select': {
-                  color: '#4d4d4d',
-                  fontSize: 16,
-                },
-              }}
-            >
-              {TIPOS_ETAPA.map((tipo) => (
-                <MenuItem key={tipo.value} value={tipo.value}>
-                  {tipo.label}
-                </MenuItem>
-              ))}
-            </Select>
-            <Typography sx={{ fontSize: 14, color: '#788093', mt: 0.5, fontWeight: 300 }}>
-              Seleccione el tipo de etapa que mejor describa esta actividad en el flujo
-            </Typography>
-          </FormControl>
-
-          {/* Nombre de la etapa/actividad */}
-          <FormControl fullWidth>
-            <InputLabel
-              shrink
-              sx={{
-                bgcolor: 'white',
-                px: 0.5,
-                fontSize: 14,
-                fontWeight: 500,
-                color: '#333333',
-              }}
-            >
-              Nombre de la etapa/actividad
-            </InputLabel>
-            <TextField
-              value={formData.nombre || ''}
-              onChange={(e) => handleChange('nombre', e.target.value)}
-              placeholder="Revisión de archivos OCR"
-              sx={{
-                '& .MuiOutlinedInput-root': {
-                  '& fieldset': {
-                    borderColor: '#333333',
-                  },
-                  '& input': {
-                    color: '#4d4d4d',
-                    fontSize: 16,
-                  },
-                },
-              }}
-            />
-            <Typography sx={{ fontSize: 14, color: '#788093', mt: 0.5, fontWeight: 300 }}>
-              Nombre descriptivo que se mostrará en el diagrama de flujo del proceso
-            </Typography>
-          </FormControl>
-
-          {/* Perfil(es) */}
-          <FormControl fullWidth>
-            <InputLabel
-              shrink
-              sx={{
-                bgcolor: 'white',
-                px: 0.5,
-                fontSize: 14,
-                fontWeight: 500,
-                color: '#333333',
-              }}
-            >
-              Perfil(es)
-            </InputLabel>
-            <Select
-              multiple
-              value={formData.perfiles_permitidos || []}
-              onChange={handlePerfilesChange}
-              input={<OutlinedInput />}
-              displayEmpty
-              IconComponent={ArrowDownIcon}
-              renderValue={(selected) => {
-                if (selected.length === 0) {
-                  return <Typography sx={{ color: '#333333' }}>Sistema</Typography>;
-                }
-                return (
-                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                    {selected.map((value) => (
-                      <Chip key={value} label={value} size="small" />
-                    ))}
-                  </Box>
-                );
-              }}
-              sx={{
-                '& .MuiOutlinedInput-notchedOutline': {
-                  borderColor: '#333333',
-                },
-                '& .MuiSelect-select': {
-                  color: '#333333',
-                  fontSize: 16,
-                },
-              }}
-            >
-              {PERFILES_DISPONIBLES.map((perfil) => (
-                <MenuItem key={perfil} value={perfil}>
-                  {perfil}
-                </MenuItem>
-              ))}
-            </Select>
-            <Typography sx={{ fontSize: 14, color: '#788093', mt: 0.5, fontWeight: 300 }}>
-              Seleccione uno o más perfiles que pueden ejecutar esta etapa (Sistema, Funcionario, Usuario)
-            </Typography>
-          </FormControl>
-
-          <Divider sx={{ borderColor: '#4d4d4d' }} />
-
-          {/* Título formulario */}
-          <FormControl fullWidth>
-            <InputLabel
-              shrink
-              sx={{
-                bgcolor: 'white',
-                px: 0.5,
-                fontSize: 14,
-                fontWeight: 500,
-                color: '#333333',
-              }}
-            >
-              Título formulario
-            </InputLabel>
-            <TextField
-              value={formData.titulo_formulario || ''}
-              onChange={(e) => handleChange('titulo_formulario', e.target.value)}
-              placeholder="Revisión de archivos OCR"
-              sx={{
-                '& .MuiOutlinedInput-root': {
-                  '& fieldset': {
-                    borderColor: '#333333',
-                  },
-                  '& input': {
-                    color: '#4d4d4d',
-                    fontSize: 16,
-                  },
-                },
-              }}
-            />
-          </FormControl>
-
-          {/* Bajada formulario */}
-          <FormControl fullWidth>
-            <InputLabel
-              shrink
-              sx={{
-                bgcolor: 'white',
-                px: 0.5,
-                fontSize: 14,
-                fontWeight: 500,
-                color: '#333333',
-              }}
-            >
-              Bajada formulario
-            </InputLabel>
-            <TextField
-              multiline
-              rows={4}
-              value={formData.bajada_formulario || ''}
-              onChange={(e) => handleChange('bajada_formulario', e.target.value)}
-              placeholder="Revisión de archivos OCR"
-              sx={{
-                '& .MuiOutlinedInput-root': {
-                  '& fieldset': {
-                    borderColor: '#333333',
-                  },
-                  '& textarea': {
-                    color: '#4d4d4d',
-                    fontSize: 16,
-                  },
-                },
-              }}
-            />
-          </FormControl>
-
-          {/* Sección de preguntas con borde punteado */}
-          <Box
-            sx={{
-              border: '2px dashed #333333',
-              borderRadius: '4px',
-              p: 2,
+      {selectedNode && (
+        <Box
+          sx={{
+            width: '611px',
+            height: '100%',
+            border: '1px solid #788093',
+            borderLeft: 'none',
+            borderRadius: '0 4px 4px 0',
+            overflow: 'hidden',
+          }}
+        >
+          <EtapaConfigPanel
+            etapa={selectedNode.data}
+            hideCloseButton={true}
+            onSave={(updatedEtapa) => {
+              setNodes((nds) =>
+                nds.map((node) => {
+                  if (node.id === selectedNode.id) {
+                    const { is_placeholder, ...restData } = node.data as any;
+                    return { ...node, data: { ...restData, ...updatedEtapa } };
+                  }
+                  return node;
+                })
+              );
+              setSelectedNode(null);
             }}
-          >
-            <Stack spacing={3}>
-              {/* Tipo de pregunta */}
-              <FormControl fullWidth>
-                <InputLabel
-                  shrink
-                  sx={{
-                    bgcolor: 'white',
-                    px: 0.5,
-                    fontSize: 14,
-                    fontWeight: 500,
-                    color: '#333333',
-                  }}
-                >
-                  Tipo de pregunta
-                </InputLabel>
-                <Select
-                  value={preguntas[0]?.tipo || 'REVISION_OCR'}
-                  onChange={(e) => {
-                    const newTipo = e.target.value as TipoPregunta;
-                    if (preguntas.length === 0) {
-                      handleAddPregunta();
-                    }
-                    handlePreguntaChange(0, 'tipo', newTipo);
-                  }}
-                  displayEmpty
-                  IconComponent={ArrowDownIcon}
-                  sx={{
-                    '& .MuiOutlinedInput-notchedOutline': {
-                      borderColor: '#333333',
-                    },
-                  }}
-                  renderValue={(value) => {
-                    const tipo = TIPOS_PREGUNTA.find((t) => t.value === value);
-                    return (
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                        {tipo?.icon && (
-                          <Box
-                            sx={{
-                              border: '1px solid #333333',
-                              borderRadius: '4px',
-                              p: 0.5,
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                            }}
-                          >
-                            {React.cloneElement(tipo.icon as React.ReactElement, {
-                              sx: { fontSize: 16, color: '#333333' },
-                            })}
-                          </Box>
-                        )}
-                        <Typography sx={{ fontSize: 16, color: '#333333' }}>
-                          {tipo?.label}
-                        </Typography>
-                      </Box>
-                    );
-                  }}
-                >
-                  {TIPOS_PREGUNTA.map((tipo) => (
-                    <MenuItem key={tipo.value} value={tipo.value}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        {tipo.icon && React.cloneElement(tipo.icon as React.ReactElement, {
-                          sx: { fontSize: 18 },
-                        })}
-                        <span>{tipo.label}</span>
-                      </Box>
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
+            onClose={() => {
+              // No hacer nada - el panel no debe cerrarse en WorkflowEditorFigma
+              // El panel siempre debe estar visible según el diseño de Figma
+            }}
+            onDelete={() => {
+              if (!selectedNode) return;
 
-              {/* Campo Pregunta/Descripción */}
-              <TextField
-                fullWidth
-                label="Pregunta"
-                placeholder={
-                  preguntas[0]?.tipo === 'OPCIONES'
-                    ? 'Obtuvieron los archivos resultados positivos en la revisión OCR'
-                    : preguntas[0]?.tipo === 'RESPUESTA_TEXTO'
-                    ? 'Observaciones'
-                    : preguntas[0]?.tipo === 'SELECCION_FECHA'
-                    ? 'Lorem ipsum'
-                    : preguntas[0]?.tipo === 'CARGA_ARCHIVO'
-                    ? 'Documento'
-                    : 'Lorem ipsum'
-                }
-                value={preguntas[0]?.texto || ''}
-                onChange={(e) => handlePreguntaChange(0, 'texto', e.target.value)}
-                InputLabelProps={{ shrink: true }}
-                sx={{
-                  '& .MuiInputLabel-root': {
-                    bgcolor: 'white',
-                    px: 0.5,
-                    fontSize: 14,
-                    fontWeight: 500,
-                    color: '#333333',
-                  },
-                  '& .MuiOutlinedInput-root': {
-                    '& fieldset': {
-                      borderColor: '#333333',
-                    },
-                    '& input': {
-                      color: '#333333',
-                      fontSize: 16,
-                    },
-                  },
-                }}
-              />
+              // No permitir eliminar el nodo inicial
+              if (selectedNode.data.es_inicial || selectedNode.data.es_etapa_inicial) {
+                alert('No se puede eliminar el nodo inicial');
+                return;
+              }
 
-              {/* Checkbox Obligatoria */}
-              {(preguntas[0]?.tipo === 'OPCIONES' ||
-                preguntas[0]?.tipo === 'REVISION_MANUAL_DOCUMENTOS' ||
-                preguntas[0]?.tipo === 'LISTA' ||
-                preguntas[0]?.tipo === 'SELECCION_FECHA' ||
-                preguntas[0]?.tipo === 'RESPUESTA_TEXTO') && (
-                <FormControlLabel
-                  control={
-                    <Checkbox
-                      checked={preguntas[0]?.es_obligatoria || false}
-                      onChange={(e) =>
-                        handlePreguntaChange(0, 'es_obligatoria', e.target.checked)
-                      }
-                      sx={{ color: '#333333' }}
-                    />
-                  }
-                  label={
-                    <Typography sx={{ fontSize: 16, color: '#333333' }}>
-                      Obligatoria
-                    </Typography>
-                  }
-                />
-              )}
+              // Eliminar el nodo
+              setNodes((nds) => nds.filter((node) => node.id !== selectedNode.id));
 
-              {/* Campo Indicaciones (solo para tipo OPCIONES y RESPUESTA_TEXTO) */}
-              {(preguntas[0]?.tipo === 'OPCIONES' || preguntas[0]?.tipo === 'RESPUESTA_TEXTO') && (
-                <TextField
-                  fullWidth
-                  label="Indicaciones"
-                  placeholder="(Opcional), indicaciones para la persona que responda la pregunta"
-                  multiline
-                  rows={2}
-                  value={preguntas[0]?.ayuda || ''}
-                  onChange={(e) => handlePreguntaChange(0, 'ayuda', e.target.value)}
-                  InputLabelProps={{ shrink: true }}
-                  sx={{
-                    '& .MuiInputLabel-root': {
-                      bgcolor: 'white',
-                      px: 0.5,
-                      fontSize: 14,
-                      fontWeight: 500,
-                      color: '#333333',
-                    },
-                    '& .MuiOutlinedInput-root': {
-                      '& fieldset': {
-                        borderColor: '#333333',
-                      },
-                      '& textarea': {
-                        color: '#4d4d4d',
-                        fontSize: 14,
-                      },
-                    },
-                  }}
-                />
-              )}
+              // Eliminar todas las conexiones relacionadas con este nodo
+              setEdges((eds) =>
+                eds.filter((edge) => edge.source !== selectedNode.id && edge.target !== selectedNode.id)
+              );
 
-              {/* Opciones 1 y 2 (solo para tipo OPCIONES) */}
-              {preguntas[0]?.tipo === 'OPCIONES' && (
-                <>
-                  <TextField
-                    fullWidth
-                    label="Opción 1"
-                    placeholder="Sí"
-                    InputLabelProps={{ shrink: true }}
-                    sx={{
-                      '& .MuiInputLabel-root': {
-                        bgcolor: 'white',
-                        px: 0.5,
-                        fontSize: 14,
-                        fontWeight: 500,
-                        color: '#333333',
-                      },
-                      '& .MuiOutlinedInput-root': {
-                        '& fieldset': {
-                          borderColor: '#333333',
-                        },
-                        '& input': {
-                          color: '#333333',
-                          fontSize: 16,
-                        },
-                      },
-                    }}
-                  />
-                  <TextField
-                    fullWidth
-                    label="Opción 2"
-                    placeholder="No"
-                    InputLabelProps={{ shrink: true }}
-                    sx={{
-                      '& .MuiInputLabel-root': {
-                        bgcolor: 'white',
-                        px: 0.5,
-                        fontSize: 14,
-                        fontWeight: 500,
-                        color: '#333333',
-                      },
-                      '& .MuiOutlinedInput-root': {
-                        '& fieldset': {
-                          borderColor: '#333333',
-                        },
-                        '& input': {
-                          color: '#333333',
-                          fontSize: 16,
-                        },
-                      },
-                    }}
-                  />
-                  <Button
-                    variant="text"
-                    startIcon={<AddIcon />}
-                    sx={{
-                      color: '#0e5fa6',
-                      textTransform: 'none',
-                      fontSize: 14,
-                      justifyContent: 'flex-start',
-                    }}
-                  >
-                    Añadir opción
-                  </Button>
-                </>
-              )}
+              setSelectedNode(null);
+            }}
+          />
+        </Box>
+      )}
 
-              {/* Data del caso (DATOS_CASO) - Con checkboxes de campos */}
-              {preguntas[0]?.tipo === 'DATOS_CASO' && (
-                <Stack spacing={1.5}>
-                  <FormControlLabel
-                    control={
-                      <Checkbox
-                        defaultChecked
-                        sx={{ color: '#333333' }}
-                      />
-                    }
-                    label={
-                      <Typography sx={{ fontSize: 16, color: '#333333' }}>
-                        REDEX
-                      </Typography>
-                    }
-                  />
-                  <FormControlLabel
-                    control={
-                      <Checkbox
-                        defaultChecked
-                        sx={{ color: '#333333' }}
-                      />
-                    }
-                    label={
-                      <Typography sx={{ fontSize: 16, color: '#333333' }}>
-                        Nombre
-                      </Typography>
-                    }
-                  />
-                  <FormControlLabel
-                    control={
-                      <Checkbox
-                        defaultChecked
-                        sx={{ color: '#333333' }}
-                      />
-                    }
-                    label={
-                      <Typography sx={{ fontSize: 16, color: '#333333' }}>
-                        Nacionalidad
-                      </Typography>
-                    }
-                  />
-                  <FormControlLabel
-                    control={
-                      <Checkbox
-                        defaultChecked
-                        sx={{ color: '#333333' }}
-                      />
-                    }
-                    label={
-                      <Typography sx={{ fontSize: 16, color: '#333333' }}>
-                        Tramite
-                      </Typography>
-                    }
-                  />
-                  <FormControlLabel
-                    control={
-                      <Checkbox
-                        defaultChecked
-                        sx={{ color: '#333333' }}
-                      />
-                    }
-                    label={
-                      <Typography sx={{ fontSize: 16, color: '#333333' }}>
-                        Pasaporte
-                      </Typography>
-                    }
-                  />
-                  <FormControlLabel
-                    control={
-                      <Checkbox
-                        sx={{ color: '#333333' }}
-                      />
-                    }
-                    label={
-                      <Typography sx={{ fontSize: 16, color: '#333333' }}>
-                        Sexo
-                      </Typography>
-                    }
-                  />
-                  <FormControlLabel
-                    control={
-                      <Checkbox
-                        sx={{ color: '#333333' }}
-                      />
-                    }
-                    label={
-                      <Typography sx={{ fontSize: 16, color: '#333333' }}>
-                        N° de Expediente
-                      </Typography>
-                    }
-                  />
-                  <FormControlLabel
-                    control={
-                      <Checkbox
-                        sx={{ color: '#333333' }}
-                      />
-                    }
-                    label={
-                      <Typography sx={{ fontSize: 16, color: '#333333' }}>
-                        Fecha de nacimiento
-                      </Typography>
-                    }
-                  />
-                </Stack>
-              )}
-
-              {/* Etapa origen de documentos (para REVISION_OCR y REVISION_MANUAL_DOCUMENTOS) */}
-              {(preguntas[0]?.tipo === 'REVISION_OCR' ||
-                preguntas[0]?.tipo === 'REVISION_MANUAL_DOCUMENTOS') && (
-                <FormControl fullWidth>
-                  <InputLabel
-                    shrink
-                    sx={{
-                      bgcolor: 'white',
-                      px: 0.5,
-                      fontSize: 14,
-                      fontWeight: 500,
-                      color: '#333333',
-                    }}
-                  >
-                    Etapa origen de documentos
-                  </InputLabel>
-                  <Select
-                    displayEmpty
-                    IconComponent={ArrowDownIcon}
-                    defaultValue=""
-                    sx={{
-                      '& .MuiOutlinedInput-notchedOutline': {
-                        borderColor: '#333333',
-                      },
-                      '& .MuiSelect-select': {
-                        color: '#333333',
-                        fontSize: 16,
-                      },
-                    }}
-                  >
-                    <MenuItem value="">
-                      {preguntas[0]?.tipo === 'REVISION_OCR'
-                        ? 'Recolectar requisitos del trámite PPSH y los anexo en el sistema'
-                        : 'Resultado revisión OCR'}
-                    </MenuItem>
-                    {getEtapasAnteriores().map((etapa) => (
-                      <MenuItem key={etapa.id} value={etapa.id}>
-                        {etapa.nombre}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              )}
-
-              {/* Origen selección de fechas (solo para SELECCION_FECHA) */}
-              {preguntas[0]?.tipo === 'SELECCION_FECHA' && (
-                <FormControl fullWidth>
-                  <InputLabel
-                    shrink
-                    sx={{
-                      bgcolor: 'white',
-                      px: 0.5,
-                      fontSize: 14,
-                      fontWeight: 500,
-                      color: '#333333',
-                    }}
-                  >
-                    Origen selección de fechas
-                  </InputLabel>
-                  <Select
-                    displayEmpty
-                    IconComponent={ArrowDownIcon}
-                    defaultValue=""
-                    sx={{
-                      '& .MuiOutlinedInput-notchedOutline': {
-                        borderColor: '#333333',
-                      },
-                      '& .MuiSelect-select': {
-                        color: '#333333',
-                        fontSize: 16,
-                      },
-                    }}
-                  >
-                    <MenuItem value="">Agenda PPSH</MenuItem>
-                  </Select>
-                </FormControl>
-              )}
-
-              {/* Descripción y Documento (para CARGA_ARCHIVO cuando no hay preguntas tipo formulario) */}
-              {preguntas[0]?.tipo === 'CARGA_ARCHIVO' && !preguntas[0]?.pregunta && (
-                <>
-                  <TextField
-                    fullWidth
-                    label="Descripción"
-                    placeholder="Lorem"
-                    multiline
-                    rows={2}
-                    InputLabelProps={{ shrink: true }}
-                    sx={{
-                      '& .MuiInputLabel-root': {
-                        bgcolor: 'white',
-                        px: 0.5,
-                        fontSize: 14,
-                        fontWeight: 500,
-                        color: '#333333',
-                      },
-                      '& .MuiOutlinedInput-root': {
-                        '& fieldset': {
-                          borderColor: '#333333',
-                        },
-                        '& textarea': {
-                          color: '#4d4d4d',
-                          fontSize: 14,
-                        },
-                      },
-                    }}
-                  />
-                  <Typography sx={{ fontSize: 14, color: '#4d4d4d', fontWeight: 300 }}>
-                    Información adicional opcional
-                  </Typography>
-                  <TextField
-                    fullWidth
-                    label="Documento"
-                    InputLabelProps={{ shrink: true }}
-                    sx={{
-                      '& .MuiInputLabel-root': {
-                        bgcolor: 'white',
-                        px: 0.5,
-                        fontSize: 14,
-                        fontWeight: 500,
-                        color: '#333333',
-                      },
-                      '& .MuiOutlinedInput-root': {
-                        '& fieldset': {
-                          borderColor: '#333333',
-                        },
-                      },
-                    }}
-                  />
-                  <Button
-                    variant="contained"
-                    startIcon={<UploadIcon />}
-                    sx={{
-                      bgcolor: '#0e5fa6',
-                      color: 'white',
-                      textTransform: 'none',
-                      fontSize: 14,
-                      alignSelf: 'flex-start',
-                      '&:hover': {
-                        bgcolor: '#0d5494',
-                      },
-                    }}
-                  >
-                    Cargar archivo
-                  </Button>
-                  <Typography sx={{ fontSize: 12, color: '#788093', fontWeight: 300 }}>
-                    (Opcional), indicaciones para la persona que responda la pregunta
-                  </Typography>
-                </>
-              )}
-
-              {/* Campos adicionales para CARGA_ARCHIVO cuando hay pregunta */}
-              {preguntas[0]?.tipo === 'CARGA_ARCHIVO' && preguntas[0]?.pregunta && (
-                <>
-                  <TextField
-                    fullWidth
-                    label="Indicaciones"
-                    placeholder="Lorem"
-                    multiline
-                    rows={2}
-                    InputLabelProps={{ shrink: true }}
-                    sx={{
-                      '& .MuiInputLabel-root': {
-                        bgcolor: 'white',
-                        px: 0.5,
-                        fontSize: 14,
-                        fontWeight: 500,
-                        color: '#333333',
-                      },
-                      '& .MuiOutlinedInput-root': {
-                        '& fieldset': {
-                          borderColor: '#333333',
-                        },
-                        '& textarea': {
-                          color: '#4d4d4d',
-                          fontSize: 14,
-                        },
-                      },
-                    }}
-                  />
-                  <Typography sx={{ fontSize: 12, color: '#788093', fontWeight: 300 }}>
-                    (Opcional), indicaciones para la persona que responda la pregunta
-                  </Typography>
-                  <FormControl fullWidth>
-                    <InputLabel
-                      shrink
-                      sx={{
-                        bgcolor: 'white',
-                        px: 0.5,
-                        fontSize: 14,
-                        fontWeight: 500,
-                        color: '#333333',
-                      }}
-                    >
-                      Número máximo de archivos
-                    </InputLabel>
-                    <Select
-                      displayEmpty
-                      IconComponent={ArrowDownIcon}
-                      defaultValue="1"
-                      sx={{
-                        '& .MuiOutlinedInput-notchedOutline': {
-                          borderColor: '#333333',
-                        },
-                        '& .MuiSelect-select': {
-                          color: '#333333',
-                          fontSize: 16,
-                        },
-                      }}
-                    >
-                      <MenuItem value="1">1</MenuItem>
-                      <MenuItem value="2">2</MenuItem>
-                      <MenuItem value="3">3</MenuItem>
-                      <MenuItem value="5">5</MenuItem>
-                      <MenuItem value="10">10</MenuItem>
-                    </Select>
-                  </FormControl>
-                  <FormControl fullWidth>
-                    <InputLabel
-                      shrink
-                      sx={{
-                        bgcolor: 'white',
-                        px: 0.5,
-                        fontSize: 14,
-                        fontWeight: 500,
-                        color: '#333333',
-                      }}
-                    >
-                      Tamaño máximo
-                    </InputLabel>
-                    <Select
-                      displayEmpty
-                      IconComponent={ArrowDownIcon}
-                      defaultValue="100MB"
-                      sx={{
-                        '& .MuiOutlinedInput-notchedOutline': {
-                          borderColor: '#333333',
-                        },
-                        '& .MuiSelect-select': {
-                          color: '#333333',
-                          fontSize: 16,
-                        },
-                      }}
-                    >
-                      <MenuItem value="100MB">100MB</MenuItem>
-                      <MenuItem value="50MB">50MB</MenuItem>
-                      <MenuItem value="20MB">20MB</MenuItem>
-                      <MenuItem value="10MB">10MB</MenuItem>
-                      <MenuItem value="5MB">5MB</MenuItem>
-                    </Select>
-                  </FormControl>
-                  <TextField
-                    fullWidth
-                    label="Documento"
-                    InputLabelProps={{ shrink: true }}
-                    sx={{
-                      '& .MuiInputLabel-root': {
-                        bgcolor: 'white',
-                        px: 0.5,
-                        fontSize: 14,
-                        fontWeight: 500,
-                        color: '#333333',
-                      },
-                      '& .MuiOutlinedInput-root': {
-                        '& fieldset': {
-                          borderColor: '#333333',
-                        },
-                      },
-                    }}
-                  />
-                  <Button
-                    variant="contained"
-                    startIcon={<UploadIcon />}
-                    sx={{
-                      bgcolor: '#0e5fa6',
-                      color: 'white',
-                      textTransform: 'none',
-                      fontSize: 14,
-                      alignSelf: 'flex-start',
-                      '&:hover': {
-                        bgcolor: '#0d5494',
-                      },
-                    }}
-                  >
-                    Cargar archivo
-                  </Button>
-                  <Typography sx={{ fontSize: 12, color: '#788093', fontWeight: 300 }}>
-                    (Opcional), indicaciones para la persona que responda la pregunta
-                  </Typography>
-                </>
-              )}
-
-              {/* Botones Cancelar y Añadir */}
-              {!(preguntas[0]?.tipo === 'CARGA_ARCHIVO' && !preguntas[0]?.pregunta) && (
-                <Stack direction="row" spacing={3}>
-                  <Button
-                    variant="outlined"
-                    sx={{
-                      width: 124,
-                      borderColor: '#0e5fa6',
-                      color: '#0e5fa6',
-                      textTransform: 'none',
-                      fontSize: 16,
-                      '&:hover': {
-                        borderColor: '#0d5494',
-                        bgcolor: 'transparent',
-                      },
-                    }}
-                    onClick={() => handleDeletePregunta(0)}
-                  >
-                    Cancelar
-                  </Button>
-                  <Button
-                    variant="contained"
-                    sx={{
-                      width: 124,
-                      bgcolor: '#0e5fa6',
-                      color: 'white',
-                      textTransform: 'none',
-                      fontSize: 16,
-                      '&:hover': {
-                        bgcolor: '#0d5494',
-                      },
-                    }}
-                    onClick={handleAddPregunta}
-                  >
-                    Añadir
-                  </Button>
-                </Stack>
-              )}
-            </Stack>
-          </Box>
-
-          {/* Preguntas agregadas */}
-          {preguntas.length > 1 && (
-            <Stack spacing={2} sx={{ mt: 3 }}>
-              {preguntas.slice(1).map((pregunta, index) => {
-                const tipoInfo = TIPOS_PREGUNTA.find((t) => t.value === pregunta.tipo);
-                return (
-                  <Box
-                    key={pregunta.codigo}
-                    sx={{
-                      border: '1px solid #e0e0e0',
-                      borderRadius: 1,
-                      p: 2,
-                    }}
-                  >
-                    <Stack spacing={2}>
-                      {/* Header con tipo y botones de acción */}
-                      <Stack direction="row" justifyContent="space-between" alignItems="center">
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          {tipoInfo?.icon && (
-                            <Box
-                              sx={{
-                                border: '1px solid #333333',
-                                borderRadius: '4px',
-                                p: 0.5,
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                              }}
-                            >
-                              {React.cloneElement(tipoInfo.icon as React.ReactElement, {
-                                sx: { fontSize: 16, color: '#333333' },
-                              })}
-                            </Box>
-                          )}
-                          <Typography sx={{ fontSize: 16, fontWeight: 500, color: '#333333' }}>
-                            {tipoInfo?.label}
-                          </Typography>
-                        </Box>
-                        <Stack direction="row" spacing={1}>
-                          <IconButton
-                            size="small"
-                            onClick={() => handleDuplicatePregunta(index + 1)}
-                            sx={{ color: '#333333' }}
-                          >
-                            <DuplicateIcon fontSize="small" />
-                          </IconButton>
-                          <IconButton
-                            size="small"
-                            onClick={() => {
-                              // TODO: Implementar edición
-                            }}
-                            sx={{ color: '#333333' }}
-                          >
-                            <EditIcon fontSize="small" />
-                          </IconButton>
-                          <IconButton
-                            size="small"
-                            onClick={() => handleDeletePregunta(index + 1)}
-                            sx={{ color: '#333333' }}
-                          >
-                            <DeleteIcon fontSize="small" />
-                          </IconButton>
-                        </Stack>
-                      </Stack>
-
-                      {/* Contenido según tipo de pregunta */}
-                      {pregunta.tipo === 'DATOS_CASO' && (
-                        <Stack spacing={1}>
-                          <Typography sx={{ fontSize: 14, color: '#4d4d4d', fontWeight: 600 }}>
-                            {pregunta.pregunta || 'Data del caso'}
-                          </Typography>
-                          <Stack direction="row" spacing={2} flexWrap="wrap">
-                            <FormControlLabel
-                              control={<Checkbox defaultChecked size="small" disabled />}
-                              label={
-                                <Typography sx={{ fontSize: 14, color: '#4d4d4d' }}>REDEX</Typography>
-                              }
-                            />
-                            <FormControlLabel
-                              control={<Checkbox defaultChecked size="small" disabled />}
-                              label={
-                                <Typography sx={{ fontSize: 14, color: '#4d4d4d' }}>Nombre</Typography>
-                              }
-                            />
-                            <FormControlLabel
-                              control={<Checkbox defaultChecked size="small" disabled />}
-                              label={
-                                <Typography sx={{ fontSize: 14, color: '#4d4d4d' }}>
-                                  Nacionalidad
-                                </Typography>
-                              }
-                            />
-                            <FormControlLabel
-                              control={<Checkbox defaultChecked size="small" disabled />}
-                              label={
-                                <Typography sx={{ fontSize: 14, color: '#4d4d4d' }}>Tramite</Typography>
-                              }
-                            />
-                            <FormControlLabel
-                              control={<Checkbox defaultChecked size="small" disabled />}
-                              label={
-                                <Typography sx={{ fontSize: 14, color: '#4d4d4d' }}>
-                                  Pasaporte
-                                </Typography>
-                              }
-                            />
-                          </Stack>
-                        </Stack>
-                      )}
-
-                      {pregunta.tipo === 'LISTA' && (
-                        <Stack spacing={1}>
-                          <Typography sx={{ fontSize: 14, color: '#4d4d4d', fontWeight: 600 }}>
-                            {pregunta.pregunta || 'Lista'}
-                          </Typography>
-                          <Stack spacing={0.5}>
-                            <FormControlLabel
-                              control={<Checkbox defaultChecked size="small" disabled />}
-                              label={
-                                <Typography sx={{ fontSize: 14, color: '#4d4d4d' }}>
-                                  832/Carnet de Tramite B/.50.00
-                                </Typography>
-                              }
-                            />
-                            <FormControlLabel
-                              control={<Checkbox defaultChecked size="small" disabled />}
-                              label={
-                                <Typography sx={{ fontSize: 14, color: '#4d4d4d' }}>
-                                  770/Cheque de 250
-                                </Typography>
-                              }
-                            />
-                          </Stack>
-                        </Stack>
-                      )}
-
-                      {pregunta.tipo === 'RESPUESTA_TEXTO' && (
-                        <Stack spacing={1}>
-                          <Typography sx={{ fontSize: 14, color: '#4d4d4d', fontWeight: 600 }}>
-                            {pregunta.pregunta || 'Respuesta texto'}
-                          </Typography>
-                          <TextField
-                            size="small"
-                            disabled
-                            placeholder="Escribe tu respuesta aquí..."
-                            sx={{
-                              '& .MuiOutlinedInput-root': {
-                                fontSize: 14,
-                                color: '#4d4d4d',
-                              },
-                            }}
-                          />
-                        </Stack>
-                      )}
-
-                      {pregunta.tipo === 'OPCIONES' && (
-                        <Stack spacing={1}>
-                          <Typography sx={{ fontSize: 14, color: '#4d4d4d', fontWeight: 600 }}>
-                            {pregunta.pregunta || 'Opciones'}
-                          </Typography>
-                          <Stack spacing={0.5}>
-                            <FormControlLabel
-                              control={<Checkbox size="small" disabled />}
-                              label={<Typography sx={{ fontSize: 14, color: '#4d4d4d' }}>Sí</Typography>}
-                            />
-                            <FormControlLabel
-                              control={<Checkbox size="small" disabled />}
-                              label={<Typography sx={{ fontSize: 14, color: '#4d4d4d' }}>No</Typography>}
-                            />
-                          </Stack>
-                        </Stack>
-                      )}
-
-                      {pregunta.tipo === 'IMPRESION' && (
-                        <Typography sx={{ fontSize: 14, color: '#4d4d4d', fontWeight: 600 }}>
-                          {pregunta.pregunta || 'Impresión'}
-                        </Typography>
-                      )}
-
-                      {pregunta.tipo === 'SELECCION_FECHA' && (
-                        <Stack spacing={1}>
-                          <Typography sx={{ fontSize: 14, color: '#4d4d4d', fontWeight: 600 }}>
-                            {pregunta.pregunta || 'Selección de fecha'}
-                          </Typography>
-                          <TextField
-                            size="small"
-                            type="date"
-                            disabled
-                            sx={{
-                              '& .MuiOutlinedInput-root': {
-                                fontSize: 14,
-                                color: '#4d4d4d',
-                              },
-                            }}
-                          />
-                        </Stack>
-                      )}
-
-                      {pregunta.tipo === 'CARGA_ARCHIVO' && (
-                        <Stack spacing={1}>
-                          <Typography sx={{ fontSize: 14, color: '#4d4d4d', fontWeight: 600 }}>
-                            {pregunta.pregunta || 'Carga de archivo'}
-                          </Typography>
-                          <Button
-                            variant="outlined"
-                            size="small"
-                            disabled
-                            startIcon={<UploadIcon />}
-                            sx={{
-                              textTransform: 'none',
-                              fontSize: 14,
-                              alignSelf: 'flex-start',
-                            }}
-                          >
-                            Cargar archivo
-                          </Button>
-                        </Stack>
-                      )}
-
-                      {pregunta.tipo === 'REVISION_OCR' && (
-                        <Typography sx={{ fontSize: 14, color: '#4d4d4d', fontWeight: 600 }}>
-                          {pregunta.pregunta || 'Revisión OCR'}
-                        </Typography>
-                      )}
-
-                      {pregunta.tipo === 'REVISION_MANUAL_DOCUMENTOS' && (
-                        <Typography sx={{ fontSize: 14, color: '#4d4d4d', fontWeight: 600 }}>
-                          {pregunta.pregunta || 'Revisión manual de documentos'}
-                        </Typography>
-                      )}
-                    </Stack>
-                  </Box>
-                );
-              })}
-            </Stack>
-          )}
-
-          {/* Botones finales Cancelar y Guardar */}
-          <Stack direction="row" spacing={3} sx={{ pt: 2 }}>
-            <Button
-              variant="outlined"
-              fullWidth
-              sx={{
-                borderColor: '#0e5fa6',
-                color: '#0e5fa6',
-                textTransform: 'none',
-                fontSize: 16,
-                py: 1,
-                '&:hover': {
-                  borderColor: '#0d5494',
-                  bgcolor: 'transparent',
-                },
-              }}
-              onClick={handleCancel}
-            >
-              Cancelar
-            </Button>
-            <Button
-              variant="contained"
-              fullWidth
-              sx={{
-                bgcolor: '#0e5fa6',
-                color: 'white',
-                textTransform: 'none',
-                fontSize: 16,
-                py: 1,
-                '&:hover': {
-                  bgcolor: '#0d5494',
-                },
-              }}
-              onClick={handleSave}
-            >
-              Guardar
-            </Button>
-          </Stack>
-        </Stack>
-      </Box>
+      {/* Fin del Panel Derecho - EtapaConfigPanel ahora está en uso */}
     </Box>
+
+    {/* 
+    ============================================================
+    CÓDIGO ANTIGUO DEL PANEL DERECHO - COMENTADO PARA REFERENCIA
+    ============================================================
+    
+    Todo el código antiguo del panel derecho ha sido comentado.
+    El panel ahora usa el componente EtapaConfigPanel directamente.
+    
+    ============================================================
+    FIN DEL CÓDIGO ANTIGUO DEL PANEL DERECHO
+    ============================================================
+    */}
+    </>
+  );
+};
+
+export const WorkflowEditorFigma: React.FC = () => {
+  return (
+    <ReactFlowProvider>
+      <WorkflowEditorFigmaContent />
+    </ReactFlowProvider>
   );
 };
 

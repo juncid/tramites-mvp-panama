@@ -11,16 +11,6 @@ export const CustomNode: React.FC<NodeProps<WorkflowEtapa>> = ({ data }) => {
   const isPlaceholder = (data as any).is_placeholder || !data.nombre;
   const [tieneVistaDinamica, setTieneVistaDinamica] = useState(false);
   
-  // Debug: Log cuando cambian los datos importantes del nodo
-  useEffect(() => {
-    console.log('🔄 CustomNode actualizado:', {
-      codigo: data.codigo,
-      nombre: data.nombre,
-      tipo_etapa: data.tipo_etapa,
-      perfiles: data.perfiles_permitidos
-    });
-  }, [data.codigo, data.nombre, data.tipo_etapa, data.perfiles_permitidos]);
-  
   // Verificar si existe configuración de vista dinámica
   useEffect(() => {
     const checkVistaConfig = async () => {

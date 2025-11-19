@@ -45,6 +45,7 @@ interface EtapaConfigPanelProps {
   onSave: (etapa: Partial<WorkflowEtapa>) => void;
   onClose: () => void;
   onDelete?: () => void;
+  hideCloseButton?: boolean; // Nueva prop para ocultar el botón de cerrar
 }
 
 const PERFILES_DISPONIBLES = [
@@ -116,6 +117,7 @@ export const EtapaConfigPanel: React.FC<EtapaConfigPanelProps> = ({
   onSave,
   onClose,
   onDelete,
+  hideCloseButton = false, // Por defecto se muestra el botón
 }) => {
   const [formData, setFormData] = useState<Partial<WorkflowEtapa>>(etapa);
   const [preguntas, setPreguntas] = useState<WorkflowPregunta[]>(etapa.preguntas || []);
@@ -263,9 +265,11 @@ export const EtapaConfigPanel: React.FC<EtapaConfigPanelProps> = ({
       <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider' }}>
         <Stack direction="row" justifyContent="space-between" alignItems="center">
           <Typography variant="h6">Configuración de Etapa</Typography>
-          <IconButton onClick={onClose}>
-            <CloseIcon />
-          </IconButton>
+          {!hideCloseButton && (
+            <IconButton onClick={onClose}>
+              <CloseIcon />
+            </IconButton>
+          )}
         </Stack>
       </Box>
 

@@ -9,6 +9,7 @@ import { Procesos } from '../pages/Procesos';
 import { WorkflowEditor } from '../pages/WorkflowEditor';
 import { WorkflowViewer } from '../pages/WorkflowViewer';
 import { WorkflowEditorFigma } from '../pages/WorkflowEditorFigma';
+import { ComponentComparison } from '../pages/ComponentComparison';
 import { CargaDocumentosPPSH } from '../pages/CargaDocumentosPPSH';
 import { DetalleProcesoPPSH } from '../pages/DetalleProcesoPPSH';
 import { ProcesoEjecucion } from '../pages/ProcesoEjecucion';
@@ -17,6 +18,8 @@ import Profile from '../pages/Profile';
 import Settings from '../pages/Settings';
 import PublicAccess from '../pages/PublicAccess';
 import PublicSolicitudView from '../pages/PublicSolicitudView';
+import { MisTramitesPage } from '../pages/MisTramites';
+import { CasoWorkflowPage } from '../pages/CasoWorkflow';
 
 export const AppRouter = () => {
   return (
@@ -92,10 +95,26 @@ export const AppRouter = () => {
         }
       />
       <Route
+        path="/flujos/:id/editar-figma"
+        element={
+          <MainLayout>
+            <WorkflowEditorFigma />
+          </MainLayout>
+        }
+      />
+      <Route
         path="/flujos/:id/ver"
         element={
           <MainLayout>
             <WorkflowViewer />
+          </MainLayout>
+        }
+      />
+      <Route
+        path="/componentes-comparacion"
+        element={
+          <MainLayout>
+            <ComponentComparison />
           </MainLayout>
         }
       />
@@ -105,6 +124,23 @@ export const AppRouter = () => {
         element={
           <MainLayout>
             <ProcesoEjecucion />
+          </MainLayout>
+        }
+      />
+      {/* Rutas de vistas por perfil - Mis Trámites y Workflow de Caso */}
+      <Route
+        path="/mis-tramites"
+        element={
+          <MainLayout>
+            <MisTramitesPage />
+          </MainLayout>
+        }
+      />
+      <Route
+        path="/casos/:instanciaId/workflow"
+        element={
+          <MainLayout>
+            <CasoWorkflowPage />
           </MainLayout>
         }
       />
