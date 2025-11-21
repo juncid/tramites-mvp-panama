@@ -44,46 +44,57 @@ export const DynamicEtapaView: React.FC<DynamicEtapaViewProps> = ({
       onAnswerChange: (valor: any) => onAnswerChange?.(pregunta.id!, valor),
     };
 
-    switch (pregunta.tipo_pregunta) {
-      case 'RESPUESTA_TEXTO':
-      case 'RESPUESTA_LARGA':
-        return <RespuestaTextoView key={pregunta.id} {...commonProps} />;
-      
-      case 'LISTA':
-        return <ListaView key={pregunta.id} {...commonProps} />;
-      
-      case 'OPCIONES':
-        return <OpcionesView key={pregunta.id} {...commonProps} />;
-      
-      case 'CARGA_ARCHIVO':
-        return <CargaArchivoView key={pregunta.id} {...commonProps} />;
-      
-      case 'REVISION_MANUAL_DOCUMENTOS':
-        return <RevisionManualDocumentosView key={pregunta.id} {...commonProps} instanciaId={instanciaId} />;
-      
-      case 'REVISION_OCR':
-        return <RevisionOCRView key={pregunta.id} {...commonProps} instanciaId={instanciaId} />;
-      
-      case 'DATOS_CASO':
-        return <DatosCasoView key={pregunta.id} {...commonProps} instanciaId={instanciaId} />;
-      
-      case 'SELECCION_FECHA':
-        return <SeleccionFechaView key={pregunta.id} {...commonProps} />;
-      
-      case 'DESCARGA_ARCHIVO':
-        return <DescargaArchivoView key={pregunta.id} {...commonProps} />;
-      
-      case 'IMPRESION':
-        return <ImpresionView key={pregunta.id} {...commonProps} />;
-      
-      default:
-        return (
-          <Box key={pregunta.id} sx={{ p: 2, backgroundColor: '#FEF3C7', borderRadius: 1 }}>
-            <Typography variant="body2" color="text.secondary">
-              Tipo de pregunta no soportado: {pregunta.tipo_pregunta}
-            </Typography>
-          </Box>
-        );
+    try {
+      switch (pregunta.tipo_pregunta) {
+        case 'RESPUESTA_TEXTO':
+        case 'RESPUESTA_LARGA':
+          return <RespuestaTextoView key={pregunta.id} {...commonProps} />;
+        
+        case 'LISTA':
+          return <ListaView key={pregunta.id} {...commonProps} />;
+        
+        case 'OPCIONES':
+          return <OpcionesView key={pregunta.id} {...commonProps} />;
+        
+        case 'CARGA_ARCHIVO':
+          return <CargaArchivoView key={pregunta.id} {...commonProps} />;
+        
+        case 'REVISION_MANUAL_DOCUMENTOS':
+          return <RevisionManualDocumentosView key={pregunta.id} {...commonProps} instanciaId={instanciaId} />;
+        
+        case 'REVISION_OCR':
+          return <RevisionOCRView key={pregunta.id} {...commonProps} instanciaId={instanciaId} />;
+        
+        case 'DATOS_CASO':
+          return <DatosCasoView key={pregunta.id} {...commonProps} instanciaId={instanciaId} />;
+        
+        case 'SELECCION_FECHA':
+          return <SeleccionFechaView key={pregunta.id} {...commonProps} />;
+        
+        case 'DESCARGA_ARCHIVO':
+          return <DescargaArchivoView key={pregunta.id} {...commonProps} />;
+        
+        case 'IMPRESION':
+          return <ImpresionView key={pregunta.id} {...commonProps} />;
+        
+        default:
+          return (
+            <Box key={pregunta.id} sx={{ p: 2, backgroundColor: '#FEF3C7', borderRadius: 1 }}>
+              <Typography variant="body2" color="text.secondary">
+                Tipo de pregunta no soportado: {pregunta.tipo_pregunta}
+              </Typography>
+            </Box>
+          );
+      }
+    } catch (error) {
+      console.error('Error renderizando pregunta:', pregunta, error);
+      return (
+        <Box key={pregunta.id} sx={{ p: 2, backgroundColor: '#FEE2E2', borderRadius: 1 }}>
+          <Typography variant="body2" color="error">
+            Error renderizando pregunta: {pregunta.pregunta}
+          </Typography>
+        </Box>
+      );
     }
   };
 

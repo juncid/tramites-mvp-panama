@@ -248,7 +248,9 @@ const WorkflowEditorFigmaContent: React.FC = () => {
           id: conexion.id?.toString() || `${conexion.etapa_origen_id}-${conexion.etapa_destino_id}`,
           source: conexion.etapa_origen_id.toString(),
           target: conexion.etapa_destino_id.toString(),
-          label: conexion.condicion,
+          label: typeof conexion.condicion === 'object' && conexion.condicion !== null
+            ? JSON.stringify(conexion.condicion)
+            : conexion.condicion || '',
           markerEnd: {
             type: MarkerType.ArrowClosed,
           },
@@ -403,7 +405,7 @@ const WorkflowEditorFigmaContent: React.FC = () => {
       const conexiones = edges.map((edge) => ({
         etapa_origen_id: parseInt(edge.source),
         etapa_destino_id: parseInt(edge.target),
-        condicion: edge.label,
+        condicion: typeof edge.label === 'string' ? edge.label : (edge.label ? JSON.stringify(edge.label) : null),
         es_predeterminada: true,
         activo: true,
       }));
