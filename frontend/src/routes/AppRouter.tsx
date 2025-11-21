@@ -13,6 +13,7 @@ import { ComponentComparison } from '../pages/ComponentComparison';
 import { CargaDocumentosPPSH } from '../pages/CargaDocumentosPPSH';
 import { DetalleProcesoPPSH } from '../pages/DetalleProcesoPPSH';
 import { ProcesoEjecucion } from '../pages/ProcesoEjecucion';
+import { EtapaExecution } from '../pages/EtapaExecution';
 import { TestVisa } from '../pages/TestVisa';
 import Profile from '../pages/Profile';
 import Settings from '../pages/Settings';
@@ -124,6 +125,15 @@ export const AppRouter = () => {
         element={
           <MainLayout>
             <ProcesoEjecucion />
+          </MainLayout>
+        }
+      />
+      {/* Ruta de ejecución de etapa específica con vistas dinámicas */}
+      <Route
+        path="/flujos/:workflowId/instancias/:instanciaId/etapa/:etapaId"
+        element={
+          <MainLayout>
+            <EtapaExecution />
           </MainLayout>
         }
       />
