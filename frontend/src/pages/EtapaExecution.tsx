@@ -7,6 +7,7 @@ import {
   CircularProgress,
   Alert,
   Button,
+  Grid,
 } from '@mui/material';
 import {
   Home as HomeIcon,
@@ -199,40 +200,89 @@ export const EtapaExecution = () => {
         {etapa.nombre}
       </Typography>
 
-      {/* Formulario dinámico de ancho completo */}
-      <DynamicEtapaView
-        etapa={etapa}
-        instanciaId={instanciaId ? parseInt(instanciaId) : undefined}
-        readonly={false}
-        onAnswerChange={handleAnswerChange}
-      />
+      <Grid container spacing={3}>
+        {/* Columna principal - Formulario dinámico */}
+        <Grid item xs={12} md={8}>
+          <DynamicEtapaView
+            etapa={etapa}
+            instanciaId={instanciaId ? parseInt(instanciaId) : undefined}
+            readonly={false}
+            onAnswerChange={handleAnswerChange}
+          />
 
-      {/* Botones de acción */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 3 }}>
-        <Button
-          variant="outlined"
-          onClick={handleCancelar}
-          sx={{
-            textTransform: 'none',
-            borderColor: '#0e5fa6',
-            color: '#0e5fa6',
-            '&:hover': { borderColor: '#0d5391', backgroundColor: 'rgba(14, 95, 166, 0.04)' },
-          }}
-        >
-          Cancelar
-        </Button>
-        <Button
-          variant="contained"
-          onClick={handleGuardar}
-          sx={{
-            textTransform: 'none',
-            backgroundColor: '#0e5fa6',
-            '&:hover': { backgroundColor: '#0d5391' },
-          }}
-        >
-          Guardar y continuar
-        </Button>
-      </Box>
+          {/* Botones de acción */}
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 3 }}>
+            <Button
+              variant="outlined"
+              onClick={handleCancelar}
+              sx={{
+                textTransform: 'none',
+                borderColor: '#0e5fa6',
+                color: '#0e5fa6',
+                '&:hover': { borderColor: '#0d5391', backgroundColor: 'rgba(14, 95, 166, 0.04)' },
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="contained"
+              onClick={handleGuardar}
+              sx={{
+                textTransform: 'none',
+                backgroundColor: '#0e5fa6',
+                '&:hover': { backgroundColor: '#0d5391' },
+              }}
+            >
+              Guardar y continuar
+            </Button>
+          </Box>
+        </Grid>
+
+        {/* Columna derecha - Información adicional (opcional) */}
+        <Grid item xs={12} md={4}>
+          <Box sx={{ 
+            p: 3, 
+            backgroundColor: '#F9FAFB',
+            borderRadius: 2,
+            border: '1px solid #E5E7EB',
+          }}>
+            <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>
+              Información de la etapa
+            </Typography>
+            
+            <Box sx={{ mb: 2 }}>
+              <Typography variant="caption" sx={{ color: '#6B7280' }}>
+                Tipo
+              </Typography>
+              <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                {etapa.tipo_etapa}
+              </Typography>
+            </Box>
+
+            {etapa.tiempo_estimado_minutos && (
+              <Box sx={{ mb: 2 }}>
+                <Typography variant="caption" sx={{ color: '#6B7280' }}>
+                  Tiempo estimado
+                </Typography>
+                <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                  {etapa.tiempo_estimado_minutos} minutos
+                </Typography>
+              </Box>
+            )}
+
+            <Box>
+              <Typography variant="caption" sx={{ color: '#6B7280' }}>
+                Perfiles permitidos
+              </Typography>
+              {etapa.perfiles_permitidos.map((perfil, index) => (
+                <Typography key={index} variant="body2" sx={{ fontWeight: 500 }}>
+                  • {perfil}
+                </Typography>
+              ))}
+            </Box>
+          </Box>
+        </Grid>
+      </Grid>
     </Box>
   );
 };
