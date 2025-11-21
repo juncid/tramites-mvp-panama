@@ -67,10 +67,12 @@ import {
   ContentCopy as DuplicateIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
+  AccountTree as AutoLayoutIcon,
 } from '@mui/icons-material';
 import { workflowService } from '../services/workflow.service';
 import CustomNode from '../components/Workflow/CustomNode';
 import type { WorkflowEtapa, WorkflowPregunta, TipoEtapa, TipoPregunta, Workflow, EstadoWorkflow } from '../types/workflow';
+import { getLayoutedElements } from '../utils/autoLayout';
 
 const nodeTypes: NodeTypes = {
   custom: CustomNode,
@@ -157,7 +159,7 @@ const WorkflowEditorFigmaContent: React.FC = () => {
     if (isEditMode) {
       loadWorkflow();
     } else {
-      // Crear nodo inicial
+      // Crear nodo inicial (alineado a grid de 20px)
       const initialNode: Node = {
         id: 'inicio',
         type: 'custom',
@@ -263,8 +265,14 @@ const WorkflowEditorFigmaContent: React.FC = () => {
     (params: Connection) => {
       const edge = {
         ...params,
+        type: 'smoothstep',
+        style: { 
+          stroke: '#4d4d4d', 
+          strokeWidth: 2,
+        },
         markerEnd: {
           type: MarkerType.ArrowClosed,
+          color: '#4d4d4d',
         },
       };
       setEdges((eds) => addEdge(edge, eds));
@@ -367,6 +375,15 @@ const WorkflowEditorFigmaContent: React.FC = () => {
       setCurrentZoom(Math.round(viewport.zoom * 100));
     }, 50);
   };
+
+  const performAutoLayout = useCallback(() => {
+    const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(
+      nodes,
+      edges
+    );
+    setNodes(layoutedNodes);
+    setEdges(layoutedEdges);
+  }, [nodes, edges, setNodes, setEdges]);
 
   // Guardar todo el workflow en la base de datos
   const handleSaveWorkflow = async () => {
@@ -512,6 +529,12 @@ const WorkflowEditorFigmaContent: React.FC = () => {
           borderRadius: '4px 0 0 4px',
           position: 'relative',
           overflow: 'hidden',
+          '& .react-flow__attribution': {
+            display: 'none',
+          },
+          '& .react-flow__edge-path': {
+            strokeDasharray: '0 !important',
+          },
         }}
       >
         {/* Barra de herramientas superior */}
@@ -563,6 +586,21 @@ const WorkflowEditorFigmaContent: React.FC = () => {
           >
             <PanToolIcon sx={{ fontSize: 16, color: '#788093' }} />
           </IconButton>
+
+          {/* Botón de Organizar */}
+          <IconButton
+            size="small"
+            onClick={performAutoLayout}
+            sx={{
+              border: '1px solid #788093',
+              borderRadius: '4px',
+              bgcolor: 'white',
+              p: 0.5,
+            }}
+            title="Organizar nodos automáticamente"
+          >
+            <AutoLayoutIcon sx={{ fontSize: 16, color: '#788093' }} />
+          </IconButton>
         </Box>
 
         {/* ReactFlow Canvas */}
@@ -575,8 +613,17 @@ const WorkflowEditorFigmaContent: React.FC = () => {
           onNodeClick={handleNodeClick}
           nodeTypes={nodeTypes}
           fitView
+          snapToGrid={true}
+          snapGrid={[20, 20]}
           proOptions={{ hideAttribution: true }}
           defaultViewport={{ x: 0, y: 0, zoom: 1 }}
+          defaultEdgeOptions={{
+            type: 'smoothstep',
+            animated: false,
+            style: { stroke: '#4d4d4d', strokeWidth: 2 },
+          }}
+          connectionLineType="smoothstep"
+          connectionLineStyle={{ stroke: '#4d4d4d', strokeWidth: 2 }}
         >
           <Background variant={BackgroundVariant.Dots} gap={12} size={1} color="#e0e0e0" />
         </ReactFlow>

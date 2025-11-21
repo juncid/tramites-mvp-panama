@@ -34,6 +34,30 @@ import type {
 } from '../types/workflow';
 import type { ConfigJson } from '../types/dynamic-view';
 
+// Función auxiliar para encontrar siguiente etapa (evitando Inicio/Fin)
+const encontrarSiguienteEtapaUtil = (
+  todasEtapas: WorkflowEtapa[],
+  etapaActual: WorkflowEtapa,
+  conexiones?: any[]
+): number | null => {
+  // Buscar por conexiones
+  if (conexiones) {
+    const conexion = conexiones.find(
+      (c) => c.etapa_origen_id === etapaActual.id && c.es_predeterminada
+    );
+    if (conexion) return conexion.etapa_destino_id;
+  }
+
+  // Fallback: siguiente por orden
+  const etapasOrdenadas = [...todasEtapas].sort((a, b) => a.orden - b.orden);
+  const indiceActual = etapasOrdenadas.findIndex((e) => e.id === etapaActual.id);
+  if (indiceActual >= 0 && indiceActual < etapasOrdenadas.length - 1) {
+    return etapasOrdenadas[indiceActual + 1].id!;
+  }
+
+  return null;
+};
+
 export const ProcesoEjecucion: React.FC = () => {
   const { instanciaId } = useParams<{ instanciaId: string }>();
   const navigate = useNavigate();
@@ -67,12 +91,40 @@ export const ProcesoEjecucion: React.FC = () => {
         // 2. Cargar workflow completo para obtener todas las etapas
         if (inst.workflow_id) {
           const workflow = await workflowService.getWorkflow(inst.workflow_id);
-          setTodasEtapas(workflow.etapas || []);
+          const etapas = workflow.etapas || [];
+          setTodasEtapas(etapas);
+          
+          // Guardar conexiones en la instancia para uso posterior
+          inst.workflow = workflow;
         }
 
         // 3. Cargar etapa actual
         if (inst.etapa_actual_id) {
           const etapa = await workflowService.getEtapa(inst.etapa_actual_id);
+          
+          // Verificar si es etapa de Inicio o Fin - saltarlas automáticamente
+          if (etapa.tipo_etapa === 'FIN' || 
+              etapa.codigo === 'INICIO' || 
+              etapa.codigo === 'FIN' ||
+              etapa.nombre?.toLowerCase() === 'inicio' ||
+              etapa.nombre?.toLowerCase() === 'fin' ||
+              etapa.es_etapa_inicial) {
+            
+            // Buscar la siguiente etapa real
+            const siguienteEtapaId = encontrarSiguienteEtapaUtil(todasEtapas, etapa, inst.workflow?.conexiones);
+            
+            if (siguienteEtapaId) {
+              // Transicionar automáticamente a la siguiente etapa
+              await workflowService.transicionarInstancia(inst.id, {
+                etapa_destino_id: siguienteEtapaId,
+                respuestas: [],
+              });
+              // Recargar para mostrar la siguiente etapa
+              window.location.reload();
+              return;
+            }
+          }
+          
           setEtapaActual(etapa);
 
           // 4. Intentar cargar vista dinámica

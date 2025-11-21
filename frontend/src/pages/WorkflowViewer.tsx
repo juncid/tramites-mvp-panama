@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import ReactFlow, {
   Node,
   Edge,
@@ -8,63 +8,48 @@ import ReactFlow, {
   useEdgesState,
   MarkerType,
   NodeTypes,
-  Panel,
+  BackgroundVariant,
+  useReactFlow,
+  ReactFlowProvider,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import {
   Box,
   Typography,
-  Tabs,
-  Tab,
-  Select,
-  MenuItem,
-  FormControl,
   IconButton,
+  Divider,
+  Chip,
 } from '@mui/material';
 import {
   ZoomIn as ZoomInIcon,
   ZoomOut as ZoomOutIcon,
-  PanTool as PanToolIcon,
-  Print as PrintIcon,
-  Person as PersonIcon,
   KeyboardArrowDown as ArrowDownIcon,
+  AccountTree as AutoLayoutIcon,
+  CloudUpload as UploadIcon,
+  TextFields as TextIcon,
+  RadioButtonChecked as RadioIcon,
+  CheckBox as CheckBoxIcon,
 } from '@mui/icons-material';
 import { workflowService } from '../services/workflow.service';
 import type { Workflow, WorkflowEtapa } from '../types/workflow';
-import CustomNodeViewer from '../components/Workflow/CustomNodeViewer';
+import CustomNode from '../components/Workflow/CustomNode';
 import { getLayoutedElements } from '../utils/autoLayout';
+import { logger } from '../utils/logger';
 
 const nodeTypes: NodeTypes = {
-  custom: CustomNodeViewer,
+  custom: CustomNode,
 };
 
-interface TabPanelProps {
-  children?: React.ReactNode;
-  index: number;
-  value: number;
-}
-
-const TabPanel: React.FC<TabPanelProps> = ({ children, value, index }) => {
-  return (
-    <div
-      role="tabpanel"
-      hidden={value !== index}
-      style={{ height: value === index ? 'calc(100vh - 330px)' : '0' }}
-    >
-      {value === index && <Box sx={{ height: '100%' }}>{children}</Box>}
-    </div>
-  );
-};
-
-export const WorkflowViewer: React.FC = () => {
+const WorkflowViewerContent: React.FC = () => {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const { zoomIn, zoomOut, getViewport } = useReactFlow();
+  
   const [workflow, setWorkflow] = useState<Workflow | null>(null);
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
-  const [tabIndex, setTabIndex] = useState(1); // 1 = Flujo
-  const [zoomLevel, setZoomLevel] = useState(100);
-  const [profileFilter, setProfileFilter] = useState('Todos');
-  const [reactFlowInstance, setReactFlowInstance] = useState<any>(null);
+  const [selectedNode, setSelectedNode] = useState<Node | null>(null);
+  const [currentZoom, setCurrentZoom] = useState<number>(100);
 
   useEffect(() => {
     if (id) {
@@ -72,14 +57,44 @@ export const WorkflowViewer: React.FC = () => {
     }
   }, [id]);
 
+  useEffect(() => {
+    const viewport = getViewport();
+    setCurrentZoom(Math.round(viewport.zoom * 100));
+  }, [getViewport]);
+
   const loadWorkflow = async (workflowId: number) => {
     try {
+      logger.workflow('Loading workflow', { workflowId });
+      
       const data = await workflowService.getWorkflow(workflowId);
+      
+      logger.workflow('Workflow loaded successfully', {
+        workflowId: data.id,
+        nombre: data.nombre,
+        etapasCount: data.etapas?.length || 0,
+        conexionesCount: data.conexiones?.length || 0,
+      });
+      
+      if (data.etapas && data.etapas.length > 0) {
+        data.etapas.forEach((etapa, idx) => {
+          logger.debug(`Etapa ${idx}: ${etapa.nombre}`, {
+            id: etapa.id,
+            codigo: etapa.codigo,
+            preguntasCount: etapa.preguntas?.length || 0,
+          }, 'WORKFLOW');
+        });
+      }
+      
       setWorkflow(data);
       
       if (data.etapas && data.etapas.length > 0) {
         const flowNodes = convertEtapasToNodes(data.etapas);
         const flowEdges = convertConexionesToEdges(data.conexiones || []);
+        
+        logger.debug('Converting to React Flow format', {
+          nodesCount: flowNodes.length,
+          edgesCount: flowEdges.length,
+        }, 'WORKFLOW');
         
         // Aplicar auto-layout
         const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(
@@ -87,13 +102,58 @@ export const WorkflowViewer: React.FC = () => {
           flowEdges
         );
         
+        logger.debug('Auto-layout applied', {
+          layoutedNodesCount: layoutedNodes.length,
+        }, 'WORKFLOW');
+        
         setNodes(layoutedNodes);
         setEdges(layoutedEdges);
       }
     } catch (error) {
+      logger.error('Error loading workflow', error, 'WORKFLOW');
       console.error('Error al cargar workflow:', error);
     }
   };
+
+  const handleNodeClick = useCallback((_: React.MouseEvent, node: Node) => {
+    logger.component('WorkflowViewer', 'Node clicked', {
+      nodeId: node.id,
+      nodeType: node.type,
+      nodeLabel: node.data?.label,
+    });
+    setSelectedNode(node);
+  }, []);
+
+  const handleZoomIn = useCallback(() => {
+    logger.component('WorkflowViewer', 'Zoom in');
+    zoomIn({ duration: 200 });
+  }, [zoomIn]);
+
+  const handleZoomOut = useCallback(() => {
+    logger.component('WorkflowViewer', 'Zoom out');
+    zoomOut({ duration: 200 });
+  }, [zoomOut]);
+
+  const handleAutoLayout = useCallback(() => {
+    logger.component('WorkflowViewer', 'Auto-layout triggered', {
+      nodesCount: nodes.length,
+      edgesCount: edges.length,
+    });
+    
+    const startTime = performance.now();
+    const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(
+      nodes,
+      edges
+    );
+    const duration = performance.now() - startTime;
+    
+    logger.performance('Auto-layout', duration, {
+      nodesCount: layoutedNodes.length,
+    });
+    
+    setNodes(layoutedNodes);
+    setEdges(layoutedEdges);
+  }, [nodes, edges, setNodes, setEdges]);
 
   const convertEtapasToNodes = (etapas: WorkflowEtapa[]): Node[] => {
     return etapas.map((etapa) => ({
@@ -109,16 +169,15 @@ export const WorkflowViewer: React.FC = () => {
   };
 
   const convertConexionesToEdges = (conexiones: any[]): Edge[] => {
-    return conexiones.map((conexion, index) => ({
-      id: conexion.id?.toString() || `edge-${index}`,
-      source: conexion.etapa_origen_id?.toString() || '',
-      target: conexion.etapa_destino_id?.toString() || '',
-      type: 'straight',
+    return conexiones.map((conexion) => ({
+      id: `e${conexion.etapa_origen_id}-${conexion.etapa_destino_id}`,
+      source: conexion.etapa_origen_id.toString(),
+      target: conexion.etapa_destino_id.toString(),
+      type: 'smoothstep',
       animated: false,
-      style: { 
-        stroke: '#4d4d4d', 
+      style: {
+        stroke: '#4d4d4d',
         strokeWidth: 2,
-        strokeDasharray: '0', // Línea sólida
       },
       markerEnd: {
         type: MarkerType.ArrowClosed,
@@ -132,287 +191,387 @@ export const WorkflowViewer: React.FC = () => {
     }));
   };
 
-  const handleZoomIn = () => {
-    if (reactFlowInstance) {
-      const currentZoom = reactFlowInstance.getZoom();
-      reactFlowInstance.zoomTo(currentZoom * 1.2);
-      setZoomLevel(Math.round(currentZoom * 1.2 * 100));
-    }
-  };
+  // Obtener etapa seleccionada
+  const selectedEtapa = selectedNode
+    ? workflow?.etapas?.find((e) => e.id === parseInt(selectedNode.id))
+    : null;
 
-  const handleZoomOut = () => {
-    if (reactFlowInstance) {
-      const currentZoom = reactFlowInstance.getZoom();
-      reactFlowInstance.zoomTo(currentZoom * 0.8);
-      setZoomLevel(Math.round(currentZoom * 0.8 * 100));
-    }
-  };
-
-  const handlePrint = () => {
-    window.print();
-  };
+  if (selectedNode && selectedEtapa) {
+    logger.debug('Etapa selected', {
+      etapaId: selectedEtapa.id,
+      nombre: selectedEtapa.nombre,
+      codigo: selectedEtapa.codigo,
+      preguntasCount: selectedEtapa.preguntas?.length || 0,
+      preguntas: selectedEtapa.preguntas?.map(p => ({
+        id: p.id,
+        texto: p.texto_pregunta || p.pregunta,
+        tipo: p.tipo_pregunta || p.tipo,
+      })),
+    }, 'WORKFLOW');
+  }
 
   return (
-    <Box sx={{ height: 'calc(100vh - 130px)', display: 'flex', flexDirection: 'column' }}>
-      {/* Estilos globales para ReactFlow */}
-      <style>
-        {`
-          .react-flow__edge-path {
-            stroke-dasharray: 0 !important;
-          }
-        `}
-      </style>
-      
-      {/* Título */}
-      <Typography
-        variant="h3"
+    <Box sx={{ height: 'calc(100vh - 130px)', display: 'flex' }}>
+      {/* Canvas izquierdo - 584px */}
+      <Box
         sx={{
-          fontSize: '48px',
-          fontWeight: 700,
-          color: '#333333',
-          mb: 3,
-          px: 2,
+          width: '584px',
+          height: '100%',
+          border: '1px solid #333333',
+          borderRadius: '4px',
+          position: 'relative',
+          bgcolor: 'white',
         }}
       >
-        {workflow?.nombre || 'Permiso de Protección de Seguridad Humanitaria'}
-      </Typography>
-
-      {/* Tabs */}
-      <Box sx={{ borderBottom: 0, bgcolor: '#f1f3f4', px: 2 }}>
-        <Tabs
-          value={tabIndex}
-          onChange={(_, newValue) => setTabIndex(newValue)}
-          sx={{
-            '& .MuiTab-root': {
-              textTransform: 'none',
-              fontSize: '16px',
-              color: '#4d4d4d',
-              minWidth: 120,
-              px: 2,
-              py: 1,
-            },
-            '& .Mui-selected': {
-              color: '#0e5fa6',
-              fontWeight: 400,
-            },
-            '& .MuiTabs-indicator': {
-              height: 4,
-              borderTopLeftRadius: 4,
-              borderTopRightRadius: 4,
-              backgroundColor: '#0e5fa6',
-            },
+        <ReactFlow
+          nodes={nodes}
+          edges={edges}
+          nodeTypes={nodeTypes}
+          nodesDraggable={false}
+          nodesConnectable={false}
+          elementsSelectable={true}
+          onNodeClick={handleNodeClick}
+          snapToGrid={true}
+          snapGrid={[20, 20]}
+          panOnScroll={true}
+          zoomOnScroll={true}
+          panOnDrag={true}
+          fitView
+          fitViewOptions={{ padding: 0.2 }}
+          minZoom={0.1}
+          maxZoom={2}
+          defaultEdgeOptions={{
+            type: 'smoothstep',
+            style: { stroke: '#4d4d4d', strokeWidth: 2 },
           }}
         >
-          <Tab label="General" />
-          <Tab label="Flujo" />
-          <Tab label="Estado" />
-          <Tab label="Historial" />
-        </Tabs>
-      </Box>
+          <Background color="#f5f5f5" gap={16} variant={BackgroundVariant.Dots} />
 
-      {/* Contenido de los tabs */}
-      <TabPanel value={tabIndex} index={0}>
-        <Box sx={{ p: 3 }}>
-          <Typography variant="h6">Información General</Typography>
-          <Typography>Nombre: {workflow?.nombre}</Typography>
-          <Typography>Descripción: {workflow?.descripcion}</Typography>
-          <Typography>Estado: {workflow?.estado}</Typography>
-        </Box>
-      </TabPanel>
-
-      <TabPanel value={tabIndex} index={1}>
-        <Box
-          sx={{
-            height: '100%',
-            border: '1px solid #333333',
-            borderRadius: '4px',
-            position: 'relative',
-            bgcolor: 'white',
-            mx: 2,
-          }}
-        >
-          <ReactFlow
-            nodes={nodes}
-            edges={edges}
-            onNodesChange={onNodesChange}
-            onEdgesChange={onEdgesChange}
-            onInit={setReactFlowInstance}
-            nodeTypes={nodeTypes}
-            nodesDraggable={false}
-            nodesConnectable={false}
-            elementsSelectable={false}
-            panOnScroll={true}
-            zoomOnScroll={true}
-            panOnDrag={true}
-            fitView
-            fitViewOptions={{ padding: 0.2 }}
-            minZoom={0.1}
-            maxZoom={2}
-            defaultEdgeOptions={{
-              style: { stroke: '#4d4d4d', strokeWidth: 2 },
+          {/* Controles de zoom - top center */}
+          <Box
+            sx={{
+              position: 'absolute',
+              top: 16,
+              left: '50%',
+              transform: 'translateX(-50%)',
+              display: 'flex',
+              gap: 1,
+              alignItems: 'center',
+              zIndex: 5,
             }}
           >
-            <Background color="#f5f5f5" gap={16} />
-            
-            {/* Toolbar personalizado */}
-            <Panel position="top-left">
-              <Box
-                sx={{
-                  display: 'flex',
-                  gap: 2,
-                  alignItems: 'center',
-                  p: 2,
-                }}
-              >
-                {/* Filtro de perfiles */}
-                <FormControl size="small">
-                  <Select
-                    value={profileFilter}
-                    onChange={(e) => setProfileFilter(e.target.value)}
-                    sx={{
-                      border: '1px solid #788093',
-                      borderRadius: '4px',
-                      bgcolor: 'white',
-                      height: 24,
-                      fontSize: '14px',
-                      color: '#788093',
-                      '& .MuiOutlinedInput-notchedOutline': {
-                        border: 'none',
-                      },
-                      '& .MuiSelect-select': {
-                        py: 0.25,
-                        px: 0.5,
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 0.5,
-                      },
-                    }}
-                    startAdornment={
-                      <PersonIcon sx={{ fontSize: 20, color: '#788093', mr: 0.5 }} />
-                    }
-                    IconComponent={ArrowDownIcon}
-                  >
-                    <MenuItem value="Todos">Todos</MenuItem>
-                    <MenuItem value="Ciudadano">Ciudadano</MenuItem>
-                    <MenuItem value="Abogado">Abogado</MenuItem>
-                    <MenuItem value="Funcionario">Funcionario</MenuItem>
-                  </Select>
-                </FormControl>
+            <Box
+              sx={{
+                border: '1px solid #788093',
+                borderRadius: '4px',
+                bgcolor: 'white',
+                display: 'flex',
+                alignItems: 'center',
+                height: 24,
+                px: 0.5,
+                gap: 0.5,
+              }}
+            >
+              <IconButton size="small" onClick={handleZoomOut} sx={{ p: 0, color: '#788093' }}>
+                <ZoomOutIcon sx={{ fontSize: 20 }} />
+              </IconButton>
+
+              <IconButton size="small" onClick={handleZoomIn} sx={{ p: 0, color: '#788093' }}>
+                <ZoomInIcon sx={{ fontSize: 20 }} />
+              </IconButton>
+
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.25 }}>
+                <Typography sx={{ fontSize: '14px', color: '#788093' }}>
+                  {currentZoom}%
+                </Typography>
+                <ArrowDownIcon sx={{ fontSize: 8, color: '#788093' }} />
               </Box>
-            </Panel>
+            </Box>
 
-            {/* Controles de zoom y acciones */}
-            <Panel position="top-center">
-              <Box
-                sx={{
-                  display: 'flex',
-                  gap: 2,
-                  alignItems: 'center',
-                }}
+            {/* Botón de auto-layout */}
+            <Box
+              sx={{
+                border: '1px solid #788093',
+                borderRadius: '4px',
+                bgcolor: 'white',
+                width: 24,
+                height: 24,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <IconButton
+                size="small"
+                onClick={handleAutoLayout}
+                sx={{ p: 0, color: '#788093' }}
+                title="Auto Layout"
               >
-                {/* Controles de zoom */}
-                <Box
-                  sx={{
-                    border: '1px solid #788093',
-                    borderRadius: '4px',
-                    bgcolor: 'white',
-                    display: 'flex',
-                    alignItems: 'center',
-                    height: 24,
-                    px: 0.5,
-                    gap: 0.5,
-                  }}
-                >
-                  <IconButton
-                    size="small"
-                    onClick={handleZoomOut}
-                    sx={{ p: 0, color: '#788093' }}
-                  >
-                    <ZoomOutIcon sx={{ fontSize: 20 }} />
-                  </IconButton>
-                  
-                  <IconButton
-                    size="small"
-                    onClick={handleZoomIn}
-                    sx={{ p: 0, color: '#788093' }}
-                  >
-                    <ZoomInIcon sx={{ fontSize: 20 }} />
-                  </IconButton>
+                <AutoLayoutIcon sx={{ fontSize: 16 }} />
+              </IconButton>
+            </Box>
+          </Box>
+        </ReactFlow>
+      </Box>
 
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.25 }}>
-                    <Typography sx={{ fontSize: '14px', color: '#788093' }}>
-                      {zoomLevel}%
-                    </Typography>
-                    <ArrowDownIcon sx={{ fontSize: 8, color: '#788093' }} />
+      {/* Panel derecho - 611px */}
+      <Box
+        sx={{
+          width: '611px',
+          height: '100%',
+          ml: 2,
+          bgcolor: '#f8f9fa',
+          borderRadius: '4px',
+          overflow: 'auto',
+          p: 3,
+        }}
+      >
+        {selectedEtapa ? (
+          <>
+            <Typography variant="h5" sx={{ mb: 3, fontWeight: 700, color: '#333' }}>
+              {selectedEtapa.nombre}
+            </Typography>
+
+            {/* Información básica */}
+            <Box sx={{ mb: 3 }}>
+              <Typography variant="subtitle2" sx={{ color: '#666', mb: 0.5, fontWeight: 600 }}>
+                Código
+              </Typography>
+              <Typography sx={{ mb: 2, bgcolor: 'white', p: 1.5, borderRadius: '4px' }}>
+                {selectedEtapa.codigo || '-'}
+              </Typography>
+
+              <Typography variant="subtitle2" sx={{ color: '#666', mb: 0.5, fontWeight: 600 }}>
+                Tipo de Etapa
+              </Typography>
+              <Typography sx={{ mb: 2, bgcolor: 'white', p: 1.5, borderRadius: '4px' }}>
+                {selectedEtapa.tipo_etapa || '-'}
+              </Typography>
+
+              <Typography variant="subtitle2" sx={{ color: '#666', mb: 0.5, fontWeight: 600 }}>
+                Perfiles Permitidos
+              </Typography>
+              <Box sx={{ mb: 2, bgcolor: 'white', p: 1.5, borderRadius: '4px' }}>
+                {selectedEtapa.perfiles_permitidos && selectedEtapa.perfiles_permitidos.length > 0 ? (
+                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                    {selectedEtapa.perfiles_permitidos.map((perfil, idx) => (
+                      <Chip
+                        key={idx}
+                        label={perfil}
+                        size="small"
+                        sx={{
+                          bgcolor: '#e3f2fd',
+                          color: '#1976d2',
+                          fontWeight: 500,
+                        }}
+                      />
+                    ))}
                   </Box>
-                </Box>
-
-                {/* Botón de mano (pan) */}
-                <Box
-                  sx={{
-                    border: '1px solid #788093',
-                    borderRadius: '4px',
-                    bgcolor: 'white',
-                    width: 24,
-                    height: 24,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <IconButton
-                    size="small"
-                    sx={{ p: 0, color: '#788093' }}
-                  >
-                    <PanToolIcon sx={{ fontSize: 16 }} />
-                  </IconButton>
-                </Box>
+                ) : (
+                  <Typography sx={{ color: '#999', fontStyle: 'italic' }}>
+                    No especificado
+                  </Typography>
+                )}
               </Box>
-            </Panel>
 
-            {/* Botón de imprimir */}
-            <Panel position="top-right">
-              <Box sx={{ p: 2 }}>
-                <Box
-                  sx={{
-                    border: '1px solid #788093',
-                    borderRadius: '4px',
-                    bgcolor: 'white',
-                    width: 24,
-                    height: 24,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <IconButton
-                    size="small"
-                    onClick={handlePrint}
-                    sx={{ p: 0, color: '#788093' }}
-                  >
-                    <PrintIcon sx={{ fontSize: 16 }} />
-                  </IconButton>
-                </Box>
+              {/* Información del formulario */}
+              <Divider sx={{ my: 2 }} />
+              <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2, color: '#333' }}>
+                Información del Formulario
+              </Typography>
+
+              {selectedEtapa.titulo_formulario && (
+                <>
+                  <Typography variant="subtitle2" sx={{ color: '#666', mb: 0.5, fontWeight: 600 }}>
+                    Título del Formulario
+                  </Typography>
+                  <Typography sx={{ mb: 2, bgcolor: 'white', p: 1.5, borderRadius: '4px' }}>
+                    {selectedEtapa.titulo_formulario}
+                  </Typography>
+                </>
+              )}
+
+              <Typography variant="subtitle2" sx={{ color: '#666', mb: 0.5, fontWeight: 600 }}>
+                Bajada del Formulario
+              </Typography>
+              <Typography sx={{ mb: 2, bgcolor: 'white', p: 1.5, borderRadius: '4px' }}>
+                {selectedEtapa.bajada_formulario || '-'}
+              </Typography>
+
+              {selectedEtapa.descripcion_formulario && (
+                <>
+                  <Typography variant="subtitle2" sx={{ color: '#666', mb: 0.5, fontWeight: 600 }}>
+                    Descripción del Formulario
+                  </Typography>
+                  <Typography sx={{ mb: 2, bgcolor: 'white', p: 1.5, borderRadius: '4px' }}>
+                    {selectedEtapa.descripcion_formulario}
+                  </Typography>
+                </>
+              )}
+
+              {/* Configuraciones adicionales */}
+              <Divider sx={{ my: 2 }} />
+              <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2, color: '#333' }}>
+                Configuraciones
+              </Typography>
+              
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2 }}>
+                {selectedEtapa.es_etapa_inicial && (
+                  <Chip label="Etapa Inicial" color="primary" size="small" />
+                )}
+                {selectedEtapa.es_etapa_final && (
+                  <Chip label="Etapa Final" color="secondary" size="small" />
+                )}
+                {selectedEtapa.requiere_validacion && (
+                  <Chip label="Requiere Validación" size="small" sx={{ bgcolor: '#fff3e0', color: '#e65100' }} />
+                )}
+                {selectedEtapa.permite_edicion_posterior && (
+                  <Chip label="Permite Edición Posterior" size="small" sx={{ bgcolor: '#e8f5e9', color: '#2e7d32' }} />
+                )}
               </Box>
-            </Panel>
-          </ReactFlow>
-        </Box>
-      </TabPanel>
 
-      <TabPanel value={tabIndex} index={2}>
-        <Box sx={{ p: 3 }}>
-          <Typography variant="h6">Estado del Workflow</Typography>
-          <Typography>Funcionalidad en desarrollo</Typography>
-        </Box>
-      </TabPanel>
+              {selectedEtapa.tiempo_estimado_minutos && (
+                <>
+                  <Typography variant="subtitle2" sx={{ color: '#666', mb: 0.5, fontWeight: 600 }}>
+                    Tiempo Estimado
+                  </Typography>
+                  <Typography sx={{ mb: 2, bgcolor: 'white', p: 1.5, borderRadius: '4px' }}>
+                    {selectedEtapa.tiempo_estimado_minutos} minutos
+                  </Typography>
+                </>
+              )}
+            </Box>
 
-      <TabPanel value={tabIndex} index={3}>
-        <Box sx={{ p: 3 }}>
-          <Typography variant="h6">Historial</Typography>
-          <Typography>Funcionalidad en desarrollo</Typography>
-        </Box>
-      </TabPanel>
+            <Divider sx={{ my: 3 }} />
+
+            {/* Preguntas/Vistas */}
+            {selectedEtapa.preguntas && selectedEtapa.preguntas.length > 0 ? (
+              <Box>
+                <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2, color: '#333' }}>
+                  Preguntas Configuradas ({selectedEtapa.preguntas.length})
+                </Typography>
+                {selectedEtapa.preguntas.map((pregunta, idx) => {
+                  const tipoPregunta = pregunta.tipo_pregunta || pregunta.tipo;
+                  const esObligatoria = pregunta.es_obligatoria || pregunta.requerido;
+                  const textoPregunta = pregunta.texto_pregunta || pregunta.pregunta || pregunta.texto;
+                  
+                  return (
+                    <Box
+                      key={pregunta.id || idx}
+                      sx={{
+                        p: 2,
+                        mb: 2,
+                        bgcolor: 'white',
+                        borderRadius: '4px',
+                        border: '2px solid #333333',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 2,
+                      }}
+                    >
+                      {/* Tipo de pregunta */}
+                      <Box>
+                        <Typography 
+                          variant="body2" 
+                          sx={{ 
+                            color: '#333', 
+                            fontSize: '14px', 
+                            fontWeight: 500, 
+                            mb: 0.5 
+                          }}
+                        >
+                          Tipo de pregunta
+                        </Typography>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                          <Box
+                            sx={{
+                              border: '1px solid #333333',
+                              borderRadius: '4px',
+                              p: '4px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              width: '24px',
+                              height: '24px',
+                            }}
+                          >
+                            {tipoPregunta === 'CARGA_ARCHIVO' && (
+                              <UploadIcon sx={{ fontSize: 16, color: '#333' }} />
+                            )}
+                            {tipoPregunta === 'RESPUESTA_TEXTO' && (
+                              <TextIcon sx={{ fontSize: 16, color: '#333' }} />
+                            )}
+                            {tipoPregunta === 'OPCIONES' && (
+                              <RadioIcon sx={{ fontSize: 16, color: '#333' }} />
+                            )}
+                            {tipoPregunta === 'LISTA' && (
+                              <CheckBoxIcon sx={{ fontSize: 16, color: '#333' }} />
+                            )}
+                            {!['CARGA_ARCHIVO', 'RESPUESTA_TEXTO', 'OPCIONES', 'LISTA'].includes(tipoPregunta) && (
+                              <TextIcon sx={{ fontSize: 16, color: '#333' }} />
+                            )}
+                          </Box>
+                          <Typography sx={{ color: '#333', fontSize: '16px' }}>
+                            {tipoPregunta === 'CARGA_ARCHIVO' && 'Carga de archivos'}
+                            {tipoPregunta === 'RESPUESTA_TEXTO' && 'Respuesta de texto'}
+                            {tipoPregunta === 'OPCIONES' && 'Opciones'}
+                            {tipoPregunta === 'LISTA' && 'Lista'}
+                            {!['CARGA_ARCHIVO', 'RESPUESTA_TEXTO', 'OPCIONES', 'LISTA'].includes(tipoPregunta) && tipoPregunta}
+                          </Typography>
+                        </Box>
+                      </Box>
+
+                      {/* Pregunta */}
+                      <Box>
+                        <Typography 
+                          variant="body2" 
+                          sx={{ 
+                            color: '#333', 
+                            fontSize: '14px', 
+                            fontWeight: 500, 
+                            mb: 0.5 
+                          }}
+                        >
+                          Pregunta
+                        </Typography>
+                        <Typography sx={{ color: '#4d4d4d', fontSize: '16px' }}>
+                          {textoPregunta}
+                        </Typography>
+                      </Box>
+
+                      {/* Estado Obligatoria */}
+                      <Box>
+                        <Typography sx={{ color: '#4d4d4d', fontSize: '16px' }}>
+                          {esObligatoria ? 'Obligatoria' : 'No obligatoria'}
+                        </Typography>
+                      </Box>
+                    </Box>
+                  );
+                })}
+              </Box>
+            ) : (
+              <Typography sx={{ color: '#999', fontStyle: 'italic', textAlign: 'center', py: 3 }}>
+                No hay preguntas configuradas para esta etapa
+              </Typography>
+            )}
+          </>
+        ) : (
+          <Box sx={{ textAlign: 'center', mt: 8 }}>
+            <Typography sx={{ color: '#999', fontSize: '18px' }}>
+              Selecciona una etapa para ver sus detalles
+            </Typography>
+          </Box>
+        )}
+      </Box>
     </Box>
+  );
+};
+
+export const WorkflowViewer: React.FC = () => {
+  return (
+    <ReactFlowProvider>
+      <WorkflowViewerContent />
+    </ReactFlowProvider>
   );
 };
 
