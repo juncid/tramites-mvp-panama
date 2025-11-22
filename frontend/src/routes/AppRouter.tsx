@@ -21,6 +21,7 @@ import PublicAccess from '../pages/PublicAccess';
 import PublicSolicitudView from '../pages/PublicSolicitudView';
 import { MisTramitesPage } from '../pages/MisTramites';
 import { CasoWorkflowPage } from '../pages/CasoWorkflow';
+import { WorkflowExecution } from '../pages/WorkflowExecution';
 
 export const AppRouter = () => {
   return (
@@ -207,6 +208,14 @@ export const AppRouter = () => {
         element={
           <MainLayout>
             <Settings />
+          </MainLayout>
+        }
+      />
+      <Route
+        path="/workflows/:instanciaId/execution"
+        element={
+          <MainLayout>
+            <WorkflowExecution />
           </MainLayout>
         }
       />

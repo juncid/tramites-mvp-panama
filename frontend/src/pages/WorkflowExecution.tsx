@@ -64,7 +64,7 @@ export const WorkflowExecution: React.FC = () => {
   const [workflow, setWorkflow] = useState<any>(null);
   const [vistaActual, setVistaActual] = useState<any>(null);
   const [activeTab, setActiveTab] = useState<'formulario' | 'historial' | 'comentarios'>('formulario');
-  const [userPerfil] = useState<string>('FUNCIONARIO'); // TODO: Obtener del contexto de autenticación
+  const [userPerfil] = useState<string>('ADMIN'); // TODO: Obtener del contexto de autenticación (usando ADMIN para testing)
   const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {

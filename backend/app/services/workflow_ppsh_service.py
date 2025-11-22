@@ -135,9 +135,8 @@ class WorkflowPPSHIntegrationService:
             
             instancia = InstanciaService.crear_instancia(
                 db=db,
-                workflow_id=workflow_id,
                 instancia_data=instancia_create,
-                user_id=user_id
+                created_by=user_id
             )
             
             logger.info(
@@ -279,9 +278,8 @@ class WorkflowPPSHIntegrationService:
             
             instancia = InstanciaService.crear_instancia(
                 db=db,
-                workflow_id=workflow_id,
                 instancia_data=instancia_create,
-                user_id=user_id
+                created_by=user_id
             )
             
             db.commit()
