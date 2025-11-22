@@ -34,6 +34,9 @@ import {
   FormControlLabel,
   Alert,
   Snackbar,
+  Grid,
+  Tabs,
+  Tab,
 } from '@mui/material';
 /*
 // Imports comentados - ya no se usan directamente (EtapaConfigPanel los maneja)
@@ -92,6 +95,7 @@ const TIPOS_ETAPA = [
   { value: 'COMPUERTA', label: 'Compuerta' },
   { value: 'SUBPROCESO', label: 'Subproceso' },
   { value: 'PRESENCIAL', label: 'Presencial' },
+  { value: 'TERMINO', label: 'Término' },
 ];
 
 const TIPOS_PREGUNTA: { value: TipoPregunta; label: string; icon?: React.ReactNode }[] = [
@@ -123,6 +127,7 @@ const WorkflowEditorFigmaContent: React.FC = () => {
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
   const [currentZoom, setCurrentZoom] = useState<number>(100);
+  const [currentTab, setCurrentTab] = useState<number>(1); // 0: General, 1: Flujo, 2: Estado, 3: Historial
 
   // Estado del workflow completo
   const [workflowData, setWorkflowData] = useState<Partial<Workflow>>({
@@ -387,6 +392,62 @@ const WorkflowEditorFigmaContent: React.FC = () => {
     setEdges(layoutedEdges);
   }, [nodes, edges, setNodes, setEdges]);
 
+  // Función para agregar un nuevo nodo
+  const handleAddNode = () => {
+    // Encontrar todos los nodos de destino en las conexiones actuales
+    const targetNodeIds = new Set(edges.map(e => e.target));
+    
+    // Encontrar el último nodo: un nodo que no es inicial Y que no es destino de ninguna conexión
+    // (es decir, está al final del flujo)
+    const lastNode = nodes.find(n => 
+      !n.data.es_etapa_inicial && 
+      !n.data.es_inicial &&
+      !targetNodeIds.has(n.id)
+    ) || nodes[nodes.length - 1]; // Si no hay nodo final, usar el último nodo
+
+    const newNodeId = `${Date.now()}`;
+    const newNode: Node = {
+      id: newNodeId,
+      type: 'custom',
+      position: { 
+        x: lastNode ? lastNode.position.x + 250 : 250, 
+        y: lastNode ? lastNode.position.y : 200 
+      },
+      data: {
+        codigo: `ETAPA_${newNodeId}`,
+        nombre: `Nueva Etapa ${nodes.length + 1}`,
+        tipo_etapa: 'ETAPA' as const,
+        perfiles_permitidos: [],
+        es_etapa_inicial: false,
+        es_etapa_final: false,
+        preguntas: [],
+        conexiones: [],
+      },
+    };
+    
+    setNodes((nds) => [...nds, newNode]);
+    
+    // Crear conexión automática desde el último nodo
+    if (lastNode) {
+      const newEdge: Edge = {
+        id: `e${lastNode.id}-${newNodeId}`,
+        source: lastNode.id,
+        target: newNodeId,
+        type: 'smoothstep',
+        animated: false,
+        style: { stroke: '#4d4d4d', strokeWidth: 2 },
+        markerEnd: {
+          type: MarkerType.ArrowClosed,
+          color: '#4d4d4d',
+        },
+      };
+      setEdges((eds) => [...eds, newEdge]);
+    }
+    
+    // Seleccionar automáticamente el nuevo nodo para configurarlo
+    setSelectedNode(newNode);
+  };
+
   // Guardar todo el workflow en la base de datos
   const handleSaveWorkflow = async () => {
     setSaving(true);
@@ -502,6 +563,40 @@ const WorkflowEditorFigmaContent: React.FC = () => {
         </Stack>
       </Box>
 
+      {/* Tabs de navegación: General, Flujo, Estado, Historial */}
+      <Box sx={{ bgcolor: '#f1f3f4', borderBottom: '1px solid #e0e0e0', px: 3 }}>
+        <Tabs
+          value={currentTab}
+          onChange={(event, newValue) => setCurrentTab(newValue)}
+          sx={{
+            minHeight: 40,
+            '& .MuiTab-root': {
+              minHeight: 40,
+              textTransform: 'none',
+              fontSize: 16,
+              fontWeight: 400,
+              color: '#4d4d4d',
+              minWidth: 120,
+              px: 2,
+              '&.Mui-selected': {
+                color: '#0e5fa6',
+                fontWeight: 400,
+              },
+            },
+            '& .MuiTabs-indicator': {
+              backgroundColor: '#0e5fa6',
+              height: 4,
+              borderRadius: '4px 4px 0 0',
+            },
+          }}
+        >
+          <Tab label="General" />
+          <Tab label="Flujo" />
+          <Tab label="Estado" />
+          <Tab label="Historial" />
+        </Tabs>
+      </Box>
+
       {/* Snackbars para notificaciones */}
       <Snackbar
         open={saveSuccess}
@@ -521,14 +616,37 @@ const WorkflowEditorFigmaContent: React.FC = () => {
         <Alert severity="error">{saveError}</Alert>
       </Snackbar>
 
-      <Box sx={{ height: 'calc(100vh - 200px)', display: 'flex', bgcolor: '#fff' }}>
-      {/* Panel Izquierdo - Canvas ReactFlow */}
+      {/* Contenido del tab "General" */}
+      {currentTab === 0 && (
+        <Box sx={{ p: 3 }}>
+          <Typography variant="h6" gutterBottom>
+            Configuración General
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Contenido de la pestaña General (por implementar)
+          </Typography>
+        </Box>
+      )}
+
+      {/* Contenido del tab "Flujo" */}
+      {currentTab === 1 && (
+        <Grid container spacing={0} sx={{ height: 'calc(100vh - 200px)', bgcolor: '#fff' }}>
+        {/* Panel Izquierdo - Canvas ReactFlow */}
+        <Grid 
+          item 
+          xs={12} 
+          md={selectedNode ? 6 : 12}
+          sx={{
+            height: '100%',
+            transition: 'all 0.3s ease',
+          }}
+        >
       <Box
         sx={{
-          width: '584px',
+          width: '100%',
           height: '100%',
           border: '1px solid #788093',
-          borderRadius: '4px 0 0 4px',
+          borderRadius: selectedNode ? '4px 0 0 4px' : '4px',
           position: 'relative',
           overflow: 'hidden',
           '& .react-flow__attribution': {
@@ -629,13 +747,57 @@ const WorkflowEditorFigmaContent: React.FC = () => {
         >
           <Background variant={BackgroundVariant.Dots} gap={12} size={1} color="#e0e0e0" />
         </ReactFlow>
+
+        {/* Botón Agregar Nodo - visible solo cuando no hay selección y el último nodo no es de tipo TERMINO o FIN */}
+        {!selectedNode && !nodes.some(n => n.data.tipo_etapa === 'TERMINO' || n.data.tipo_etapa === 'FIN') && (
+          <Box
+            sx={{
+              position: 'absolute',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              zIndex: 5,
+            }}
+          >
+            <Box
+              onClick={handleAddNode}
+              sx={{
+                width: 220,
+                height: 110,
+                border: '2px dashed #788093',
+                borderRadius: '4px',
+                bgcolor: '#f1f3f4',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                '&:hover': {
+                  bgcolor: '#e8eaed',
+                  borderColor: '#5f6368',
+                },
+              }}
+            >
+              <AddIcon sx={{ fontSize: 40, color: '#788093' }} />
+            </Box>
+          </Box>
+        )}
       </Box>
+      </Grid>
 
       {/* Panel Derecho - Configuración de Etapa */}
       {selectedNode && (
+        <Grid 
+          item 
+          xs={12} 
+          md={6}
+          sx={{
+            height: '100%',
+            transition: 'all 0.3s ease',
+          }}
+        >
         <Box
           sx={{
-            width: '611px',
+            width: '100%',
             height: '100%',
             border: '1px solid #788093',
             borderLeft: 'none',
@@ -659,8 +821,8 @@ const WorkflowEditorFigmaContent: React.FC = () => {
               setSelectedNode(null);
             }}
             onClose={() => {
-              // No hacer nada - el panel no debe cerrarse en WorkflowEditorFigma
-              // El panel siempre debe estar visible según el diseño de Figma
+              // Deseleccionar el nodo para cerrar el panel de configuración
+              setSelectedNode(null);
             }}
             onDelete={() => {
               if (!selectedNode) return;
@@ -683,10 +845,36 @@ const WorkflowEditorFigmaContent: React.FC = () => {
             }}
           />
         </Box>
+        </Grid>
       )}
 
       {/* Fin del Panel Derecho - EtapaConfigPanel ahora está en uso */}
-    </Box>
+    </Grid>
+      )}
+
+      {/* Contenido del tab "Estado" */}
+      {currentTab === 2 && (
+        <Box sx={{ p: 3 }}>
+          <Typography variant="h6" gutterBottom>
+            Estado del Workflow
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Contenido de la pestaña Estado (por implementar)
+          </Typography>
+        </Box>
+      )}
+
+      {/* Contenido del tab "Historial" */}
+      {currentTab === 3 && (
+        <Box sx={{ p: 3 }}>
+          <Typography variant="h6" gutterBottom>
+            Historial de Cambios
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Contenido de la pestaña Historial (por implementar)
+          </Typography>
+        </Box>
+      )}
 
     {/* 
     ============================================================

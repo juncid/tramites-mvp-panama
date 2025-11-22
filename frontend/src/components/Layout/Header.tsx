@@ -22,7 +22,7 @@ import {
   Logout as LogoutIcon,
   KeyboardArrowDown as ArrowDownIcon,
 } from '@mui/icons-material';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { LogoMigracion } from './LogoMigracion';
 
@@ -42,6 +42,16 @@ export const Header = () => {
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userMenuAnchor, setUserMenuAnchor] = useState<null | HTMLElement>(null);
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  // Actualizar la hora cada segundo
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, []);
 
   const handleMobileMenuClick = (path: string) => {
     navigate(path);
@@ -72,20 +82,26 @@ export const Header = () => {
     navigate('/login');
   };
 
-  // Fecha actual
-  const today = new Date();
-  const formattedDate = today.toLocaleDateString('es-PA', { 
-    year: 'numeric', 
-    month: '2-digit', 
-    day: '2-digit' 
-  }).split('/').reverse().join('-');
+  // Formatear fecha y hora desde currentTime
+  const formattedTime = currentTime.toLocaleTimeString('es-PA', { 
+    hour: '2-digit', 
+    minute: '2-digit', 
+    second: '2-digit', 
+    hour12: false 
+  });
+  
+  // Formato DD-MM-YYYY
+  const day = String(currentTime.getDate()).padStart(2, '0');
+  const month = String(currentTime.getMonth() + 1).padStart(2, '0');
+  const year = currentTime.getFullYear();
+  const formattedDate = `${day}-${month}-${year}`;
 
   return (
     <AppBar
       position="static"
+      elevation={4}
       sx={{
         backgroundColor: 'white',
-        boxShadow: 'none',
       }}
     >
       {/* Header superior negro con logo y usuario */}
@@ -280,7 +296,7 @@ export const Header = () => {
           }}
         >
           <Typography sx={{ fontSize: '14px', color: 'white', fontWeight: 400, lineHeight: 1 }}>
-            {today.toLocaleTimeString('es-PA', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}
+            {formattedTime}
           </Typography>
           <Typography sx={{ fontSize: '14px', color: 'white', fontWeight: 400, lineHeight: 1 }}>
             {formattedDate}

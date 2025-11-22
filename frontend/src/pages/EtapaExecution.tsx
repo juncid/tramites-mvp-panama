@@ -7,16 +7,14 @@ import {
   CircularProgress,
   Alert,
   Button,
-  Grid,
 } from '@mui/material';
 import {
   Home as HomeIcon,
-  NavigateNext,
 } from '@mui/icons-material';
 import { useNavigate, useParams } from 'react-router-dom';
 import { DynamicEtapaView } from '../components/Workflow/DynamicEtapaView';
 import { workflowService } from '../services/workflow.service';
-import type { WorkflowEtapa } from '../types/workflow';
+import type { WorkflowEtapa, Workflow } from '../types/workflow';
 import { logger } from '../utils/logger';
 
 /**
@@ -32,6 +30,7 @@ export const EtapaExecution = () => {
   }>();
 
   const [etapa, setEtapa] = useState<WorkflowEtapa | null>(null);
+  const [workflow, setWorkflow] = useState<Workflow | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [respuestas, setRespuestas] = useState<Record<number, any>>({});
@@ -67,6 +66,7 @@ export const EtapaExecution = () => {
           cantidadPreguntas: etapaData.preguntas?.length || 0
         });
 
+        setWorkflow(workflowData);
         setEtapa(etapaData);
       } catch (err) {
         logger.error('Error cargando etapa', { error: err });
@@ -137,11 +137,11 @@ export const EtapaExecution = () => {
     );
   }
 
-  if (!etapa) {
+  if (!etapa || !workflow) {
     return (
       <Box sx={{ p: 3 }}>
         <Alert severity="warning">
-          No se encontró la etapa
+          No se encontró la etapa o el workflow
         </Alert>
         <Button 
           variant="outlined" 
@@ -155,134 +155,171 @@ export const EtapaExecution = () => {
   }
 
   return (
-    <Box>
-      {/* Breadcrumbs */}
-      <Breadcrumbs 
-        separator={<NavigateNext fontSize="small" />} 
-        sx={{ mb: 3 }}
-      >
-        <Link
-          underline="hover"
-          sx={{ display: 'flex', alignItems: 'center', color: '#6B7280', cursor: 'pointer' }}
-          onClick={() => navigate('/')}
-        >
-          <HomeIcon sx={{ mr: 0.5, fontSize: 20 }} />
-          Inicio
-        </Link>
-        <Link
-          underline="hover"
-          sx={{ color: '#6B7280', cursor: 'pointer' }}
-          onClick={() => navigate('/flujos')}
-        >
-          Flujos
-        </Link>
-        <Link
-          underline="hover"
-          sx={{ color: '#6B7280', cursor: 'pointer' }}
-          onClick={() => navigate(`/flujos/${workflowId}/instancias/${instanciaId}`)}
-        >
-          Instancia #{instanciaId}
-        </Link>
-        <Typography sx={{ color: '#1F2937', fontWeight: 500 }}>
-          {etapa.nombre}
-        </Typography>
-      </Breadcrumbs>
-
-      {/* Título */}
-      <Typography 
-        variant="h4" 
+    <Box sx={{ mx: -3, mt: -3 }}>
+      {/* Hero Header - Diseño Figma */}
+      <Box 
         sx={{ 
-          fontWeight: 700, 
-          color: '#1F2937',
-          mb: 3,
+          backgroundColor: '#0e5fa6',
+          px: { xs: 2, sm: 3, md: '7.69rem' },
+          pt: '40px',
+          pb: '40px',
+          position: 'relative',
+          overflow: 'hidden',
         }}
       >
-        {etapa.nombre}
-      </Typography>
+        {/* Título del Proceso */}
+        <Typography 
+          sx={{
+            fontFamily: '"Roboto Flex", sans-serif',
+            fontWeight: 700,
+            fontSize: { xs: '32px', sm: '48px', md: '64px' },
+            lineHeight: 1.1,
+            color: 'white',
+            mb: '56px',
+          }}
+        >
+          {workflow.nombre}
+        </Typography>
 
-      <Grid container spacing={3}>
-        {/* Columna principal - Formulario dinámico */}
-        <Grid item xs={12} md={8}>
-          <DynamicEtapaView
-            etapa={etapa}
-            instanciaId={instanciaId ? parseInt(instanciaId) : undefined}
-            readonly={false}
-            onAnswerChange={handleAnswerChange}
-          />
-
-          {/* Botones de acción */}
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 3 }}>
-            <Button
-              variant="outlined"
-              onClick={handleCancelar}
-              sx={{
-                textTransform: 'none',
-                borderColor: '#0e5fa6',
-                color: '#0e5fa6',
-                '&:hover': { borderColor: '#0d5391', backgroundColor: 'rgba(14, 95, 166, 0.04)' },
+        {/* Breadcrumb - Diseño Figma */}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <HomeIcon sx={{ width: 20, height: 20, color: 'white' }} />
+            <Typography 
+              onClick={() => navigate('/')}
+              sx={{ 
+                fontSize: '14px', 
+                color: 'white', 
+                fontFamily: 'Roboto, sans-serif',
+                cursor: 'pointer',
+                '&:hover': { textDecoration: 'underline' }
               }}
             >
-              Cancelar
-            </Button>
-            <Button
-              variant="contained"
-              onClick={handleGuardar}
-              sx={{
-                textTransform: 'none',
-                backgroundColor: '#0e5fa6',
-                '&:hover': { backgroundColor: '#0d5391' },
-              }}
-            >
-              Guardar y continuar
-            </Button>
-          </Box>
-        </Grid>
-
-        {/* Columna derecha - Información adicional (opcional) */}
-        <Grid item xs={12} md={4}>
-          <Box sx={{ 
-            p: 3, 
-            backgroundColor: '#F9FAFB',
-            borderRadius: 2,
-            border: '1px solid #E5E7EB',
-          }}>
-            <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>
-              Información de la etapa
+              Inicio
             </Typography>
-            
-            <Box sx={{ mb: 2 }}>
-              <Typography variant="caption" sx={{ color: '#6B7280' }}>
-                Tipo
-              </Typography>
-              <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                {etapa.tipo_etapa}
-              </Typography>
-            </Box>
-
-            {etapa.tiempo_estimado_minutos && (
-              <Box sx={{ mb: 2 }}>
-                <Typography variant="caption" sx={{ color: '#6B7280' }}>
-                  Tiempo estimado
-                </Typography>
-                <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                  {etapa.tiempo_estimado_minutos} minutos
-                </Typography>
-              </Box>
-            )}
-
-            <Box>
-              <Typography variant="caption" sx={{ color: '#6B7280' }}>
-                Perfiles permitidos
-              </Typography>
-              {etapa.perfiles_permitidos.map((perfil, index) => (
-                <Typography key={index} variant="body2" sx={{ fontWeight: 500 }}>
-                  • {perfil}
-                </Typography>
-              ))}
-            </Box>
           </Box>
-        </Grid>
-      </Grid>
+          <Typography sx={{ fontSize: '14px', color: 'white', fontFamily: 'Roboto, sans-serif' }}>
+            /
+          </Typography>
+          <Typography 
+            onClick={() => navigate('/flujos')}
+            sx={{ 
+              fontSize: '14px', 
+              color: 'white', 
+              fontFamily: 'Roboto, sans-serif',
+              cursor: 'pointer',
+              '&:hover': { textDecoration: 'underline' }
+            }}
+          >
+            Procesos
+          </Typography>
+          <Typography sx={{ fontSize: '14px', color: 'white', fontFamily: 'Roboto, sans-serif' }}>
+            /
+          </Typography>
+          <Typography 
+            onClick={() => navigate(`/flujos/${workflowId}/instancias/${instanciaId}`)}
+            sx={{ 
+              fontSize: '14px', 
+              color: 'white', 
+              fontFamily: 'Roboto, sans-serif',
+              cursor: 'pointer',
+              '&:hover': { textDecoration: 'underline' }
+            }}
+          >
+            {workflow.nombre}
+          </Typography>
+          <Typography sx={{ fontSize: '14px', color: 'white', fontFamily: 'Roboto, sans-serif' }}>
+            /
+          </Typography>
+          <Typography sx={{ fontSize: '14px', color: 'white', fontFamily: 'Roboto, sans-serif' }}>
+            {etapa.nombre}
+          </Typography>
+        </Box>
+      </Box>
+
+      {/* Contenido del formulario */}
+      <Box sx={{ px: { xs: 2, sm: 3, md: '7.69rem' }, py: '40px', backgroundColor: 'white' }}>
+        {/* Título de la Etapa */}
+        <Typography 
+          sx={{
+            fontFamily: '"Roboto Flex", sans-serif',
+            fontWeight: 700,
+            fontSize: { xs: '32px', md: '48px' },
+            lineHeight: 1.5,
+            color: '#333333',
+            mb: '25px',
+          }}
+        >
+          {etapa.titulo_formulario || etapa.nombre}
+        </Typography>
+
+        {/* Bajada del formulario */}
+        {etapa.bajada_formulario && (
+          <Typography 
+            sx={{
+              fontFamily: 'Roboto, sans-serif',
+              fontSize: '16px',
+              lineHeight: 1.5,
+              color: '#333333',
+              mb: '48px',
+              maxWidth: '1167px',
+            }}
+          >
+            {etapa.bajada_formulario}
+          </Typography>
+        )}
+
+        {/* Formulario dinámico - ancho completo */}
+        <DynamicEtapaView
+          etapa={etapa}
+          instanciaId={instanciaId ? parseInt(instanciaId) : undefined}
+          readonly={false}
+          onAnswerChange={handleAnswerChange}
+        />
+
+        {/* Botones de acción - Diseño Figma */}
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 4, maxWidth: '1194px' }}>
+          <Button
+            variant="outlined"
+            onClick={handleCancelar}
+            sx={{
+              fontFamily: 'Roboto, sans-serif',
+              fontSize: '16px',
+              textTransform: 'none',
+              borderColor: '#0e5fa6',
+              color: '#0e5fa6',
+              px: 2,
+              py: 1,
+              minWidth: '124px',
+              borderRadius: '4px',
+              '&:hover': { 
+                borderColor: '#0d5391', 
+                backgroundColor: 'rgba(14, 95, 166, 0.04)' 
+              },
+            }}
+          >
+            Cancelar
+          </Button>
+          <Button
+            variant="contained"
+            onClick={handleGuardar}
+            sx={{
+              fontFamily: 'Roboto, sans-serif',
+              fontSize: '16px',
+              textTransform: 'none',
+              backgroundColor: '#0e5fa6',
+              color: 'white',
+              px: 2,
+              py: 1,
+              minWidth: '124px',
+              borderRadius: '4px',
+              '&:hover': { backgroundColor: '#0d5391' },
+            }}
+          >
+            Siguiente
+          </Button>
+        </Box>
+      </Box>
     </Box>
   );
 };

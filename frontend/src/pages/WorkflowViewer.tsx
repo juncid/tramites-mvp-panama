@@ -19,6 +19,7 @@ import {
   IconButton,
   Divider,
   Chip,
+  Grid,
 } from '@mui/material';
 import {
   ZoomIn as ZoomInIcon,
@@ -169,26 +170,45 @@ const WorkflowViewerContent: React.FC = () => {
   };
 
   const convertConexionesToEdges = (conexiones: any[]): Edge[] => {
-    return conexiones.map((conexion) => ({
-      id: `e${conexion.etapa_origen_id}-${conexion.etapa_destino_id}`,
-      source: conexion.etapa_origen_id.toString(),
-      target: conexion.etapa_destino_id.toString(),
-      type: 'smoothstep',
-      animated: false,
-      style: {
-        stroke: '#4d4d4d',
-        strokeWidth: 2,
-      },
-      markerEnd: {
-        type: MarkerType.ArrowClosed,
-        color: '#4d4d4d',
-        width: 20,
-        height: 20,
-      },
-      label: conexion.condicion || conexion.nombre || '',
-      labelStyle: { fill: '#4d4d4d', fontSize: 14 },
-      labelBgStyle: { fill: 'white' },
-    }));
+    return conexiones.map((conexion) => {
+      // Convertir condicion a string si es un objeto
+      let labelText = '';
+      if (conexion.condicion) {
+        if (typeof conexion.condicion === 'object') {
+          // Si es objeto con estructura {pregunta, valor}, formatearlo
+          if (conexion.condicion.pregunta && conexion.condicion.valor) {
+            labelText = `${conexion.condicion.pregunta}: ${conexion.condicion.valor}`;
+          } else {
+            labelText = JSON.stringify(conexion.condicion);
+          }
+        } else {
+          labelText = conexion.condicion;
+        }
+      } else if (conexion.nombre) {
+        labelText = conexion.nombre;
+      }
+
+      return {
+        id: `e${conexion.etapa_origen_id}-${conexion.etapa_destino_id}`,
+        source: conexion.etapa_origen_id.toString(),
+        target: conexion.etapa_destino_id.toString(),
+        type: 'smoothstep',
+        animated: false,
+        style: {
+          stroke: '#4d4d4d',
+          strokeWidth: 2,
+        },
+        markerEnd: {
+          type: MarkerType.ArrowClosed,
+          color: '#4d4d4d',
+          width: 20,
+          height: 20,
+        },
+        label: labelText,
+        labelStyle: { fill: '#4d4d4d', fontSize: 14 },
+        labelBgStyle: { fill: 'white' },
+      };
+    });
   };
 
   // Obtener etapa seleccionada
@@ -212,120 +232,123 @@ const WorkflowViewerContent: React.FC = () => {
 
   return (
     <Box sx={{ height: 'calc(100vh - 130px)', display: 'flex' }}>
-      {/* Canvas izquierdo - 584px */}
-      <Box
-        sx={{
-          width: '584px',
-          height: '100%',
-          border: '1px solid #333333',
-          borderRadius: '4px',
-          position: 'relative',
-          bgcolor: 'white',
-        }}
-      >
-        <ReactFlow
-          nodes={nodes}
-          edges={edges}
-          nodeTypes={nodeTypes}
-          nodesDraggable={false}
-          nodesConnectable={false}
-          elementsSelectable={true}
-          onNodeClick={handleNodeClick}
-          snapToGrid={true}
-          snapGrid={[20, 20]}
-          panOnScroll={true}
-          zoomOnScroll={true}
-          panOnDrag={true}
-          fitView
-          fitViewOptions={{ padding: 0.2 }}
-          minZoom={0.1}
-          maxZoom={2}
-          defaultEdgeOptions={{
-            type: 'smoothstep',
-            style: { stroke: '#4d4d4d', strokeWidth: 2 },
-          }}
-        >
-          <Background color="#f5f5f5" gap={16} variant={BackgroundVariant.Dots} />
-
-          {/* Controles de zoom - top center */}
+      <Grid container spacing={2} sx={{ height: '100%' }}>
+        {/* Canvas izquierdo - 6 columnas */}
+        <Grid item xs={12} md={6}>
           <Box
             sx={{
-              position: 'absolute',
-              top: 16,
-              left: '50%',
-              transform: 'translateX(-50%)',
-              display: 'flex',
-              gap: 1,
-              alignItems: 'center',
-              zIndex: 5,
+              width: '100%',
+              height: '100%',
+              border: '1px solid #333333',
+              borderRadius: '4px',
+              position: 'relative',
+              bgcolor: 'white',
             }}
           >
-            <Box
-              sx={{
-                border: '1px solid #788093',
-                borderRadius: '4px',
-                bgcolor: 'white',
-                display: 'flex',
-                alignItems: 'center',
-                height: 24,
-                px: 0.5,
-                gap: 0.5,
+            <ReactFlow
+              nodes={nodes}
+              edges={edges}
+              nodeTypes={nodeTypes}
+              nodesDraggable={false}
+              nodesConnectable={false}
+              elementsSelectable={true}
+              onNodeClick={handleNodeClick}
+              snapToGrid={true}
+              snapGrid={[20, 20]}
+              panOnScroll={true}
+              zoomOnScroll={true}
+              panOnDrag={true}
+              fitView
+              fitViewOptions={{ padding: 0.2 }}
+              minZoom={0.1}
+              maxZoom={2}
+              defaultEdgeOptions={{
+                type: 'smoothstep',
+                style: { stroke: '#4d4d4d', strokeWidth: 2 },
               }}
             >
-              <IconButton size="small" onClick={handleZoomOut} sx={{ p: 0, color: '#788093' }}>
-                <ZoomOutIcon sx={{ fontSize: 20 }} />
-              </IconButton>
+              <Background color="#f5f5f5" gap={16} variant={BackgroundVariant.Dots} />
 
-              <IconButton size="small" onClick={handleZoomIn} sx={{ p: 0, color: '#788093' }}>
-                <ZoomInIcon sx={{ fontSize: 20 }} />
-              </IconButton>
-
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.25 }}>
-                <Typography sx={{ fontSize: '14px', color: '#788093' }}>
-                  {currentZoom}%
-                </Typography>
-                <ArrowDownIcon sx={{ fontSize: 8, color: '#788093' }} />
-              </Box>
-            </Box>
-
-            {/* Botón de auto-layout */}
-            <Box
-              sx={{
-                border: '1px solid #788093',
-                borderRadius: '4px',
-                bgcolor: 'white',
-                width: 24,
-                height: 24,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <IconButton
-                size="small"
-                onClick={handleAutoLayout}
-                sx={{ p: 0, color: '#788093' }}
-                title="Auto Layout"
+              {/* Controles de zoom - top center */}
+              <Box
+                sx={{
+                  position: 'absolute',
+                  top: 16,
+                  left: '50%',
+                  transform: 'translateX(-50%)',
+                  display: 'flex',
+                  gap: 1,
+                  alignItems: 'center',
+                  zIndex: 5,
+                }}
               >
-                <AutoLayoutIcon sx={{ fontSize: 16 }} />
-              </IconButton>
-            </Box>
-          </Box>
-        </ReactFlow>
-      </Box>
+                <Box
+                  sx={{
+                    border: '1px solid #788093',
+                    borderRadius: '4px',
+                    bgcolor: 'white',
+                    display: 'flex',
+                    alignItems: 'center',
+                    height: 24,
+                    px: 0.5,
+                    gap: 0.5,
+                  }}
+                >
+                  <IconButton size="small" onClick={handleZoomOut} sx={{ p: 0, color: '#788093' }}>
+                    <ZoomOutIcon sx={{ fontSize: 20 }} />
+                  </IconButton>
 
-      {/* Panel derecho - 611px */}
-      <Box
-        sx={{
-          width: '611px',
-          height: '100%',
-          ml: 2,
-          bgcolor: '#f8f9fa',
-          borderRadius: '4px',
-          overflow: 'auto',
-          p: 3,
-        }}
-      >
+                  <IconButton size="small" onClick={handleZoomIn} sx={{ p: 0, color: '#788093' }}>
+                    <ZoomInIcon sx={{ fontSize: 20 }} />
+                  </IconButton>
+
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.25 }}>
+                    <Typography sx={{ fontSize: '14px', color: '#788093' }}>
+                      {currentZoom}%
+                    </Typography>
+                    <ArrowDownIcon sx={{ fontSize: 8, color: '#788093' }} />
+                  </Box>
+                </Box>
+
+                {/* Botón de auto-layout */}
+                <Box
+                  sx={{
+                    border: '1px solid #788093',
+                    borderRadius: '4px',
+                    bgcolor: 'white',
+                    width: 24,
+                    height: 24,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <IconButton
+                    size="small"
+                    onClick={handleAutoLayout}
+                    sx={{ p: 0, color: '#788093' }}
+                    title="Auto Layout"
+                  >
+                    <AutoLayoutIcon sx={{ fontSize: 16 }} />
+                  </IconButton>
+                </Box>
+              </Box>
+            </ReactFlow>
+          </Box>
+        </Grid>
+
+        {/* Panel derecho - 6 columnas */}
+        <Grid item xs={12} md={6}>
+          <Box
+            sx={{
+              width: '100%',
+              height: '100%',
+              bgcolor: '#f8f9fa',
+              borderRadius: '4px',
+              overflow: 'auto',
+              p: 3,
+            }}
+          >
         {selectedEtapa ? (
           <>
             <Typography variant="h5" sx={{ mb: 3, fontWeight: 700, color: '#333' }}>
@@ -562,7 +585,9 @@ const WorkflowViewerContent: React.FC = () => {
             </Typography>
           </Box>
         )}
-      </Box>
+          </Box>
+        </Grid>
+      </Grid>
     </Box>
   );
 };

@@ -79,11 +79,11 @@ export const Procesos: React.FC = () => {
   };
 
   const handleEdit = (id: number) => {
-    navigate(`/flujos/${id}/editar`);
+    navigate(`/flujos/${id}/editar-figma`);
   };
 
   const handleView = (id: number) => {
-    navigate(`/flujos/${id}/ver`);
+    navigate(`/flujos/${id}/ver-figma`);
   };
 
   const handleDelete = (id: number) => {

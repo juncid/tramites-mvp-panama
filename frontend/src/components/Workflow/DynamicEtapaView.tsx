@@ -2,7 +2,6 @@ import React from 'react';
 import {
   Box,
   Typography,
-  Paper,
 } from '@mui/material';
 import type { WorkflowEtapa, WorkflowPregunta } from '../../types/workflow';
 import { RespuestaTextoView } from './QuestionViews/RespuestaTextoView';
@@ -99,44 +98,11 @@ export const DynamicEtapaView: React.FC<DynamicEtapaViewProps> = ({
   };
 
   return (
-    <Paper sx={{ p: 3 }}>
-      {/* Título del formulario */}
-      {etapa.titulo_formulario && (
-        <Typography 
-          variant="h5" 
-          sx={{ 
-            fontWeight: 700, 
-            color: '#1F2937',
-            mb: 2,
-          }}
-        >
-          {etapa.titulo_formulario}
-        </Typography>
-      )}
-
-      {/* Bajada del formulario */}
-      {etapa.bajada_formulario && (
-        <Typography 
-          variant="body1" 
-          sx={{ 
-            color: '#6B7280', 
-            mb: 3,
-            lineHeight: 1.6,
-          }}
-        >
-          {etapa.bajada_formulario}
-        </Typography>
-      )}
-
-      {/* Línea divisoria si hay título o bajada */}
-      {(etapa.titulo_formulario || etapa.bajada_formulario) && (
-        <Box sx={{ width: '100%', height: 1, backgroundColor: '#E5E7EB', mb: 3 }} />
-      )}
-
+    <Box>
       {/* Renderizar todas las preguntas */}
-      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         {preguntasOrdenadas.map(pregunta => renderPregunta(pregunta))}
       </Box>
-    </Paper>
+    </Box>
   );
 };

@@ -293,6 +293,7 @@ export const EtapaConfigPanel: React.FC<EtapaConfigPanelProps> = ({
               <MenuItem value="COMPUERTA">Compuerta</MenuItem>
               <MenuItem value="SUBPROCESO">Subproceso</MenuItem>
               <MenuItem value="PRESENCIAL">Presencial</MenuItem>
+              <MenuItem value="TERMINO">Término</MenuItem>
             </Select>
           </FormControl>
 
