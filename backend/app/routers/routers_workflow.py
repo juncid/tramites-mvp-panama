@@ -9,7 +9,7 @@ Author: Sistema de Trámites MVP Panamá
 Date: 2025-10-20
 """
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Query, status, HTTPException
 from sqlalchemy.orm import Session
 from typing import List, Optional, Dict, Any
 
@@ -25,6 +25,8 @@ from app.services import (
     HistorialService
 )
 from app.services.workflow_execution_service import WorkflowExecutionService
+from app.services.workflow_ppsh_service import WorkflowPPSHIntegrationService
+from app.schemas import schemas_ppsh
 
 # Importar router de vista_config
 from app.routes.vista_config import router as vista_config_router
@@ -231,6 +233,178 @@ def crear_instancia(
     return InstanciaService.crear_instancia(db, instancia, current_user)
 
 
+@router.post("/instancias/crear-con-ppsh", response_model=schemas.WorkflowInstanciaPPSHResponse, status_code=status.HTTP_201_CREATED)
+def crear_instancia_con_ppsh(
+    datos: Dict[str, Any],
+    db: Session = Depends(get_db),
+    current_user: str = "USER001"  # TODO: Obtener del sistema de autenticación
+):
+    """
+    Crea una instancia de workflow con solicitud PPSH integrada
+    
+    Esta operación crea ambas entidades en una sola transacción:
+    1. Solicitud PPSH con sus solicitantes
+    2. Instancia de workflow vinculada a la solicitud
+    
+    Args:
+        datos: Diccionario con:
+            - workflow_id: ID del workflow a instanciar
+            - nombre_instancia: Nombre descriptivo (opcional)
+            - solicitud_ppsh: Datos completos de la solicitud PPSH
+    
+    Returns:
+        WorkflowInstanciaPPSHResponse con datos de ambas entidades
+    """
+    # Validar estructura básica
+    if "workflow_id" not in datos or "solicitud_ppsh" not in datos:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Se requieren campos 'workflow_id' y 'solicitud_ppsh'"
+        )
+    
+    # Parsear solicitud_ppsh con schema Pydantic
+    try:
+        solicitud_data = schemas_ppsh.SolicitudCreate(**datos["solicitud_ppsh"])
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Error al validar datos de solicitud PPSH: {str(e)}"
+        )
+    
+    # Crear instancia con solicitud
+    instancia, solicitud = WorkflowPPSHIntegrationService.crear_instancia_con_solicitud_ppsh(
+        db=db,
+        workflow_id=datos["workflow_id"],
+        solicitud_data=solicitud_data,
+        nombre_instancia=datos.get("nombre_instancia"),
+        user_id=current_user
+    )
+    
+    # Construir respuesta
+    vinculacion = WorkflowPPSHIntegrationService.obtener_datos_vinculacion(db, instancia.id)
+    
+    return schemas.WorkflowInstanciaPPSHResponse(
+        instancia_id=instancia.id,
+        instancia_num_expediente=instancia.num_expediente,
+        instancia_nombre=instancia.nombre_instancia,
+        instancia_estado=instancia.estado,
+        instancia_etapa_actual_id=instancia.etapa_actual_id,
+        instancia_fecha_inicio=instancia.fecha_inicio,
+        solicitud_id=solicitud.id_solicitud,
+        solicitud_num_expediente=solicitud.num_expediente,
+        solicitud_tipo=solicitud.tipo_solicitud,
+        solicitud_estado=solicitud.estado_actual,
+        solicitud_causa_humanitaria=solicitud.cod_causa_humanitaria,
+        solicitud_fecha_solicitud=solicitud.fecha_solicitud.isoformat(),
+        fecha_vinculacion=instancia.created_at,
+        vinculado_por=current_user,
+        es_vinculacion_posterior=False
+    )
+
+
+@router.post("/instancias/vincular-ppsh-existente", response_model=schemas.WorkflowInstanciaPPSHResponse, status_code=status.HTTP_201_CREATED)
+def vincular_ppsh_existente(
+    datos: schemas.WorkflowInstanciaConPPSHExistenteCreate,
+    db: Session = Depends(get_db),
+    current_user: str = "USER001"
+):
+    """
+    Crea instancia de workflow vinculando solicitud PPSH existente
+    
+    Útil para:
+    - Migración de solicitudes legacy
+    - Re-procesamiento de solicitudes existentes
+    - Solicitudes creadas externamente
+    
+    Args:
+        datos: WorkflowInstanciaConPPSHExistenteCreate con workflow_id y solicitud_id
+    
+    Returns:
+        WorkflowInstanciaPPSHResponse con datos de vinculación
+    """
+    # Vincular solicitud existente
+    instancia = WorkflowPPSHIntegrationService.vincular_solicitud_existente(
+        db=db,
+        workflow_id=datos.workflow_id,
+        solicitud_id=datos.solicitud_id,
+        nombre_instancia=datos.nombre_instancia,
+        user_id=current_user
+    )
+    
+    # Obtener solicitud para respuesta
+    solicitud = WorkflowPPSHIntegrationService.obtener_solicitud_ppsh_desde_instancia(db, instancia.id)
+    
+    if not solicitud:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error al obtener solicitud vinculada"
+        )
+    
+    vinculacion = WorkflowPPSHIntegrationService.obtener_datos_vinculacion(db, instancia.id)
+    
+    return schemas.WorkflowInstanciaPPSHResponse(
+        instancia_id=instancia.id,
+        instancia_num_expediente=instancia.num_expediente,
+        instancia_nombre=instancia.nombre_instancia,
+        instancia_estado=instancia.estado,
+        instancia_etapa_actual_id=instancia.etapa_actual_id,
+        instancia_fecha_inicio=instancia.fecha_inicio,
+        solicitud_id=solicitud.id_solicitud,
+        solicitud_num_expediente=solicitud.num_expediente,
+        solicitud_tipo=solicitud.tipo_solicitud,
+        solicitud_estado=solicitud.estado_actual,
+        solicitud_causa_humanitaria=solicitud.cod_causa_humanitaria,
+        solicitud_fecha_solicitud=solicitud.fecha_solicitud.isoformat(),
+        fecha_vinculacion=instancia.created_at,
+        vinculado_por=vinculacion["vinculado_por"] if vinculacion else current_user,
+        es_vinculacion_posterior=vinculacion.get("es_vinculacion_posterior", True) if vinculacion else True
+    )
+
+
+@router.get("/instancias/{instancia_id}/vinculacion-ppsh", response_model=schemas.DatosVinculacionPPSHResponse)
+def obtener_vinculacion_ppsh(
+    instancia_id: int,
+    expanded: bool = Query(False, description="Incluir datos completos de la solicitud PPSH"),
+    db: Session = Depends(get_db)
+):
+    """
+    Obtiene información de vinculación PPSH de una instancia
+    
+    Args:
+        instancia_id: ID de la instancia de workflow
+        expanded: Si es True, incluye datos completos de la solicitud
+    
+    Returns:
+        DatosVinculacionPPSHResponse con información de vinculación
+    """
+    vinculacion = WorkflowPPSHIntegrationService.obtener_datos_vinculacion(db, instancia_id)
+    
+    if not vinculacion:
+        return schemas.DatosVinculacionPPSHResponse(tiene_vinculacion=False)
+    
+    response = schemas.DatosVinculacionPPSHResponse(
+        tiene_vinculacion=True,
+        **vinculacion
+    )
+    
+    # Si se solicita expanded, incluir datos completos de solicitud
+    if expanded:
+        solicitud = WorkflowPPSHIntegrationService.obtener_solicitud_ppsh_desde_instancia(db, instancia_id)
+        if solicitud:
+            # Convertir solicitud a dict (simplificado)
+            response.solicitud = {
+                "id_solicitud": solicitud.id_solicitud,
+                "num_expediente": solicitud.num_expediente,
+                "tipo_solicitud": solicitud.tipo_solicitud,
+                "estado_actual": solicitud.estado_actual,
+                "fecha_solicitud": solicitud.fecha_solicitud.isoformat(),
+                "descripcion_caso": solicitud.descripcion_caso,
+                "prioridad": solicitud.prioridad
+            }
+    
+    return response
+
+
 @router.get("/instancias", response_model=List[schemas.WorkflowInstanciaResponse])
 def listar_instancias(
     skip: int = Query(0, ge=0),
@@ -273,6 +447,128 @@ def transicionar_instancia(
 ):
     """Realiza una transición de una etapa a otra en una instancia"""
     return InstanciaService.transicionar_instancia(db, instancia_id, transicion, current_user)
+
+
+@router.get("/instancias/{instancia_id}/vista-actual")
+def obtener_vista_actual(
+    instancia_id: int,
+    db: Session = Depends(get_db),
+    current_user: str = "USER001",  # TODO: Obtener del sistema de autenticación
+    user_perfil: str = Query("FUNCIONARIO", description="Perfil del usuario (ADMIN, FUNCIONARIO, SOLICITANTE, etc.)")
+):
+    """
+    Obtiene la vista de la etapa actual filtrada según permisos del usuario
+    
+    Este endpoint retorna la configuración de campos que debe mostrar el frontend
+    para la etapa actual de la instancia, teniendo en cuenta:
+    - Permisos del perfil del usuario
+    - Estado de la instancia
+    - Campos configurados en la etapa
+    - Respuestas previas (si existen)
+    - Visibilidad condicional de campos
+    
+    Args:
+        instancia_id: ID de la instancia de workflow
+        current_user: ID del usuario actual (del sistema de autenticación)
+        user_perfil: Perfil/rol del usuario
+    
+    Returns:
+        Diccionario con:
+        - instancia: Datos básicos de la instancia
+        - etapa_actual: Información de la etapa actual
+        - puede_ver: Si el usuario puede ver la etapa
+        - puede_editar: Si el usuario puede editar/completar la etapa
+        - campos: Lista de campos visibles con sus configuraciones
+        - metadata_instancia: Metadata adicional de la instancia
+    
+    Raises:
+        403: Si el usuario no tiene permiso para ver la etapa
+        404: Si la instancia no existe
+    """
+    return InstanciaService.obtener_vista_actual_para_usuario(
+        db=db,
+        user_id=current_user,
+        user_perfil=user_perfil,
+        instancia_id=instancia_id
+    )
+
+
+@router.get("/instancias/{instancia_id}/verificar-permisos")
+def verificar_permisos_etapa(
+    instancia_id: int,
+    etapa_id: Optional[int] = Query(None, description="ID de etapa a verificar (usa etapa actual si se omite)"),
+    db: Session = Depends(get_db),
+    current_user: str = "USER001",
+    user_perfil: str = Query("FUNCIONARIO", description="Perfil del usuario")
+):
+    """
+    Verifica permisos del usuario para una etapa específica
+    
+    Útil para validaciones en el frontend antes de intentar operaciones.
+    
+    Args:
+        instancia_id: ID de la instancia de workflow
+        etapa_id: ID de la etapa a verificar (opcional, usa etapa actual si se omite)
+        current_user: ID del usuario actual
+        user_perfil: Perfil/rol del usuario
+    
+    Returns:
+        Diccionario con:
+        - puede_ver: Si el usuario puede ver la etapa
+        - puede_editar: Si el usuario puede editar la etapa
+        - etapa_id: ID de la etapa verificada
+        - etapa_nombre: Nombre de la etapa
+        - razon: Explicación de los permisos
+    """
+    # Obtener instancia
+    instancia = InstanciaService.obtener_instancia(db, instancia_id)
+    
+    # Si no se especifica etapa, usar etapa actual
+    if not etapa_id:
+        if not instancia.etapa_actual_id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="La instancia no tiene una etapa actual definida"
+            )
+        etapa_id = instancia.etapa_actual_id
+    
+    # Obtener etapa
+    etapa = EtapaService.obtener_etapa(db, etapa_id)
+    
+    # Verificar permisos
+    puede_ver = InstanciaService.puede_usuario_ver_etapa(
+        db, current_user, user_perfil, etapa_id
+    )
+    
+    puede_editar = InstanciaService.puede_usuario_editar_etapa(
+        db, current_user, user_perfil, instancia_id, etapa_id
+    )
+    
+    # Construir razón
+    razones = []
+    if not puede_ver:
+        razones.append(f"El perfil '{user_perfil}' no está en la lista de perfiles permitidos para esta etapa")
+    elif not puede_editar:
+        if instancia.etapa_actual_id != etapa_id:
+            razones.append("Solo se puede editar la etapa actual de la instancia")
+        elif instancia.estado in ["COMPLETADO", "CANCELADO"]:
+            razones.append(f"La instancia está en estado '{instancia.estado}' (terminal)")
+        elif instancia.asignado_a_user_id and instancia.asignado_a_user_id != current_user and user_perfil != "ADMIN":
+            razones.append(f"La instancia está asignada a otro usuario ({instancia.asignado_a_user_id})")
+        else:
+            razones.append("Sin permiso de edición")
+    
+    return {
+        "puede_ver": puede_ver,
+        "puede_editar": puede_editar,
+        "etapa_id": etapa.id,
+        "etapa_codigo": etapa.codigo,
+        "etapa_nombre": etapa.nombre,
+        "es_etapa_actual": instancia.etapa_actual_id == etapa_id,
+        "perfil_usuario": user_perfil,
+        "perfiles_permitidos": etapa.perfiles_permitidos,
+        "razon": razones[0] if razones else "Permisos válidos"
+    }
 
 
 # ==========================================

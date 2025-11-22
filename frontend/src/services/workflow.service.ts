@@ -224,4 +224,112 @@ export const workflowService = {
   }): Promise<WorkflowInstancia[]> {
     return apiClient.get<WorkflowInstancia[]>('/workflow/instancias', { params });
   },
+
+  // ==========================================
+  // MÉTODOS DE INTEGRACIÓN WORKFLOW-PPSH
+  // ==========================================
+
+  /**
+   * Crear instancia de workflow con solicitud PPSH integrada
+   */
+  async createInstanciaConPPSH(data: {
+    workflow_id: number;
+    nombre_instancia?: string;
+    solicitud_ppsh: any;
+  }): Promise<any> {
+    return apiClient.post<any>('/workflow/instancias/crear-con-ppsh', data);
+  },
+
+  /**
+   * Vincular solicitud PPSH existente a workflow
+   */
+  async vincularPPSHExistente(data: {
+    workflow_id: number;
+    solicitud_id: number;
+    nombre_instancia?: string;
+  }): Promise<any> {
+    return apiClient.post<any>('/workflow/instancias/vincular-ppsh-existente', data);
+  },
+
+  /**
+   * Obtener datos de vinculación PPSH de una instancia
+   */
+  async getVinculacionPPSH(instanciaId: number, expanded: boolean = false): Promise<any> {
+    return apiClient.get<any>(`/workflow/instancias/${instanciaId}/vinculacion-ppsh`, {
+      params: { expanded }
+    });
+  },
+
+  // ==========================================
+  // MÉTODOS DE PERMISOS Y VISTAS DINÁMICAS
+  // ==========================================
+
+  /**
+   * Obtener vista de etapa actual filtrada por permisos del usuario
+   */
+  async getVistaActual(
+    instanciaId: number,
+    userPerfil: string = 'FUNCIONARIO'
+  ): Promise<any> {
+    return apiClient.get<any>(`/workflow/instancias/${instanciaId}/vista-actual`, {
+      params: { user_perfil: userPerfil }
+    });
+  },
+
+  /**
+   * Verificar permisos de usuario para una etapa
+   */
+  async verificarPermisos(
+    instanciaId: number,
+    userPerfil: string = 'FUNCIONARIO',
+    etapaId?: number
+  ): Promise<{
+    puede_ver: boolean;
+    puede_editar: boolean;
+    etapa_id: number;
+    etapa_codigo: string;
+    etapa_nombre: string;
+    es_etapa_actual: boolean;
+    perfil_usuario: string;
+    perfiles_permitidos: string[];
+    razon: string;
+  }> {
+    const params: any = { user_perfil: userPerfil };
+    if (etapaId) {
+      params.etapa_id = etapaId;
+    }
+    return apiClient.get<any>(`/workflow/instancias/${instanciaId}/verificar-permisos`, {
+      params
+    });
+  },
+
+  /**
+   * Guardar respuestas de etapa actual
+   */
+  async guardarRespuestasEtapa(
+    instanciaId: number,
+    respuestas: Record<string, any>
+  ): Promise<any> {
+    return apiClient.post<any>(
+      `/workflow/instancias/${instanciaId}/respuestas`,
+      { respuestas }
+    );
+  },
+
+  /**
+   * Completar etapa actual y avanzar
+   */
+  async completarEtapa(
+    instanciaId: number,
+    respuestas: Record<string, any>,
+    etapaDestinoId?: number
+  ): Promise<any> {
+    return apiClient.post<any>(
+      `/workflow/instancias/${instanciaId}/completar-etapa`,
+      {
+        respuestas,
+        etapa_destino_id: etapaDestinoId
+      }
+    );
+  },
 };

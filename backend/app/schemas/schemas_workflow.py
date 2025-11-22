@@ -614,3 +614,99 @@ class EjecutarEtapaResponse(BaseModel):
     success: bool
     mensaje: str
     workflow_state: Dict[str, Any]
+
+
+# ==========================================
+# SCHEMAS DE INTEGRACIÓN WORKFLOW-PPSH
+# ==========================================
+
+class WorkflowInstanciaConPPSHCreate(BaseModel):
+    """
+    Schema para crear instancia de workflow con solicitud PPSH integrada
+    
+    Permite crear ambas entidades (workflow instancia + solicitud PPSH)
+    en una sola operación transaccional.
+    """
+    workflow_id: int = Field(..., description="ID del workflow a instanciar")
+    nombre_instancia: Optional[str] = Field(None, max_length=255, description="Nombre descriptivo de la instancia (generado automáticamente si se omite)")
+    
+    # Importar los campos de SolicitudCreate aquí para evitar dependencia circular
+    # Los campos se validan en el servicio
+    solicitud_ppsh: Dict[str, Any] = Field(..., description="Datos de la solicitud PPSH a crear")
+    
+    @field_validator('solicitud_ppsh')
+    @classmethod
+    def validar_solicitud_ppsh(cls, v: Dict[str, Any]) -> Dict[str, Any]:
+        """Valida estructura básica de solicitud PPSH"""
+        campos_requeridos = ['tipo_solicitud', 'cod_causa_humanitaria', 'solicitantes']
+        
+        for campo in campos_requeridos:
+            if campo not in v:
+                raise ValueError(f"Campo requerido '{campo}' no encontrado en solicitud_ppsh")
+        
+        if not v.get('solicitantes') or len(v['solicitantes']) < 1:
+            raise ValueError("La solicitud debe tener al menos un solicitante")
+        
+        return v
+
+
+class WorkflowInstanciaConPPSHExistenteCreate(BaseModel):
+    """
+    Schema para crear instancia de workflow vinculando solicitud PPSH existente
+    
+    Útil para migración de datos legacy o re-procesamiento de solicitudes.
+    """
+    workflow_id: int = Field(..., description="ID del workflow a instanciar")
+    solicitud_id: int = Field(..., description="ID de solicitud PPSH existente a vincular")
+    nombre_instancia: Optional[str] = Field(None, max_length=255, description="Nombre descriptivo de la instancia")
+
+
+class WorkflowInstanciaPPSHResponse(BaseModel):
+    """
+    Schema de respuesta para instancia creada con solicitud PPSH
+    
+    Incluye información de ambas entidades creadas/vinculadas.
+    """
+    # Datos de instancia de workflow
+    instancia_id: int
+    instancia_num_expediente: str
+    instancia_nombre: str
+    instancia_estado: EstadoInstanciaEnum
+    instancia_etapa_actual_id: Optional[int]
+    instancia_fecha_inicio: datetime
+    
+    # Datos de solicitud PPSH vinculada
+    solicitud_id: int
+    solicitud_num_expediente: str
+    solicitud_tipo: str
+    solicitud_estado: str
+    solicitud_causa_humanitaria: int
+    solicitud_fecha_solicitud: str  # ISO format
+    
+    # Metadata de vinculación
+    fecha_vinculacion: datetime
+    vinculado_por: str
+    es_vinculacion_posterior: bool = False
+    
+    # URLs de navegación (opcional)
+    url_instancia: Optional[str] = None
+    url_solicitud: Optional[str] = None
+    
+    model_config = ConfigDict(from_attributes=True)
+
+
+class DatosVinculacionPPSHResponse(BaseModel):
+    """
+    Schema de respuesta con información de vinculación PPSH
+    """
+    tiene_vinculacion: bool
+    ppsh_solicitud_id: Optional[int] = None
+    ppsh_num_expediente: Optional[str] = None
+    ppsh_tipo_solicitud: Optional[str] = None
+    ppsh_causa_humanitaria: Optional[int] = None
+    fecha_vinculacion: Optional[str] = None
+    vinculado_por: Optional[str] = None
+    es_vinculacion_posterior: bool = False
+    
+    # Datos completos de solicitud (si se solicita expanded)
+    solicitud: Optional[Dict[str, Any]] = None

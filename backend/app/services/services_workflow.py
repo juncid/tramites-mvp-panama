@@ -793,6 +793,241 @@ class InstanciaService:
             "etapa_nueva": etapa_destino,
             "mensaje": f"Transición exitosa a la etapa '{etapa_destino.nombre}'"
         }
+    
+    @staticmethod
+    def puede_usuario_ver_etapa(
+        db: Session,
+        user_id: str,
+        user_perfil: str,
+        etapa_id: int
+    ) -> bool:
+        """
+        Verifica si un usuario puede ver una etapa específica
+        
+        Args:
+            db: Sesión de base de datos
+            user_id: ID del usuario
+            user_perfil: Perfil/rol del usuario (ej: 'ADMIN', 'FUNCIONARIO', 'SOLICITANTE')
+            etapa_id: ID de la etapa a verificar
+            
+        Returns:
+            True si el usuario tiene permiso para ver la etapa, False en caso contrario
+        """
+        try:
+            etapa = EtapaService.obtener_etapa(db, etapa_id)
+            
+            # Si no hay perfiles permitidos configurados, permitir acceso
+            # (útil para etapas de INICIO y FIN)
+            if not etapa.perfiles_permitidos or len(etapa.perfiles_permitidos) == 0:
+                return True
+            
+            # Verificar si el perfil del usuario está en la lista de perfiles permitidos
+            if user_perfil in etapa.perfiles_permitidos:
+                return True
+            
+            # ADMIN siempre tiene acceso (rol especial)
+            if user_perfil == "ADMIN":
+                return True
+            
+            return False
+            
+        except HTTPException:
+            # Si la etapa no existe, no tiene permiso
+            return False
+    
+    @staticmethod
+    def puede_usuario_editar_etapa(
+        db: Session,
+        user_id: str,
+        user_perfil: str,
+        instancia_id: int,
+        etapa_id: int
+    ) -> bool:
+        """
+        Verifica si un usuario puede editar/completar una etapa específica
+        
+        Además de verificar permisos de perfil, también valida:
+        - Que la instancia esté activa
+        - Que la instancia no esté en estado COMPLETADO o CANCELADO
+        - Que la etapa sea la etapa actual de la instancia (solo se puede editar la etapa actual)
+        
+        Args:
+            db: Sesión de base de datos
+            user_id: ID del usuario
+            user_perfil: Perfil/rol del usuario
+            instancia_id: ID de la instancia de workflow
+            etapa_id: ID de la etapa a editar
+            
+        Returns:
+            True si el usuario puede editar la etapa, False en caso contrario
+        """
+        try:
+            # Verificar permisos de visualización primero
+            if not InstanciaService.puede_usuario_ver_etapa(db, user_id, user_perfil, etapa_id):
+                return False
+            
+            # Obtener instancia
+            instancia = InstanciaService.obtener_instancia(db, instancia_id)
+            
+            # Verificar que la instancia esté activa
+            if not instancia.activo:
+                return False
+            
+            # Verificar que la instancia no esté en estado terminal
+            if instancia.estado in ["COMPLETADO", "CANCELADO"]:
+                return False
+            
+            # Verificar que la etapa es la etapa actual de la instancia
+            # (solo se puede editar la etapa actual)
+            if instancia.etapa_actual_id != etapa_id:
+                return False
+            
+            # Verificar si el usuario es el asignado
+            # Si hay un usuario asignado, solo ese usuario puede editar
+            if instancia.asignado_a_user_id:
+                if instancia.asignado_a_user_id != user_id:
+                    # ADMIN puede editar incluso si está asignado a otro
+                    if user_perfil != "ADMIN":
+                        return False
+            
+            return True
+            
+        except HTTPException:
+            return False
+    
+    @staticmethod
+    def obtener_vista_actual_para_usuario(
+        db: Session,
+        user_id: str,
+        user_perfil: str,
+        instancia_id: int
+    ) -> Dict[str, Any]:
+        """
+        Obtiene la vista de la etapa actual filtrada según permisos del usuario
+        
+        Retorna información de la instancia, etapa actual y campos visibles/editables
+        según el perfil del usuario.
+        
+        Args:
+            db: Sesión de base de datos
+            user_id: ID del usuario
+            user_perfil: Perfil/rol del usuario
+            instancia_id: ID de la instancia de workflow
+            
+        Returns:
+            Diccionario con:
+            - instancia: Datos básicos de la instancia
+            - etapa_actual: Información de la etapa actual
+            - puede_ver: Si el usuario puede ver la etapa
+            - puede_editar: Si el usuario puede editar la etapa
+            - campos: Lista de campos con sus configuraciones de visibilidad/edición
+            - respuestas_previas: Respuestas ya guardadas en la etapa (si existen)
+            
+        Raises:
+            HTTPException: Si la instancia no existe
+        """
+        # Obtener instancia con relaciones
+        instancia = InstanciaService.obtener_instancia(db, instancia_id)
+        
+        if not instancia.etapa_actual_id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="La instancia no tiene una etapa actual definida"
+            )
+        
+        # Obtener etapa actual con preguntas
+        etapa_actual = EtapaService.obtener_etapa(db, instancia.etapa_actual_id)
+        
+        # Verificar permisos
+        puede_ver = InstanciaService.puede_usuario_ver_etapa(
+            db, user_id, user_perfil, etapa_actual.id
+        )
+        
+        puede_editar = InstanciaService.puede_usuario_editar_etapa(
+            db, user_id, user_perfil, instancia.id, etapa_actual.id
+        )
+        
+        if not puede_ver:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"El usuario no tiene permiso para ver la etapa '{etapa_actual.nombre}'"
+            )
+        
+        # Obtener respuestas previas de la etapa (si existen)
+        respuesta_etapa = db.query(models.WorkflowRespuestaEtapa).filter(
+            and_(
+                models.WorkflowRespuestaEtapa.instancia_id == instancia_id,
+                models.WorkflowRespuestaEtapa.etapa_id == etapa_actual.id
+            )
+        ).first()
+        
+        respuestas_previas = {}
+        if respuesta_etapa:
+            for respuesta in respuesta_etapa.respuestas:
+                respuestas_previas[respuesta.pregunta_id] = {
+                    "valor_texto": respuesta.valor_texto,
+                    "valor_opcion": respuesta.valor_opcion,
+                    "valor_archivo": respuesta.valor_archivo,
+                    "valores_multiples": respuesta.valores_multiples,
+                    "metadata": respuesta.metadata
+                }
+        
+        # Construir lista de campos visibles
+        campos = []
+        for pregunta in sorted(etapa_actual.preguntas, key=lambda p: p.orden):
+            if not pregunta.activo:
+                continue
+            
+            campo = {
+                "id": pregunta.id,
+                "codigo": pregunta.codigo,
+                "pregunta": pregunta.pregunta,
+                "tipo_pregunta": pregunta.tipo_pregunta,
+                "orden": pregunta.orden,
+                "es_obligatoria": pregunta.es_obligatoria,
+                "texto_ayuda": pregunta.texto_ayuda,
+                "placeholder": pregunta.placeholder,
+                "valor_predeterminado": pregunta.valor_predeterminado,
+                "opciones": pregunta.opciones,
+                "opciones_datos_caso": pregunta.opciones_datos_caso,
+                "permite_multiple": pregunta.permite_multiple,
+                "validacion_regex": pregunta.validacion_regex,
+                "mensaje_validacion": pregunta.mensaje_validacion,
+                "extensiones_permitidas": pregunta.extensiones_permitidas,
+                "tamano_maximo_mb": pregunta.tamano_maximo_mb,
+                "requiere_ocr": pregunta.requiere_ocr,
+                "mostrar_si": pregunta.mostrar_si,
+                "puede_editar_campo": puede_editar,
+                "valor_actual": respuestas_previas.get(pregunta.id)
+            }
+            campos.append(campo)
+        
+        return {
+            "instancia": {
+                "id": instancia.id,
+                "num_expediente": instancia.num_expediente,
+                "nombre_instancia": instancia.nombre_instancia,
+                "estado": instancia.estado,
+                "fecha_inicio": instancia.fecha_inicio,
+                "asignado_a": instancia.asignado_a_user_id,
+                "prioridad": instancia.prioridad
+            },
+            "etapa_actual": {
+                "id": etapa_actual.id,
+                "codigo": etapa_actual.codigo,
+                "nombre": etapa_actual.nombre,
+                "descripcion": etapa_actual.descripcion,
+                "tipo_etapa": etapa_actual.tipo_etapa,
+                "titulo_formulario": etapa_actual.titulo_formulario,
+                "bajada_formulario": etapa_actual.bajada_formulario,
+                "es_etapa_final": etapa_actual.es_etapa_final,
+                "tiempo_estimado_minutos": etapa_actual.tiempo_estimado_minutos
+            },
+            "puede_ver": puede_ver,
+            "puede_editar": puede_editar,
+            "campos": campos,
+            "metadata_instancia": instancia.metadata_adicional
+        }
 
 
 # ==========================================
