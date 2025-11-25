@@ -283,6 +283,9 @@ class SolicitudResponse(SolicitudBase):
     activo: bool
     created_at: datetime
     
+    # Integración con sistema de workflows
+    workflow_instancia_id: Optional[int] = None
+    
     # Relaciones
     causa_humanitaria: Optional[CausaHumanitariaResponse] = None
     estado: Optional[EstadoResponse] = None

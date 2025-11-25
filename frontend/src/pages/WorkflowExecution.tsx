@@ -54,7 +54,7 @@ interface RouteParams {
  * - Vista dinámica filtrada por permisos de usuario
  */
 export const WorkflowExecution: React.FC = () => {
-  const { instanciaId } = useParams<{ instanciaId: string }>();
+  const { instanciaId, id: solicitudId } = useParams<{ instanciaId?: string; id?: string }>();
   const navigate = useNavigate();
   
   // Estado
@@ -66,22 +66,45 @@ export const WorkflowExecution: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'formulario' | 'historial' | 'comentarios'>('formulario');
   const [userPerfil] = useState<string>('ADMIN'); // TODO: Obtener del contexto de autenticación (usando ADMIN para testing)
   const [refreshKey, setRefreshKey] = useState(0);
+  const [workflowInstanciaId, setWorkflowInstanciaId] = useState<number | null>(null);
 
   useEffect(() => {
-    if (instanciaId) {
-      loadInstancia();
-    }
-  }, [instanciaId, refreshKey]);
+    loadWorkflowInstance();
+  }, [instanciaId, solicitudId, refreshKey]);
 
-  const loadInstancia = async () => {
-    if (!instanciaId) return;
-
+  const loadWorkflowInstance = async () => {
     setLoading(true);
     setError(null);
 
     try {
+      let numericId: number;
+
+      if (instanciaId) {
+        numericId = parseInt(instanciaId);
+      } else if (solicitudId) {
+        const response = await fetch(`http://localhost:8000/api/v1/ppsh/solicitudes/${solicitudId}`);
+        if (!response.ok) {
+          throw new Error('No se pudo obtener la información de la solicitud');
+        }
+        const data = await response.json();
+        numericId = data.workflow_instancia_id;
+      } else {
+        throw new Error('No se proporcionó instanciaId ni solicitudId');
+      }
+
+      setWorkflowInstanciaId(numericId);
+      await loadInstancia(numericId);
+    } catch (err: any) {
+      console.error('Error cargando workflow instance:', err);
+      setError(err.message || 'Error al cargar la información');
+      setLoading(false);
+    }
+  };
+
+  const loadInstancia = async (numericId: number) => {
+    try {
       // Cargar instancia completa
-      const instanciaData = await workflowService.getInstancia(parseInt(instanciaId));
+      const instanciaData = await workflowService.getInstancia(numericId);
       setInstancia(instanciaData);
 
       // Cargar workflow
@@ -90,22 +113,27 @@ export const WorkflowExecution: React.FC = () => {
         setWorkflow(workflowData);
       }
 
-      // Cargar vista actual con permisos
-      const vista = await workflowService.getVistaActual(parseInt(instanciaId), userPerfil);
-      setVistaActual(vista);
+      // Solo cargar vista actual si la instancia NO está completada
+      if (instanciaData.estado !== 'COMPLETADO' && instanciaData.etapa_actual_id) {
+        const vista = await workflowService.getVistaActual(numericId, userPerfil);
+        setVistaActual(vista);
+      } else {
+        // Instancia completada, no hay vista actual
+        setVistaActual(null);
+      }
     } catch (err: any) {
       console.error('Error cargando instancia:', err);
-      setError(err.response?.data?.detail || 'Error al cargar la instancia');
+      throw new Error(err.response?.data?.detail || 'Error al cargar la instancia');
     } finally {
       setLoading(false);
     }
   };
 
   const handleSave = async (respuestas: Record<string, any>) => {
-    if (!instanciaId) return;
+    if (!workflowInstanciaId) return;
 
     try {
-      await workflowService.guardarRespuestasEtapa(parseInt(instanciaId), respuestas);
+      await workflowService.guardarRespuestasEtapa(workflowInstanciaId, respuestas);
       // Mostrar notificación de éxito
       alert('Respuestas guardadas correctamente');
     } catch (err: any) {
@@ -115,10 +143,15 @@ export const WorkflowExecution: React.FC = () => {
   };
 
   const handleComplete = async (respuestas: Record<string, any>) => {
-    if (!instanciaId) return;
+    if (!workflowInstanciaId || !instancia?.etapa_actual_id) return;
 
     try {
-      await workflowService.completarEtapa(parseInt(instanciaId), respuestas);
+      await workflowService.completarEtapa(
+        workflowInstanciaId,
+        instancia.etapa_actual_id,
+        respuestas,
+        userPerfil
+      );
       // Recargar instancia después de completar etapa
       setRefreshKey(prev => prev + 1);
       alert('Etapa completada exitosamente');
@@ -310,7 +343,32 @@ export const WorkflowExecution: React.FC = () => {
         {/* Columna 2: Main - Formulario de Etapa Actual */}
         <Grid item xs={12} md={6}>
           <Paper sx={{ p: 3 }}>
-            {vistaActual ? (
+            {instancia?.estado === 'COMPLETADO' ? (
+              <Box sx={{ textAlign: 'center', py: 4 }}>
+                <CheckCircleIcon sx={{ fontSize: 80, color: 'success.main', mb: 2 }} />
+                <Typography variant="h5" gutterBottom color="success.main">
+                  ¡Workflow Completado!
+                </Typography>
+                <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
+                  Este workflow ha sido completado exitosamente.
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                  Expediente: <strong>{instancia.num_expediente}</strong>
+                </Typography>
+                {instancia.fecha_fin && (
+                  <Typography variant="body2" color="text.secondary">
+                    Fecha de finalización: {new Date(instancia.fecha_fin).toLocaleString('es-ES')}
+                  </Typography>
+                )}
+                <Button
+                  variant="outlined"
+                  onClick={() => navigate('/workflows')}
+                  sx={{ mt: 3 }}
+                >
+                  Volver a Workflows
+                </Button>
+              </Box>
+            ) : vistaActual ? (
               <DynamicEtapaView
                 instanciaId={parseInt(instanciaId!)}
                 userPerfil={userPerfil}

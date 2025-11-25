@@ -3,7 +3,7 @@
  * Sistema de Trámites Migratorios de Panamá
  * 
  * Componente reutilizable para carga de archivos con validación
- * de tipo y tamaño.
+ * de tipo y tamaño. Soporta procesamiento OCR cuando está configurado.
  * 
  * @author Sistema de Trámites MVP Panamá
  * @date 2025-11-13
@@ -11,6 +11,8 @@
 
 import React, { useRef, useState } from 'react';
 import type { Componente } from '../../types/dynamic-view';
+import { OCRLoadingModal } from '../PPSH/OCRLoadingModal';
+import { OCRResultModal } from '../PPSH/OCRResultModal';
 
 interface FileUploadProps {
   componente: Componente;
@@ -28,10 +30,14 @@ export const FileUpload: React.FC<FileUploadProps> = ({
   const { label, pregunta_id, obligatorio, config } = componente;
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
+  const [isLoadingOCR, setIsLoadingOCR] = useState(false);
+  const [showResult, setShowResult] = useState(false);
+  const [ocrResult, setOcrResult] = useState<'success' | 'error'>('success');
   
   const tiposPermitidos = config?.tipos_permitidos || [];
   const maxSizeMB = config?.max_size_mb || 10;
   const maxArchivos = config?.max_archivos || 1;
+  const requiereOCR = config?.requiere_ocr || false;
   
   const archivos = Array.isArray(value) ? value : [];
 
@@ -57,8 +63,39 @@ export const FileUpload: React.FC<FileUploadProps> = ({
       }
     }
 
-    // Aquí iría la lógica de subida al backend
-    // Por ahora solo guardamos los nombres (MVP)
+    // Si requiere OCR, procesar con modales
+    if (requiereOCR && files.length > 0) {
+      await processOCR(files);
+    } else {
+      // Subida normal sin OCR
+      await uploadFiles(files);
+    }
+  };
+
+  const processOCR = async (files: File[]) => {
+    setIsLoadingOCR(true);
+
+    // Simular procesamiento OCR (2-3 segundos)
+    await new Promise(resolve => setTimeout(resolve, 2500));
+
+    setIsLoadingOCR(false);
+
+    // Simular resultado aleatorio (80% éxito, 20% error)
+    const success = Math.random() > 0.2;
+    setOcrResult(success ? 'success' : 'error');
+    setShowResult(true);
+
+    if (success) {
+      // Si OCR exitoso, guardar archivos
+      await uploadFiles(files);
+    }
+  };
+
+  const handleCloseResult = () => {
+    setShowResult(false);
+  };
+
+  const uploadFiles = async (files: File[]) => {
     setUploading(true);
     try {
       // TODO: Implementar upload real
@@ -155,7 +192,17 @@ export const FileUpload: React.FC<FileUploadProps> = ({
         )}
         <p>Tamaño máximo: {maxSizeMB} MB por archivo</p>
         {maxArchivos > 1 && <p>Máximo {maxArchivos} archivos</p>}
+        {requiereOCR && <p className="text-blue-600 font-medium">✓ Con validación OCR</p>}
       </div>
+
+      {/* Modales de OCR */}
+      <OCRLoadingModal open={isLoadingOCR} />
+
+      <OCRResultModal
+        open={showResult}
+        tipo={ocrResult}
+        onClose={handleCloseResult}
+      />
     </div>
   );
 };

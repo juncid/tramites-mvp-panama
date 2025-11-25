@@ -26,6 +26,7 @@ interface DynamicEtapaViewProps {
   instanciaId?: number; // Para cargar vista dinámica desde API
   userPerfil?: string; // Perfil del usuario actual (ADMIN, FUNCIONARIO, etc.)
   readonly?: boolean; // Vista de solo lectura (fuerza modo vista)
+  accessToken?: string; // Token JWT para acceso público sin autenticación
   onAnswerChange?: (preguntaId: number, valor: any) => void;
   onSave?: (respuestas: Record<string, any>) => Promise<void>;
   onComplete?: (respuestas: Record<string, any>) => Promise<void>;
@@ -95,6 +96,7 @@ export const DynamicEtapaView: React.FC<DynamicEtapaViewProps> = ({
   instanciaId,
   userPerfil = 'FUNCIONARIO',
   readonly: readonlyProp = false,
+  accessToken,
   onAnswerChange,
   onSave,
   onComplete,
@@ -119,7 +121,7 @@ export const DynamicEtapaView: React.FC<DynamicEtapaViewProps> = ({
     setError(null);
 
     try {
-      const vista = await workflowService.getVistaActual(instanciaId, userPerfil);
+      const vista = await workflowService.getVistaActual(instanciaId, userPerfil, accessToken);
       setVistaActual(vista);
 
       // Cargar valores actuales en el estado de respuestas
@@ -131,7 +133,7 @@ export const DynamicEtapaView: React.FC<DynamicEtapaViewProps> = ({
             || campo.valor_actual.valores_multiples
             || campo.valor_actual.valor_archivo;
           if (valor !== undefined && valor !== null) {
-            valoresIniciales[campo.id.toString()] = valor;
+            valoresIniciales[campo.codigo] = valor;
           }
         }
       });
@@ -144,15 +146,19 @@ export const DynamicEtapaView: React.FC<DynamicEtapaViewProps> = ({
     }
   };
 
-  const handleAnswerChange = (preguntaId: number, valor: any) => {
+  const handleAnswerChange = (preguntaCodigo: string, valor: any) => {
     setRespuestas(prev => ({
       ...prev,
-      [preguntaId.toString()]: valor
+      [preguntaCodigo]: valor
     }));
 
     // Llamar callback externo si existe
     if (onAnswerChange) {
-      onAnswerChange(preguntaId, valor);
+      // Mantener compatibilidad con callback antiguo si existe
+      const campo = vistaActual?.campos.find(c => c.codigo === preguntaCodigo);
+      if (campo) {
+        onAnswerChange(campo.id, valor);
+      }
     }
   };
 
@@ -175,7 +181,7 @@ export const DynamicEtapaView: React.FC<DynamicEtapaViewProps> = ({
     // Validar campos obligatorios
     const camposObligatorios = vistaActual?.campos.filter(c => c.es_obligatoria) || [];
     const faltantes = camposObligatorios.filter(campo => {
-      const valor = respuestas[campo.id.toString()];
+      const valor = respuestas[campo.codigo];
       return !valor || (Array.isArray(valor) && valor.length === 0);
     });
 
@@ -248,8 +254,8 @@ export const DynamicEtapaView: React.FC<DynamicEtapaViewProps> = ({
     const commonProps = {
       pregunta,
       readonly: isReadonly,
-      onAnswerChange: (valor: any) => handleAnswerChange(campo.id, valor),
-      value: respuestas[campo.id.toString()],
+      onAnswerChange: (valor: any) => handleAnswerChange(campo.codigo, valor),
+      value: respuestas[campo.codigo],
     };
 
     try {

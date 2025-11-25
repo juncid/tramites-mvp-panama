@@ -398,7 +398,7 @@ class WorkflowRespuestaBase(BaseModel):
     """Schema base para respuesta"""
     pregunta_id: int
     valor_texto: Optional[str] = None
-    valor_json: Optional[Dict[str, Any]] = None
+    valor_json: Optional[Any] = None  # Puede ser Dict, List, o cualquier JSON válido
     valor_fecha: Optional[datetime] = None
     valor_booleano: Optional[bool] = None
     archivos: Optional[List[Dict[str, Any]]] = None
@@ -412,7 +412,7 @@ class WorkflowRespuestaCreate(WorkflowRespuestaBase):
 class WorkflowRespuestaUpdate(BaseModel):
     """Schema para actualizar respuesta"""
     valor_texto: Optional[str] = None
-    valor_json: Optional[Dict[str, Any]] = None
+    valor_json: Optional[Any] = None  # Puede ser Dict, List, o cualquier JSON válido
     valor_fecha: Optional[datetime] = None
     valor_booleano: Optional[bool] = None
     archivos: Optional[List[Dict[str, Any]]] = None

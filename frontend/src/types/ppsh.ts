@@ -102,6 +102,9 @@ export interface Solicitud {
   documentos?: Documento[];
   created_at: string;
   updated_at?: string;
+  
+  // Integración con sistema de workflows
+  workflow_instancia_id?: number;
 }
 
 export interface SolicitudListItem {

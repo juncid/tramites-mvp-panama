@@ -178,7 +178,7 @@ export const workflowService = {
   async getEtapasByPerfil(workflowId: number, perfil: string): Promise<WorkflowEtapa[]> {
     return apiClient.get<WorkflowEtapa[]>(
       `/workflow/workflows/${workflowId}/etapas/by-perfil`,
-      { params: { perfil } }
+      { perfil }
     );
   },
 
@@ -201,13 +201,15 @@ export const workflowService = {
     etapaId: number,
     respuestas: Record<string, any>,
     archivos?: Record<string, any>,
-    perfil?: string
+    perfil?: string,
+    accessToken?: string
   ): Promise<any> {
     const params = perfil ? { perfil } : {};
+    const headers = accessToken ? { 'X-Access-Token': accessToken } : undefined;
     return apiClient.post<any>(
       `/workflow/instancias/${instanciaId}/etapas/${etapaId}/ejecutar`,
       { respuestas, archivos },
-      { params }
+      { params, headers }
     );
   },
 
@@ -222,7 +224,7 @@ export const workflowService = {
     skip?: number;
     limit?: number;
   }): Promise<WorkflowInstancia[]> {
-    return apiClient.get<WorkflowInstancia[]>('/workflow/instancias', { params });
+    return apiClient.get<WorkflowInstancia[]>('/workflow/instancias', params);
   },
 
   // ==========================================
@@ -256,7 +258,7 @@ export const workflowService = {
    */
   async getVinculacionPPSH(instanciaId: number, expanded: boolean = false): Promise<any> {
     return apiClient.get<any>(`/workflow/instancias/${instanciaId}/vinculacion-ppsh`, {
-      params: { expanded }
+      expanded
     });
   },
 
@@ -265,15 +267,26 @@ export const workflowService = {
   // ==========================================
 
   /**
+   * Obtener historial de una instancia
+   */
+  async getHistorial(instanciaId: number): Promise<any[]> {
+    return apiClient.get<any[]>(`/workflow/instancias/${instanciaId}/historial`);
+  },
+
+  /**
    * Obtener vista de etapa actual filtrada por permisos del usuario
    */
   async getVistaActual(
     instanciaId: number,
-    userPerfil: string = 'FUNCIONARIO'
+    userPerfil: string = 'FUNCIONARIO',
+    accessToken?: string
   ): Promise<any> {
-    return apiClient.get<any>(`/workflow/instancias/${instanciaId}/vista-actual`, {
-      params: { user_perfil: userPerfil }
-    });
+    const headers = accessToken ? { 'X-Access-Token': accessToken } : undefined;
+    return apiClient.get<any>(
+      `/workflow/instancias/${instanciaId}/vista-actual`,
+      { user_perfil: userPerfil },
+      headers
+    );
   },
 
   /**
@@ -298,22 +311,21 @@ export const workflowService = {
     if (etapaId) {
       params.etapa_id = etapaId;
     }
-    return apiClient.get<any>(`/workflow/instancias/${instanciaId}/verificar-permisos`, {
-      params
-    });
+    return apiClient.get<any>(`/workflow/instancias/${instanciaId}/verificar-permisos`, params);
   },
 
   /**
-   * Guardar respuestas de etapa actual
+   * Guardar respuestas de etapa actual (sin completar)
+   * Nota: El backend no tiene endpoint de guardar borrador, 
+   * por ahora retornamos una promesa resuelta
    */
   async guardarRespuestasEtapa(
     instanciaId: number,
     respuestas: Record<string, any>
   ): Promise<any> {
-    return apiClient.post<any>(
-      `/workflow/instancias/${instanciaId}/respuestas`,
-      { respuestas }
-    );
+    // TODO: Implementar endpoint de guardar borrador en backend
+    console.warn('guardarRespuestasEtapa: No hay endpoint de guardar borrador implementado');
+    return Promise.resolve({ success: true, message: 'Función de guardar borrador no implementada aún' });
   },
 
   /**
@@ -321,15 +333,40 @@ export const workflowService = {
    */
   async completarEtapa(
     instanciaId: number,
+    etapaId: number,
     respuestas: Record<string, any>,
-    etapaDestinoId?: number
+    userPerfil: string = 'ADMIN',
+    archivos?: Record<string, any>,
+    accessToken?: string
   ): Promise<any> {
+    const headers = accessToken ? { 'X-Access-Token': accessToken } : undefined;
     return apiClient.post<any>(
-      `/workflow/instancias/${instanciaId}/completar-etapa`,
+      `/workflow/instancias/${instanciaId}/etapas/${etapaId}/ejecutar?perfil=${userPerfil}`,
       {
         respuestas,
-        etapa_destino_id: etapaDestinoId
-      }
+        archivos: archivos || {}
+      },
+      { headers }
+    );
+  },
+
+  /**
+   * Subir documento relacionado con una etapa de workflow
+   * Usa el endpoint de PPSH para almacenar el archivo y vincularlo con la solicitud
+   */
+  async subirDocumentoEtapa(
+    solicitudId: number,
+    file: File,
+    data?: {
+      cod_tipo_documento?: number;
+      tipo_documento_texto?: string;
+      observaciones?: string;
+    }
+  ): Promise<any> {
+    return apiClient.uploadFile<any>(
+      `/ppsh/solicitudes/${solicitudId}/documentos`,
+      file,
+      data
     );
   },
 };

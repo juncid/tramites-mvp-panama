@@ -46,8 +46,11 @@ class ApiClient {
       body: fetchOptions.body ? JSON.parse(fetchOptions.body as string) : undefined,
     });
     
-    const defaultHeaders = {
+    // Agregar token de autorización si está disponible
+    const token = localStorage.getItem('token');
+    const defaultHeaders: Record<string, string> = {
       'Content-Type': 'application/json',
+      ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
       ...(fetchOptions.headers || {}),
     };
 
@@ -103,14 +106,16 @@ class ApiClient {
     }
   }
 
-  async get<T>(endpoint: string, params?: Record<string, any>): Promise<T> {
-    return this.request<T>(endpoint, { method: 'GET', params });
+  async get<T>(endpoint: string, params?: Record<string, any>, headers?: Record<string, string>): Promise<T> {
+    return this.request<T>(endpoint, { method: 'GET', params, headers });
   }
 
-  async post<T>(endpoint: string, data?: any): Promise<T> {
+  async post<T>(endpoint: string, data?: any, options?: { params?: Record<string, any>, headers?: Record<string, string> }): Promise<T> {
     return this.request<T>(endpoint, {
       method: 'POST',
       body: JSON.stringify(data),
+      params: options?.params,
+      headers: options?.headers,
     });
   }
 

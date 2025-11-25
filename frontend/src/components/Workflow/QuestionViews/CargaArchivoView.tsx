@@ -16,6 +16,8 @@ import {
   InsertDriveFile as FileIcon,
 } from '@mui/icons-material';
 import type { WorkflowPregunta } from '../../../types/workflow';
+import { OCRLoadingModal } from '../../PPSH/OCRLoadingModal';
+import { OCRResultModal } from '../../PPSH/OCRResultModal';
 
 interface CargaArchivoViewProps {
   pregunta: WorkflowPregunta;
@@ -29,11 +31,15 @@ export const CargaArchivoView: React.FC<CargaArchivoViewProps> = ({
   onAnswerChange,
 }) => {
   const [archivos, setArchivos] = useState<File[]>([]);
+  const [isLoadingOCR, setIsLoadingOCR] = useState(false);
+  const [showResult, setShowResult] = useState(false);
+  const [ocrResult, setOcrResult] = useState<'success' | 'error'>('success');
 
   const maxArchivos = pregunta.max_archivos || 5;
   const maxSizeMb = pregunta.max_size_mb || 10;
+  const requiereOCR = (pregunta as any).requiere_ocr || false;
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     
     // Validar tamaño
@@ -48,8 +54,37 @@ export const CargaArchivoView: React.FC<CargaArchivoViewProps> = ({
 
     // Validar cantidad máxima
     const nuevosArchivos = [...archivos, ...archivosValidos].slice(0, maxArchivos);
-    setArchivos(nuevosArchivos);
-    onAnswerChange?.(nuevosArchivos);
+    
+    // Si requiere OCR, procesarlo
+    if (requiereOCR && archivosValidos.length > 0) {
+      await processOCR(nuevosArchivos);
+    } else {
+      setArchivos(nuevosArchivos);
+      onAnswerChange?.(nuevosArchivos);
+    }
+  };
+
+  const processOCR = async (files: File[]) => {
+    setIsLoadingOCR(true);
+
+    // Simular procesamiento OCR (2-3 segundos)
+    await new Promise(resolve => setTimeout(resolve, 2500));
+
+    setIsLoadingOCR(false);
+
+    // Simular resultado aleatorio (80% éxito, 20% error)
+    const success = Math.random() > 0.2;
+    setOcrResult(success ? 'success' : 'error');
+    setShowResult(true);
+
+    if (success) {
+      setArchivos(files);
+      onAnswerChange?.(files);
+    }
+  };
+
+  const handleCloseResult = () => {
+    setShowResult(false);
   };
 
   const handleRemove = (index: number) => {
@@ -129,7 +164,17 @@ export const CargaArchivoView: React.FC<CargaArchivoViewProps> = ({
 
       <Alert severity="info" sx={{ mt: 2 }}>
         Máximo {maxArchivos} archivo{maxArchivos > 1 ? 's' : ''} de {maxSizeMb}MB cada uno
+        {requiereOCR && ' · Con validación OCR'}
       </Alert>
+
+      {/* Modales de OCR */}
+      <OCRLoadingModal open={isLoadingOCR} />
+
+      <OCRResultModal
+        open={showResult}
+        tipo={ocrResult}
+        onClose={handleCloseResult}
+      />
     </Box>
   );
 };

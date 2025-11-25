@@ -6,6 +6,7 @@ import '@fontsource/roboto/500.css'
 import '@fontsource/roboto/700.css'
 import App from './App.tsx'
 import ThemeProvider from './theme'
+import { AuthProvider } from './context/AuthContext'
 import { logger } from './utils/logger'
 
 // Test inicial del logger
@@ -18,7 +19,9 @@ logger.info('Frontend iniciado', {
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <ThemeProvider>
-      <App />
+      <AuthProvider>
+        <App />
+      </AuthProvider>
     </ThemeProvider>
   </React.StrictMode>,
 )

@@ -25,6 +25,7 @@ import {
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { LogoMigracion } from './LogoMigracion';
+import { useAuth } from '../../context/AuthContext';
 
 interface TabItem {
   label: string;
@@ -40,9 +41,18 @@ const tabs: TabItem[] = [
 export const Header = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { isAdmin } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userMenuAnchor, setUserMenuAnchor] = useState<null | HTMLElement>(null);
   const [currentTime, setCurrentTime] = useState(new Date());
+
+  // Detectar si estamos en una ruta pública (sin autenticación)
+  const isPublicRoute = location.pathname.startsWith('/solicitudes/') || 
+                        location.pathname === '/acceso-publico' ||
+                        location.pathname.startsWith('/consulta-publica/');
+  
+  // Ocultar tabs solo si es ruta pública
+  const shouldHideTabs = isPublicRoute;
 
   // Actualizar la hora cada segundo
   useEffect(() => {
@@ -90,11 +100,11 @@ export const Header = () => {
     hour12: false 
   });
   
-  // Formato DD-MM-YYYY
+  // Formato YYYY-MM-DD según Figma
   const day = String(currentTime.getDate()).padStart(2, '0');
   const month = String(currentTime.getMonth() + 1).padStart(2, '0');
   const year = currentTime.getFullYear();
-  const formattedDate = `${day}-${month}-${year}`;
+  const formattedDate = `${year}-${month}-${day}`;
 
   return (
     <AppBar
@@ -130,54 +140,58 @@ export const Header = () => {
           <LogoMigracion />
         </Box>
 
-        {/* Menú hamburguesa - solo mobile */}
-        <Box 
-          sx={{ 
-            display: { xs: 'flex', sm: 'none' },
-            alignItems: 'center',
-            gap: 0.5,
-            cursor: 'pointer',
-          }}
-          onClick={() => setMobileMenuOpen(true)}
-        >
-          <MenuIcon sx={{ color: 'white', fontSize: 20 }} />
-          <Typography sx={{ color: 'white', fontSize: '14px' }}>
-            Menú
-          </Typography>
-        </Box>
-
-        {/* Usuario y logout - solo desktop */}
-        <Box sx={{ display: { xs: 'none', sm: 'flex' }, alignItems: 'center', gap: 1 }}>
-          <Box
-            onClick={handleUserMenuOpen}
-            sx={{
-              display: 'flex',
+        {/* Menú hamburguesa - solo mobile y solo si NO es ruta pública o workflow */}
+        {!shouldHideTabs && (
+          <Box 
+            sx={{ 
+              display: { xs: 'flex', sm: 'none' },
               alignItems: 'center',
-              gap: 1,
+              gap: 0.5,
               cursor: 'pointer',
-              px: 1.5,
-              py: 0.5,
-              borderRadius: 1,
-              '&:hover': { bgcolor: 'rgba(255,255,255,0.1)' },
             }}
+            onClick={() => setMobileMenuOpen(true)}
           >
-            <Avatar
+            <MenuIcon sx={{ color: 'white', fontSize: 20 }} />
+            <Typography sx={{ color: 'white', fontSize: '14px' }}>
+              Menú
+            </Typography>
+          </Box>
+        )}
+
+        {/* Usuario y logout - solo desktop y solo si NO es ruta pública o workflow */}
+        {!shouldHideTabs && (
+          <Box sx={{ display: { xs: 'none', sm: 'flex' }, alignItems: 'center', gap: 1 }}>
+            <Box
+              onClick={handleUserMenuOpen}
               sx={{
-                width: 28,
-                height: 28,
-                bgcolor: '#0e5fa6',
-                fontSize: '0.875rem',
-                fontWeight: 600,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1,
+                cursor: 'pointer',
+                px: 1.5,
+                py: 0.5,
+                borderRadius: 1,
+                '&:hover': { bgcolor: 'rgba(255,255,255,0.1)' },
               }}
             >
-              JP
-            </Avatar>
-            <Typography sx={{ color: 'white', fontSize: '0.875rem' }}>
-              Juan Pérez
-            </Typography>
-            <ArrowDownIcon sx={{ color: 'white', fontSize: 18 }} />
+              <Avatar
+                sx={{
+                  width: 28,
+                  height: 28,
+                  bgcolor: '#0e5fa6',
+                  fontSize: '0.875rem',
+                  fontWeight: 600,
+                }}
+              >
+                JP
+              </Avatar>
+              <Typography sx={{ color: 'white', fontSize: '0.875rem' }}>
+                Juan Pérez
+              </Typography>
+              <ArrowDownIcon sx={{ color: 'white', fontSize: 18 }} />
+            </Box>
           </Box>
-        </Box>
+        )}
 
         {/* Menú desplegable de usuario */}
         <Menu
@@ -231,19 +245,25 @@ export const Header = () => {
         </Menu>
       </Box>
 
-      {/* Barra azul con tabs de navegación - solo desktop */}
-      <Box
-        sx={{
-          backgroundColor: '#0e5fa6',
-          px: { xs: 2, sm: 3, md: '7.69rem' },
-          display: { xs: 'none', sm: 'flex' },
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          height: 40,
-        }}
-      >
+      {/* Barra azul con tabs de navegación - solo desktop y solo si NO es ruta pública o workflow */}
+      {!shouldHideTabs && (
+        <Box
+          sx={{
+            backgroundColor: '#0e5fa6',
+            px: { xs: 2, sm: 3, md: '7.69rem' },
+            display: { xs: 'none', sm: 'flex' },
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            height: 40,
+          }}
+        >
         <Box sx={{ display: 'flex', gap: 5 }}>
           {tabs.map((tab) => {
+            // Ocultar el tab "Procesos" si el usuario no es administrador
+            if (tab.path === '/procesos' && !isAdmin) {
+              return null;
+            }
+            
             const isActive = location.pathname === tab.path;
             return (
               <Box
@@ -302,14 +322,16 @@ export const Header = () => {
             {formattedDate}
           </Typography>
         </Box>
-      </Box>
+        </Box>
+      )}
 
-      {/* Drawer de navegación mobile */}
-      <Drawer
-        anchor="right"
-        open={mobileMenuOpen}
-        onClose={() => setMobileMenuOpen(false)}
-        sx={{
+      {/* Drawer de navegación mobile - solo si NO es ruta pública o workflow */}
+      {!shouldHideTabs && (
+        <Drawer
+          anchor="right"
+          open={mobileMenuOpen}
+          onClose={() => setMobileMenuOpen(false)}
+          sx={{
           display: { xs: 'block', sm: 'none' },
           '& .MuiDrawer-paper': {
             width: '80%',
@@ -342,33 +364,40 @@ export const Header = () => {
 
           {/* Lista de navegación */}
           <List sx={{ flex: 1 }}>
-            {tabs.map((tab) => (
-              <ListItem key={tab.path} disablePadding>
-                <ListItemButton
-                  selected={location.pathname === tab.path}
-                  onClick={() => handleMobileMenuClick(tab.path)}
-                  sx={{
-                    py: 2,
-                    '&.Mui-selected': {
-                      backgroundColor: 'rgba(37, 99, 235, 0.2)',
-                    },
-                    '&:hover': {
-                      backgroundColor: 'rgba(255,255,255,0.05)',
-                    },
-                  }}
-                >
-                  <ListItemText 
-                    primary={tab.label}
+            {tabs.map((tab) => {
+              // Ocultar el tab "Procesos" si el usuario no es administrador
+              if (tab.path === '/procesos' && !isAdmin) {
+                return null;
+              }
+              
+              return (
+                <ListItem key={tab.path} disablePadding>
+                  <ListItemButton
+                    selected={location.pathname === tab.path}
+                    onClick={() => handleMobileMenuClick(tab.path)}
                     sx={{
-                      '& .MuiTypography-root': {
-                        color: location.pathname === tab.path ? '#2563EB' : 'white',
-                        fontSize: '14px',
+                      py: 2,
+                      '&.Mui-selected': {
+                        backgroundColor: 'rgba(37, 99, 235, 0.2)',
+                      },
+                      '&:hover': {
+                        backgroundColor: 'rgba(255,255,255,0.05)',
                       },
                     }}
-                  />
-                </ListItemButton>
-              </ListItem>
-            ))}
+                  >
+                    <ListItemText 
+                      primary={tab.label}
+                      sx={{
+                        '& .MuiTypography-root': {
+                          color: location.pathname === tab.path ? '#2563EB' : 'white',
+                          fontSize: '14px',
+                        },
+                      }}
+                    />
+                  </ListItemButton>
+                </ListItem>
+              );
+            })}
           </List>
 
           {/* Footer del drawer con info de usuario */}
@@ -393,7 +422,8 @@ export const Header = () => {
             </Typography>
           </Box>
         </Box>
-      </Drawer>
+        </Drawer>
+      )}
     </AppBar>
   );
 };

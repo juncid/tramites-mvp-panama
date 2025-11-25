@@ -24,6 +24,7 @@ import {
 import { useNavigate, useParams } from 'react-router-dom';
 import { DocumentChecklistTable } from '../components/Solicitudes/DocumentChecklistTable';
 import { SolicitudSummaryCard } from '../components/Solicitudes/SolicitudSummaryCard';
+import { OCRLoadingModal, OCRResultModal } from '../components/PPSH';
 import { ppshService } from '../services/ppsh.service';
 import type { Solicitud, TipoDocumento, Documento } from '../types/ppsh';
 
@@ -35,6 +36,15 @@ export const RevisionRequisitos = () => {
   const [showSummaryCard, setShowSummaryCard] = useState(true);
   const [selectedDocument, setSelectedDocument] = useState<string | null>(null);
   const [ocrOverrides, setOcrOverrides] = useState<Record<string, boolean>>({}); // Cambios manuales de OCR por documento
+  
+  // Estados para los modales de OCR
+  const [isLoadingOCR, setIsLoadingOCR] = useState(false);
+  const [showOCRResult, setShowOCRResult] = useState(false);
+  const [ocrResult, setOcrResult] = useState<{ success: boolean; message: string }>({ 
+    success: true, 
+    message: '' 
+  });
+  const [ocrCompletadoLocal, setOcrCompletadoLocal] = useState(false); // Estado local para controlar si se ejecutó OCR
   
   // Estado para datos de la API
   const [solicitud, setSolicitud] = useState<Solicitud | null>(null);
@@ -123,11 +133,12 @@ export const RevisionRequisitos = () => {
 
   // Determinar si ya se ejecutó OCR (al menos un documento tiene OCR procesado)
   // Si algún documento tiene doc?.ocr_exitoso !== undefined, significa que ya pasó por OCR
-  const ocrYaEjecutado = documentosAPI.some(doc => doc.ocr_exitoso !== undefined && doc.ocr_exitoso !== null);
+  // También considerar si se completó el OCR localmente mediante simulación
+  const ocrYaEjecutado = ocrCompletadoLocal || documentosAPI.some(doc => doc.ocr_exitoso !== undefined && doc.ocr_exitoso !== null);
   
   // Estado de la pregunta OCR:
-  // - Pre-OCR: Mostrar pregunta de radio buttons
-  // - Post-OCR: Mostrar secciones de revisión OCR + manual
+  // - Pre-OCR: Mostrar botón "Iniciar revisión OCR"
+  // - Post-OCR: Mostrar pregunta de radio buttons + secciones de revisión manual
 
   // Seleccionar automáticamente el primer documento con ocr_exitoso = false
   useEffect(() => {
@@ -183,6 +194,61 @@ export const RevisionRequisitos = () => {
       console.error('Error al guardar:', error);
       alert('❌ Error al guardar los cambios');
     }
+  };
+
+  // Función para iniciar revisión OCR con simulación aleatoria
+  const handleIniciarRevisionOCR = async () => {
+    // Mostrar modal de loading
+    setIsLoadingOCR(true);
+
+    try {
+      // Simular proceso de OCR (2.5 segundos)
+      await new Promise(resolve => setTimeout(resolve, 2500));
+
+      // Evento aleatorio: 70% éxito, 30% error
+      const exito = Math.random() > 0.3;
+
+      // Cerrar modal de loading
+      setIsLoadingOCR(false);
+
+      if (exito) {
+        // Mostrar modal de éxito
+        setOcrResult({
+          success: true,
+          message: 'Revisión OCR completada exitosamente. Los documentos han sido procesados correctamente.'
+        });
+        setShowOCRResult(true);
+        setOcrCompletadoLocal(true); // Marcar OCR como completado localmente
+
+        // Aquí podrías hacer el llamado real al backend para procesar OCR
+        // const result = await ppshService.procesarOCR(parseInt(id!));
+        
+        // Actualizar el estado para mostrar el "nodo 2" (post-OCR)
+        // Por ahora simplemente recargamos los datos
+        if (id) {
+          const docs = await ppshService.getDocumentos(parseInt(id));
+          setDocumentosAPI(docs);
+        }
+      } else {
+        // Mostrar modal de error
+        setOcrResult({
+          success: false,
+          message: 'Error al procesar los documentos. Por favor, verifique que los archivos sean legibles y estén en el formato correcto.'
+        });
+        setShowOCRResult(true);
+      }
+    } catch (err) {
+      setIsLoadingOCR(false);
+      setOcrResult({
+        success: false,
+        message: 'Error inesperado al procesar la revisión OCR'
+      });
+      setShowOCRResult(true);
+    }
+  };
+
+  const handleCloseOCRResult = () => {
+    setShowOCRResult(false);
   };
 
   if (loading) {
@@ -295,54 +361,55 @@ export const RevisionRequisitos = () => {
               Lorem ipsum dolor sit amet consectetur. Tristique placerat venenatis iaculis imperdiet in. Venenatis quam cursus ut urna vel a ac iaculis. Volutpat tempus urna nullam aliquam.
             </Typography>
 
-            {/* ESTADO PRE-OCR: Mostrar pregunta con radio buttons */}
+            {/* ESTADO PRE-OCR: Mostrar botón para iniciar OCR */}
             {!ocrYaEjecutado && (
               <Box sx={{ mb: 3 }}>
-                <Typography variant="subtitle2" sx={{ fontWeight: 500, mb: 1, color: '#333' }}>
-                  Obtuvieron los archivos resultados positivos en la revisión OCR
+                <Typography variant="subtitle2" sx={{ fontWeight: 500, mb: 2, color: '#333' }}>
+                  Revisión OCR de documentos
                 </Typography>
-                <FormControl component="fieldset">
-                  <RadioGroup
-                    value={ocrResultsPositive}
-                    onChange={(e) => setOcrResultsPositive(e.target.value)}
-                  >
-                    <FormControlLabel 
-                      value="no" 
-                      control={<Radio size="small" />} 
-                      label="No" 
-                    />
-                    <FormControlLabel 
-                      value="si" 
-                      control={<Radio size="small" />} 
-                      label="Sí" 
-                    />
-                  </RadioGroup>
-                </FormControl>
+                <Button
+                  variant="contained"
+                  startIcon={<ScannerIcon />}
+                  onClick={handleIniciarRevisionOCR}
+                  disabled={isLoadingOCR}
+                  sx={{
+                    textTransform: 'none',
+                    backgroundColor: '#0e5fa6',
+                    color: 'white',
+                    height: 52,
+                    px: 2,
+                    '&:hover': { backgroundColor: '#0d5391' },
+                  }}
+                >
+                  {isLoadingOCR ? 'Procesando...' : 'Iniciar revisión OCR'}
+                </Button>
               </Box>
             )}
 
-            {/* ESTADO POST-OCR: Mostrar secciones de revisión */}
+            {/* ESTADO POST-OCR: Mostrar pregunta con radio buttons */}
             {ocrYaEjecutado && (
               <>
-                {/* Sección: Revisión OCR de documentos */}
                 <Box sx={{ mb: 3 }}>
-                  <Typography variant="subtitle2" sx={{ fontWeight: 500, mb: 2, color: '#333' }}>
-                    Revisión OCR de documentos
+                  <Typography variant="subtitle2" sx={{ fontWeight: 500, mb: 1, color: '#333' }}>
+                    Obtuvieron los archivos resultados positivos en la revisión OCR
                   </Typography>
-                  <Button
-                    variant="contained"
-                    startIcon={<ScannerIcon />}
-                    sx={{
-                      textTransform: 'none',
-                      backgroundColor: '#0e5fa6',
-                      color: 'white',
-                      height: 52,
-                      px: 2,
-                      '&:hover': { backgroundColor: '#0d5391' },
-                    }}
-                  >
-                    Iniciar revisión OCR
-                  </Button>
+                  <FormControl component="fieldset">
+                    <RadioGroup
+                      value={ocrResultsPositive}
+                      onChange={(e) => setOcrResultsPositive(e.target.value)}
+                    >
+                      <FormControlLabel 
+                        value="no" 
+                        control={<Radio size="small" />} 
+                        label="No" 
+                      />
+                      <FormControlLabel 
+                        value="si" 
+                        control={<Radio size="small" />} 
+                        label="Sí" 
+                      />
+                    </RadioGroup>
+                  </FormControl>
                 </Box>
 
                 {/* Línea divisoria gris */}
@@ -398,6 +465,16 @@ export const RevisionRequisitos = () => {
           </Grid>
         )}
       </Grid>
+
+      {/* Modales de OCR */}
+      <OCRLoadingModal open={isLoadingOCR} />
+      
+      <OCRResultModal
+        open={showOCRResult}
+        tipo={ocrResult.success ? 'success' : 'error'}
+        mensaje={ocrResult.message}
+        onClose={handleCloseOCRResult}
+      />
     </Box>
   );
 };

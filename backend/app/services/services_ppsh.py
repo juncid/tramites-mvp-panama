@@ -252,6 +252,20 @@ class SolicitudService:
         if not solicitud:
             raise PPSHNotFoundException("Solicitud", str(id_solicitud))
         
+        # Verificar si tiene workflow vinculado
+        from app.models.models_workflow import WorkflowInstancia
+        workflow_instancia = db.query(WorkflowInstancia).filter(
+            WorkflowInstancia.activo == True
+        ).all()
+        
+        # Buscar en metadata_adicional (campo JSON)
+        solicitud.workflow_instancia_id = None
+        for instancia in workflow_instancia:
+            if instancia.metadata_adicional and isinstance(instancia.metadata_adicional, dict):
+                if instancia.metadata_adicional.get('ppsh_solicitud_id') == id_solicitud:
+                    solicitud.workflow_instancia_id = instancia.id
+                    break
+        
         return solicitud
     
     @staticmethod

@@ -42,12 +42,38 @@ export const Etapas = () => {
   const [etapas, setEtapas] = useState<Etapa[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [checkingWorkflow, setCheckingWorkflow] = useState(true);
+  const [workflowInstanciaId, setWorkflowInstanciaId] = useState<number | null>(null);
 
   useEffect(() => {
     if (id) {
-      loadEtapas();
+      checkWorkflowAndLoad();
     }
   }, [id]);
+
+  const checkWorkflowAndLoad = async () => {
+    try {
+      setCheckingWorkflow(true);
+      
+      // Verificar si la solicitud tiene workflow vinculado
+      const solicitud = await ppshService.getSolicitud(parseInt(id!));
+      
+      if (solicitud.workflow_instancia_id) {
+        // Guardar ID pero no redirigir automáticamente, mostrar opción
+        console.log(`Solicitud ${id} tiene workflow vinculado (instancia ${solicitud.workflow_instancia_id})`);
+        setWorkflowInstanciaId(solicitud.workflow_instancia_id);
+      }
+      
+      // Cargar etapas legacy
+      setCheckingWorkflow(false);
+      loadEtapas();
+    } catch (err) {
+      console.error('Error verificando workflow:', err);
+      setCheckingWorkflow(false);
+      // Intentar cargar etapas legacy de todas formas
+      loadEtapas();
+    }
+  };
 
   const loadEtapas = async () => {
     try {
@@ -176,6 +202,15 @@ export const Etapas = () => {
     </Box>
   );
 
+  // Mostrar loading mientras verifica workflow
+  if (checkingWorkflow) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '50vh' }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
   return (
     <Box>
       {/* Breadcrumbs */}
@@ -209,11 +244,30 @@ export const Etapas = () => {
         sx={{ 
           fontWeight: 700, 
           color: '#1F2937',
-          mb: 4,
+          mb: 2,
         }}
       >
         Etapas
       </Typography>
+
+      {/* Alerta si hay workflow vinculado */}
+      {workflowInstanciaId && (
+        <Alert 
+          severity="info" 
+          sx={{ mb: 3 }}
+          action={
+            <Button 
+              color="inherit" 
+              size="small"
+              onClick={() => navigate(`/workflows/${workflowInstanciaId}/etapas`)}
+            >
+              Ver Nueva Vista
+            </Button>
+          }
+        >
+          Esta solicitud tiene un workflow dinámico vinculado. Puedes ver las etapas en la nueva vista.
+        </Alert>
+      )}
 
       {/* Barra de búsqueda */}
       <Box sx={{ mb: 3 }}>

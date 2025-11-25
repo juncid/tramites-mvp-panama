@@ -47,6 +47,13 @@ except ImportError:
     OCR_AVAILABLE = False
     ocr_router = None
 
+try:
+    from app.routes.routes_public import router as public_router
+    PUBLIC_AVAILABLE = True
+except ImportError:
+    PUBLIC_AVAILABLE = False
+    public_router = None
+
 # Configurar logging
 log_file = os.path.join("logs", "app.log") if os.path.exists("logs") else None
 setup_logging(
@@ -130,6 +137,13 @@ if OCR_AVAILABLE and ocr_router:
 else:
     logger.warning("⚠️  Módulo OCR no disponible")
 
+# Incluir router de solicitudes públicas si está disponible
+if PUBLIC_AVAILABLE and public_router:
+    app.include_router(public_router, prefix="/api/v1")
+    logger.info("✅ Módulo Solicitudes Públicas registrado en /api/v1/public")
+else:
+    logger.warning("⚠️  Módulo Solicitudes Públicas no disponible")
+
 logger.info("🚀 Aplicación FastAPI inicializada")
 
 @app.get("/", tags=["Root"])
@@ -168,6 +182,12 @@ async def root():
         response["modules"]["ocr"] = "✅ Disponible en /api/v1/ocr"
     else:
         response["modules"]["ocr"] = "❌ No disponible"
+    
+    # Agregar módulo Solicitudes Públicas si está disponible
+    if PUBLIC_AVAILABLE:
+        response["modules"]["public"] = "✅ Disponible en /api/v1/public"
+    else:
+        response["modules"]["public"] = "❌ No disponible"
     
     return response
 
