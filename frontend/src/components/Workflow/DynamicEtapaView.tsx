@@ -27,6 +27,9 @@ interface DynamicEtapaViewProps {
   userPerfil?: string; // Perfil del usuario actual (ADMIN, FUNCIONARIO, etc.)
   readonly?: boolean; // Vista de solo lectura (fuerza modo vista)
   accessToken?: string; // Token JWT para acceso público sin autenticación
+  hideHeader?: boolean; // Ocultar título y descripción del header (útil cuando la página padre ya los muestra)
+  buttonLabels?: { back?: string; next?: string }; // Labels personalizados para botones
+  onBack?: () => void; // Handler para botón volver
   onAnswerChange?: (preguntaId: number, valor: any) => void;
   onSave?: (respuestas: Record<string, any>) => Promise<void>;
   onComplete?: (respuestas: Record<string, any>) => Promise<void>;
@@ -42,7 +45,7 @@ interface CampoVista {
   texto_ayuda?: string;
   placeholder?: string;
   valor_predeterminado?: string;
-  opciones?: string[];
+  opciones?: string[] | string; // Puede venir como array o string JSON
   opciones_datos_caso?: string[];
   permite_multiple?: boolean;
   validacion_regex?: string;
@@ -97,6 +100,9 @@ export const DynamicEtapaView: React.FC<DynamicEtapaViewProps> = ({
   userPerfil = 'FUNCIONARIO',
   readonly: readonlyProp = false,
   accessToken,
+  hideHeader = false,
+  buttonLabels = { back: 'Volver', next: 'Siguiente' },
+  onBack,
   onAnswerChange,
   onSave,
   onComplete,
@@ -122,6 +128,9 @@ export const DynamicEtapaView: React.FC<DynamicEtapaViewProps> = ({
 
     try {
       const vista = await workflowService.getVistaActual(instanciaId, userPerfil, accessToken);
+      console.log('📋 Vista cargada:', vista);
+      console.log('📋 metadata_instancia:', vista.metadata_instancia);
+      console.log('📋 solicitud_id:', vista.metadata_instancia?.id_solicitud);
       setVistaActual(vista);
 
       // Cargar valores actuales en el estado de respuestas
@@ -231,6 +240,23 @@ export const DynamicEtapaView: React.FC<DynamicEtapaViewProps> = ({
     const isReadonly = readonlyProp || !campo.puede_editar_campo || !vistaActual?.puede_editar;
 
     // Convertir campo a formato WorkflowPregunta para compatibilidad
+    // Asegurar que opciones sea un array
+    let opcionesArray: string[] = [];
+    if (campo.opciones) {
+      if (Array.isArray(campo.opciones)) {
+        opcionesArray = campo.opciones;
+      } else if (typeof campo.opciones === 'string') {
+        // Si es un string JSON, parsearlo
+        try {
+          const parsed = JSON.parse(campo.opciones);
+          opcionesArray = Array.isArray(parsed) ? parsed : [campo.opciones];
+        } catch {
+          // Si no es JSON, tratarlo como string separado por comas
+          opcionesArray = campo.opciones.split(',').map(o => o.trim());
+        }
+      }
+    }
+
     const pregunta: WorkflowPregunta = {
       id: campo.id,
       codigo: campo.codigo,
@@ -245,8 +271,8 @@ export const DynamicEtapaView: React.FC<DynamicEtapaViewProps> = ({
       valor_por_defecto: campo.valor_predeterminado,
       activo: true,
       es_visible: true,
-      opciones: campo.opciones?.join(','),
-      lista_elementos: campo.opciones,
+      opciones: opcionesArray.join(','),
+      lista_elementos: opcionesArray,
       permite_multiple: campo.permite_multiple,
       max_size_mb: campo.tamano_maximo_mb,
     };
@@ -257,6 +283,9 @@ export const DynamicEtapaView: React.FC<DynamicEtapaViewProps> = ({
       onAnswerChange: (valor: any) => handleAnswerChange(campo.codigo, valor),
       value: respuestas[campo.codigo],
     };
+
+    // Obtener solicitudId del metadata de la instancia
+    const solicitudId = vistaActual?.metadata_instancia?.id_solicitud;
 
     try {
       switch (campo.tipo_pregunta) {
@@ -271,7 +300,7 @@ export const DynamicEtapaView: React.FC<DynamicEtapaViewProps> = ({
           return <OpcionesView key={campo.id} {...commonProps} />;
         
         case 'CARGA_ARCHIVO':
-          return <CargaArchivoView key={campo.id} {...commonProps} />;
+          return <CargaArchivoView key={campo.id} {...commonProps} solicitudId={solicitudId} />;
         
         case 'REVISION_MANUAL_DOCUMENTOS':
           return <RevisionManualDocumentosView key={campo.id} {...commonProps} instanciaId={instanciaId} />;
@@ -350,8 +379,8 @@ export const DynamicEtapaView: React.FC<DynamicEtapaViewProps> = ({
 
     return (
       <Box>
-        {/* Header de etapa */}
-        {vistaActual.etapa_actual.titulo_formulario && (
+        {/* Header de etapa - Solo si no está oculto */}
+        {!hideHeader && vistaActual.etapa_actual.titulo_formulario && (
           <Box sx={{ mb: 3 }}>
             <Typography variant="h5" gutterBottom>
               {vistaActual.etapa_actual.titulo_formulario}
@@ -381,32 +410,66 @@ export const DynamicEtapaView: React.FC<DynamicEtapaViewProps> = ({
         )}
 
         {/* Renderizar campos */}
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
           {vistaActual.campos
             .sort((a, b) => a.orden - b.orden)
             .map(campo => renderCampo(campo))}
         </Box>
 
-        {/* Botones de acción */}
-        {vistaActual.puede_editar && (onSave || onComplete) && (
-          <Stack direction="row" spacing={2} sx={{ mt: 4 }}>
-            {onSave && (
+        {/* Botones de acción - Estilo Figma */}
+        {vistaActual.puede_editar && (onBack || onComplete) && (
+          <Stack 
+            direction="row" 
+            justifyContent="space-between" 
+            sx={{ 
+              mt: 6, 
+              maxWidth: '1194px',
+            }}
+          >
+            {onBack ? (
               <Button
                 variant="outlined"
-                onClick={handleSave}
+                onClick={onBack}
                 disabled={saving}
+                sx={{
+                  minWidth: '124px',
+                  height: '40px',
+                  borderRadius: '4px',
+                  borderColor: '#0e5fa6',
+                  color: '#0e5fa6',
+                  textTransform: 'none',
+                  fontSize: '16px',
+                  fontWeight: 400,
+                  '&:hover': {
+                    borderColor: '#0d5391',
+                    backgroundColor: 'rgba(14, 95, 166, 0.04)',
+                  },
+                }}
               >
-                {saving ? 'Guardando...' : 'Guardar Borrador'}
+                {buttonLabels.back}
               </Button>
+            ) : (
+              <Box /> // Spacer para mantener el siguiente a la derecha
             )}
             {onComplete && (
               <Button
                 variant="contained"
                 onClick={handleComplete}
                 disabled={saving}
+                sx={{
+                  minWidth: '124px',
+                  height: '40px',
+                  borderRadius: '4px',
+                  backgroundColor: '#0e5fa6',
+                  textTransform: 'none',
+                  fontSize: '16px',
+                  fontWeight: 400,
+                  '&:hover': {
+                    backgroundColor: '#0d5391',
+                  },
+                }}
               >
-                {saving ? 'Procesando...' : 
-                  vistaActual.etapa_actual.es_etapa_final ? 'Finalizar' : 'Completar Etapa'}
+                {saving ? 'Procesando...' : buttonLabels.next}
               </Button>
             )}
           </Stack>

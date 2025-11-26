@@ -14,6 +14,7 @@ export { WorkflowExecution } from './WorkflowExecution'
 export { WorkflowEditor } from './WorkflowEditor'
 export { WorkflowViewer } from './WorkflowViewer'
 export { WorkflowEditorFigma } from './WorkflowEditorFigma'
+export { GenericEtapaPage } from './GenericEtapaPage'
 
 // Etapas de solicitud
 export { DescargaRequisitos } from './DescargaRequisitos'

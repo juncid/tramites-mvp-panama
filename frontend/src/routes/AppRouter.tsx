@@ -1,5 +1,6 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { MainLayout } from '../components/Layout/MainLayout';
+import { PublicLayout } from '../components/Layout/PublicLayout';
 import { Dashboard } from '../pages/Dashboard';
 import { Tramites } from '../pages/Tramites';
 import { Solicitudes } from '../pages/Solicitudes';
@@ -39,6 +40,7 @@ import { DictamenFinal } from '../pages/DictamenFinal';
 import { EntregaResolucion } from '../pages/EntregaResolucion';
 import { InicioTramite } from '../pages/InicioTramite';
 import WorkflowEtapasPublico from '../pages/WorkflowEtapasPublico';
+import { GenericEtapaPage } from '../pages/GenericEtapaPage';
 
 export const AppRouter = () => {
   return (
@@ -52,9 +54,10 @@ export const AppRouter = () => {
       
       {/* Nuevas rutas públicas para solicitudes PPSH */}
       <Route path="/solicitudes/nueva" element={<MainLayout><NuevaSolicitud /></MainLayout>} />
-      <Route path="/solicitudes/:token/workflow" element={<MainLayout><SolicitudPublicaWorkflow /></MainLayout>} />
+      <Route path="/solicitudes/:token/workflow" element={<PublicLayout><SolicitudPublicaWorkflow /></PublicLayout>} />
+      {/* Ruta para ciudadanos con token JWT - WorkflowEtapasPublico detecta si es JWT o ID */}
       <Route path="/solicitudes/:token/etapas" element={<WorkflowEtapasPublico />} />
-      <Route path="/solicitudes/:token/etapa/:etapaOrden" element={<MainLayout><SolicitudPublicaWorkflow /></MainLayout>} />
+      <Route path="/solicitudes/:token/etapa/:etapaOrden" element={<PublicLayout><SolicitudPublicaWorkflow /></PublicLayout>} />
 
       {/* Rutas con layout */}
       <Route
@@ -86,6 +89,15 @@ export const AppRouter = () => {
         element={
           <MainLayout>
             <WorkflowEtapas />
+          </MainLayout>
+        }
+      />
+      {/* Ruta GENÉRICA para cualquier etapa de solicitud */}
+      <Route
+        path="/solicitudes/:id/etapa"
+        element={
+          <MainLayout>
+            <GenericEtapaPage />
           </MainLayout>
         }
       />
@@ -362,6 +374,18 @@ export const AppRouter = () => {
         element={
           <MainLayout>
             <WorkflowEtapas />
+          </MainLayout>
+        }
+      />
+      {/* 
+        Ruta GENÉRICA para cualquier etapa - usa configuración del nodo dinámicamente
+        Esta ruta debería reemplazar las rutas específicas por etapa
+      */}
+      <Route
+        path="/workflows/:instanciaId/etapa"
+        element={
+          <MainLayout>
+            <GenericEtapaPage />
           </MainLayout>
         }
       />

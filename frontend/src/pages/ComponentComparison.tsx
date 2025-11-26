@@ -22,6 +22,7 @@ import {
   OpcionesFields,
   RespuestaTextoFields,
 } from '../components/Workflow/PreguntaFields';
+import { CargaArchivoView } from '../components/Workflow/QuestionViews/CargaArchivoView';
 import type { WorkflowPregunta } from '../types/workflow';
 
 interface TabPanelProps {
@@ -77,6 +78,7 @@ export const ComponentComparison: React.FC = () => {
           <Tab label="CargaArchivoConPreguntaFields" />
           <Tab label="OpcionesFields" />
           <Tab label="RespuestaTextoFields" />
+          <Tab label="CargaArchivoView (Figma)" />
         </Tabs>
       </Box>
 
@@ -309,6 +311,57 @@ export const ComponentComparison: React.FC = () => {
               <strong>Incluye:</strong>
               <br />• IndicacionesField (reutilizado)
               <br />• Es el componente más simple, solo muestra las indicaciones
+            </Typography>
+          </Paper>
+        </Stack>
+      </TabPanel>
+
+      {/* Tab 6: CargaArchivoView (Figma Style) */}
+      <TabPanel value={tabValue} index={5}>
+        <Stack direction="row" spacing={4}>
+          <Paper sx={{ flex: 1, p: 3, bgcolor: '#f5f5f5' }}>
+            <Typography variant="h6" gutterBottom sx={{ color: '#0e5fa6', mb: 3 }}>
+              Componente: <code>CargaArchivoView</code> (Diseño Figma)
+            </Typography>
+            <Typography variant="body2" sx={{ mb: 3, color: 'text.secondary' }}>
+              Componente de carga de archivos para ciudadanos. Sigue exactamente el diseño del Figma node-id=142-809
+            </Typography>
+            <Box sx={{ bgcolor: 'white', p: 3, borderRadius: 1 }}>
+              <CargaArchivoView
+                pregunta={{
+                  ...preguntaDemo,
+                  pregunta: 'Poder y solicitud mediante apoderado legal',
+                  texto_ayuda: 'Indicaciones extra',
+                  max_archivos: 5,
+                  max_size_mb: 100,
+                }}
+                readonly={false}
+              />
+            </Box>
+          </Paper>
+
+          <Paper sx={{ flex: 1, p: 3, bgcolor: '#fff3e0' }}>
+            <Typography variant="h6" gutterBottom sx={{ color: '#e65100', mb: 3 }}>
+              Descripción
+            </Typography>
+            <Typography variant="body2" paragraph>
+              <strong>Ubicación:</strong> <code>frontend/src/components/Workflow/QuestionViews/CargaArchivoView.tsx</code>
+            </Typography>
+            <Typography variant="body2" paragraph>
+              <strong>Figma Reference:</strong> node-id=142-809
+            </Typography>
+            <Typography variant="body2" paragraph>
+              <strong>Usado en:</strong>
+              <br />• DynamicEtapaView para mostrar campos de carga a ciudadanos
+              <br />• Cualquier etapa con tipo CARGA_ARCHIVO
+            </Typography>
+            <Typography variant="body2" paragraph>
+              <strong>Características del Diseño Figma:</strong>
+              <br />• Label: font-medium, 16px, color #333333
+              <br />• Input: borde #333333, altura 56px, ancho 520px, border-radius 4px
+              <br />• Botón: fondo #0e5fa6, altura 32px, border-radius 2px
+              <br />• Ícono: attach-file (clip) a la izquierda del texto
+              <br />• Texto de ayuda: font-light, 14px, color #333333
             </Typography>
           </Paper>
         </Stack>

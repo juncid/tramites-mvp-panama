@@ -104,6 +104,26 @@ export const SolicitudPublicaWorkflow: React.FC = () => {
     }
   };
 
+  /**
+   * Handler para botón Volver
+   * - Primera etapa (orden 1): navegar a /inicio
+   * - Otras etapas: navegar a la etapa anterior (sin cambiar estado)
+   */
+  const handleVolver = () => {
+    // Determinar si es la primera etapa
+    const ordenActual = etapaActual?.orden || 1;
+    
+    if (ordenActual <= 1) {
+      // Primera etapa: ir a inicio
+      navigate('/inicio');
+    } else {
+      // Otras etapas: retroceder a la etapa anterior
+      // Navegamos a la ruta de etapa anterior (solo visualización, sin modificar estado)
+      const etapaAnteriorOrden = ordenActual - 1;
+      navigate(`/solicitudes/${token}/etapa/${etapaAnteriorOrden}`);
+    }
+  };
+
   if (loading) {
     return (
       <Container maxWidth="md" sx={{ py: 8, display: 'flex', justifyContent: 'center' }}>
@@ -157,9 +177,16 @@ export const SolicitudPublicaWorkflow: React.FC = () => {
   return (
     <>
       <Box sx={{ backgroundColor: '#0e5fa6', py: 5, px: { xs: 2, sm: 3, md: '7.69rem' }, minHeight: '276px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-        <Typography variant="h2" sx={{ color: 'white', fontWeight: 700, fontSize: { xs: '32px', md: '64px' }, lineHeight: 1.1, mb: 4, maxWidth: '896px' }}>
-          Permiso de Protección de Seguridad Humanitaria
-        </Typography>
+        <Box>
+          <Typography variant="h2" sx={{ color: 'white', fontWeight: 700, fontSize: { xs: '32px', md: '64px' }, lineHeight: 1.1, mb: 2, maxWidth: '896px' }}>
+            Permiso de Protección de Seguridad Humanitaria
+          </Typography>
+          {instancia?.num_expediente && (
+            <Typography sx={{ color: 'white', fontSize: '18px', fontWeight: 400, mb: 4, opacity: 0.9 }}>
+              Expediente: <strong>{instancia.num_expediente}</strong>
+            </Typography>
+          )}
+        </Box>
         <Breadcrumbs separator={<Typography sx={{ color: 'white', mx: 0.5 }}>/</Typography>} sx={{ color: 'white' }}>
           <MuiLink href="/" sx={{ display: 'flex', alignItems: 'center', color: 'white', textDecoration: 'none', fontSize: '14px', gap: 0.5, '&:hover': { textDecoration: 'underline' } }}>
             <HomeIcon sx={{ fontSize: 20 }} />
@@ -182,15 +209,17 @@ export const SolicitudPublicaWorkflow: React.FC = () => {
           </Typography>
         )}
 
-        <Alert severity="info" sx={{ mb: 4, maxWidth: '1167px' }}>
-          <Typography variant="body2">
-            <strong>Importante:</strong> Complete las primeras 3 vistas para que un funcionario pueda revisar su solicitud. Una vez completadas, su solicitud entrará en revisión.
-          </Typography>
-        </Alert>
-
         {etapaActual && (
           <Box sx={{ mb: 4 }}>
-            <DynamicEtapaView instanciaId={instancia.id} onComplete={handleEtapaCompletada} userPerfil="CIUDADANO" accessToken={token} />
+            <DynamicEtapaView 
+              instanciaId={instancia.id} 
+              onComplete={handleEtapaCompletada}
+              onBack={handleVolver}
+              userPerfil="CIUDADANO" 
+              accessToken={token}
+              hideHeader={true}
+              buttonLabels={{ back: 'Volver', next: 'Siguiente' }}
+            />
           </Box>
         )}
 

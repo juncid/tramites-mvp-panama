@@ -77,6 +77,15 @@ class ApiClient {
         throw error;
       }
 
+      // Handle 204 No Content responses (common for DELETE operations)
+      if (response.status === 204) {
+        logger.apiResponse(method, endpoint, response.status, {
+          dataSize: 0,
+          duration: `${duration.toFixed(2)}ms`,
+        });
+        return undefined as T;
+      }
+
       const data = await response.json();
       
       // Log successful response
@@ -140,10 +149,11 @@ class ApiClient {
   async uploadFile<T>(
     endpoint: string,
     file: File,
-    additionalData?: Record<string, any>
+    additionalData?: Record<string, any>,
+    fieldName: string = 'file'
   ): Promise<T> {
     const formData = new FormData();
-    formData.append('archivo', file);
+    formData.append(fieldName, file);
 
     if (additionalData) {
       Object.entries(additionalData).forEach(([key, value]) => {

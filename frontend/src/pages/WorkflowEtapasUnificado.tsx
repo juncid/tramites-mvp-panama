@@ -24,6 +24,7 @@ import { publicService } from '../services/public.service';
 import { workflowService } from '../services/workflow.service';
 import { resolveWorkflowId } from '../config/workflowAliases';
 import { getEtapaNavigationPath } from '../config/workflowViews';
+import { MainLayout } from '../components/Layout/MainLayout';
 
 // ============================================================================
 // TIPOS
@@ -70,12 +71,12 @@ export const WorkflowEtapasUnificado: React.FC<WorkflowEtapasProps> = ({ perfil:
   const realToken = esTokenJWT ? token : undefined;
   
   // Detectar perfil automáticamente basado en el tipo de parámetro
-  // La detección automática tiene prioridad cuando hay un ID numérico en la URL
+  // La detección de ID numérico SIEMPRE tiene prioridad (indica funcionario)
   // Esto resuelve el conflicto de rutas donde :token y :id tienen el mismo patrón
   const perfilDetectado: PerfilUsuario = esIdNumerico ? 'FUNCIONARIO' : (realToken ? 'CIUDADANO' : 'FUNCIONARIO');
   
-  // Usar el perfil detectado si hay un ID numérico, si no usar el prop
-  const perfil: PerfilUsuario = esIdNumerico ? perfilDetectado : (perfilProp || perfilDetectado);
+  // ID numérico SIEMPRE indica funcionario, sin importar el prop
+  const perfil: PerfilUsuario = esIdNumerico ? 'FUNCIONARIO' : (perfilProp || perfilDetectado);
   const esCiudadano = perfil === 'CIUDADANO';
   
   // Estado
@@ -867,30 +868,78 @@ export const WorkflowEtapasUnificado: React.FC<WorkflowEtapasProps> = ({ perfil:
     );
   }
 
-  // Vista para FUNCIONARIO (con header institucional según Figma)
-  return (
-    <Box sx={{ bgcolor: 'white', minHeight: '100vh' }}>
-      <HeaderFuncionario />
-
-      {/* Contenido principal */}
-      <Box sx={{ px: { xs: 2, md: 15 }, py: 4 }}>
-        <Typography 
-          sx={{ 
-            fontWeight: 700, 
-            color: '#333333',
-            mb: 4,
-            fontSize: 48,
-            fontFamily: 'Roboto Flex, Roboto, sans-serif',
-          }}
-        >
-          Etapas
-        </Typography>
-
-        <SearchBar />
-        <EtapasContent />
-      </Box>
+  // Breadcrumbs para funcionario (según Figma)
+  const BreadcrumbsFuncionario = () => (
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
+      <MuiLink
+        component="button"
+        onClick={() => navigate('/')}
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 0.5,
+          color: '#757575',
+          textDecoration: 'none',
+          fontSize: 14,
+          fontFamily: 'Roboto',
+          border: 'none',
+          background: 'none',
+          cursor: 'pointer',
+          '&:hover': { textDecoration: 'underline' },
+        }}
+      >
+        <HomeIcon sx={{ fontSize: 20 }} />
+        Inicio
+      </MuiLink>
+      <Typography sx={{ color: '#757575', fontSize: 14 }}>/</Typography>
+      <MuiLink
+        component="button"
+        onClick={() => navigate('/solicitudes')}
+        sx={{
+          color: '#757575',
+          textDecoration: 'none',
+          fontSize: 14,
+          fontFamily: 'Roboto',
+          border: 'none',
+          background: 'none',
+          cursor: 'pointer',
+          '&:hover': { textDecoration: 'underline' },
+        }}
+      >
+        Solicitudes
+      </MuiLink>
     </Box>
   );
+
+  // Vista para FUNCIONARIO (envuelto en MainLayout)
+  const funcionarioContent = (
+    <Box sx={{ py: 2 }}>
+      <BreadcrumbsFuncionario />
+      <Typography 
+        sx={{ 
+          fontWeight: 700, 
+          color: '#333333',
+          mb: 4,
+          fontSize: 48,
+          fontFamily: 'Roboto Flex, Roboto, sans-serif',
+        }}
+      >
+        Etapas
+      </Typography>
+
+      <SearchBar />
+      <EtapasContent />
+    </Box>
+  );
+
+  // Si viene de la ruta /solicitudes/:token/etapas con ID numérico, necesitamos MainLayout
+  // porque esa ruta no tiene MainLayout en AppRouter
+  if (esIdNumerico) {
+    return <MainLayout>{funcionarioContent}</MainLayout>;
+  }
+
+  // Si viene de una ruta que ya tiene MainLayout (como /workflows/:id/etapas)
+  return funcionarioContent;
 };
 
 // Exports para compatibilidad con rutas existentes
