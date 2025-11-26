@@ -290,6 +290,23 @@ export const workflowService = {
   },
 
   /**
+   * Obtener vista de una etapa específica (para modo readonly/historial)
+   */
+  async getVistaEtapa(
+    instanciaId: number,
+    etapaId: number,
+    userPerfil: string = 'FUNCIONARIO',
+    accessToken?: string
+  ): Promise<any> {
+    const headers = accessToken ? { 'X-Access-Token': accessToken } : undefined;
+    return apiClient.get<any>(
+      `/workflow/instancias/${instanciaId}/vista-etapa/${etapaId}`,
+      { user_perfil: userPerfil },
+      headers
+    );
+  },
+
+  /**
    * Verificar permisos de usuario para una etapa
    */
   async verificarPermisos(
@@ -366,7 +383,8 @@ export const workflowService = {
     return apiClient.uploadFile<any>(
       `/ppsh/solicitudes/${solicitudId}/documentos`,
       file,
-      data
+      data,
+      'archivo'
     );
   },
 };

@@ -104,7 +104,8 @@ export const ppshService = {
     return apiClient.uploadFile<Documento>(
       `/ppsh/solicitudes/${idSolicitud}/documentos`,
       file,
-      data
+      data,
+      'archivo'
     );
   },
 

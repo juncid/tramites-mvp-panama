@@ -16,6 +16,12 @@ import {
   SelectChangeEvent,
   Checkbox,
   FormControlLabel,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  CircularProgress,
+  Alert,
 } from '@mui/material';
 import {
   Close as CloseIcon,
@@ -37,8 +43,11 @@ import {
   Payment as PaymentIcon,
   Notifications as NotificationIcon,
   AttachFile as AttachFileIcon,
+  CheckCircle as CheckCircleIcon,
+  Error as ErrorIcon,
 } from '@mui/icons-material';
 import type { WorkflowEtapa, WorkflowPregunta, TipoEtapa, TipoPregunta } from '../../types/workflow';
+import { apiClient } from '../../services/api';
 
 interface EtapaConfigPanelProps {
   etapa: Partial<WorkflowEtapa>;
@@ -128,6 +137,11 @@ export const EtapaConfigPanel: React.FC<EtapaConfigPanelProps> = ({
   const [newListItem, setNewListItem] = useState<string>('');
   const [uploadedFileName, setUploadedFileName] = useState<string>('');
   const [preguntaError, setPreguntaError] = useState<string>('');
+  
+  // Estados para manejo de upload de archivos
+  const [uploading, setUploading] = useState(false);
+  const [uploadModalOpen, setUploadModalOpen] = useState(false);
+  const [uploadResult, setUploadResult] = useState<{ success: boolean; message: string; fileName?: string } | null>(null);
 
   useEffect(() => {
     setFormData(etapa);
@@ -152,13 +166,16 @@ export const EtapaConfigPanel: React.FC<EtapaConfigPanelProps> = ({
   };
 
   const handleAddPregunta = () => {
+    // Generar un ID temporal único (timestamp) para identificar preguntas nuevas
+    const tempId = Date.now() + Math.floor(Math.random() * 1000);
     const newPregunta: WorkflowPregunta = {
+      id: tempId, // ID temporal para preguntas nuevas (será reemplazado por el ID de BD al guardar)
       codigo: `PREGUNTA_${preguntas.length + 1}`,
       texto: '',
       pregunta: '',
       tipo: 'SELECCIONAR' as any, // Valor inicial para mostrar "Seleccionar"
       tipo_pregunta: 'SELECCIONAR' as any,
-      orden: preguntas.length,
+      orden: preguntas.length + 1,
       es_obligatoria: false,
       es_visible: true,
       activo: true,
@@ -216,7 +233,14 @@ export const EtapaConfigPanel: React.FC<EtapaConfigPanelProps> = ({
   };
 
   const handleDuplicatePregunta = (index: number) => {
-    const duplicated = { ...preguntas[index], codigo: `PREGUNTA_${preguntas.length + 1}`, orden: preguntas.length };
+    // Generar un ID temporal único para la pregunta duplicada
+    const tempId = Date.now() + Math.floor(Math.random() * 1000);
+    const duplicated = { 
+      ...preguntas[index], 
+      id: tempId, // Nuevo ID temporal para la copia
+      codigo: `PREGUNTA_${preguntas.length + 1}`, 
+      orden: preguntas.length + 1 
+    };
     setPreguntas([...preguntas, duplicated]);
   };
 
@@ -261,8 +285,106 @@ export const EtapaConfigPanel: React.FC<EtapaConfigPanelProps> = ({
         onSave({ ...formData, preguntas });
   };
 
+  /**
+   * Sube un archivo al servidor para preguntas de tipo DESCARGA_ARCHIVO
+   * y muestra un modal con el resultado
+   */
+  const handleFileUpload = async (file: File) => {
+    setUploading(true);
+    setUploadResult(null);
+    
+    try {
+      const response = await apiClient.uploadFile<{
+        success: boolean;
+        archivo_url: string;
+        nombre_archivo: string;
+        tamano_bytes: number;
+        tipo_archivo: string;
+        opciones_json: any;
+      }>('/workflow/admin/archivos/upload', file);
+      
+      // Actualizar el campo opciones de la pregunta con la info del archivo
+      if (tempPregunta) {
+        const opcionesJson = JSON.stringify({
+          archivo_url: response.archivo_url,
+          nombre_archivo: response.nombre_archivo,
+          tipo_archivo: response.tipo_archivo,
+        });
+        
+        // Actualizar tempPregunta con las nuevas opciones
+        const updatedPregunta = { ...tempPregunta, opciones: opcionesJson };
+        setTempPregunta(updatedPregunta);
+        
+        // Auto-guardar la pregunta en el array de preguntas
+        if (editingIndex === -1) {
+          setPreguntas([...preguntas, updatedPregunta]);
+        } else if (editingIndex !== null) {
+          const updated = [...preguntas];
+          updated[editingIndex] = updatedPregunta;
+          setPreguntas(updated);
+        }
+        
+        console.log('Pregunta actualizada con archivo:', opcionesJson);
+      }
+      
+      setUploadedFileName(response.nombre_archivo);
+      setUploadResult({
+        success: true,
+        message: `El archivo "${response.nombre_archivo}" se subió correctamente. Recuerde guardar el workflow para persistir los cambios.`,
+        fileName: response.nombre_archivo,
+      });
+      setUploadModalOpen(true);
+    } catch (error: any) {
+      console.error('Error subiendo archivo:', error);
+      setUploadResult({
+        success: false,
+        message: error.message || 'Error al subir el archivo. Por favor intente nuevamente.',
+      });
+      setUploadModalOpen(true);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleCloseUploadModal = () => {
+    setUploadModalOpen(false);
+    setUploadResult(null);
+  };
+
   return (
     <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+      {/* Modal de resultado de upload */}
+      <Dialog
+        open={uploadModalOpen}
+        onClose={handleCloseUploadModal}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          {uploadResult?.success ? (
+            <CheckCircleIcon sx={{ color: '#4caf50', fontSize: 28 }} />
+          ) : (
+            <ErrorIcon sx={{ color: '#f44336', fontSize: 28 }} />
+          )}
+          {uploadResult?.success ? 'Archivo subido exitosamente' : 'Error al subir archivo'}
+        </DialogTitle>
+        <DialogContent>
+          <Alert severity={uploadResult?.success ? 'success' : 'error'} sx={{ mt: 1 }}>
+            {uploadResult?.message}
+          </Alert>
+          {uploadResult?.success && uploadResult?.fileName && (
+            <Typography variant="body2" sx={{ mt: 2, color: 'text.secondary' }}>
+              El archivo estará disponible para descarga cuando los usuarios visualicen esta etapa.
+            </Typography>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseUploadModal} variant="contained" sx={{ bgcolor: '#0e5fa6' }}>
+            Aceptar
+          </Button>
+        </DialogActions>
+      </Dialog>
+
       {/* Header */}
       <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider' }}>
         <Stack direction="row" justifyContent="space-between" alignItems="center">
@@ -1043,7 +1165,7 @@ export const EtapaConfigPanel: React.FC<EtapaConfigPanelProps> = ({
                           label="Pregunta"
                           value={tempPregunta.texto}
                           onChange={(e) => handlePreguntaChange('texto', e.target.value)}
-                          placeholder="Lorem ipsum"
+                          placeholder="Descargue los requisitos del trámite..."
                           sx={{ mb: 2 }}
                         />
 
@@ -1066,32 +1188,38 @@ export const EtapaConfigPanel: React.FC<EtapaConfigPanelProps> = ({
                               display: 'inline-flex',
                               alignItems: 'center',
                               gap: 0.5,
-                              bgcolor: '#0e5fa6',
+                              bgcolor: uploading ? '#999' : '#0e5fa6',
                               color: 'white',
                               px: 1.5,
                               py: 1,
                               borderRadius: '2px',
-                              cursor: 'pointer',
+                              cursor: uploading ? 'wait' : 'pointer',
                               fontSize: '16px',
                               lineHeight: '24px',
                               '&:hover': {
-                                bgcolor: '#0d5494',
+                                bgcolor: uploading ? '#999' : '#0d5494',
                               },
                             }}
                           >
-                            <AttachFileIcon sx={{ fontSize: 16 }} />
+                            {uploading ? (
+                              <CircularProgress size={16} sx={{ color: 'white' }} />
+                            ) : (
+                              <AttachFileIcon sx={{ fontSize: 16 }} />
+                            )}
                             <Typography variant="body2" sx={{ fontFamily: 'Roboto', fontWeight: 400 }}>
-                              Cargar archivo
+                              {uploading ? 'Subiendo...' : 'Cargar archivo'}
                             </Typography>
                             <input
                               type="file"
                               hidden
+                              disabled={uploading}
                               onChange={(e) => {
                                 const file = e.target.files?.[0];
                                 if (file) {
-                                  setUploadedFileName(file.name);
-                                  console.log('Archivo seleccionado:', file.name);
+                                  handleFileUpload(file);
                                 }
+                                // Limpiar el input para permitir subir el mismo archivo de nuevo
+                                e.target.value = '';
                               }}
                             />
                           </Box>
@@ -1102,8 +1230,11 @@ export const EtapaConfigPanel: React.FC<EtapaConfigPanelProps> = ({
                           size="small"
                           label="Documento"
                           value={uploadedFileName}
-                          placeholder=""
+                          placeholder="Ningún archivo subido"
                           disabled
+                          InputProps={{
+                            sx: { bgcolor: uploadedFileName ? '#e8f5e9' : 'inherit' }
+                          }}
                         />
                       </Box>
                     )}

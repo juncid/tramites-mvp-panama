@@ -493,6 +493,42 @@ def obtener_vista_actual(
     )
 
 
+@router.get("/instancias/{instancia_id}/vista-etapa/{etapa_id}")
+def obtener_vista_etapa_especifica(
+    instancia_id: int,
+    etapa_id: int,
+    db: Session = Depends(get_db),
+    current_user: str = "USER001",
+    user_perfil: str = Query("FUNCIONARIO", description="Perfil del usuario")
+):
+    """
+    Obtiene la vista de una etapa específica (para modo readonly/historial)
+    
+    Este endpoint permite obtener la vista de cualquier etapa de la instancia,
+    no solo la etapa actual. Útil para:
+    - Ver etapas completadas en modo readonly
+    - Revisar historial de respuestas
+    - Consultar detalles de etapas pasadas
+    
+    Args:
+        instancia_id: ID de la instancia de workflow
+        etapa_id: ID de la etapa específica a obtener
+        current_user: ID del usuario actual
+        user_perfil: Perfil/rol del usuario
+    
+    Returns:
+        Mismo formato que vista-actual, con información adicional:
+        - es_etapa_completada: Si la etapa ya fue completada
+    """
+    return InstanciaService.obtener_vista_etapa_especifica(
+        db=db,
+        user_id=current_user,
+        user_perfil=user_perfil,
+        instancia_id=instancia_id,
+        etapa_id=etapa_id
+    )
+
+
 @router.get("/instancias/{instancia_id}/verificar-permisos")
 def verificar_permisos_etapa(
     instancia_id: int,

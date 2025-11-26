@@ -153,24 +153,41 @@ export function hasCustomView(orden: number): boolean {
  * @param orden - Número de orden de la etapa
  * @param etapaId - ID de la etapa (para vista dinámica)
  * @param readonly - Si es modo solo lectura
+ * @param useGenericView - Si usar la vista genérica en lugar de vistas específicas
  * @returns Ruta completa de navegación
  */
 export function getEtapaNavigationPath(
   basePath: string,
   orden: number,
   etapaId: number,
-  readonly: boolean = false
+  readonly: boolean = false,
+  useGenericView: boolean = true
 ): string {
-  const queryParam = readonly ? '?readonly=true' : '';
+  // Construir query params
+  const params = new URLSearchParams();
+  if (readonly) {
+    params.set('readonly', 'true');
+  }
+  if (etapaId) {
+    params.set('etapaId', etapaId.toString());
+  }
+  const queryString = params.toString() ? `?${params.toString()}` : '';
   
-  const config = WORKFLOW_VIEWS[orden];
-  if (config) {
-    return `${basePath}/${config.path}${queryParam}`;
+  // Usar siempre la vista genérica que renderiza dinámicamente
+  // basándose en la configuración del nodo
+  if (useGenericView) {
+    return `${basePath}/etapa${queryString}`;
   }
   
-  // Etapas sin vista personalizada usan la vista dinámica
-  const readonlyForExecution = readonly ? '&readonly=true' : '';
-  return `${basePath}/execution?etapa=${etapaId}${readonlyForExecution}`;
+  // Opción legacy: usar vistas específicas por etapa
+  const config = WORKFLOW_VIEWS[orden];
+  if (config) {
+    return `${basePath}/${config.path}${queryString}`;
+  }
+  
+  // Fallback para etapas sin vista personalizada
+  const readonlyParam = readonly ? '&readonly=true' : '';
+  return `${basePath}/execution?etapa=${etapaId}${readonlyParam}`;
 }
 
 /**

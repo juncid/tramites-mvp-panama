@@ -1015,10 +1015,10 @@ class InstanciaService:
             for respuesta in respuesta_etapa.respuestas:
                 respuestas_previas[respuesta.pregunta_id] = {
                     "valor_texto": respuesta.valor_texto,
-                    "valor_opcion": respuesta.valor_opcion,
-                    "valor_archivo": respuesta.valor_archivo,
-                    "valores_multiples": respuesta.valores_multiples,
-                    "metadata": respuesta.metadata
+                    "valor_json": respuesta.valor_json,
+                    "valor_fecha": respuesta.valor_fecha,
+                    "valor_booleano": respuesta.valor_booleano,
+                    "archivos": respuesta.archivos
                 }
         
         # Construir lista de campos visibles
@@ -1074,6 +1074,151 @@ class InstanciaService:
             },
             "puede_ver": puede_ver,
             "puede_editar": puede_editar,
+            "campos": campos,
+            "metadata_instancia": instancia.metadata_adicional
+        }
+
+    @staticmethod
+    def obtener_vista_etapa_especifica(
+        db: Session,
+        user_id: str,
+        user_perfil: str,
+        instancia_id: int,
+        etapa_id: int
+    ) -> Dict[str, Any]:
+        """
+        Obtiene la vista de una etapa específica (para modo readonly/historial)
+        
+        Similar a obtener_vista_actual_para_usuario pero permite especificar
+        cualquier etapa de la instancia (no solo la actual).
+        
+        Para funcionarios (FUNCIONARIO, ADMIN), siempre permite ver etapas
+        completadas del historial aunque no sean su perfil original.
+        
+        Args:
+            db: Sesión de base de datos
+            user_id: ID del usuario
+            user_perfil: Perfil/rol del usuario
+            instancia_id: ID de la instancia de workflow
+            etapa_id: ID de la etapa específica a obtener
+            
+        Returns:
+            Diccionario con información de la vista de la etapa
+        """
+        # Obtener instancia
+        instancia = InstanciaService.obtener_instancia(db, instancia_id)
+        
+        # Obtener la etapa específica
+        etapa = EtapaService.obtener_etapa(db, etapa_id)
+        
+        # Verificar que la etapa pertenece al mismo workflow
+        if etapa.workflow_id != instancia.workflow_id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="La etapa no pertenece al workflow de esta instancia"
+            )
+        
+        # Verificar si la etapa ya fue completada en esta instancia
+        respuesta_etapa = db.query(models.WorkflowRespuestaEtapa).filter(
+            and_(
+                models.WorkflowRespuestaEtapa.instancia_id == instancia_id,
+                models.WorkflowRespuestaEtapa.etapa_id == etapa_id
+            )
+        ).first()
+        
+        es_etapa_completada = respuesta_etapa and respuesta_etapa.completada
+        
+        # Verificar permisos de visualización
+        # Funcionarios y admins pueden ver cualquier etapa completada (historial)
+        perfiles_admin = ['FUNCIONARIO', 'ADMIN', 'SUPERVISOR']
+        if user_perfil in perfiles_admin and es_etapa_completada:
+            puede_ver = True
+        else:
+            puede_ver = InstanciaService.puede_usuario_ver_etapa(
+                db, user_id, user_perfil, etapa_id
+            )
+        
+        # Solo puede editar si es la etapa actual
+        puede_editar = False
+        if instancia.etapa_actual_id == etapa_id:
+            puede_editar = InstanciaService.puede_usuario_editar_etapa(
+                db, user_id, user_perfil, instancia.id, etapa_id
+            )
+        
+        if not puede_ver:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"El usuario no tiene permiso para ver la etapa '{etapa.nombre}'"
+            )
+        
+        # Las respuestas ya las obtuvimos antes para verificar si estaba completada
+        respuestas_previas = {}
+        if respuesta_etapa:
+            for respuesta in respuesta_etapa.respuestas:
+                # El modelo usa valor_texto, valor_json y archivos
+                valor = respuesta.valor_texto or respuesta.valor_json or respuesta.archivos
+                respuestas_previas[respuesta.pregunta_id] = {
+                    "valor_texto": respuesta.valor_texto,
+                    "valor_opcion": respuesta.valor_json if isinstance(respuesta.valor_json, str) else None,
+                    "valor_archivo": respuesta.archivos[0] if respuesta.archivos and len(respuesta.archivos) > 0 else None,
+                    "valores_multiples": respuesta.valor_json if isinstance(respuesta.valor_json, list) else None,
+                    "metadata": None
+                }
+        
+        # Construir lista de campos
+        campos = []
+        for pregunta in sorted(etapa.preguntas, key=lambda p: p.orden):
+            if not pregunta.activo:
+                continue
+            
+            campo = {
+                "id": pregunta.id,
+                "codigo": pregunta.codigo,
+                "pregunta": pregunta.pregunta,
+                "tipo_pregunta": pregunta.tipo_pregunta,
+                "orden": pregunta.orden,
+                "es_obligatoria": pregunta.es_obligatoria,
+                "texto_ayuda": pregunta.texto_ayuda,
+                "placeholder": pregunta.placeholder,
+                "valor_predeterminado": pregunta.valor_predeterminado,
+                "opciones": pregunta.opciones,
+                "opciones_datos_caso": pregunta.opciones_datos_caso,
+                "permite_multiple": pregunta.permite_multiple,
+                "validacion_regex": pregunta.validacion_regex,
+                "mensaje_validacion": pregunta.mensaje_validacion,
+                "extensiones_permitidas": pregunta.extensiones_permitidas,
+                "tamano_maximo_mb": pregunta.tamano_maximo_mb,
+                "requiere_ocr": pregunta.requiere_ocr,
+                "mostrar_si": pregunta.mostrar_si,
+                "puede_editar_campo": puede_editar,
+                "valor_actual": respuestas_previas.get(pregunta.id)
+            }
+            campos.append(campo)
+        
+        return {
+            "instancia": {
+                "id": instancia.id,
+                "num_expediente": instancia.num_expediente,
+                "nombre_instancia": instancia.nombre_instancia,
+                "estado": instancia.estado,
+                "fecha_inicio": instancia.fecha_inicio,
+                "asignado_a": instancia.asignado_a_user_id,
+                "prioridad": instancia.prioridad
+            },
+            "etapa_actual": {
+                "id": etapa.id,
+                "codigo": etapa.codigo,
+                "nombre": etapa.nombre,
+                "descripcion": etapa.descripcion,
+                "tipo_etapa": etapa.tipo_etapa,
+                "titulo_formulario": etapa.titulo_formulario,
+                "bajada_formulario": etapa.bajada_formulario,
+                "es_etapa_final": etapa.es_etapa_final,
+                "tiempo_estimado_minutos": etapa.tiempo_estimado_minutos
+            },
+            "puede_ver": puede_ver,
+            "puede_editar": puede_editar,
+            "es_etapa_completada": es_etapa_completada,
             "campos": campos,
             "metadata_instancia": instancia.metadata_adicional
         }

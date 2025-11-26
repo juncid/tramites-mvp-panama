@@ -47,7 +47,13 @@ export const Header = () => {
   const [currentTime, setCurrentTime] = useState(new Date());
 
   // Detectar si estamos en una ruta pública (sin autenticación)
-  const isPublicRoute = location.pathname.startsWith('/solicitudes/') || 
+  // Las rutas con ID numérico son para funcionarios, NO son públicas
+  const pathParts = location.pathname.split('/');
+  const solicitudesToken = pathParts[1] === 'solicitudes' && pathParts[2] ? pathParts[2] : null;
+  const esIdNumerico = solicitudesToken && /^\d+$/.test(solicitudesToken);
+  
+  // Es ruta pública solo si tiene token JWT (no numérico)
+  const isPublicRoute = (location.pathname.startsWith('/solicitudes/') && !esIdNumerico) || 
                         location.pathname === '/acceso-publico' ||
                         location.pathname.startsWith('/consulta-publica/');
   
@@ -264,7 +270,11 @@ export const Header = () => {
               return null;
             }
             
-            const isActive = location.pathname === tab.path;
+            // Detectar si la ruta actual está dentro de este tab
+            const isActive = tab.path === '/' 
+              ? location.pathname === '/'
+              : location.pathname.startsWith(tab.path);
+            
             return (
               <Box
                 key={tab.path}
