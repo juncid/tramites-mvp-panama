@@ -42,6 +42,9 @@ export interface UseWorkflowEtapaResult {
   solicitudId: string | undefined;
   instanciaId: string | undefined;
   
+  // Instancia completa del workflow
+  instancia: any;
+  
   // Estado de solo lectura
   readonly: boolean;
   
@@ -77,6 +80,7 @@ export function useWorkflowEtapa(options: UseWorkflowEtapaOptions = {}): UseWork
   const [error, setError] = useState<string | null>(null);
   const [workflowInstanciaId, setWorkflowInstanciaId] = useState<number | null>(null);
   const [etapaId, setEtapaId] = useState<number | null>(null);
+  const [instancia, setInstancia] = useState<any>(null);
   
   // Derivados
   const readonly = searchParams.get('readonly') === 'true';
@@ -111,9 +115,10 @@ export function useWorkflowEtapa(options: UseWorkflowEtapaOptions = {}): UseWork
       setWorkflowInstanciaId(wInstanciaId);
       
       if (wInstanciaId) {
-        const instancia = await workflowService.getInstancia(wInstanciaId);
-        if (instancia.etapa_actual_id) {
-          setEtapaId(instancia.etapa_actual_id);
+        const instanciaData = await workflowService.getInstancia(wInstanciaId);
+        setInstancia(instanciaData);
+        if (instanciaData.etapa_actual_id) {
+          setEtapaId(instanciaData.etapa_actual_id);
         }
       }
     } catch (err: any) {
@@ -196,6 +201,9 @@ export function useWorkflowEtapa(options: UseWorkflowEtapaOptions = {}): UseWork
     etapaId,
     solicitudId,
     instanciaId,
+    
+    // Instancia completa
+    instancia,
     
     // Readonly
     readonly,

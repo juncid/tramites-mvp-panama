@@ -62,7 +62,8 @@ export const ImpresionListaCasos = () => {
           
           if (detalles.etapa_actual?.orden === 7) {
             const instAny = inst as any;
-            let ppshSolicitudId = instAny.metadata_adicional?.ppsh_solicitud_id || 0;
+            // Buscar id_solicitud o ppsh_solicitud_id (compatibilidad)
+            let ppshSolicitudId = instAny.metadata_adicional?.id_solicitud || instAny.metadata_adicional?.ppsh_solicitud_id || 0;
             let numExpedientePPSH = instAny.metadata_adicional?.ppsh_num_expediente || '';
             
             casosEnEtapa7.push({

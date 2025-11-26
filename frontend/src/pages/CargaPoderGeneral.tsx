@@ -54,13 +54,15 @@ export const CargaPoderGeneral: React.FC = () => {
   });
 
   const handleCargarArchivo = () => {
-    if (!instancia?.metadata_adicional?.ppsh_solicitud_id) {
+    // Buscar id_solicitud o ppsh_solicitud_id (compatibilidad)
+    const solicitudId = instancia?.metadata_adicional?.id_solicitud || instancia?.metadata_adicional?.ppsh_solicitud_id;
+    if (!solicitudId) {
       setError('No se encontró el ID de solicitud');
       return;
     }
     
     openFileSelector(
-      instancia.metadata_adicional.ppsh_solicitud_id,
+      solicitudId,
       'Poder General',
       'Documento cargado en Etapa 2: Carga de Poder General'
     );
