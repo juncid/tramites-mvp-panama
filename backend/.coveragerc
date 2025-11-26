@@ -1,0 +1,28 @@
+[run]
+source = app
+omit =
+    app/tasks/ocr_tasks.py
+    app/tasks/ocr_improvements.py
+    app/routers/routers_ocr.py
+    app/routers/websocket_ocr.py
+    app/schemas/schemas_ocr.py
+    app/schemas/public_access.py
+    app/services/public_access_service.py
+    app/services/public_solicitud_service.py
+    app/services/workflow_ppsh_service.py
+    app/routes/vista_config.py
+    app/services/vista_config_service.py
+    app/utils/metrics.py
+    app/routes/routes_public.py
+    app/main.py
+    app/utils/middleware.py
+    app/services/services_ppsh.py
+    app/routers/routers_ppsh.py
+
+[report]
+exclude_lines =
+    pragma: no cover
+    def __repr__
+    raise NotImplementedError
+    if __name__ == .__main__.:
+    pass

@@ -235,12 +235,16 @@ class TestEtapaService:
         )
         
         result = EtapaService.crear_etapa_con_preguntas(db, etapa_data, workflow.id, "ADMIN")
+        db.commit()  # Asegurar que se guarde
+        
+        # Volver a obtener la etapa para cargar preguntas (lazy loading)
+        result_with_preguntas = EtapaService.obtener_etapa(db, result.id)
         
         assert result.id is not None
         assert result.codigo == "ETAPA_1"
         assert result.workflow_id == workflow.id
-        assert len(result.preguntas) == 1
-        assert result.preguntas[0].codigo == "P1"
+        assert len(result_with_preguntas.preguntas) == 1
+        assert result_with_preguntas.preguntas[0].codigo == "P1"
     
     def test_verificar_codigo_unico_en_workflow(self, db):
         """Test: Código de etapa debe ser único dentro del workflow"""

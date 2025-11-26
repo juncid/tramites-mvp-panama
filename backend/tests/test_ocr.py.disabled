@@ -13,10 +13,8 @@ import pytest
 import json
 from unittest.mock import Mock, patch, MagicMock
 from datetime import datetime
-from fastapi.testclient import TestClient
 import numpy as np
 
-from app.main import app
 from app.models.models_ocr import PPSHDocumentoOCR, PPSHDocumentoOCRHistorial
 from app.models.models_ppsh import PPSHDocumento
 from app.tasks.ocr_tasks import (
@@ -24,8 +22,6 @@ from app.tasks.ocr_tasks import (
     extract_structured_data,
     deskew_image
 )
-
-client = TestClient(app)
 
 
 # ==================== FIXTURES ====================
