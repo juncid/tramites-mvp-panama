@@ -1,4 +1,4 @@
-import React, { useCallback, useState, useEffect } from 'react';
+import React, { useCallback, useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import ReactFlow, {
   Node,
@@ -136,6 +136,8 @@ const WorkflowEditorFigmaContent: React.FC = () => {
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
   const [currentZoom, setCurrentZoom] = useState<number>(100);
   const [currentTab, setCurrentTab] = useState<number>(0); // 0: General, 1: Flujo, 2: Estado, 3: Historial
+  const [filterPerfil, setFilterPerfil] = useState<string>('todos'); // Filtro por perfil
+  const [lastNodeId, setLastNodeId] = useState<string | null>(null); // ID del último nodo del flujo
 
   // Estado del workflow completo
   const [workflowData, setWorkflowData] = useState<Partial<Workflow>>({
@@ -167,6 +169,47 @@ const WorkflowEditorFigmaContent: React.FC = () => {
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
+  // Filtrar nodos por perfil seleccionado
+  const filteredNodes = useMemo(() => {
+    if (filterPerfil === 'todos') {
+      return nodes;
+    }
+    
+    // Mapeo de valores del select a códigos de perfiles
+    const perfilMap: Record<string, string[]> = {
+      'ciudadano': ['CIUDADANO', 'ABOGADO'],
+      'funcionario': ['FUNCIONARIO'],
+      'supervisor': ['SUPERVISOR'],
+      'administrador': ['ADMIN', 'ADMINISTRADOR'],
+    };
+    
+    const perfilesABuscar = perfilMap[filterPerfil] || [filterPerfil.toUpperCase()];
+    
+    // Obtener IDs de nodos que pasan el filtro
+    const nodosQuePasan = nodes.filter(node => {
+      // Siempre mostrar nodos especiales (inicio, fin, placeholder)
+      if (node.id === 'inicio' || node.id === 'fin' || node.data.is_placeholder) {
+        return true;
+      }
+      
+      const perfilesPermitidos = node.data.perfiles_permitidos || [];
+      // Verificar si alguno de los perfiles permitidos coincide
+      return perfilesPermitidos.some((perfil: string) => 
+        perfilesABuscar.includes(perfil.toUpperCase())
+      );
+    });
+    
+    return nodosQuePasan;
+  }, [nodes, filterPerfil]);
+  
+  // Filtrar edges para mostrar solo conexiones entre nodos visibles
+  const filteredEdges = useMemo(() => {
+    const visibleNodeIds = new Set(filteredNodes.map(n => n.id));
+    return edges.filter(edge => 
+      visibleNodeIds.has(edge.source) && visibleNodeIds.has(edge.target)
+    );
+  }, [edges, filteredNodes]);
+
   // Llamar a fitView cuando se cambie a la pestaña de Flujo
   useEffect(() => {
     if (currentTab === 1) {
@@ -177,6 +220,32 @@ const WorkflowEditorFigmaContent: React.FC = () => {
       return () => clearTimeout(timer);
     }
   }, [currentTab, fitView]);
+
+  // Ajustar vista cuando cambia el filtro de perfil
+  useEffect(() => {
+    if (currentTab === 1 && filteredNodes.length > 0) {
+      const timer = setTimeout(() => {
+        fitView({ padding: 0.15, duration: 300 });
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [filterPerfil, fitView, currentTab, filteredNodes.length]);
+
+  // Calcular el último nodo del flujo (el más a la derecha que no es placeholder)
+  useEffect(() => {
+    if (nodes.length > 0) {
+      // Filtrar nodos válidos (no placeholder)
+      const nodosValidos = nodes.filter(n => !n.data.is_placeholder);
+      
+      if (nodosValidos.length > 0) {
+        // Encontrar el nodo más a la derecha (mayor posición X)
+        const ultimoNodo = nodosValidos.reduce((prev, current) => 
+          (current.position.x > prev.position.x) ? current : prev
+        );
+        setLastNodeId(ultimoNodo.id);
+      }
+    }
+  }, [nodes]);
 
   useEffect(() => {
     console.log('🔍 useEffect ejecutado - isEditMode:', isEditMode, 'id:', id);
@@ -203,6 +272,7 @@ const WorkflowEditorFigmaContent: React.FC = () => {
       };
       setNodes([initialNode]);
       setSelectedNode(initialNode);
+      setLastNodeId(initialNode.id); // Establecer como último nodo por defecto
     }
   }, [id, setNodes]);
 
@@ -251,15 +321,18 @@ const WorkflowEditorFigmaContent: React.FC = () => {
         activo: data.activo,
       });
 
-      if (data.etapas && data.etapas.length > 0) {
+      // Filtrar solo etapas activas (activo = true o activo no definido)
+      const etapasActivas = data.etapas?.filter((etapa: any) => etapa.activo !== false) || [];
+
+      if (etapasActivas.length > 0) {
         // Verificar si ya existe un nodo de inicio (código INICIO o es_inicial)
-        const hasInicioNode = data.etapas.some(e => e.codigo === 'INICIO' || e.es_inicial);
+        const hasInicioNode = etapasActivas.some((e: any) => e.codigo === 'INICIO' || e.es_inicial);
         
         const flowNodes: Node[] = [];
         
         // Agregar nodo de inicio visual si no existe
         if (!hasInicioNode) {
-          const primeraEtapa = data.etapas[0];
+          const primeraEtapa = etapasActivas[0];
           flowNodes.push({
             id: 'inicio',
             type: 'custom',
@@ -283,8 +356,8 @@ const WorkflowEditorFigmaContent: React.FC = () => {
           });
         }
         
-        // Mapear etapas desde la BD (quitando el flag es_etapa_inicial para que se muestren como nodos normales)
-        data.etapas.forEach((etapa) => {
+        // Mapear etapas activas desde la BD (quitando el flag es_etapa_inicial para que se muestren como nodos normales)
+        etapasActivas.forEach((etapa: any) => {
           flowNodes.push({
             id: etapa.id?.toString() || etapa.codigo,
             type: 'custom',
@@ -329,17 +402,25 @@ const WorkflowEditorFigmaContent: React.FC = () => {
           flowNodes.push(placeholderNode);
         }
         
-        // Seleccionar primer nodo si existe
-        if (flowNodes.length > 0 && !flowNodes[0].data.is_placeholder) {
-          setSelectedNode(flowNodes[0]);
+        // Seleccionar el último nodo (el más a la derecha) por defecto
+        const nodosValidos = flowNodes.filter(n => !n.data.is_placeholder);
+        if (nodosValidos.length > 0) {
+          const ultimoNodo = nodosValidos.reduce((prev, current) => 
+            (current.position.x > prev.position.x) ? current : prev
+          );
+          setSelectedNode(ultimoNodo);
+          setLastNodeId(ultimoNodo.id);
         }
 
         // Cargar conexiones
         let flowEdges: Edge[] = [];
         
+        // Crear un set de IDs de etapas activas para filtrar conexiones
+        const idsEtapasActivas = new Set(etapasActivas.map((e: any) => e.id));
+        
         // Agregar conexión desde nodo de inicio a la primera etapa si fue creado
-        if (!hasInicioNode && data.etapas.length > 0) {
-          const primeraEtapa = data.etapas[0];
+        if (!hasInicioNode && etapasActivas.length > 0) {
+          const primeraEtapa = etapasActivas[0];
           const primeraEtapaId = primeraEtapa.id?.toString() || primeraEtapa.codigo;
           flowEdges.push({
             id: 'e-inicio-primera',
@@ -355,7 +436,14 @@ const WorkflowEditorFigmaContent: React.FC = () => {
         }
         
         if (data.conexiones && data.conexiones.length > 0) {
-          const conexionesFromDB = data.conexiones.map((conexion) => ({
+          // Filtrar solo conexiones entre etapas activas
+          const conexionesActivas = data.conexiones.filter((conexion: any) => 
+            idsEtapasActivas.has(conexion.etapa_origen_id) && 
+            idsEtapasActivas.has(conexion.etapa_destino_id) &&
+            conexion.activo !== false
+          );
+          
+          const conexionesFromDB = conexionesActivas.map((conexion: any) => ({
             id: conexion.id?.toString() || `${conexion.etapa_origen_id}-${conexion.etapa_destino_id}`,
             source: conexion.etapa_origen_id.toString(),
             target: conexion.etapa_destino_id.toString(),
@@ -372,8 +460,8 @@ const WorkflowEditorFigmaContent: React.FC = () => {
           flowEdges = [...flowEdges, ...conexionesFromDB];
           
           // Agregar conexión al placeholder si existe
-          if (!hasFinalNode && data.etapas && data.etapas.length > 0) {
-            const lastEtapa = data.etapas[data.etapas.length - 1];
+          if (!hasFinalNode && etapasActivas.length > 0) {
+            const lastEtapa = etapasActivas[etapasActivas.length - 1];
             const lastNodeId = lastEtapa.id?.toString() || lastEtapa.codigo;
             flowEdges.push({
               id: `e${lastNodeId}-placeholder`,
@@ -721,19 +809,113 @@ const WorkflowEditorFigmaContent: React.FC = () => {
         // Calcular el orden basado en posición X (de izquierda a derecha)
         const todasOrdenadas = [...etapasEditables].sort((a, b) => a.position.x - b.position.x);
         
-        // 3. Actualizar etapas existentes con sus nuevas posiciones
-        const updatePromises = etapasExistentes.map((node) => {
+        // 2.5. Desactivar etapas que ya no están en el editor (soft delete)
+        // Obtener IDs de etapas en el editor
+        const idsEtapasEnEditor = etapasExistentes.map(node => parseInt(node.id));
+        
+        // Obtener etapas actuales de la BD (solo las activas)
+        const workflowActualParaEtapas = await workflowService.getWorkflow(parseInt(id));
+        const etapasActivasEnBD = (workflowActualParaEtapas.etapas || []).filter((e: any) => e.activo !== false);
+        
+        // Encontrar etapas a desactivar (están activas en BD pero no en editor)
+        const etapasADesactivar = etapasActivasEnBD.filter((etapa: any) => !idsEtapasEnEditor.includes(etapa.id));
+        
+        for (const etapa of etapasADesactivar) {
+          console.log(`Desactivando etapa ${etapa.id} (${etapa.codigo}) del workflow (soft delete)`);
+          // Marcar como inactiva en lugar de eliminar
+          await workflowService.updateEtapa(etapa.id, { activo: false });
+        }
+        
+        if (etapasADesactivar.length > 0) {
+          console.log(`Desactivadas ${etapasADesactivar.length} etapas`);
+        }
+
+        // 3. Actualizar etapas existentes con sus datos completos (incluyendo preguntas)
+        const updatePromises = etapasExistentes.map(async (node) => {
           const etapaId = parseInt(node.id);
           const orden = todasOrdenadas.findIndex(n => n.id === node.id) + 1;
-          return workflowService.updateEtapa(etapaId, {
+          
+          console.log(`Procesando etapa ${etapaId} (${node.data.nombre}) con ${node.data.preguntas?.length || 0} preguntas`);
+          
+          // Actualizar datos básicos de la etapa
+          await workflowService.updateEtapa(etapaId, {
+            codigo: node.data.codigo,
+            nombre: node.data.nombre,
+            descripcion: node.data.descripcion,
+            tipo_etapa: node.data.tipo_etapa,
             orden,
             posicion_x: Math.round(node.position.x),
             posicion_y: Math.round(node.position.y),
+            perfiles_permitidos: node.data.perfiles_permitidos,
+            titulo_formulario: node.data.titulo_formulario,
+            bajada_formulario: node.data.bajada_formulario,
+            es_etapa_inicial: node.data.es_etapa_inicial,
+            es_etapa_final: node.data.es_etapa_final,
           });
+          
+          // Obtener preguntas actuales de la BD para esta etapa
+          const etapaActual = await workflowService.getEtapa(etapaId);
+          const preguntasEnBD = etapaActual.preguntas || [];
+          const preguntasEnEditor = node.data.preguntas || [];
+          
+          // IDs de preguntas que están en el editor (solo las existentes, no las nuevas)
+          const idsEnEditor = preguntasEnEditor
+            .filter((p: any) => p.id && typeof p.id === 'number' && p.id < 1000000000)
+            .map((p: any) => p.id);
+          
+          // Eliminar preguntas que ya no están en el editor
+          const preguntasAEliminar = preguntasEnBD.filter((p: any) => !idsEnEditor.includes(p.id));
+          for (const pregunta of preguntasAEliminar) {
+            console.log(`Eliminando pregunta ${pregunta.id} (${pregunta.codigo}) de etapa ${etapaId}`);
+            await workflowService.deletePregunta(pregunta.id);
+          }
+          
+          // Actualizar/crear preguntas de la etapa
+          if (preguntasEnEditor && Array.isArray(preguntasEnEditor)) {
+            for (let i = 0; i < preguntasEnEditor.length; i++) {
+              const pregunta = preguntasEnEditor[i];
+              // Verificar si es una pregunta existente (ID numérico de BD, no temporal)
+              const isExistingPregunta = pregunta.id && typeof pregunta.id === 'number' && pregunta.id < 1000000000;
+              
+              if (isExistingPregunta) {
+                // Pregunta existente - actualizar
+                await workflowService.updatePregunta(pregunta.id, {
+                  codigo: pregunta.codigo,
+                  pregunta: pregunta.pregunta || pregunta.texto,
+                  tipo_pregunta: pregunta.tipo_pregunta || pregunta.tipo,
+                  orden: pregunta.orden ?? i + 1,
+                  es_obligatoria: pregunta.es_obligatoria,
+                  opciones: pregunta.opciones,
+                  texto_ayuda: pregunta.texto_ayuda || pregunta.ayuda,
+                  placeholder: pregunta.placeholder,
+                  extensiones_permitidas: pregunta.extensiones_permitidas,
+                  tamano_maximo_mb: pregunta.tamano_maximo_mb || pregunta.max_size_mb,
+                  permite_multiple: pregunta.permite_multiple,
+                });
+              } else {
+                // Pregunta nueva - crear
+                console.log(`Creando nueva pregunta para etapa ${etapaId}:`, pregunta);
+                await workflowService.createPregunta({
+                  etapa_id: etapaId,
+                  codigo: pregunta.codigo || `PREGUNTA_${Date.now()}_${i}`,
+                  pregunta: pregunta.pregunta || pregunta.texto || '',
+                  tipo_pregunta: pregunta.tipo_pregunta || pregunta.tipo || 'TEXTO',
+                  orden: pregunta.orden ?? i + 1,
+                  es_obligatoria: pregunta.es_obligatoria ?? false,
+                  opciones: pregunta.opciones,
+                  texto_ayuda: pregunta.texto_ayuda || pregunta.ayuda,
+                  placeholder: pregunta.placeholder,
+                  extensiones_permitidas: pregunta.extensiones_permitidas,
+                  tamano_maximo_mb: pregunta.tamano_maximo_mb || pregunta.max_size_mb,
+                  permite_multiple: pregunta.permite_multiple,
+                });
+              }
+            }
+          }
         });
 
         await Promise.all(updatePromises);
-        console.log(`Actualizadas ${etapasExistentes.length} etapas existentes`);
+        console.log(`Actualizadas ${etapasExistentes.length} etapas existentes con sus preguntas`);
 
         // 4. Crear etapas nuevas
         if (etapasNuevas.length > 0) {
@@ -757,6 +939,94 @@ const WorkflowEditorFigmaContent: React.FC = () => {
           await Promise.all(createPromises);
           console.log(`Creadas ${etapasNuevas.length} etapas nuevas`);
         }
+
+        // 5. Sincronizar conexiones (edges)
+        // Obtener conexiones actuales activas de la BD
+        const workflowActual = await workflowService.getWorkflow(parseInt(id));
+        const conexionesEnBD = (workflowActual.conexiones || []).filter((c: any) => c.activo !== false);
+        
+        // Filtrar edges válidos (solo los que conectan nodos de BD, no placeholder ni inicio/fin)
+        const edgesValidos = edges.filter(edge => {
+          // Excluir conexiones con nodos especiales
+          if (edge.source === 'inicio' || edge.target === 'fin' || 
+              edge.source === 'placeholder-add-node' || edge.target === 'placeholder-add-node') {
+            return false;
+          }
+          // Verificar que source y target son IDs válidos de BD
+          const sourceId = parseInt(edge.source);
+          const targetId = parseInt(edge.target);
+          return !isNaN(sourceId) && !isNaN(targetId) && sourceId < 1000000000 && targetId < 1000000000;
+        });
+        
+        console.log(`Conexiones activas en BD: ${conexionesEnBD.length}, Conexiones en editor: ${edgesValidos.length}`);
+        
+        // Crear un mapa de conexiones en el editor para búsqueda rápida
+        const edgesMap = new Map(edgesValidos.map(e => [`${e.source}-${e.target}`, e]));
+        
+        // Desactivar conexiones que ya no existen en el editor (soft delete)
+        const conexionesADesactivar = conexionesEnBD.filter(conexion => {
+          const key = `${conexion.etapa_origen_id}-${conexion.etapa_destino_id}`;
+          return !edgesMap.has(key);
+        });
+        
+        for (const conexion of conexionesADesactivar) {
+          console.log(`Desactivando conexión ${conexion.id}: ${conexion.etapa_origen_id} -> ${conexion.etapa_destino_id}`);
+          await workflowService.updateConexion(conexion.id, { activo: false });
+        }
+        
+        // Crear un mapa de conexiones activas en BD para búsqueda rápida
+        const conexionesBDMap = new Map(conexionesEnBD.map(c => [`${c.etapa_origen_id}-${c.etapa_destino_id}`, c]));
+        
+        // Crear conexiones nuevas (las que están en el editor pero no en BD activas)
+        const conexionesNuevas = edgesValidos.filter(edge => {
+          const key = `${edge.source}-${edge.target}`;
+          return !conexionesBDMap.has(key);
+        });
+        
+        for (const edge of conexionesNuevas) {
+          console.log(`Creando conexión: ${edge.source} -> ${edge.target}`);
+          await workflowService.createConexion({
+            workflow_id: parseInt(id),
+            etapa_origen_id: parseInt(edge.source),
+            etapa_destino_id: parseInt(edge.target),
+            condicion: typeof edge.label === 'string' ? edge.label : null,
+            es_predeterminada: true,
+            activo: true,
+          });
+        }
+        
+        console.log(`Conexiones desactivadas: ${conexionesADesactivar.length}, Conexiones creadas: ${conexionesNuevas.length}`);
+
+        // 6. Recargar el workflow para obtener los IDs reales de la BD
+        console.log('Recargando workflow para sincronizar IDs...');
+        const workflowActualizado = await workflowService.getWorkflow(parseInt(id));
+        
+        // Actualizar los nodos con los datos frescos de la BD (incluyendo IDs reales de preguntas)
+        const nodosActualizados = nodes.map(node => {
+          if (node.id === 'inicio' || node.id === 'fin' || node.data.is_placeholder) {
+            return node;
+          }
+          
+          // Buscar la etapa correspondiente en los datos actualizados
+          const etapaActualizada = workflowActualizado.etapas?.find(
+            (e: any) => e.id.toString() === node.id
+          );
+          
+          if (etapaActualizada) {
+            return {
+              ...node,
+              data: {
+                ...node.data,
+                preguntas: etapaActualizada.preguntas || [],
+              }
+            };
+          }
+          
+          return node;
+        });
+        
+        setNodes(nodosActualizados);
+        console.log('Workflow sincronizado con IDs de BD');
 
         setSaveSuccess(true);
         // No navegar automáticamente, permitir seguir editando
@@ -1133,6 +1403,7 @@ const WorkflowEditorFigmaContent: React.FC = () => {
 
       {/* Contenido del tab "Flujo" */}
       {currentTab === 1 && (
+        <>
         <Grid container spacing={0} sx={{ height: 'calc(100vh - 200px)', bgcolor: '#fff' }}>
         {/* Panel Izquierdo - Canvas ReactFlow */}
         <Grid 
@@ -1171,7 +1442,8 @@ const WorkflowEditorFigmaContent: React.FC = () => {
         >
           <FormControl size="small" sx={{ minWidth: 160 }}>
             <Select
-              value="todos"
+              value={filterPerfil}
+              onChange={(e) => setFilterPerfil(e.target.value)}
               displayEmpty
               sx={{
                 bgcolor: 'white',
@@ -1332,8 +1604,15 @@ const WorkflowEditorFigmaContent: React.FC = () => {
 
         {/* ReactFlow Canvas */}
         <ReactFlow
-          nodes={nodes}
-          edges={edges}
+          nodes={filteredNodes.map(node => ({
+            ...node,
+            data: {
+              ...node.data,
+              isLastNode: node.id === lastNodeId,
+              showArrowAsDefault: !selectedNode && node.id === lastNodeId,
+            }
+          }))}
+          edges={filteredEdges}
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
@@ -1423,6 +1702,54 @@ const WorkflowEditorFigmaContent: React.FC = () => {
 
       {/* Fin del Panel Derecho - EtapaConfigPanel ahora está en uso */}
     </Grid>
+
+      {/* JSON Debug - Workflow Completo */}
+      <Box
+        sx={{
+          mt: 3,
+          p: 2,
+          bgcolor: '#1e1e1e',
+          borderRadius: 1,
+          maxHeight: '400px',
+          overflow: 'auto',
+        }}
+      >
+        <Typography 
+          variant="caption" 
+          sx={{ 
+            color: '#4ec9b0', 
+            fontWeight: 'bold',
+            display: 'block',
+            mb: 1,
+          }}
+        >
+          📋 JSON Debug - Workflow Completo:
+        </Typography>
+        <Box
+          component="pre"
+          sx={{
+            m: 0,
+            p: 0,
+            fontFamily: 'Monaco, Consolas, "Courier New", monospace',
+            fontSize: '11px',
+            lineHeight: 1.4,
+            color: '#d4d4d4',
+            whiteSpace: 'pre-wrap',
+            wordBreak: 'break-all',
+          }}
+        >
+          {JSON.stringify({
+            ...workflowData,
+            etapas: nodes
+              .filter(n => n.id !== 'placeholder-add-node')
+              .map(n => ({
+                id: n.id,
+                ...n.data,
+              }))
+          }, null, 2)}
+        </Box>
+      </Box>
+      </>
       )}
 
       {/* Contenido del tab "Estado" */}

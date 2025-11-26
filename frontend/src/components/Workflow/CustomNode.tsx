@@ -7,6 +7,7 @@ import {
   Person as PersonIcon,
   Description as DescriptionIcon,
   CheckBox as CheckBoxIcon,
+  ArrowDropDown as ArrowDropDownIcon,
 } from '@mui/icons-material';
 import type { WorkflowEtapa } from '../../types/workflow';
 import { vistaConfigService } from '../../services/vista-config.service';
@@ -24,9 +25,12 @@ const handleStyle = {
 const CIRCULAR_NODE_CONTAINER_SIZE = 80;
 const CIRCLE_SIZE = 32;
 
-export const CustomNode: React.FC<NodeProps<WorkflowEtapa>> = ({ data }) => {
+export const CustomNode: React.FC<NodeProps<WorkflowEtapa>> = ({ data, selected }) => {
   // Nodo de Inicio: solo cuando es explícitamente el nodo inicial (código INICIO o flag es_inicial)
   const isInicio = data.codigo === 'INICIO' || data.es_inicial || data.es_etapa_inicial;
+  
+  // Verificar si debe mostrar la flecha (seleccionado O es último nodo sin selección)
+  const showArrow = selected || (data as any).showArrowAsDefault;
   
   // Nodo de Fin/Término: solo cuando es un nodo de terminación visual (tipo TERMINO/FIN), 
   // NO cuando es simplemente la última etapa del flujo (es_etapa_final)
@@ -96,6 +100,18 @@ export const CustomNode: React.FC<NodeProps<WorkflowEtapa>> = ({ data }) => {
           cursor: 'pointer',
         }}
       >
+        {/* Flecha indicadora de nodo seleccionado o último nodo por defecto */}
+        {showArrow && (
+          <ArrowDropDownIcon 
+            sx={{ 
+              fontSize: 64, 
+              color: '#03689a',
+              mt: -3,
+              mb: -2,
+            }} 
+          />
+        )}
+        
         {/* Contenedor cuadrado invisible que contiene el círculo y los handles */}
         <Box
           sx={{
@@ -126,6 +142,7 @@ export const CustomNode: React.FC<NodeProps<WorkflowEtapa>> = ({ data }) => {
               height: CIRCLE_SIZE,
               borderRadius: '50%',
               backgroundColor: '#4caf50',
+              border: showArrow ? '2px solid #03689a' : 'none',
               '&:hover': {
                 opacity: 0.9,
               },
@@ -172,6 +189,18 @@ export const CustomNode: React.FC<NodeProps<WorkflowEtapa>> = ({ data }) => {
           cursor: 'pointer',
         }}
       >
+        {/* Flecha indicadora de nodo seleccionado o último nodo por defecto */}
+        {showArrow && (
+          <ArrowDropDownIcon 
+            sx={{ 
+              fontSize: 64, 
+              color: '#03689a',
+              mt: -3,
+              mb: -2,
+            }} 
+          />
+        )}
+        
         {/* Contenedor cuadrado invisible */}
         <Box
           sx={{
@@ -201,6 +230,7 @@ export const CustomNode: React.FC<NodeProps<WorkflowEtapa>> = ({ data }) => {
               height: CIRCLE_SIZE,
               borderRadius: '50%',
               backgroundColor: '#f44336',
+              border: showArrow ? '2px solid #03689a' : 'none',
               '&:hover': {
                 opacity: 0.9,
               },
@@ -278,21 +308,34 @@ export const CustomNode: React.FC<NodeProps<WorkflowEtapa>> = ({ data }) => {
   const isCompuerta = data.tipo_etapa === 'COMPUERTA';
   
   return (
-    <>
-      <Handle type="target" position={Position.Left} style={handleStyle} />
-      <Paper
-        elevation={0}
-        sx={{
-          padding: 1,
-          paddingRight: 3, // Espacio extra para los íconos
-          backgroundColor: getNodeColor(),
-          border: `2px ${getNodeBorderStyle()} ${getNodeBorderColor()}`,
-          borderRadius: 1,
-          cursor: 'pointer',
-          display: 'flex',
-          flexDirection: 'column',
-          position: 'relative',
-          whiteSpace: 'nowrap', // Evitar wrap del texto
+    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+      {/* Flecha indicadora de nodo seleccionado o último nodo por defecto */}
+      {showArrow && (
+        <ArrowDropDownIcon 
+          sx={{ 
+            fontSize: 64, 
+            color: '#03689a',
+            mt: -3,
+            mb: -1,
+          }} 
+        />
+      )}
+      
+      <Box sx={{ position: 'relative' }}>
+        <Handle type="target" position={Position.Left} style={handleStyle} />
+        <Paper
+          elevation={0}
+          sx={{
+            padding: 1,
+            paddingRight: 3, // Espacio extra para los íconos
+            backgroundColor: getNodeColor(),
+            border: `2px ${getNodeBorderStyle()} ${showArrow ? '#03689a' : getNodeBorderColor()}`,
+            borderRadius: 1,
+            cursor: 'pointer',
+            display: 'flex',
+            flexDirection: 'column',
+            position: 'relative',
+            whiteSpace: 'nowrap', // Evitar wrap del texto
           '&:hover': {
             opacity: 0.95,
           },
@@ -394,7 +437,8 @@ export const CustomNode: React.FC<NodeProps<WorkflowEtapa>> = ({ data }) => {
         </Box>
       </Paper>
       <Handle type="source" position={Position.Right} style={{ background: '#4d4d4d', border: 'none' }} />
-    </>
+      </Box>
+    </Box>
   );
 };
 
