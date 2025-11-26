@@ -12,6 +12,7 @@ import type {
   TipoDocumento,
   Estado,
   Documento,
+  EstadoHistorial,
 } from '../types/ppsh';
 
 export const ppshService = {
@@ -170,6 +171,70 @@ export const ppshService = {
     return apiClient.patch<Documento>(
       `/ppsh/documentos/${idDocumento}/verificacion`,
       data
+    );
+  },
+
+  // ==========================================
+  // CAMBIO DE ESTADO
+  // ==========================================
+
+  /**
+   * Cambiar estado de una solicitud
+   * Requiere permisos según perfil del usuario:
+   * - FUNCIONARIO/ANALISTA: EN_REVISION, RESUELTO, SUBSANACION
+   * - JEFE/DIRECTOR: APROBADO, RECHAZADO, CANCELADO
+   * - ADMIN: Cualquier estado
+   */
+  async cambiarEstado(
+    idSolicitud: number,
+    data: {
+      estado_nuevo: string;
+      observaciones?: string;
+      es_dictamen?: boolean;
+      tipo_dictamen?: 'FAVORABLE' | 'DESFAVORABLE';
+      dictamen_detalle?: string;
+    }
+  ): Promise<Solicitud> {
+    return apiClient.post<Solicitud>(
+      `/ppsh/solicitudes/${idSolicitud}/cambiar-estado`,
+      data
+    );
+  },
+
+  /**
+   * Obtener historial de estados de una solicitud
+   */
+  async getHistorialEstados(idSolicitud: number): Promise<EstadoHistorial[]> {
+    return apiClient.get<EstadoHistorial[]>(
+      `/ppsh/solicitudes/${idSolicitud}/historial`
+    );
+  },
+
+  /**
+   * Obtener estados disponibles para cambio según perfil
+   * Filtra estados según permisos del perfil (validación cliente-side)
+   */
+  async getEstadosDisponibles(perfil: string): Promise<Estado[]> {
+    const estados = await this.getEstados(true);
+    
+    // Permisos por perfil (debe coincidir con backend)
+    const permisosCliente: Record<string, string[]> = {
+      FUNCIONARIO: ['EN_REVISION', 'RESUELTO', 'SUBSANACION'],
+      ANALISTA: ['EN_REVISION', 'EN_EVALUACION', 'RESUELTO', 'SUBSANACION'],
+      JEFE: ['EN_REVISION', 'EN_EVALUACION', 'APROBADO', 'RECHAZADO', 'RESUELTO', 'SUBSANACION', 'CANCELADO'],
+      DIRECTOR: ['EN_REVISION', 'EN_EVALUACION', 'APROBADO', 'RECHAZADO', 'RESUELTO', 'SUBSANACION', 'CANCELADO'],
+      ADMIN: ['RECIBIDO', 'EN_REVISION', 'EN_EVALUACION', 'APROBADO', 'RECHAZADO', 'RESUELTO', 'SUBSANACION', 'CANCELADO'],
+    };
+    
+    const estadosPermitidos = permisosCliente[perfil] || [];
+    
+    // Si es ADMIN, retornar todos los estados
+    if (perfil === 'ADMIN') {
+      return estados;
+    }
+    
+    return estados.filter(e => 
+      estadosPermitidos.includes(e.nombre_estado)
     );
   },
 };

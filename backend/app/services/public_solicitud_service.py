@@ -11,6 +11,8 @@ from datetime import datetime, timedelta, date
 from typing import Dict, Optional
 import jwt
 import os
+import random
+import string
 
 from app.models.models_workflow import WorkflowInstancia, Workflow, EstadoInstancia
 from app.schemas.schemas_ppsh import SolicitudCreate, SolicitanteCreate, TipoDocumentoEnum, ParentescoEnum, TipoSolicitudEnum, PrioridadEnum
@@ -24,6 +26,39 @@ class PublicSolicitudService:
     JWT_SECRET = os.getenv('JWT_SECRET_KEY', 'dev-secret-key-change-in-production')
     JWT_ALGORITHM = 'HS256'
     TOKEN_EXPIRATION_DAYS = 30  # El token es válido por 30 días
+    
+    # Caracteres para código de acceso (sin caracteres confusos: 0/O, 1/I/L)
+    CODIGO_CARACTERES = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'
+    
+    @staticmethod
+    def generar_codigo_acceso(db: Session, prefijo: str = "PPSH") -> str:
+        """
+        Genera un código de acceso corto único para la instancia
+        Formato: PPSH-XXXX (ej: PPSH-A7X9)
+        
+        Args:
+            db: Sesión de base de datos
+            prefijo: Prefijo del código (default: PPSH)
+            
+        Returns:
+            Código único de 9 caracteres
+        """
+        max_intentos = 100
+        
+        for _ in range(max_intentos):
+            # Generar 4 caracteres aleatorios
+            codigo_random = ''.join(random.choices(PublicSolicitudService.CODIGO_CARACTERES, k=4))
+            codigo = f"{prefijo}-{codigo_random}"
+            
+            # Verificar unicidad
+            existe = db.query(WorkflowInstancia).filter_by(codigo_acceso=codigo).first()
+            if not existe:
+                return codigo
+        
+        # Fallback: agregar timestamp si todos los intentos fallan
+        import time
+        timestamp = str(int(time.time()))[-4:]
+        return f"{prefijo}-{timestamp}"
     
     @staticmethod
     def generar_token_acceso(instancia_id: int, pasaporte: str) -> str:
@@ -173,10 +208,14 @@ class PublicSolicitudService:
             """), {"workflow_id": workflow.id}).scalar()
         
         # 6. Crear instancia de workflow
+        # Generar código de acceso corto
+        codigo_acceso = PublicSolicitudService.generar_codigo_acceso(db)
+        
         instancia = WorkflowInstancia(
             workflow_id=workflow.id,
             num_expediente=solicitud.num_expediente,
             nombre_instancia=f"PPSH - {nombres} {apellidos} - {solicitud.num_expediente}",
+            codigo_acceso=codigo_acceso,
             estado=EstadoInstancia.INICIADO,
             etapa_actual_id=primera_etapa,
             creado_por_user_id="PUBLIC",  # Identificador genérico para acceso público
@@ -208,9 +247,10 @@ class PublicSolicitudService:
             "instancia_id": instancia.id,
             "solicitud_id": solicitud.id_solicitud,
             "token": token,
+            "codigo_acceso": codigo_acceso,  # Código corto para acceso fácil
             "num_expediente": solicitud.num_expediente,
             "link_seguimiento": link_seguimiento,
-            "mensaje": f"Solicitud creada exitosamente. Guarde este enlace para dar seguimiento: {link_seguimiento}"
+            "mensaje": f"Solicitud creada exitosamente. Su código de acceso es: {codigo_acceso}. Guarde este código para continuar su trámite."
         }
     
     @staticmethod
@@ -241,3 +281,70 @@ class PublicSolicitudService:
         ).first()
         
         return instancia
+    
+    @staticmethod
+    def obtener_instancia_por_codigo(db: Session, codigo_acceso: str) -> Optional[WorkflowInstancia]:
+        """
+        Obtiene una instancia de workflow usando el código de acceso corto
+        
+        Args:
+            db: Sesión de base de datos
+            codigo_acceso: Código de acceso corto (ej: PPSH-A7X9)
+            
+        Returns:
+            WorkflowInstancia si el código es válido, None si no
+        """
+        # Normalizar código (mayúsculas, sin espacios)
+        codigo_normalizado = codigo_acceso.strip().upper()
+        
+        instancia = db.query(WorkflowInstancia).filter_by(
+            codigo_acceso=codigo_normalizado,
+            activo=True
+        ).first()
+        
+        return instancia
+    
+    @staticmethod
+    def validar_acceso_por_codigo(db: Session, codigo_acceso: str, pasaporte: str) -> Optional[Dict]:
+        """
+        Valida acceso por código y pasaporte, y genera token JWT si es válido
+        
+        Args:
+            db: Sesión de base de datos
+            codigo_acceso: Código de acceso corto
+            pasaporte: Número de pasaporte del solicitante
+            
+        Returns:
+            Dict con token y datos de la instancia si es válido, None si no
+        """
+        instancia = PublicSolicitudService.obtener_instancia_por_codigo(db, codigo_acceso)
+        
+        if not instancia:
+            return None
+        
+        # Verificar que el pasaporte coincide con el de la metadata
+        metadata = instancia.metadata_adicional or {}
+        pasaporte_registrado = metadata.get('pasaporte', '').strip().upper()
+        pasaporte_ingresado = pasaporte.strip().upper()
+        
+        if pasaporte_registrado != pasaporte_ingresado:
+            return None
+        
+        # Generar nuevo token de acceso
+        token = PublicSolicitudService.generar_token_acceso(
+            instancia.id,
+            pasaporte_ingresado
+        )
+        
+        base_url = os.getenv('FRONTEND_URL', 'http://localhost:3000')
+        link_seguimiento = f"{base_url}/solicitudes/{token}/workflow"
+        
+        return {
+            "instancia_id": instancia.id,
+            "token": token,
+            "num_expediente": instancia.num_expediente,
+            "codigo_acceso": instancia.codigo_acceso,
+            "estado": instancia.estado.value if instancia.estado else None,
+            "link_seguimiento": link_seguimiento,
+            "mensaje": "Acceso validado exitosamente"
+        }

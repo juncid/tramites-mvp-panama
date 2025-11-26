@@ -429,6 +429,7 @@ class DocumentoResponse(BaseModel):
     nombre_archivo: str
     extension: Optional[str]
     tamano_bytes: Optional[int]
+    ruta_archivo: Optional[str] = None  # Ruta relativa del archivo almacenado
     estado_verificacion: str
     verificado_por: Optional[str]
     fecha_verificacion: Optional[datetime]

@@ -127,3 +127,66 @@ export interface PaginatedResponse<T> {
   page_size: number;
   total_pages: number;
 }
+
+// ==========================================
+// HISTORIAL DE ESTADOS
+// ==========================================
+
+export interface EstadoHistorial {
+  id_historial: number;
+  id_solicitud: number;
+  estado_anterior: string;
+  estado_nuevo: string;
+  fecha_cambio: string;
+  user_id: string;
+  observaciones?: string;
+  es_dictamen: boolean;
+  tipo_dictamen?: 'FAVORABLE' | 'DESFAVORABLE';
+  dictamen_detalle?: string;
+  dias_en_estado_anterior?: number;
+  created_at: string;
+}
+
+export interface CambiarEstadoRequest {
+  estado_nuevo: string;
+  observaciones?: string;
+  es_dictamen?: boolean;
+  tipo_dictamen?: 'FAVORABLE' | 'DESFAVORABLE';
+  dictamen_detalle?: string;
+}
+
+// ==========================================
+// PERMISOS DE CAMBIO DE ESTADO
+// ==========================================
+
+/**
+ * Permisos de cambio de estado por perfil (referencia cliente)
+ * Debe mantenerse sincronizado con backend/app/services/services_ppsh.py
+ */
+export const PERMISOS_ESTADO_POR_PERFIL: Record<string, string[]> = {
+  FUNCIONARIO: ['EN_REVISION', 'RESUELTO', 'SUBSANACION'],
+  ANALISTA: ['EN_REVISION', 'EN_EVALUACION', 'RESUELTO', 'SUBSANACION'],
+  JEFE: ['EN_REVISION', 'EN_EVALUACION', 'APROBADO', 'RECHAZADO', 'RESUELTO', 'SUBSANACION', 'CANCELADO'],
+  DIRECTOR: ['EN_REVISION', 'EN_EVALUACION', 'APROBADO', 'RECHAZADO', 'RESUELTO', 'SUBSANACION', 'CANCELADO'],
+  ADMIN: ['RECIBIDO', 'EN_REVISION', 'EN_EVALUACION', 'APROBADO', 'RECHAZADO', 'RESUELTO', 'SUBSANACION', 'CANCELADO'],
+};
+
+/**
+ * Estados que requieren observaciones/motivo obligatorio (mínimo 10 caracteres)
+ */
+export const ESTADOS_REQUIEREN_MOTIVO: string[] = ['RECHAZADO', 'CANCELADO', 'SUBSANACION'];
+
+/**
+ * Verifica si un perfil puede asignar un estado específico
+ */
+export function puedeAsignarEstado(perfil: string, estadoNuevo: string): boolean {
+  const estadosPermitidos = PERMISOS_ESTADO_POR_PERFIL[perfil] || [];
+  return estadosPermitidos.includes(estadoNuevo);
+}
+
+/**
+ * Verifica si un estado requiere motivo obligatorio
+ */
+export function requiereMotivo(estadoNuevo: string): boolean {
+  return ESTADOS_REQUIEREN_MOTIVO.includes(estadoNuevo);
+}

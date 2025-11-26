@@ -4,7 +4,6 @@ import { Dashboard } from '../pages/Dashboard';
 import { Tramites } from '../pages/Tramites';
 import { Solicitudes } from '../pages/Solicitudes';
 import { RevisionRequisitos } from '../pages/RevisionRequisitos';
-import { Etapas } from '../pages/Etapas';
 import { Procesos } from '../pages/Procesos';
 import { WorkflowEditor } from '../pages/WorkflowEditor';
 import { WorkflowViewer } from '../pages/WorkflowViewer';
@@ -38,10 +37,15 @@ import { RecepcionReciboTesoreria } from '../pages/RecepcionReciboTesoreria';
 import { NotasEntrevista } from '../pages/NotasEntrevista';
 import { DictamenFinal } from '../pages/DictamenFinal';
 import { EntregaResolucion } from '../pages/EntregaResolucion';
+import { InicioTramite } from '../pages/InicioTramite';
+import WorkflowEtapasPublico from '../pages/WorkflowEtapasPublico';
 
 export const AppRouter = () => {
   return (
     <Routes>
+      {/* Página de inicio de trámite (pública, sin layout) */}
+      <Route path="/inicio" element={<InicioTramite />} />
+      
       {/* Rutas públicas CON layout */}
       <Route path="/acceso-publico" element={<MainLayout><PublicAccess /></MainLayout>} />
       <Route path="/consulta-publica/:numeroSolicitud" element={<MainLayout><PublicSolicitudView /></MainLayout>} />
@@ -49,6 +53,8 @@ export const AppRouter = () => {
       {/* Nuevas rutas públicas para solicitudes PPSH */}
       <Route path="/solicitudes/nueva" element={<MainLayout><NuevaSolicitud /></MainLayout>} />
       <Route path="/solicitudes/:token/workflow" element={<MainLayout><SolicitudPublicaWorkflow /></MainLayout>} />
+      <Route path="/solicitudes/:token/etapas" element={<WorkflowEtapasPublico />} />
+      <Route path="/solicitudes/:token/etapa/:etapaOrden" element={<MainLayout><SolicitudPublicaWorkflow /></MainLayout>} />
 
       {/* Rutas con layout */}
       <Route
@@ -168,6 +174,30 @@ export const AppRouter = () => {
         element={
           <MainLayout>
             <EntregaResolucion />
+          </MainLayout>
+        }
+      />
+      <Route
+        path="/solicitudes/:id/programacion-entrevista"
+        element={
+          <MainLayout>
+            <ProgramacionEntrevista />
+          </MainLayout>
+        }
+      />
+      <Route
+        path="/solicitudes/:id/notas-entrevista"
+        element={
+          <MainLayout>
+            <NotasEntrevista />
+          </MainLayout>
+        }
+      />
+      <Route
+        path="/solicitudes/:id/dictamen-final"
+        element={
+          <MainLayout>
+            <DictamenFinal />
           </MainLayout>
         }
       />
@@ -404,6 +434,30 @@ export const AppRouter = () => {
         element={
           <MainLayout>
             <EntregaResolucion />
+          </MainLayout>
+        }
+      />
+      <Route
+        path="/workflows/:instanciaId/programacion-entrevista"
+        element={
+          <MainLayout>
+            <ProgramacionEntrevista />
+          </MainLayout>
+        }
+      />
+      <Route
+        path="/workflows/:instanciaId/notas-entrevista"
+        element={
+          <MainLayout>
+            <NotasEntrevista />
+          </MainLayout>
+        }
+      />
+      <Route
+        path="/workflows/:instanciaId/dictamen-final"
+        element={
+          <MainLayout>
+            <DictamenFinal />
           </MainLayout>
         }
       />

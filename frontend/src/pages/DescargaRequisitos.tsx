@@ -1,9 +1,12 @@
-import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import React from 'react';
 import { FileDownload as FileDownloadIcon } from '@mui/icons-material';
 import { workflowService } from '../services/workflow.service';
 import { EtapaInformativa } from '../components/workflow/EtapaInformativa';
-import { resolveWorkflowId } from '../config/workflowAliases';
+import { getEtapaBreadcrumbs, getViewConfig } from '../config/workflowViews';
+import { useWorkflowEtapa } from '../hooks';
+
+const ETAPA_ORDEN = 1;
+const config = getViewConfig(ETAPA_ORDEN)!;
 
 /**
  * Vista para la Etapa 1: Descarga de Requisitos
@@ -13,65 +16,32 @@ import { resolveWorkflowId } from '../config/workflowAliases';
  * - Descargar documento con requisitos
  * - Avanzar automáticamente a etapas 2 y 3 al hacer clic en "Siguiente"
  * - Modo readonly para visualizar etapas completadas
+ * 
+ * REFACTORIZADO: Usa useWorkflowEtapa pero mantiene lógica especial de auto-completar 3 etapas.
  */
 export const DescargaRequisitos: React.FC = () => {
-  const { instanciaId, id: solicitudId } = useParams<{ instanciaId?: string; id?: string }>();
-  const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const readonly = searchParams.get('readonly') === 'true';
-  
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [instancia, setInstancia] = useState<any>(null);
-  const [completing, setCompleting] = useState(false);
-  const [workflowInstanciaId, setWorkflowInstanciaId] = useState<number | null>(null);
-
-  useEffect(() => {
-    loadWorkflowInstance();
-  }, [instanciaId, solicitudId]);
-
-  const loadWorkflowInstance = async () => {
-    setLoading(true);
-    setError(null);
-
-    try {
-      let numericId: number;
-
-      if (instanciaId) {
-        numericId = resolveWorkflowId(instanciaId);
-      } else if (solicitudId) {
-        const response = await fetch(`http://localhost:8000/api/v1/ppsh/solicitudes/${solicitudId}`);
-        if (!response.ok) {
-          throw new Error('No se pudo obtener la información de la solicitud');
-        }
-        const data = await response.json();
-        numericId = data.workflow_instancia_id;
-      } else {
-        throw new Error('No se proporcionó instanciaId ni solicitudId');
-      }
-
-      setWorkflowInstanciaId(numericId);
-      const instanciaData = await workflowService.getInstancia(numericId);
-      setInstancia(instanciaData);
-    } catch (err: any) {
-      console.error('Error cargando instancia:', err);
-      setError('Error al cargar la información');
-    } finally {
-      setLoading(false);
-    }
-  };
+  const {
+    loading,
+    error,
+    completing,
+    readonly,
+    instancia,
+    workflowInstanciaId,
+    basePath,
+    handleCancelar,
+    setCompleting,
+    setError,
+    navigate,
+  } = useWorkflowEtapa(ETAPA_ORDEN);
 
   const handleDescargar = () => {
-    // TODO: Implementar descarga de documento de requisitos
+    // URL del archivo de requisitos en el backend
+    const API_URL = 'http://localhost:8000';
+    const archivoUrl = '/static/documentos/requisitos_ppsh.txt';
+    
+    // Abrir en nueva pestaña para descargar
+    window.open(`${API_URL}${archivoUrl}`, '_blank');
     console.log('Descargando requisitos PPSH...');
-    alert('Funcionalidad de descarga en desarrollo');
-  };
-
-  const handleCancelar = () => {
-    // Volver a la vista de etapas
-    const baseParam = solicitudId || instanciaId || workflowInstanciaId;
-    const basePath = solicitudId ? `/solicitudes/${solicitudId}` : `/workflows/${baseParam}`;
-    navigate(`${basePath}/etapas`);
   };
 
   const handleSiguiente = async () => {
@@ -130,8 +100,6 @@ export const DescargaRequisitos: React.FC = () => {
 
       // Al finalizar las 3 etapas, volver a la vista de etapas
       console.log('Etapas 1-3 completadas, volviendo a vista de etapas');
-      const baseParam = solicitudId || instanciaId || workflowInstanciaId;
-      const basePath = solicitudId ? `/solicitudes/${solicitudId}` : `/workflows/${baseParam}`;
       navigate(`${basePath}/etapas`);
       
     } catch (err: any) {
@@ -145,14 +113,9 @@ export const DescargaRequisitos: React.FC = () => {
   return (
     <EtapaInformativa
       headerTitle="Permiso de Protección de Seguridad Humanitaria"
-      breadcrumbs={[
-        { label: 'Inicio', path: '/' },
-        { label: 'Procesos' },
-        { label: 'Permiso de Protección de Seguridad Humanitaria' },
-        { label: 'Carga de requisitos del trámite PPSH' },
-      ]}
-      contentTitle="Requisitos del trámite PPSH"
-      contentDescription="Lorem ipsum dolor sit amet consectetur. Tristique placerat venenatis iaculis imperdiet in. Venenatis quam cursus ut urna vel a ac iaculis. Volutpat tempus urna nullam aliquam. Dolor ornare at ac sit sagittis. Etiam elit risus volutpat sed. Orci id in mauris turpis neque. Amet diam morbi vitae nisi ultrices volutpat. Turpis vestibulum condimentum viverra mauris volutpat. Adipiscing ultrices curabitur vehicula ultrices adipiscing dictum nunc facilisi mi. Etiam congue nisl at consequat lobortis vitae nunc."
+      breadcrumbs={getEtapaBreadcrumbs(ETAPA_ORDEN)}
+      contentTitle={config.contentTitle}
+      contentDescription={config.contentDescription}
       contentSubtitle="A continuación se presentan los requisitos para el trámite PPSH"
       actionButton={{
         label: 'Requisitos PPSH',

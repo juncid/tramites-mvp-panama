@@ -1,124 +1,102 @@
-import { Node, Edge } from 'reactflow';
+import dagre from 'dagre';
+import { Node, Edge, Position } from 'reactflow';
 
-// Algoritmo simple de layout horizontal sin dependencias externas
+// Constantes de tamaño - deben coincidir con CustomNode.tsx
+const NODE_CONTAINER_SIZE = 80; // Contenedor invisible para nodos circulares
+const RECT_NODE_WIDTH = 200;    // Ancho estimado de nodos rectangulares
+const RECT_NODE_HEIGHT = 80;    // Alto de nodos rectangulares
+const PLACEHOLDER_WIDTH = 84;   // Ancho del placeholder
+
+// Función para determinar si es un nodo circular (inicio/fin)
+const isCircleNode = (node: Node): boolean => {
+  const data = node.data;
+  return data?.codigo === 'INICIO' || data?.es_inicial || data?.es_etapa_inicial ||
+         data?.tipo_etapa === 'TERMINO' || data?.tipo_etapa === 'FIN' ||
+         data?.codigo === 'FIN' || data?.codigo === 'TERMINO';
+};
+
+// Función para estimar las dimensiones de un nodo
+const getNodeDimensions = (node: Node): { width: number; height: number } => {
+  const data = node.data;
+  
+  // Nodo inicio/fin - usar el tamaño del contenedor invisible
+  if (isCircleNode(node)) {
+    return { width: NODE_CONTAINER_SIZE, height: NODE_CONTAINER_SIZE };
+  }
+  
+  // Nodo placeholder
+  if (data?.is_placeholder || !data?.nombre) {
+    return { width: PLACEHOLDER_WIDTH, height: RECT_NODE_HEIGHT };
+  }
+  
+  // Nodo rectangular - estimar ancho basado en el texto
+  const nombre = data?.nombre || '';
+  const nombreWidth = nombre.length * 7;
+  const width = Math.max(RECT_NODE_WIDTH, nombreWidth + 56);
+  
+  return { width, height: RECT_NODE_HEIGHT };
+};
+
+/**
+ * Aplica auto-layout usando dagre para posicionar los nodos
+ * @param nodes - Lista de nodos de ReactFlow
+ * @param edges - Lista de edges de ReactFlow
+ * @param direction - Dirección del layout: 'LR' (izquierda-derecha) o 'TB' (arriba-abajo)
+ * @returns Nodos y edges con posiciones actualizadas
+ */
 export const getLayoutedElements = (
   nodes: Node[],
   edges: Edge[],
-  direction: 'TB' | 'LR' = 'LR' // LR = Left to Right, TB = Top to Bottom
+  direction: 'TB' | 'LR' = 'LR'
 ) => {
-  const horizontalSpacing = 350;
-  const verticalSpacing = 50;
-  const nodeHeight = 110;
-  const startNodeHeight = 80; // Altura del nodo circular de inicio en el editor
+  // Crear un nuevo grafo dirigido
+  const dagreGraph = new dagre.graphlib.Graph();
+  dagreGraph.setDefaultEdgeLabel(() => ({}));
   
-  // Crear mapa de conexiones (source -> targets)
-  const connectionMap = new Map<string, string[]>();
-  edges.forEach(edge => {
-    if (!connectionMap.has(edge.source)) {
-      connectionMap.set(edge.source, []);
-    }
-    connectionMap.get(edge.source)?.push(edge.target);
+  // Configurar el grafo
+  const isHorizontal = direction === 'LR';
+  dagreGraph.setGraph({
+    rankdir: direction,
+    nodesep: 50,     // Separación vertical entre nodos (en LR) o horizontal (en TB)
+    ranksep: 80,     // Separación horizontal entre niveles (en LR) o vertical (en TB)
+    edgesep: 20,     // Separación entre edges
+    marginx: 50,     // Margen horizontal
+    marginy: 50,     // Margen vertical
+    acyclicer: 'greedy',
+    ranker: 'network-simplex',
   });
-  
-  // Encontrar nodo inicial (sin conexiones entrantes)
-  const targetNodes = new Set(edges.map(e => e.target));
-  const startNodes = nodes.filter(node => !targetNodes.has(node.id));
-  
-  // Organizar nodos por niveles (BFS)
-  const levels: string[][] = [];
-  const visited = new Set<string>();
-  const queue: Array<{ id: string; level: number }> = [];
-  
-  // Iniciar con nodos de inicio
-  startNodes.forEach(node => {
-    queue.push({ id: node.id, level: 0 });
-    visited.add(node.id);
+
+  // Agregar nodos al grafo de dagre
+  nodes.forEach((node) => {
+    const { width, height } = getNodeDimensions(node);
+    dagreGraph.setNode(node.id, { width, height });
   });
-  
-  while (queue.length > 0) {
-    const { id, level } = queue.shift()!;
+
+  // Agregar edges al grafo de dagre
+  edges.forEach((edge) => {
+    dagreGraph.setEdge(edge.source, edge.target);
+  });
+
+  // Ejecutar el algoritmo de layout
+  dagre.layout(dagreGraph);
+
+  // Actualizar las posiciones de los nodos
+  const layoutedNodes = nodes.map((node) => {
+    const nodeWithPosition = dagreGraph.node(node.id);
+    const { width, height } = getNodeDimensions(node);
     
-    if (!levels[level]) {
-      levels[level] = [];
-    }
-    levels[level].push(id);
-    
-    // Agregar nodos conectados al siguiente nivel
-    const targets = connectionMap.get(id) || [];
-    targets.forEach(targetId => {
-      if (!visited.has(targetId)) {
-        visited.add(targetId);
-        queue.push({ id: targetId, level: level + 1 });
-      }
-    });
-  }
-  
-  // Calcular altura total necesaria para el nivel más grande
-  const maxNodesInLevel = Math.max(...levels.map(level => level.length));
-  const totalHeight = (maxNodesInLevel - 1) * (nodeHeight + verticalSpacing);
-  
-  // Posicionar nodos
-  const layoutedNodes = nodes.map(node => {
-    // Encontrar el nivel del nodo
-    let nodeLevel = 0;
-    let indexInLevel = 0;
-    
-    for (let i = 0; i < levels.length; i++) {
-      const index = levels[i].indexOf(node.id);
-      if (index !== -1) {
-        nodeLevel = i;
-        indexInLevel = index;
-        break;
-      }
-    }
-    
-    const nodesInLevel = levels[nodeLevel]?.length || 1;
-    
-    // Determinar si es nodo de inicio o fin (ambos circulares de 80x80)
-    const isStartNode = node.data?.codigo === 'INICIO' || 
-                       node.data?.es_inicial || 
-                       node.data?.es_etapa_inicial ||
-                       node.id === 'start' || 
-                       startNodes.some(n => n.id === node.id);
-    
-    const isFinNode = node.data?.codigo === 'FIN' || 
-                     node.data?.tipo_etapa === 'FIN' ||
-                     node.data?.es_final;
-    
-    // Calcular posición según dirección
-    let x: number;
-    let y: number;
-    
-    if (direction === 'LR') {
-      // Horizontal: izquierda a derecha
-      x = nodeLevel * horizontalSpacing + 50; // +50 margen inicial
-      
-      // Centrar verticalmente los nodos del mismo nivel
-      const levelHeight = (nodesInLevel - 1) * (nodeHeight + verticalSpacing);
-      const startY = (totalHeight - levelHeight) / 2 + 100; // +100 margen superior
-      const baseY = startY + indexInLevel * (nodeHeight + verticalSpacing);
-      
-      // Ajustar Y para nodo de inicio o fin (centrar el círculo con los rectángulos)
-      if (isStartNode || isFinNode) {
-        // Los nodos circulares (80x80) deben estar centrados con los rectangulares (220x110)
-        // Centrar basándose en el centro vertical de ambos
-        y = baseY + (nodeHeight - startNodeHeight) / 2;
-      } else {
-        y = baseY;
-      }
-    } else {
-      // Vertical: arriba a abajo
-      y = nodeLevel * verticalSpacing;
-      const totalWidth = (nodesInLevel - 1) * horizontalSpacing;
-      const startX = -totalWidth / 2;
-      x = startX + indexInLevel * horizontalSpacing;
-    }
-    
+    // Dagre devuelve el centro del nodo, ReactFlow necesita la esquina superior izquierda
+    const x = nodeWithPosition.x - width / 2;
+    const y = nodeWithPosition.y - height / 2;
+
     return {
       ...node,
       position: { x, y },
+      // Configurar los handles según la dirección
+      targetPosition: isHorizontal ? Position.Left : Position.Top,
+      sourcePosition: isHorizontal ? Position.Right : Position.Bottom,
     };
   });
-  
+
   return { nodes: layoutedNodes, edges };
 };

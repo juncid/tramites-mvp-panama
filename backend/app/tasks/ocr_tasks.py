@@ -79,6 +79,24 @@ def process_document_ocr(
     return _process_document_ocr_internal(self, id_documento, user_id, opciones)
 
 
+@celery_app.task(bind=True, base=OCRTask, name='ocr.procesar_documento')
+def procesar_documento_ocr(
+    self, 
+    id_documento: int
+) -> Dict[str, Any]:
+    """
+    Alias simplificado para procesar documento OCR desde upload automático.
+    No requiere user_id ya que es procesamiento automático del sistema.
+    
+    Args:
+        id_documento: ID del documento a procesar
+    
+    Returns:
+        Dict con resultados del procesamiento
+    """
+    return _process_document_ocr_internal(self, id_documento, user_id="SYSTEM_OCR", opciones=None)
+
+
 def _process_document_ocr_internal(
     task_instance, 
     id_documento: int, 
@@ -269,10 +287,22 @@ def load_image_from_document(documento: PPSHDocumento) -> Optional[np.ndarray]:
             nparr = np.frombuffer(documento.contenido_binario, np.uint8)
             imagen = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
             
-        elif documento.ruta_archivo and os.path.exists(documento.ruta_archivo):
-            # Cargar desde archivo
-            logger.debug(f"Cargando imagen desde archivo: {documento.ruta_archivo}")
-            imagen = cv2.imread(documento.ruta_archivo)
+        elif documento.ruta_archivo:
+            # Construir ruta completa desde UPLOADS_DIR
+            uploads_dir = os.getenv("UPLOADS_DIR", "/app/uploads")
+            
+            # Si la ruta ya es absoluta, usarla directamente
+            if os.path.isabs(documento.ruta_archivo):
+                full_path = documento.ruta_archivo
+            else:
+                full_path = os.path.join(uploads_dir, documento.ruta_archivo)
+            
+            if os.path.exists(full_path):
+                logger.debug(f"Cargando imagen desde archivo: {full_path}")
+                imagen = cv2.imread(full_path)
+            else:
+                logger.error(f"Archivo no encontrado: {full_path}")
+                return None
             
         else:
             logger.error("Documento sin contenido de imagen válido")

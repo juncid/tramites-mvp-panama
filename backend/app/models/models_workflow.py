@@ -264,6 +264,7 @@ class WorkflowInstancia(Base):
     # Identificación
     num_expediente = Column(String(50), unique=True, nullable=False, index=True)
     nombre_instancia = Column(String(255))
+    codigo_acceso = Column(String(12), unique=True, index=True)  # Código corto para acceso público (ej: PPSH-A7X9)
     
     # Estado
     estado = Column(SQLEnum(EstadoInstancia), nullable=False, default=EstadoInstancia.INICIADO, index=True)

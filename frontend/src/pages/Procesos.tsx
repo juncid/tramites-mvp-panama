@@ -27,6 +27,7 @@ import {
   DialogContent,
   DialogContentText,
   DialogActions,
+  Link,
 } from '@mui/material';
 import {
   Edit as EditIcon,
@@ -38,6 +39,7 @@ import {
   AddCircleOutline as AddCircleOutlineIcon,
   ExpandMore as ExpandMoreIcon,
   ExpandLess as ExpandLessIcon,
+  Home as HomeIcon,
 } from '@mui/icons-material';
 import { workflowService } from '../services/workflow.service';
 import type { Workflow, EstadoWorkflow } from '../types/workflow';
@@ -123,14 +125,39 @@ export const Procesos: React.FC = () => {
   });
 
   return (
-    <Box sx={{ p: 3 }}>
+    <Box>
+      {/* Breadcrumbs - estilo Figma */}
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
+        <Link
+          underline="none"
+          sx={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: 1,
+            color: '#757575', 
+            cursor: 'pointer',
+            fontSize: '14px',
+            fontFamily: 'Roboto, sans-serif',
+            '&:hover': { color: '#333' }
+          }}
+          onClick={() => navigate('/')}
+        >
+          <HomeIcon sx={{ fontSize: 20 }} />
+          Inicio
+        </Link>
+        <Typography sx={{ color: '#757575', fontSize: '14px' }}>/</Typography>
+        <Typography sx={{ color: '#757575', fontSize: '14px', fontFamily: 'Roboto, sans-serif' }}>
+          Procesos
+        </Typography>
+      </Box>
+
       {/* Título */}
       <Typography 
-        variant="h4" 
         sx={{ 
           fontWeight: 700, 
           color: '#333333',
           fontSize: '48px',
+          fontFamily: 'Roboto Flex, Roboto, sans-serif',
           lineHeight: 1.5,
           mb: 4,
         }}
@@ -211,14 +238,20 @@ export const Procesos: React.FC = () => {
         </Card>
       )}
 
-      <TableContainer component={Paper} sx={{ boxShadow: 'none', border: '1px solid #E5E7EB' }}>
+      <TableContainer component={Paper} sx={{ boxShadow: 'none', border: 'none' }}>
         <Table>
           <TableHead>
-            <TableRow sx={{ backgroundColor: '#f3f3f3', height: 40 }}>
-              <TableCell sx={{ fontWeight: 500, color: '#333333', fontSize: 16, py: 1 }}>Id</TableCell>
-              <TableCell sx={{ fontWeight: 500, color: '#333333', fontSize: 16, py: 1 }}>Nombre</TableCell>
-              <TableCell sx={{ fontWeight: 500, color: '#333333', fontSize: 16, py: 1 }}>Estado</TableCell>
-              <TableCell sx={{ fontWeight: 500, color: '#333333', fontSize: 16, py: 1, textAlign: 'center' }}>Acciones</TableCell>
+            <TableRow sx={{ height: 40 }}>
+              <TableCell sx={{ fontWeight: 500, color: '#333333', fontSize: 16, py: 1, borderBottom: 'none' }}>Id</TableCell>
+              <TableCell sx={{ fontWeight: 500, color: '#333333', fontSize: 16, py: 1, borderBottom: 'none' }}>Nombre</TableCell>
+              <TableCell sx={{ fontWeight: 500, color: '#333333', fontSize: 16, py: 1, borderBottom: 'none' }}>Estado</TableCell>
+              <TableCell sx={{ fontWeight: 500, color: '#333333', fontSize: 16, py: 1, textAlign: 'center', borderBottom: 'none' }}>Acciones</TableCell>
+            </TableRow>
+            {/* Línea separadora gruesa - estilo Figma */}
+            <TableRow>
+              <TableCell colSpan={4} sx={{ p: 0, borderBottom: 'none' }}>
+                <Box sx={{ height: '4px', backgroundColor: '#f3f3f3', width: '100%' }} />
+              </TableCell>
             </TableRow>
           </TableHead>
           <TableBody>

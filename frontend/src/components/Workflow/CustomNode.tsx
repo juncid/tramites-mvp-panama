@@ -1,13 +1,37 @@
 import React, { useState, useEffect } from 'react';
 import { Handle, Position, NodeProps } from 'reactflow';
 import { Box, Paper, Typography, Chip } from '@mui/material';
-import { Add as AddIcon, AutoAwesome as AutoAwesomeIcon } from '@mui/icons-material';
+import { 
+  Add as AddIcon, 
+  AutoAwesome as AutoAwesomeIcon,
+  Person as PersonIcon,
+  Description as DescriptionIcon,
+  CheckBox as CheckBoxIcon,
+} from '@mui/icons-material';
 import type { WorkflowEtapa } from '../../types/workflow';
 import { vistaConfigService } from '../../services/vista-config.service';
 
+// Estilos comunes para los handles
+const handleStyle = { 
+  background: '#4d4d4d', 
+  border: 'none',
+  width: 8,
+  height: 8,
+};
+
+// Tamaño del contenedor invisible para nodos circulares (inicio/fin)
+// Debe coincidir con la altura de los nodos rectangulares para alinear las flechas
+const CIRCULAR_NODE_CONTAINER_SIZE = 80;
+const CIRCLE_SIZE = 32;
+
 export const CustomNode: React.FC<NodeProps<WorkflowEtapa>> = ({ data }) => {
+  // Nodo de Inicio: solo cuando es explícitamente el nodo inicial (código INICIO o flag es_inicial)
   const isInicio = data.codigo === 'INICIO' || data.es_inicial || data.es_etapa_inicial;
-  const isFin = data.codigo === 'FIN' || data.es_final;
+  
+  // Nodo de Fin/Término: solo cuando es un nodo de terminación visual (tipo TERMINO/FIN), 
+  // NO cuando es simplemente la última etapa del flujo (es_etapa_final)
+  const isFin = data.tipo_etapa === 'TERMINO' || data.tipo_etapa === 'FIN' || data.codigo === 'FIN' || data.codigo === 'TERMINO';
+  
   const isPlaceholder = (data as any).is_placeholder || !data.nombre;
   const [tieneVistaDinamica, setTieneVistaDinamica] = useState(false);
   
@@ -61,99 +85,185 @@ export const CustomNode: React.FC<NodeProps<WorkflowEtapa>> = ({ data }) => {
     return data.tipo_etapa === 'PRESENCIAL' ? 'dashed' : 'solid';
   };
 
-  // Nodo circular para inicio
+  // Nodo circular para inicio - con contenedor cuadrado invisible para alinear flechas
   if (isInicio) {
     return (
-      <>
-        <Handle type="target" position={Position.Left} style={{ opacity: 0 }} />
+      <Box
+        sx={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          cursor: 'pointer',
+        }}
+      >
+        {/* Contenedor cuadrado invisible que contiene el círculo y los handles */}
         <Box
           sx={{
-            width: 80,
-            height: 80,
-            borderRadius: '50%',
-            backgroundColor: '#4caf50',
-            border: '2px solid #4caf50',
+            width: CIRCULAR_NODE_CONTAINER_SIZE,
+            height: CIRCULAR_NODE_CONTAINER_SIZE,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            cursor: 'pointer',
-            '&:hover': {
-              opacity: 0.9,
-            },
+            position: 'relative',
           }}
         >
-          <Typography variant="caption" fontWeight="bold" color="white" align="center">
-            Inicio
-          </Typography>
+          {/* Handle izquierdo (invisible, solo para recibir conexiones) */}
+          <Handle 
+            type="target" 
+            position={Position.Left} 
+            style={{ 
+              ...handleStyle, 
+              opacity: 0,
+              top: '50%',
+              transform: 'translateY(-50%)',
+            }} 
+          />
+          
+          {/* Círculo verde centrado */}
+          <Box
+            sx={{
+              width: CIRCLE_SIZE,
+              height: CIRCLE_SIZE,
+              borderRadius: '50%',
+              backgroundColor: '#4caf50',
+              '&:hover': {
+                opacity: 0.9,
+              },
+            }}
+          />
+          
+          {/* Handle derecho (para conexiones salientes) */}
+          <Handle 
+            type="source" 
+            position={Position.Right} 
+            style={{ 
+              ...handleStyle,
+              top: '50%',
+              transform: 'translateY(-50%)',
+            }}
+          />
         </Box>
-        <Handle type="source" position={Position.Right} />
-      </>
+        
+        {/* Texto debajo del contenedor */}
+        <Typography 
+          sx={{ 
+            fontFamily: 'Roboto, sans-serif',
+            fontWeight: 400,
+            fontSize: '14px',
+            lineHeight: 1.5,
+            color: '#4d4d4d',
+            mt: 0.5,
+          }}
+        >
+          Inicio
+        </Typography>
+      </Box>
     );
   }
 
-  // Nodo circular para fin
+  // Nodo circular para fin - con contenedor cuadrado invisible para alinear flechas
   if (isFin) {
     return (
-      <>
-        <Handle type="target" position={Position.Left} style={{ background: '#4d4d4d', border: 'none' }} />
+      <Box
+        sx={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          cursor: 'pointer',
+        }}
+      >
+        {/* Contenedor cuadrado invisible */}
         <Box
           sx={{
-            width: 80,
-            height: 80,
-            borderRadius: '50%',
-            backgroundColor: '#f44336',
-            border: '2px solid #f44336',
+            width: CIRCULAR_NODE_CONTAINER_SIZE,
+            height: CIRCULAR_NODE_CONTAINER_SIZE,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            cursor: 'pointer',
-            '&:hover': {
-              opacity: 0.9,
-            },
+            position: 'relative',
           }}
         >
-          <Typography variant="caption" fontWeight="bold" color="white" align="center">
-            Fin
-          </Typography>
+          {/* Handle izquierdo (para conexiones entrantes) */}
+          <Handle 
+            type="target" 
+            position={Position.Left} 
+            style={{ 
+              ...handleStyle,
+              top: '50%',
+              transform: 'translateY(-50%)',
+            }}
+          />
+          
+          {/* Círculo rojo centrado */}
+          <Box
+            sx={{
+              width: CIRCLE_SIZE,
+              height: CIRCLE_SIZE,
+              borderRadius: '50%',
+              backgroundColor: '#f44336',
+              '&:hover': {
+                opacity: 0.9,
+              },
+            }}
+          />
+          
+          {/* Handle derecho (invisible, no debería tener conexiones salientes) */}
+          <Handle 
+            type="source" 
+            position={Position.Right} 
+            style={{ 
+              ...handleStyle, 
+              opacity: 0,
+              top: '50%',
+              transform: 'translateY(-50%)',
+            }} 
+          />
         </Box>
-        <Handle type="source" position={Position.Right} style={{ opacity: 0 }} />
-      </>
+        
+        {/* Texto debajo del contenedor */}
+        <Typography 
+          sx={{ 
+            fontFamily: 'Roboto, sans-serif',
+            fontWeight: 400,
+            fontSize: '14px',
+            lineHeight: 1.5,
+            color: '#4d4d4d',
+            mt: 0.5,
+          }}
+        >
+          Fin
+        </Typography>
+      </Box>
     );
   }
 
-  // Nodo placeholder con borde punteado
+  // Nodo placeholder con borde punteado - estilo Figma
   if (isPlaceholder) {
     return (
       <>
-        <Handle type="target" position={Position.Left} />
+        <Handle type="target" position={Position.Left} style={handleStyle} />
         <Paper
           elevation={0}
           sx={{
             padding: 2,
-            minWidth: 180,
-            maxWidth: 250,
+            minWidth: 80,
+            height: 80,
             backgroundColor: '#f1f3f4',
-            border: '2px dashed #03689a',
+            border: '2px dashed #788093',
             borderRadius: '4px',
             cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            minHeight: 110,
             '&:hover': {
-              borderColor: '#03689a',
-              backgroundColor: '#e8f4f8',
+              borderColor: '#5f6368',
+              backgroundColor: '#e8eaed',
             },
           }}
         >
-          <Box sx={{ textAlign: 'center', color: '#03689a' }}>
-            <AddIcon sx={{ fontSize: 64, mb: 1 }} />
-            <Typography variant="caption" display="block" color="#03689a">
-              Haz clic para configurar
-            </Typography>
-          </Box>
+          <AddIcon sx={{ fontSize: 32, color: '#788093' }} />
         </Paper>
-        <Handle type="source" position={Position.Right} />
+        <Handle type="source" position={Position.Right} style={handleStyle} />
       </>
     );
   }
@@ -161,32 +271,51 @@ export const CustomNode: React.FC<NodeProps<WorkflowEtapa>> = ({ data }) => {
   // Determinar tamaño según tipo de etapa
   const isSubproceso = data.tipo_etapa === 'SUBPROCESO';
   const isPresencial = data.tipo_etapa === 'PRESENCIAL';
-  const nodeWidth = 220;
-  const nodeMinHeight = 110;
   
   // Nodo rectangular para etapas normales
+  // Determinar si tiene preguntas o formulario
+  const tienePreguntas = data.preguntas && data.preguntas.length > 0;
+  const isCompuerta = data.tipo_etapa === 'COMPUERTA';
+  
   return (
     <>
-      <Handle type="target" position={Position.Left} style={{ background: '#4d4d4d', border: 'none' }} />
+      <Handle type="target" position={Position.Left} style={handleStyle} />
       <Paper
         elevation={0}
         sx={{
           padding: 1,
-          minWidth: nodeWidth,
-          maxWidth: nodeWidth,
-          width: nodeWidth,
-          minHeight: nodeMinHeight,
+          paddingRight: 3, // Espacio extra para los íconos
           backgroundColor: getNodeColor(),
           border: `2px ${getNodeBorderStyle()} ${getNodeBorderColor()}`,
           borderRadius: 1,
           cursor: 'pointer',
           display: 'flex',
           flexDirection: 'column',
+          position: 'relative',
+          whiteSpace: 'nowrap', // Evitar wrap del texto
           '&:hover': {
             opacity: 0.95,
           },
         }}
       >
+        {/* Íconos superiores estilo Figma */}
+        <Box sx={{ 
+          position: 'absolute', 
+          top: 6, 
+          right: 6, 
+          display: 'flex', 
+          gap: 0.5,
+        }}>
+          {/* Ícono de persona si tiene perfiles */}
+          {data.perfiles_permitidos && data.perfiles_permitidos.length > 0 && (
+            <PersonIcon sx={{ fontSize: 14, color: '#666' }} />
+          )}
+          {/* Ícono de documento/formulario si tiene preguntas o para compuertas */}
+          {(tienePreguntas || isCompuerta) && (
+            <DescriptionIcon sx={{ fontSize: 14, color: '#666' }} />
+          )}
+        </Box>
+
         <Box>
           {/* Badges superiores para SUBPROCESO y PRESENCIAL */}
           {(isSubproceso || isPresencial) && data.perfiles_permitidos && data.perfiles_permitidos.length > 0 && (

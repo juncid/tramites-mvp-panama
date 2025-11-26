@@ -783,6 +783,55 @@ class InstanciaService:
             created_by=current_user
         )
         
+        # ========================================
+        # SINCRONIZACIÓN CON SOLICITUD PPSH
+        # ========================================
+        # Si es etapa final y hay solicitud PPSH vinculada, actualizar su estado
+        if etapa_destino.es_etapa_final:
+            try:
+                from app.services.workflow_ppsh_service import WorkflowPPSHIntegrationService
+                from app.services.services_ppsh import SolicitudService
+                from app.schemas import CambiarEstadoRequest
+                
+                # Obtener solicitud PPSH vinculada
+                solicitud_ppsh = WorkflowPPSHIntegrationService.obtener_solicitud_ppsh_desde_instancia(
+                    db, instancia_id
+                )
+                
+                if solicitud_ppsh:
+                    # Determinar estado final según el tipo de etapa
+                    estado_final = "RESUELTO"  # Por defecto
+                    
+                    # Si el workflow tiene metadata que indica aprobación/rechazo
+                    if db_instancia.metadata_adicional:
+                        resultado = db_instancia.metadata_adicional.get("resultado_workflow")
+                        if resultado == "APROBADO":
+                            estado_final = "APROBADO"
+                        elif resultado == "RECHAZADO":
+                            estado_final = "RECHAZADO"
+                    
+                    # Actualizar estado de solicitud PPSH
+                    cambio = CambiarEstadoRequest(
+                        estado_nuevo=estado_final,
+                        observaciones=f"Estado actualizado automáticamente al completar workflow. Etapa final: {etapa_destino.nombre}"
+                    )
+                    
+                    SolicitudService.cambiar_estado(
+                        db=db,
+                        id_solicitud=solicitud_ppsh.id_solicitud,
+                        cambio=cambio,
+                        user_id=current_user,
+                        user_perfil="SISTEMA"  # Cambio automático por sistema
+                    )
+                    
+                    logger.info(
+                        f"Sincronización PPSH: Solicitud {solicitud_ppsh.num_expediente} "
+                        f"actualizada a estado {estado_final}"
+                    )
+            except Exception as e:
+                logger.warning(f"Error sincronizando estado con PPSH: {str(e)}")
+                # No fallar la transición por error de sincronización
+        
         db.commit()
         db.refresh(db_instancia)
         

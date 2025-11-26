@@ -3,17 +3,22 @@ import {
   Box,
   Typography,
   CircularProgress,
+  LinearProgress,
 } from '@mui/material';
 
 export interface OCRLoadingModalProps {
   open: boolean;
+  progress?: {
+    porcentaje: number;
+    status: string;
+  };
 }
 
 /**
  * Modal de loading para procesamiento OCR
  * Basado en wireframe Figma: Wireframe 102
  */
-export const OCRLoadingModal = ({ open }: OCRLoadingModalProps) => {
+export const OCRLoadingModal = ({ open, progress }: OCRLoadingModalProps) => {
   return (
     <Dialog
       open={open}
@@ -73,15 +78,44 @@ export const OCRLoadingModal = ({ open }: OCRLoadingModalProps) => {
           Estamos revisando su documento
         </Typography>
 
-        {/* Spinner */}
-        <CircularProgress
-          size={120}
-          thickness={3}
-          sx={{
-            color: '#0e5fa6',
-            mb: { xs: 3, sm: 4 },
-          }}
-        />
+        {/* Spinner o Progress Bar */}
+        {progress ? (
+          <Box sx={{ width: '100%', mb: { xs: 3, sm: 4 }, px: 2 }}>
+            <LinearProgress 
+              variant="determinate" 
+              value={progress.porcentaje} 
+              sx={{
+                height: 10,
+                borderRadius: 5,
+                backgroundColor: '#e0e0e0',
+                '& .MuiLinearProgress-bar': {
+                  backgroundColor: '#0e5fa6',
+                  borderRadius: 5,
+                },
+              }}
+            />
+            <Typography
+              variant="body2"
+              sx={{
+                textAlign: 'center',
+                mt: 2,
+                color: '#666',
+                fontSize: '0.875rem',
+              }}
+            >
+              {progress.status} ({progress.porcentaje}%)
+            </Typography>
+          </Box>
+        ) : (
+          <CircularProgress
+            size={120}
+            thickness={3}
+            sx={{
+              color: '#0e5fa6',
+              mb: { xs: 3, sm: 4 },
+            }}
+          />
+        )}
 
         {/* Mensaje inferior */}
         <Typography

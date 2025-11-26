@@ -64,6 +64,82 @@ class PPSHPermissionException(HTTPException):
 
 
 # ==========================================
+# MATRIZ DE PERMISOS PARA CAMBIO DE ESTADO
+# ==========================================
+# Define qué perfiles pueden asignar cada estado según la guía normativa
+# Ref: Guía Explícita para la Implementación de Cambios de Estado PPSH
+
+PERMISOS_CAMBIO_ESTADO: Dict[str, List[str]] = {
+    # RECIBIDO: Estado inicial, generado automáticamente por el sistema
+    "RECIBIDO": ["SISTEMA", "ADMIN"],
+    
+    # EN_REVISION: Cuando el expediente pasa a análisis documental
+    "EN_REVISION": ["FUNCIONARIO", "ANALISTA", "JEFE", "DIRECTOR", "ADMIN"],
+    
+    # EN_EVALUACION: Durante elaboración de resolución
+    "EN_EVALUACION": ["ANALISTA", "JEFE", "DIRECTOR", "ADMIN"],
+    
+    # APROBADO: Requiere firma de jefatura/dirección
+    "APROBADO": ["JEFE", "DIRECTOR", "ADMIN"],
+    
+    # RECHAZADO: Requiere autorización de jefatura y motivo obligatorio
+    "RECHAZADO": ["JEFE", "DIRECTOR", "ADMIN"],
+    
+    # RESUELTO: Conclusión formal después de entrega de documentos
+    "RESUELTO": ["FUNCIONARIO", "ANALISTA", "JEFE", "DIRECTOR", "ADMIN"],
+    
+    # SUBSANACION: Requiere documentos adicionales
+    "SUBSANACION": ["FUNCIONARIO", "ANALISTA", "JEFE", "DIRECTOR", "ADMIN"],
+    
+    # CANCELADO: Solo administradores
+    "CANCELADO": ["JEFE", "DIRECTOR", "ADMIN"],
+}
+
+# Estados que requieren motivo/observaciones obligatorias
+ESTADOS_REQUIEREN_MOTIVO: List[str] = ["RECHAZADO", "CANCELADO", "SUBSANACION"]
+
+
+def validar_permiso_cambio_estado(
+    estado_nuevo: str,
+    user_perfil: str,
+    observaciones: Optional[str] = None
+) -> Tuple[bool, Optional[str]]:
+    """
+    Valida si un usuario con determinado perfil puede cambiar a un estado específico.
+    
+    Args:
+        estado_nuevo: El código del estado al que se quiere cambiar
+        user_perfil: El perfil del usuario (FUNCIONARIO, ANALISTA, JEFE, DIRECTOR, ADMIN)
+        observaciones: Observaciones proporcionadas (para validar estados que requieren motivo)
+        
+    Returns:
+        Tupla (es_valido, mensaje_error)
+        - es_valido: True si el cambio está permitido
+        - mensaje_error: None si es válido, o mensaje descriptivo si no lo es
+    """
+    # Obtener perfiles permitidos para este estado
+    perfiles_permitidos = PERMISOS_CAMBIO_ESTADO.get(estado_nuevo, [])
+    
+    # Si el estado no está en la matriz, solo ADMIN puede cambiarlo
+    if not perfiles_permitidos:
+        if user_perfil != "ADMIN":
+            return False, f"El estado '{estado_nuevo}' no está configurado. Contacte al administrador."
+        return True, None
+    
+    # Verificar si el perfil está permitido
+    if user_perfil not in perfiles_permitidos:
+        perfiles_str = ", ".join(perfiles_permitidos)
+        return False, f"Su perfil '{user_perfil}' no puede asignar el estado '{estado_nuevo}'. Perfiles permitidos: {perfiles_str}"
+    
+    # Verificar si el estado requiere motivo obligatorio
+    if estado_nuevo in ESTADOS_REQUIEREN_MOTIVO:
+        if not observaciones or len(observaciones.strip()) < 10:
+            return False, f"El estado '{estado_nuevo}' requiere observaciones/motivo (mínimo 10 caracteres)"
+    
+    return True, None
+
+
+# ==========================================
 # SERVICIO DE CATÁLOGOS
 # ==========================================
 
@@ -252,19 +328,15 @@ class SolicitudService:
         if not solicitud:
             raise PPSHNotFoundException("Solicitud", str(id_solicitud))
         
-        # Verificar si tiene workflow vinculado
+        # Verificar si tiene workflow vinculado por num_expediente
         from app.models.models_workflow import WorkflowInstancia
         workflow_instancia = db.query(WorkflowInstancia).filter(
+            WorkflowInstancia.num_expediente == solicitud.num_expediente,
             WorkflowInstancia.activo == True
-        ).all()
+        ).first()
         
-        # Buscar en metadata_adicional (campo JSON)
-        solicitud.workflow_instancia_id = None
-        for instancia in workflow_instancia:
-            if instancia.metadata_adicional and isinstance(instancia.metadata_adicional, dict):
-                if instancia.metadata_adicional.get('ppsh_solicitud_id') == id_solicitud:
-                    solicitud.workflow_instancia_id = instancia.id
-                    break
+        # Asignar workflow_instancia_id si existe
+        solicitud.workflow_instancia_id = workflow_instancia.id if workflow_instancia else None
         
         return solicitud
     
@@ -405,17 +477,51 @@ class SolicitudService:
         db: Session,
         id_solicitud: int,
         cambio: CambiarEstadoRequest,
-        user_id: str
+        user_id: str,
+        user_perfil: str = "FUNCIONARIO"
     ) -> models_ppsh.PPSHSolicitud:
-        """Cambia el estado de una solicitud"""
+        """
+        Cambia el estado de una solicitud con validación de permisos por perfil.
+        
+        Args:
+            db: Sesión de base de datos
+            id_solicitud: ID de la solicitud
+            cambio: Datos del cambio de estado
+            user_id: ID del usuario que realiza el cambio
+            user_perfil: Perfil del usuario (FUNCIONARIO, ANALISTA, JEFE, DIRECTOR, ADMIN)
+            
+        Returns:
+            Solicitud actualizada
+            
+        Raises:
+            PPSHPermissionException: Si el perfil no puede asignar el estado
+            PPSHBusinessException: Si hay error en la operación
+        """
         solicitud = SolicitudService.get_solicitud(db, id_solicitud, incluir_relaciones=False)
         
         # Validar que existe el nuevo estado
         nuevo_estado = CatalogoService.get_estado_by_codigo(db, cambio.estado_nuevo)
         
+        # ========================================
+        # VALIDACIÓN DE PERMISOS POR PERFIL
+        # ========================================
+        es_valido, mensaje_error = validar_permiso_cambio_estado(
+            estado_nuevo=cambio.estado_nuevo,
+            user_perfil=user_perfil,
+            observaciones=cambio.observaciones
+        )
+        
+        if not es_valido:
+            logger.warning(
+                f"Permiso denegado: Usuario {user_id} (perfil={user_perfil}) "
+                f"intentó cambiar solicitud {solicitud.num_expediente} a estado {cambio.estado_nuevo}"
+            )
+            raise PPSHPermissionException(mensaje_error)
+        
         logger.info(
             f"Cambiando estado de solicitud {solicitud.num_expediente} "
-            f"de {solicitud.estado_actual} a {cambio.estado_nuevo}"
+            f"de {solicitud.estado_actual} a {cambio.estado_nuevo} "
+            f"(usuario={user_id}, perfil={user_perfil})"
         )
         
         try:

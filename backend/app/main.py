@@ -1,6 +1,7 @@
 from fastapi import FastAPI, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 from app.infrastructure.database import engine, Base, SessionLocal
 from app.routers.routers import router
 from app.utils.middleware import LoggerMiddleware, setup_logging
@@ -46,6 +47,13 @@ try:
 except ImportError:
     OCR_AVAILABLE = False
     ocr_router = None
+
+try:
+    from app.routers.websocket_ocr import router as websocket_ocr_router
+    WEBSOCKET_OCR_AVAILABLE = True
+except ImportError:
+    WEBSOCKET_OCR_AVAILABLE = False
+    websocket_ocr_router = None
 
 try:
     from app.routes.routes_public import router as public_router
@@ -137,6 +145,13 @@ if OCR_AVAILABLE and ocr_router:
 else:
     logger.warning("⚠️  Módulo OCR no disponible")
 
+# Incluir WebSocket router de OCR si está disponible
+if WEBSOCKET_OCR_AVAILABLE and websocket_ocr_router:
+    app.include_router(websocket_ocr_router, prefix="/api/v1")
+    logger.info("✅ WebSocket OCR registrado en /api/v1/ws/ocr")
+else:
+    logger.warning("⚠️  WebSocket OCR no disponible")
+
 # Incluir router de solicitudes públicas si está disponible
 if PUBLIC_AVAILABLE and public_router:
     app.include_router(public_router, prefix="/api/v1")
@@ -145,6 +160,17 @@ else:
     logger.warning("⚠️  Módulo Solicitudes Públicas no disponible")
 
 logger.info("🚀 Aplicación FastAPI inicializada")
+
+# Montar archivos estáticos para documentos descargables
+static_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static")
+if os.path.exists(static_dir):
+    app.mount("/static", StaticFiles(directory=static_dir), name="static")
+    logger.info(f"📁 Archivos estáticos montados en /static desde {static_dir}")
+else:
+    # Crear directorio si no existe
+    os.makedirs(os.path.join(static_dir, "documentos"), exist_ok=True)
+    app.mount("/static", StaticFiles(directory=static_dir), name="static")
+    logger.info(f"📁 Directorio de archivos estáticos creado y montado en /static")
 
 @app.get("/", tags=["Root"])
 async def root():

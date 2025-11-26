@@ -10,6 +10,15 @@ import {
 } from '@mui/icons-material';
 import type { WorkflowPregunta } from '../../../types/workflow';
 
+// URL base del API
+const API_URL = 'http://localhost:8000';
+
+interface ArchivoOpciones {
+  archivo_url?: string;
+  nombre_archivo?: string;
+  tipo_archivo?: string;
+}
+
 interface DescargaArchivoViewProps {
   pregunta: WorkflowPregunta;
   readonly?: boolean;
@@ -20,10 +29,38 @@ export const DescargaArchivoView: React.FC<DescargaArchivoViewProps> = ({
   pregunta,
   onAnswerChange,
 }) => {
+  // Parsear opciones para obtener la URL del archivo
+  const getArchivoOpciones = (): ArchivoOpciones => {
+    if (!pregunta.opciones) return {};
+    
+    if (typeof pregunta.opciones === 'string') {
+      try {
+        return JSON.parse(pregunta.opciones);
+      } catch {
+        return {};
+      }
+    }
+    
+    return pregunta.opciones as ArchivoOpciones;
+  };
+
+  const opciones = getArchivoOpciones();
+  const archivoUrl = opciones.archivo_url;
+  const nombreArchivo = opciones.nombre_archivo || 'Documento';
+  
   const handleDescargar = () => {
-    // TODO: Implementar lógica de descarga de archivo
-    console.log('Descargando archivo...');
-    onAnswerChange?.(true);
+    if (archivoUrl) {
+      // Construir URL completa
+      const urlCompleta = archivoUrl.startsWith('http') ? archivoUrl : `${API_URL}${archivoUrl}`;
+      
+      // Abrir en nueva pestaña para descargar
+      window.open(urlCompleta, '_blank');
+      
+      // Notificar que se descargó
+      onAnswerChange?.(true);
+    } else {
+      console.warn('No hay URL de archivo configurada para esta pregunta');
+    }
   };
 
   return (
@@ -50,18 +87,24 @@ export const DescargaArchivoView: React.FC<DescargaArchivoViewProps> = ({
         </Alert>
       )}
 
-      <Button
-        variant="contained"
-        startIcon={<DownloadIcon />}
-        onClick={handleDescargar}
-        sx={{
-          textTransform: 'none',
-          backgroundColor: '#0e5fa6',
-          '&:hover': { backgroundColor: '#0d5391' },
-        }}
-      >
-        Descargar archivo
-      </Button>
+      {!archivoUrl ? (
+        <Alert severity="warning" sx={{ mb: 2 }}>
+          No hay archivo configurado para descargar. Contacte al administrador.
+        </Alert>
+      ) : (
+        <Button
+          variant="contained"
+          startIcon={<DownloadIcon />}
+          onClick={handleDescargar}
+          sx={{
+            textTransform: 'none',
+            backgroundColor: '#0e5fa6',
+            '&:hover': { backgroundColor: '#0d5391' },
+          }}
+        >
+          {nombreArchivo}
+        </Button>
+      )}
     </Box>
   );
 };

@@ -663,3 +663,142 @@ def ejecutar_etapa(
     return WorkflowExecutionService.ejecutar_etapa(
         db, instancia_id, etapa_id, request.respuestas, request.archivos, current_user, perfil
     )
+
+
+# ==========================================
+# ENDPOINTS DE ARCHIVOS ESTÁTICOS
+# ==========================================
+
+from fastapi import UploadFile, File
+import os
+import uuid
+from datetime import datetime
+
+STATIC_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "static", "documentos")
+
+@router.post("/admin/archivos/upload", tags=["Administración"])
+async def upload_archivo_estatico(
+    file: UploadFile = File(...),
+    nombre_personalizado: Optional[str] = None,
+    db: Session = Depends(get_db),
+    current_user: str = "ADMIN"
+):
+    """
+    Sube un archivo estático para ser usado en preguntas de tipo DESCARGA_ARCHIVO.
+    
+    Retorna la URL del archivo que puede ser usada en el campo 'opciones' de la pregunta.
+    """
+    # Validar tipo de archivo
+    extensiones_permitidas = ['.pdf', '.doc', '.docx', '.xls', '.xlsx', '.txt', '.png', '.jpg', '.jpeg']
+    extension = os.path.splitext(file.filename)[1].lower()
+    
+    if extension not in extensiones_permitidas:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Tipo de archivo no permitido. Extensiones permitidas: {', '.join(extensiones_permitidas)}"
+        )
+    
+    # Crear directorio si no existe
+    os.makedirs(STATIC_DIR, exist_ok=True)
+    
+    # Generar nombre único para el archivo
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    unique_id = str(uuid.uuid4())[:8]
+    nombre_archivo = nombre_personalizado or file.filename
+    nombre_seguro = f"{timestamp}_{unique_id}_{nombre_archivo.replace(' ', '_')}"
+    
+    # Guardar archivo
+    file_path = os.path.join(STATIC_DIR, nombre_seguro)
+    
+    try:
+        contents = await file.read()
+        with open(file_path, 'wb') as f:
+            f.write(contents)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al guardar archivo: {str(e)}")
+    
+    # Construir URL del archivo
+    archivo_url = f"/static/documentos/{nombre_seguro}"
+    
+    return {
+        "success": True,
+        "archivo_url": archivo_url,
+        "nombre_archivo": nombre_archivo,
+        "tamano_bytes": len(contents),
+        "tipo_archivo": file.content_type,
+        "opciones_json": {
+            "archivo_url": archivo_url,
+            "nombre_archivo": nombre_archivo,
+            "tipo_archivo": file.content_type
+        },
+        "mensaje": f"Archivo subido correctamente. Use el campo 'opciones_json' para configurar la pregunta de tipo DESCARGA_ARCHIVO."
+    }
+
+
+@router.get("/admin/archivos", tags=["Administración"])
+def listar_archivos_estaticos():
+    """
+    Lista todos los archivos estáticos disponibles para descargas.
+    """
+    if not os.path.exists(STATIC_DIR):
+        return {"archivos": [], "directorio": STATIC_DIR}
+    
+    archivos = []
+    for filename in os.listdir(STATIC_DIR):
+        file_path = os.path.join(STATIC_DIR, filename)
+        if os.path.isfile(file_path):
+            archivos.append({
+                "nombre": filename,
+                "url": f"/static/documentos/{filename}",
+                "tamano_bytes": os.path.getsize(file_path),
+                "fecha_modificacion": datetime.fromtimestamp(os.path.getmtime(file_path)).isoformat()
+            })
+    
+    return {
+        "archivos": archivos,
+        "total": len(archivos),
+        "directorio": "/static/documentos/"
+    }
+
+
+@router.patch("/preguntas/{pregunta_id}/configurar-descarga", tags=["Administración"])
+def configurar_pregunta_descarga(
+    pregunta_id: int,
+    archivo_url: str = Query(..., description="URL del archivo (ej: /static/documentos/requisitos.pdf)"),
+    nombre_archivo: str = Query(..., description="Nombre a mostrar en el botón de descarga"),
+    db: Session = Depends(get_db)
+):
+    """
+    Configura una pregunta de tipo DESCARGA_ARCHIVO con la URL del archivo a descargar.
+    """
+    from app.models.models_workflow import WorkflowPregunta
+    import json
+    
+    pregunta = db.query(WorkflowPregunta).filter(WorkflowPregunta.id == pregunta_id).first()
+    
+    if not pregunta:
+        raise HTTPException(status_code=404, detail="Pregunta no encontrada")
+    
+    if pregunta.tipo_pregunta.value != "DESCARGA_ARCHIVO":
+        raise HTTPException(
+            status_code=400, 
+            detail=f"La pregunta no es de tipo DESCARGA_ARCHIVO (es {pregunta.tipo_pregunta.value})"
+        )
+    
+    # Actualizar opciones con la URL del archivo
+    opciones = {
+        "archivo_url": archivo_url,
+        "nombre_archivo": nombre_archivo,
+        "tipo_archivo": "application/octet-stream"  # Tipo genérico
+    }
+    
+    pregunta.opciones = json.dumps(opciones)
+    db.commit()
+    
+    return {
+        "success": True,
+        "pregunta_id": pregunta_id,
+        "opciones": opciones,
+        "mensaje": f"Pregunta '{pregunta.pregunta}' configurada con archivo de descarga"
+    }
+

@@ -46,6 +46,7 @@ interface EtapaConfigPanelProps {
   onClose: () => void;
   onDelete?: () => void;
   hideCloseButton?: boolean; // Nueva prop para ocultar el botón de cerrar
+  isReadOnly?: boolean; // Nueva prop para modo lectura
 }
 
 const PERFILES_DISPONIBLES = [
@@ -118,6 +119,7 @@ export const EtapaConfigPanel: React.FC<EtapaConfigPanelProps> = ({
   onClose,
   onDelete,
   hideCloseButton = false, // Por defecto se muestra el botón
+  isReadOnly = false, // Por defecto no es modo lectura
 }) => {
   const [formData, setFormData] = useState<Partial<WorkflowEtapa>>(etapa);
   const [preguntas, setPreguntas] = useState<WorkflowPregunta[]>(etapa.preguntas || []);
@@ -282,7 +284,7 @@ export const EtapaConfigPanel: React.FC<EtapaConfigPanelProps> = ({
             <Box>
             <Stack spacing={3}>
           {/* Tipo de Etapa */}
-          <FormControl fullWidth>
+          <FormControl fullWidth disabled={isReadOnly}>
             <InputLabel>Tipo de etapa</InputLabel>
             <Select
               value={formData.tipo_etapa || 'ETAPA'}
@@ -303,6 +305,8 @@ export const EtapaConfigPanel: React.FC<EtapaConfigPanelProps> = ({
             label="Código"
             value={formData.codigo || ''}
             onChange={(e) => handleChange('codigo', e.target.value)}
+            InputProps={{ readOnly: isReadOnly }}
+            sx={{ '& .MuiOutlinedInput-root': { backgroundColor: isReadOnly ? '#f5f5f5' : 'white' } }}
           />
 
           {/* Nombre */}
@@ -311,10 +315,12 @@ export const EtapaConfigPanel: React.FC<EtapaConfigPanelProps> = ({
             label="Nombre de la etapa/actividad"
             value={formData.nombre || ''}
             onChange={(e) => handleChange('nombre', e.target.value)}
+            InputProps={{ readOnly: isReadOnly }}
+            sx={{ '& .MuiOutlinedInput-root': { backgroundColor: isReadOnly ? '#f5f5f5' : 'white' } }}
           />
 
           {/* Perfiles Permitidos */}
-          <FormControl fullWidth>
+          <FormControl fullWidth disabled={isReadOnly}>
             <InputLabel>Perfil(es) permitidos</InputLabel>
             <Select
               multiple
@@ -414,6 +420,8 @@ export const EtapaConfigPanel: React.FC<EtapaConfigPanelProps> = ({
             label="Título del formulario"
             value={formData.titulo_formulario || ''}
             onChange={(e) => handleChange('titulo_formulario', e.target.value)}
+            InputProps={{ readOnly: isReadOnly }}
+            sx={{ '& .MuiOutlinedInput-root': { backgroundColor: isReadOnly ? '#f5f5f5' : 'white' } }}
           />
 
           {/* Bajada del formulario */}
@@ -424,6 +432,8 @@ export const EtapaConfigPanel: React.FC<EtapaConfigPanelProps> = ({
             label="Bajada del formulario"
             value={formData.descripcion_formulario || ''}
             onChange={(e) => handleChange('descripcion_formulario', e.target.value)}
+            InputProps={{ readOnly: isReadOnly }}
+            sx={{ '& .MuiOutlinedInput-root': { backgroundColor: isReadOnly ? '#f5f5f5' : 'white' } }}
           />
             </Stack>
             </Box>
@@ -533,79 +543,83 @@ export const EtapaConfigPanel: React.FC<EtapaConfigPanelProps> = ({
 
                   {/* Botones de acción */}
                   <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 3 }}>
-                    <Box
-                      sx={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 1,
-                        cursor: 'pointer',
-                        '&:hover': { opacity: 0.7 },
-                      }}
-                      onClick={() => handleDuplicatePregunta(index)}
-                    >
-                      <Box sx={{ width: 16, height: 16, display: 'flex', alignItems: 'center' }}>
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#333333" strokeWidth="2">
-                          <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-                        </svg>
-                      </Box>
-                      <Typography
-                        sx={{
-                          fontSize: '14px',
-                          color: '#333333',
-                        }}
-                      >
-                        Duplicar
-                      </Typography>
-                    </Box>
+                    {!isReadOnly && (
+                      <>
+                        <Box
+                          sx={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 1,
+                            cursor: 'pointer',
+                            '&:hover': { opacity: 0.7 },
+                          }}
+                          onClick={() => handleDuplicatePregunta(index)}
+                        >
+                          <Box sx={{ width: 16, height: 16, display: 'flex', alignItems: 'center' }}>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#333333" strokeWidth="2">
+                              <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                            </svg>
+                          </Box>
+                          <Typography
+                            sx={{
+                              fontSize: '14px',
+                              color: '#333333',
+                            }}
+                          >
+                            Duplicar
+                          </Typography>
+                        </Box>
 
-                    <Box
-                      sx={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 1,
-                        cursor: 'pointer',
-                        '&:hover': { opacity: 0.7 },
-                      }}
-                      onClick={() => handleEditPregunta(index)}
-                    >
-                      <EditIcon sx={{ fontSize: 16, color: '#333333' }} />
-                      <Typography
-                        sx={{
-                          fontSize: '14px',
-                          color: '#333333',
-                        }}
-                      >
-                        Editar
-                      </Typography>
-                    </Box>
+                        <Box
+                          sx={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 1,
+                            cursor: 'pointer',
+                            '&:hover': { opacity: 0.7 },
+                          }}
+                          onClick={() => handleEditPregunta(index)}
+                        >
+                          <EditIcon sx={{ fontSize: 16, color: '#333333' }} />
+                          <Typography
+                            sx={{
+                              fontSize: '14px',
+                              color: '#333333',
+                            }}
+                          >
+                            Editar
+                          </Typography>
+                        </Box>
 
-                    <Box
-                      sx={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 1,
-                        cursor: 'pointer',
-                        '&:hover': { opacity: 0.7 },
-                      }}
-                      onClick={() => handleDeletePregunta(index)}
-                    >
-                      <DeleteIcon sx={{ fontSize: 16, color: '#cc3333' }} />
-                      <Typography
-                        sx={{
-                          fontSize: '14px',
-                          color: '#cc3333',
-                        }}
-                      >
-                        Borrar
-                      </Typography>
-                    </Box>
+                        <Box
+                          sx={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 1,
+                            cursor: 'pointer',
+                            '&:hover': { opacity: 0.7 },
+                          }}
+                          onClick={() => handleDeletePregunta(index)}
+                        >
+                          <DeleteIcon sx={{ fontSize: 16, color: '#cc3333' }} />
+                          <Typography
+                            sx={{
+                              fontSize: '14px',
+                              color: '#cc3333',
+                            }}
+                          >
+                            Borrar
+                          </Typography>
+                        </Box>
+                      </>
+                    )}
                   </Box>
                 </Box>
               ))}
 
-              {/* Fase 2: Formulario de edición (cuando editingIndex !== null) */}
-              {editingIndex !== null && tempPregunta && (
+              {/* Fase 2: Formulario de edición (cuando editingIndex !== null) - Solo si no es modo lectura */}
+              {!isReadOnly && editingIndex !== null && tempPregunta && (
                 <Box
                   sx={{
                     p: 2,
@@ -1283,8 +1297,8 @@ export const EtapaConfigPanel: React.FC<EtapaConfigPanelProps> = ({
                 </Box>
               )}
 
-              {/* Fase 3: Botón para agregar nueva pregunta (solo cuando no se está editando) */}
-              {editingIndex === null && (
+              {/* Fase 3: Botón para agregar nueva pregunta (solo cuando no se está editando y no es modo lectura) */}
+              {!isReadOnly && editingIndex === null && (
                 <Box
                   onClick={handleAddPregunta}
                   sx={{
@@ -1308,7 +1322,7 @@ export const EtapaConfigPanel: React.FC<EtapaConfigPanelProps> = ({
               {/* Mensaje cuando no hay preguntas */}
               {preguntas.length === 0 && editingIndex === null && (
                 <Typography variant="body2" color="text.secondary" align="center" sx={{ py: 2 }}>
-                  No hay preguntas configuradas. Haz clic en + para agregar una.
+                  {isReadOnly ? 'No hay preguntas configuradas.' : 'No hay preguntas configuradas. Haz clic en + para agregar una.'}
                 </Typography>
               )}
             </Stack>
@@ -1331,7 +1345,7 @@ export const EtapaConfigPanel: React.FC<EtapaConfigPanelProps> = ({
       >
         <Stack direction="row" spacing={2} justifyContent="space-between">
           <Box>
-            {onDelete && !etapa.es_inicial && !etapa.es_etapa_inicial && (
+            {!isReadOnly && onDelete && !etapa.es_inicial && !etapa.es_etapa_inicial && (
               <Button 
                 variant="outlined" 
                 color="error"
@@ -1344,11 +1358,13 @@ export const EtapaConfigPanel: React.FC<EtapaConfigPanelProps> = ({
           </Box>
           <Stack direction="row" spacing={2}>
             <Button variant="outlined" onClick={onClose}>
-              Cancelar
+              {isReadOnly ? 'Cerrar' : 'Cancelar'}
             </Button>
-            <Button variant="contained" onClick={handleSave}>
-              Guardar
-            </Button>
+            {!isReadOnly && (
+              <Button variant="contained" onClick={handleSave}>
+                Guardar
+              </Button>
+            )}
           </Stack>
         </Stack>
       </Box>

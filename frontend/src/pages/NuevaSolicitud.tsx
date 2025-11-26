@@ -41,6 +41,7 @@ interface SolicitudResponse {
   instancia_id: number;
   solicitud_id: number;
   token: string;
+  codigo_acceso: string;  // Código corto para acceso fácil (ej: PPSH-A7X9)
   num_expediente: string;
   link_seguimiento: string;
   mensaje: string;
@@ -72,6 +73,7 @@ export const NuevaSolicitud: React.FC = () => {
   const [success, setSuccess] = useState<SolicitudResponse | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [copiedCode, setCopiedCode] = useState(false);
 
   const handleChange = (field: keyof FormData) => (
     event: React.ChangeEvent<HTMLInputElement | { value: unknown }>
@@ -128,6 +130,14 @@ export const NuevaSolicitud: React.FC = () => {
       navigator.clipboard.writeText(success.link_seguimiento);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  const handleCopyCode = () => {
+    if (success?.codigo_acceso) {
+      navigator.clipboard.writeText(success.codigo_acceso);
+      setCopiedCode(true);
+      setTimeout(() => setCopiedCode(false), 2000);
     }
   };
 
@@ -314,15 +324,54 @@ export const NuevaSolicitud: React.FC = () => {
           </DialogTitle>
           
           <DialogContent>
+            {/* Código de Acceso - PROMINENTE */}
+            <Paper
+              variant="outlined"
+              sx={{
+                p: 3,
+                mb: 3,
+                bgcolor: '#e3f2fd',
+                border: '2px solid #1976d2',
+                borderRadius: 2,
+                textAlign: 'center',
+              }}
+            >
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
+                SU CÓDIGO DE ACCESO
+              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
+                <Typography
+                  variant="h3"
+                  fontWeight="bold"
+                  color="primary"
+                  sx={{
+                    letterSpacing: '3px',
+                    fontFamily: 'monospace',
+                  }}
+                >
+                  {success?.codigo_acceso}
+                </Typography>
+                <Tooltip title={copiedCode ? '¡Copiado!' : 'Copiar código'}>
+                  <IconButton onClick={handleCopyCode} color="primary">
+                    <ContentCopyIcon />
+                  </IconButton>
+                </Tooltip>
+              </Box>
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                Guarde este código junto con su número de pasaporte
+              </Typography>
+            </Paper>
+
             <Box sx={{ mb: 3 }}>
               <Typography variant="body1" gutterBottom>
                 <strong>Número de Expediente:</strong> {success?.num_expediente}
               </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
-                Guarde el siguiente enlace para dar seguimiento a su solicitud:
-              </Typography>
             </Box>
 
+            {/* Link de seguimiento (alternativo) */}
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+              También puede usar este enlace para dar seguimiento:
+            </Typography>
             <Paper
               variant="outlined"
               sx={{
@@ -337,6 +386,7 @@ export const NuevaSolicitud: React.FC = () => {
                   wordBreak: 'break-all',
                   mb: 1,
                   fontFamily: 'monospace',
+                  fontSize: '11px',
                 }}
               >
                 {success?.link_seguimiento}
@@ -356,21 +406,28 @@ export const NuevaSolicitud: React.FC = () => {
               </Tooltip>
             </Paper>
 
-            <Alert severity="warning" sx={{ mt: 3 }}>
+            <Alert severity="success" sx={{ mt: 3 }}>
               <Typography variant="body2">
-                <strong>Importante:</strong> Este enlace es válido por 30 días. 
-                Guárdelo en un lugar seguro o envíelo a su correo electrónico.
+                <strong>Para continuar después:</strong> Ingrese a la página de "Continuar Proceso" 
+                con su código <strong>{success?.codigo_acceso}</strong> y su número de pasaporte.
+              </Typography>
+            </Alert>
+
+            <Alert severity="warning" sx={{ mt: 2 }}>
+              <Typography variant="body2">
+                <strong>Importante:</strong> Su acceso es válido por 30 días. 
+                Guarde el código en un lugar seguro.
               </Typography>
             </Alert>
           </DialogContent>
 
-          <DialogActions sx={{ px: 3, pb: 3, justifyContent: 'center' }}>
+          <DialogActions sx={{ px: 3, pb: 3, justifyContent: 'center', gap: 2 }}>
             <Button
-              onClick={handleCopyLink}
+              onClick={handleCopyCode}
               variant="outlined"
               startIcon={<ContentCopyIcon />}
             >
-              Copiar Enlace
+              {copiedCode ? '¡Código Copiado!' : 'Copiar Código'}
             </Button>
             <Button
               onClick={handleContinuar}

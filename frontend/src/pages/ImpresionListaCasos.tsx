@@ -1,11 +1,10 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { Print as PrintIcon } from '@mui/icons-material';
 import { Box, Checkbox, FormControlLabel, Typography, Paper } from '@mui/material';
 import { EtapaInformativa } from '../components/workflow/EtapaInformativa';
 import { workflowService } from '../services/workflow.service';
-import { ppshService } from '../services/ppsh.service';
 import { useAuth } from '../context/AuthContext';
+import { useWorkflowEtapa } from '../hooks';
 
 interface CasoImpresion {
   instancia_id: number;
@@ -14,51 +13,42 @@ interface CasoImpresion {
   ppsh_solicitud_id: number;
 }
 
+const ETAPA_ORDEN = 7;
+
 /**
  * Vista 7: Impresión Lista de Casos
  * 
  * Muestra casos PPSH donde etapa 6 está completada y etapa 7 en proceso.
  * Permite seleccionar múltiples casos y al guardar marca la etapa 7 como completada.
+ * 
+ * REFACTORIZADO: Usa useWorkflowEtapa para manejo de workflow.
  */
 export const ImpresionListaCasos = () => {
-  const { id: solicitudId, instanciaId } = useParams<{ id?: string; instanciaId?: string }>();
-  const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
   const { usuario } = useAuth();
-  const readonly = searchParams.get('readonly') === 'true';
 
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [workflowInstanciaId, setWorkflowInstanciaId] = useState<number | null>(null);
-  const [etapaId, setEtapaId] = useState<number | null>(null);
+  // Hook para manejo de workflow
+  const {
+    loading,
+    error,
+    completing,
+    readonly,
+    instancia,
+    workflowInstanciaId,
+    handleCancelar,
+    setCompleting,
+    setError,
+    setLoading,
+    navigate,
+    basePath,
+  } = useWorkflowEtapa(ETAPA_ORDEN);
+
   const [casos, setCasos] = useState<CasoImpresion[]>([]);
   const [casosSeleccionados, setCasosSeleccionados] = useState<Set<number>>(new Set());
 
+  // Cargar casos disponibles para impresión
   useEffect(() => {
-    const loadData = async () => {
-      setLoading(true);
+    const loadCasos = async () => {
       try {
-        let wInstanciaId: number | null = null;
-
-        if (instanciaId) {
-          wInstanciaId = parseInt(instanciaId);
-        } else if (solicitudId) {
-          const solicitud = await ppshService.getSolicitud(parseInt(solicitudId));
-          if (!solicitud.workflow_instancia_id) {
-            throw new Error('La solicitud no tiene workflow asociado');
-          }
-          wInstanciaId = solicitud.workflow_instancia_id;
-        }
-
-        setWorkflowInstanciaId(wInstanciaId);
-
-        if (wInstanciaId) {
-          const instancia = await workflowService.getInstancia(wInstanciaId);
-          if (instancia.etapa_actual_id) {
-            setEtapaId(instancia.etapa_actual_id);
-          }
-        }
-
         // Cargar casos PPSH en etapa 7 (etapa 6 completada, etapa 7 en proceso)
         const instancias = await workflowService.getInstancias({
           workflow_id: 5005, // PPSH
@@ -68,22 +58,12 @@ export const ImpresionListaCasos = () => {
         // Filtrar instancias que estén en etapa 7 (orden 7)
         const casosEnEtapa7: CasoImpresion[] = [];
         for (const inst of instancias) {
-          // Obtener detalles completos de la instancia para tener etapa_actual
           const detalles = await workflowService.getInstancia(inst.id);
           
           if (detalles.etapa_actual?.orden === 7) {
-            // Extraer ppsh_solicitud_id del metadata_adicional
             const instAny = inst as any;
-            let ppshSolicitudId = 0;
-            let numExpedientePPSH = '';
-            
-            if (instAny.metadata_adicional?.ppsh_solicitud_id) {
-              ppshSolicitudId = instAny.metadata_adicional.ppsh_solicitud_id;
-            }
-            
-            if (instAny.metadata_adicional?.ppsh_num_expediente) {
-              numExpedientePPSH = instAny.metadata_adicional.ppsh_num_expediente;
-            }
+            let ppshSolicitudId = instAny.metadata_adicional?.ppsh_solicitud_id || 0;
+            let numExpedientePPSH = instAny.metadata_adicional?.ppsh_num_expediente || '';
             
             casosEnEtapa7.push({
               instancia_id: inst.id,
@@ -95,23 +75,14 @@ export const ImpresionListaCasos = () => {
         }
 
         setCasos(casosEnEtapa7);
-
-      } catch (error) {
-        console.error('Error cargando datos:', error);
-        setError('Error al cargar la información');
-      } finally {
-        setLoading(false);
+      } catch (err) {
+        console.error('Error cargando casos:', err);
+        setError('Error al cargar casos para impresión');
       }
     };
 
-    loadData();
-  }, [instanciaId, solicitudId]);
-
-  const handleCancelar = () => {
-    const baseParam = solicitudId || instanciaId || workflowInstanciaId;
-    const basePath = solicitudId ? `/solicitudes/${solicitudId}` : `/workflows/${baseParam}`;
-    navigate(`${basePath}/etapas`);
-  };
+    loadCasos();
+  }, [setError]);
 
   const handleToggleCaso = (instanciaId: number) => {
     const newSeleccionados = new Set(casosSeleccionados);
@@ -124,7 +95,7 @@ export const ImpresionListaCasos = () => {
   };
 
   const handleSiguiente = async () => {
-    if (!workflowInstanciaId || !etapaId) {
+    if (!workflowInstanciaId || !instancia?.etapa_actual_id) {
       alert('Error: No se pudo identificar la instancia');
       return;
     }
@@ -134,29 +105,24 @@ export const ImpresionListaCasos = () => {
       return;
     }
 
-    setLoading(true);
+    setCompleting(true);
     try {
       const userPerfil = usuario?.perfil || 'FUNCIONARIO';
-
-      // Guardar los casos seleccionados
-      const respuestas = {
-        CASOS_IMPRESOS: Array.from(casosSeleccionados)
-      };
+      const respuestas = { CASOS_IMPRESOS: Array.from(casosSeleccionados) };
 
       await workflowService.completarEtapa(
         workflowInstanciaId,
-        etapaId,
+        instancia.etapa_actual_id,
         respuestas,
         userPerfil
       );
 
-      const baseRoute = instanciaId ? `/workflows/${instanciaId}` : `/solicitudes/${solicitudId}`;
-      navigate(`${baseRoute}/etapas`);
-    } catch (error: any) {
-      console.error('Error al completar:', error);
-      alert(error.response?.data?.detail || 'Error al completar la etapa');
+      navigate(`${basePath}/etapas`);
+    } catch (err: any) {
+      console.error('Error al completar:', err);
+      alert(err.response?.data?.detail || 'Error al completar la etapa');
     } finally {
-      setLoading(false);
+      setCompleting(false);
     }
   };
 
@@ -180,17 +146,10 @@ export const ImpresionListaCasos = () => {
             <Paper
               key={caso.instancia_id}
               sx={{
-                p: 2,
-                mb: 2,
+                p: 2, mb: 2, borderRadius: '4px', cursor: 'pointer', transition: 'all 0.2s',
                 border: casosSeleccionados.has(caso.instancia_id) ? '2px solid #0e5fa6' : '1px solid #d0d0d0',
-                borderRadius: '4px',
                 backgroundColor: casosSeleccionados.has(caso.instancia_id) ? '#f0f7ff' : 'white',
-                cursor: 'pointer',
-                transition: 'all 0.2s',
-                '&:hover': {
-                  borderColor: '#0e5fa6',
-                  backgroundColor: '#f8fafc'
-                }
+                '&:hover': { borderColor: '#0e5fa6', backgroundColor: '#f8fafc' }
               }}
               onClick={() => !readonly && handleToggleCaso(caso.instancia_id)}
             >
@@ -200,12 +159,7 @@ export const ImpresionListaCasos = () => {
                     checked={casosSeleccionados.has(caso.instancia_id)}
                     onChange={() => handleToggleCaso(caso.instancia_id)}
                     disabled={readonly}
-                    sx={{
-                      color: '#0e5fa6',
-                      '&.Mui-checked': {
-                        color: '#0e5fa6',
-                      }
-                    }}
+                    sx={{ color: '#0e5fa6', '&.Mui-checked': { color: '#0e5fa6' } }}
                   />
                 }
                 label={
@@ -224,15 +178,7 @@ export const ImpresionListaCasos = () => {
           ))}
 
           {casosSeleccionados.size > 0 && (
-            <Box
-              sx={{
-                mt: 3,
-                p: 2,
-                backgroundColor: '#f0f7ff',
-                borderRadius: '4px',
-                border: '1px solid #0e5fa6'
-              }}
-            >
+            <Box sx={{ mt: 3, p: 2, backgroundColor: '#f0f7ff', borderRadius: '4px', border: '1px solid #0e5fa6' }}>
               <Typography variant="body1" sx={{ color: '#0e5fa6', fontWeight: 500 }}>
                 {casosSeleccionados.size} caso(s) seleccionado(s)
               </Typography>
@@ -255,17 +201,14 @@ export const ImpresionListaCasos = () => {
       contentTitle="Impresión lista de casos"
       contentDescription="Seleccione los casos que han sido procesados y están listos para imprimir. La selección de casos marcará esta etapa como completada."
       customContent={customContent}
-      actionButton={{
-        label: 'Imprimir Lista',
-        icon: <PrintIcon />,
-        onClick: handleImprimir,
-      }}
+      actionButton={{ label: 'Imprimir Lista', icon: <PrintIcon />, onClick: handleImprimir }}
       readonly={readonly}
       onCancel={handleCancelar}
       onNext={readonly ? undefined : handleSiguiente}
       cancelButtonText="Volver"
       nextButtonText="Guardar y Continuar"
       loading={loading}
+      completing={completing}
       error={error}
     />
   );

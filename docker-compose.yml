@@ -155,11 +155,17 @@ services:
       - REDIS_DB=0
       - LOG_LEVEL=INFO
       - ENVIRONMENT=development
+      # Configuración de uploads
+      - UPLOADS_DIR=/app/uploads
+      - MAX_UPLOAD_SIZE_MB=100
+      - IMAGE_MAX_DIMENSION=4000
+      - OCR_TIMEOUT_SECONDS=60
     ports:
       - "8000:8000"
     volumes:
       - ./backend:/app
       - backend-logs:/app/logs
+      - uploads-data:/app/uploads
     networks:
       - tramites-network
     depends_on:
@@ -199,9 +205,15 @@ services:
       - CELERY_RESULT_BACKEND=redis://redis:6379/2
       - C_FORCE_ROOT=true
       - LOG_LEVEL=INFO
+      # Configuración de uploads (compartida con backend)
+      - UPLOADS_DIR=/app/uploads
+      - MAX_UPLOAD_SIZE_MB=100
+      - IMAGE_MAX_DIMENSION=4000
+      - OCR_TIMEOUT_SECONDS=60
     volumes:
       - ./backend:/app
       - backend-logs:/app/logs
+      - uploads-data:/app/uploads
     networks:
       - tramites-network
     depends_on:
@@ -360,3 +372,5 @@ volumes:
     name: tramites-redis-data
   backend-logs:
     name: tramites-backend-logs
+  uploads-data:
+    name: tramites-uploads-data

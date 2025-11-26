@@ -73,7 +73,7 @@ class WorkflowPreguntaBase(BaseModel):
     es_obligatoria: bool = False
     validacion_regex: Optional[str] = Field(None, max_length=500)
     mensaje_validacion: Optional[str] = Field(None, max_length=500)
-    opciones: Optional[List[str]] = None
+    opciones: Optional[Any] = None  # Puede ser List[str] para LISTA/OPCIONES o Dict para DESCARGA_ARCHIVO
     opciones_datos_caso: Optional[List[str]] = None
     permite_multiple: bool = False
     extensiones_permitidas: Optional[List[str]] = None
@@ -114,7 +114,7 @@ class WorkflowPreguntaUpdate(BaseModel):
     es_obligatoria: Optional[bool] = None
     validacion_regex: Optional[str] = Field(None, max_length=500)
     mensaje_validacion: Optional[str] = Field(None, max_length=500)
-    opciones: Optional[List[str]] = None
+    opciones: Optional[Any] = None  # Puede ser List[str] para LISTA/OPCIONES o Dict para DESCARGA_ARCHIVO
     opciones_datos_caso: Optional[List[str]] = None
     permite_multiple: Optional[bool] = None
     extensiones_permitidas: Optional[List[str]] = None

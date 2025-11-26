@@ -37,7 +37,13 @@ import {
   Grid,
   Tabs,
   Tab,
+  Switch,
+  Link,
 } from '@mui/material';
+import {
+  Home as HomeIcon,
+  Person as PersonIcon,
+} from '@mui/icons-material';
 /*
 // Imports comentados - ya no se usan directamente (EtapaConfigPanel los maneja)
 import {
@@ -71,6 +77,8 @@ import {
   Edit as EditIcon,
   Delete as DeleteIcon,
   AccountTree as AutoLayoutIcon,
+  FitScreen as FitScreenIcon,
+  Save as SaveIcon,
 } from '@mui/icons-material';
 import { workflowService } from '../services/workflow.service';
 import CustomNode from '../components/Workflow/CustomNode';
@@ -121,13 +129,13 @@ const WorkflowEditorFigmaContent: React.FC = () => {
   const isEditMode = !!id;
   console.log('💡 WorkflowEditorFigma: isEditMode =', isEditMode);
   
-  const { zoomIn, zoomOut, setViewport, getViewport } = useReactFlow();
+  const { zoomIn, zoomOut, setViewport, getViewport, fitView } = useReactFlow();
 
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
   const [currentZoom, setCurrentZoom] = useState<number>(100);
-  const [currentTab, setCurrentTab] = useState<number>(1); // 0: General, 1: Flujo, 2: Estado, 3: Historial
+  const [currentTab, setCurrentTab] = useState<number>(0); // 0: General, 1: Flujo, 2: Estado, 3: Historial
 
   // Estado del workflow completo
   const [workflowData, setWorkflowData] = useState<Partial<Workflow>>({
@@ -158,6 +166,17 @@ const WorkflowEditorFigmaContent: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+
+  // Llamar a fitView cuando se cambie a la pestaña de Flujo
+  useEffect(() => {
+    if (currentTab === 1) {
+      // Delay para asegurar que el DOM y ReactFlow estén listos
+      const timer = setTimeout(() => {
+        fitView({ padding: 0.15, duration: 300 });
+      }, 200);
+      return () => clearTimeout(timer);
+    }
+  }, [currentTab, fitView]);
 
   useEffect(() => {
     console.log('🔍 useEffect ejecutado - isEditMode:', isEditMode, 'id:', id);
@@ -233,35 +252,159 @@ const WorkflowEditorFigmaContent: React.FC = () => {
       });
 
       if (data.etapas && data.etapas.length > 0) {
-        const flowNodes: Node[] = data.etapas.map((etapa) => ({
-          id: etapa.id?.toString() || etapa.codigo,
-          type: 'custom',
-          position: etapa.posicion_x && etapa.posicion_y 
-            ? { x: etapa.posicion_x, y: etapa.posicion_y }
-            : { x: 0, y: 0 },
-          data: etapa,
-        }));
-        setNodes(flowNodes);
+        // Verificar si ya existe un nodo de inicio (código INICIO o es_inicial)
+        const hasInicioNode = data.etapas.some(e => e.codigo === 'INICIO' || e.es_inicial);
         
-        if (flowNodes.length > 0) {
+        const flowNodes: Node[] = [];
+        
+        // Agregar nodo de inicio visual si no existe
+        if (!hasInicioNode) {
+          const primeraEtapa = data.etapas[0];
+          flowNodes.push({
+            id: 'inicio',
+            type: 'custom',
+            position: { 
+              x: (primeraEtapa.posicion_x || 80) - 150, 
+              y: primeraEtapa.posicion_y || 300 
+            },
+            data: {
+              codigo: 'INICIO',
+              nombre: 'Inicio',
+              tipo_etapa: 'ETAPA' as const,
+              orden: 0,
+              perfiles_permitidos: ['Sistema'],
+              es_inicial: true,
+              es_etapa_inicial: false, // false para que las etapas reales no se confundan
+              es_etapa_final: false,
+              requiere_validacion: false,
+              permite_edicion_posterior: false,
+              activo: true,
+            },
+          });
+        }
+        
+        // Mapear etapas desde la BD (quitando el flag es_etapa_inicial para que se muestren como nodos normales)
+        data.etapas.forEach((etapa) => {
+          flowNodes.push({
+            id: etapa.id?.toString() || etapa.codigo,
+            type: 'custom',
+            position: etapa.posicion_x && etapa.posicion_y 
+              ? { x: etapa.posicion_x, y: etapa.posicion_y }
+              : { x: 0, y: 0 },
+            data: {
+              ...etapa,
+              // Preservar es_etapa_inicial en los datos pero no usarlo para renderizar como círculo
+              es_etapa_inicial_original: etapa.es_etapa_inicial,
+              es_etapa_inicial: false, // Evitar que se renderice como círculo verde
+            },
+          });
+        });
+        
+        // Encontrar el último nodo (el que no tiene conexiones salientes)
+        const lastNode = flowNodes[flowNodes.length - 1];
+        const hasFinalNode = flowNodes.some(n => n.data.tipo_etapa === 'TERMINO' || n.data.tipo_etapa === 'FIN');
+        
+        // Si no hay nodo final, agregar un nodo placeholder al final
+        if (!hasFinalNode && lastNode) {
+          const placeholderId = 'placeholder-add-node';
+          const placeholderNode: Node = {
+            id: placeholderId,
+            type: 'custom',
+            position: { 
+              x: lastNode.position.x + 270, 
+              y: lastNode.position.y 
+            },
+            data: {
+              is_placeholder: true,
+              codigo: '',
+              nombre: '',
+              tipo_etapa: 'ETAPA' as const,
+              perfiles_permitidos: [],
+              es_etapa_inicial: false,
+              es_etapa_final: false,
+              preguntas: [],
+              conexiones: [],
+            },
+          };
+          flowNodes.push(placeholderNode);
+        }
+        
+        // Seleccionar primer nodo si existe
+        if (flowNodes.length > 0 && !flowNodes[0].data.is_placeholder) {
           setSelectedNode(flowNodes[0]);
         }
-      }
 
-      if (data.conexiones && data.conexiones.length > 0) {
-        const flowEdges: Edge[] = data.conexiones.map((conexion) => ({
-          id: conexion.id?.toString() || `${conexion.etapa_origen_id}-${conexion.etapa_destino_id}`,
-          source: conexion.etapa_origen_id.toString(),
-          target: conexion.etapa_destino_id.toString(),
-          label: typeof conexion.condicion === 'object' && conexion.condicion !== null
-            ? JSON.stringify(conexion.condicion)
-            : conexion.condicion || '',
-          markerEnd: {
-            type: MarkerType.ArrowClosed,
-          },
-        }));
-        setEdges(flowEdges);
+        // Cargar conexiones
+        let flowEdges: Edge[] = [];
+        
+        // Agregar conexión desde nodo de inicio a la primera etapa si fue creado
+        if (!hasInicioNode && data.etapas.length > 0) {
+          const primeraEtapa = data.etapas[0];
+          const primeraEtapaId = primeraEtapa.id?.toString() || primeraEtapa.codigo;
+          flowEdges.push({
+            id: 'e-inicio-primera',
+            source: 'inicio',
+            target: primeraEtapaId,
+            type: 'straight',
+            style: { stroke: '#4d4d4d', strokeWidth: 2 },
+            markerEnd: {
+              type: MarkerType.ArrowClosed,
+              color: '#4d4d4d',
+            },
+          });
+        }
+        
+        if (data.conexiones && data.conexiones.length > 0) {
+          const conexionesFromDB = data.conexiones.map((conexion) => ({
+            id: conexion.id?.toString() || `${conexion.etapa_origen_id}-${conexion.etapa_destino_id}`,
+            source: conexion.etapa_origen_id.toString(),
+            target: conexion.etapa_destino_id.toString(),
+            type: 'straight',
+            style: { stroke: '#4d4d4d', strokeWidth: 2 },
+            label: typeof conexion.condicion === 'object' && conexion.condicion !== null
+              ? JSON.stringify(conexion.condicion)
+              : conexion.condicion || '',
+            markerEnd: {
+              type: MarkerType.ArrowClosed,
+              color: '#4d4d4d',
+            },
+          }));
+          flowEdges = [...flowEdges, ...conexionesFromDB];
+          
+          // Agregar conexión al placeholder si existe
+          if (!hasFinalNode && data.etapas && data.etapas.length > 0) {
+            const lastEtapa = data.etapas[data.etapas.length - 1];
+            const lastNodeId = lastEtapa.id?.toString() || lastEtapa.codigo;
+            flowEdges.push({
+              id: `e${lastNodeId}-placeholder`,
+              source: lastNodeId,
+              target: 'placeholder-add-node',
+              type: 'straight',
+              style: { stroke: '#4d4d4d', strokeWidth: 2 },
+              markerEnd: {
+                type: MarkerType.ArrowClosed,
+                color: '#4d4d4d',
+              },
+            });
+          }
+        }
+        
+        // Aplicar auto-layout automáticamente al cargar
+        const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(
+          flowNodes,
+          flowEdges,
+          'LR'
+        );
+        
+        setNodes(layoutedNodes);
+        setEdges(layoutedEdges);
+        
+        // Ajustar la vista después de que React renderice los nodos
+        setTimeout(() => {
+          fitView({ padding: 0.1 });
+        }, 100);
       }
+      
     } catch (error) {
       console.error('Error al cargar workflow:', error);
       setSaveError('Error al cargar el workflow');
@@ -272,7 +415,7 @@ const WorkflowEditorFigmaContent: React.FC = () => {
     (params: Connection) => {
       const edge = {
         ...params,
-        type: 'smoothstep',
+        type: 'straight',
         style: { 
           stroke: '#4d4d4d', 
           strokeWidth: 2,
@@ -288,7 +431,91 @@ const WorkflowEditorFigmaContent: React.FC = () => {
   );
 
   const handleNodeClick = (_event: React.MouseEvent, node: Node) => {
+    // Si es el placeholder, convertirlo en un nodo real
+    if (node.data.is_placeholder) {
+      handleConvertPlaceholderToNode(node);
+      return;
+    }
     setSelectedNode(node);
+  };
+
+  // Función para convertir el placeholder en un nodo real y crear un nuevo placeholder
+  const handleConvertPlaceholderToNode = (placeholderNode: Node) => {
+    const newNodeId = `${Date.now()}`;
+    
+    // Convertir el placeholder en un nodo real
+    const convertedNode: Node = {
+      ...placeholderNode,
+      id: newNodeId,
+      data: {
+        codigo: `ETAPA_${newNodeId}`,
+        nombre: `Nueva Etapa`,
+        tipo_etapa: 'ETAPA' as const,
+        perfiles_permitidos: [],
+        es_etapa_inicial: false,
+        es_etapa_final: false,
+        preguntas: [],
+        conexiones: [],
+        is_placeholder: false,
+      },
+    };
+    
+    // Crear un nuevo placeholder después del nodo convertido
+    const newPlaceholderId = 'placeholder-add-node';
+    const newPlaceholder: Node = {
+      id: newPlaceholderId,
+      type: 'custom',
+      position: { 
+        x: convertedNode.position.x + 270, 
+        y: convertedNode.position.y 
+      },
+      data: {
+        is_placeholder: true,
+        codigo: '',
+        nombre: '',
+        tipo_etapa: 'ETAPA' as const,
+        perfiles_permitidos: [],
+        es_etapa_inicial: false,
+        es_etapa_final: false,
+        preguntas: [],
+        conexiones: [],
+      },
+    };
+    
+    // Actualizar nodos: reemplazar el placeholder viejo con el nodo convertido y agregar nuevo placeholder
+    setNodes((nds) => {
+      const filteredNodes = nds.filter(n => n.id !== placeholderNode.id);
+      return [...filteredNodes, convertedNode, newPlaceholder];
+    });
+    
+    // Actualizar edges: actualizar la conexión existente y agregar nueva conexión al placeholder
+    setEdges((eds) => {
+      // Actualizar el edge que apuntaba al placeholder viejo
+      const updatedEdges = eds.map(e => {
+        if (e.target === placeholderNode.id) {
+          return { ...e, target: newNodeId, id: e.id.replace('placeholder', newNodeId) };
+        }
+        return e;
+      });
+      
+      // Agregar nuevo edge al placeholder
+      const newEdge: Edge = {
+        id: `e${newNodeId}-placeholder`,
+        source: newNodeId,
+        target: newPlaceholderId,
+        type: 'straight',
+        style: { stroke: '#4d4d4d', strokeWidth: 2 },
+        markerEnd: {
+          type: MarkerType.ArrowClosed,
+          color: '#4d4d4d',
+        },
+      };
+      
+      return [...updatedEdges, newEdge];
+    });
+    
+    // Seleccionar el nuevo nodo para configurarlo
+    setSelectedNode(convertedNode);
   };
 
   /*
@@ -390,7 +617,11 @@ const WorkflowEditorFigmaContent: React.FC = () => {
     );
     setNodes(layoutedNodes);
     setEdges(layoutedEdges);
-  }, [nodes, edges, setNodes, setEdges]);
+    // Aplicar fitView después de un breve delay para que se rendericen los nodos
+    setTimeout(() => {
+      fitView({ padding: 0.2, duration: 300 });
+    }, 100);
+  }, [nodes, edges, setNodes, setEdges, fitView]);
 
   // Función para agregar un nuevo nodo
   const handleAddNode = () => {
@@ -433,7 +664,7 @@ const WorkflowEditorFigmaContent: React.FC = () => {
         id: `e${lastNode.id}-${newNodeId}`,
         source: lastNode.id,
         target: newNodeId,
-        type: 'smoothstep',
+        type: 'straight',
         animated: false,
         style: { stroke: '#4d4d4d', strokeWidth: 2 },
         markerEnd: {
@@ -453,42 +684,125 @@ const WorkflowEditorFigmaContent: React.FC = () => {
     setSaving(true);
     setSaveError(null);
 
+    // Función para determinar si un ID es de la base de datos (no temporal)
+    // IDs temporales son timestamps (> 1600000000000, año 2020+)
+    const isDbId = (nodeId: string): boolean => {
+      const id = parseInt(nodeId);
+      return !isNaN(id) && id > 0 && id < 1000000000; // IDs de BD son menores a 1 billón
+    };
+
     try {
-      // Preparar datos de las etapas
-      const etapas = nodes.map((node, index) => ({
-        ...node.data,
-        orden: index,
-        posicion_x: node.position.x,
-        posicion_y: node.position.y,
-      }));
-
-      // Preparar datos de las conexiones
-      const conexiones = edges.map((edge) => ({
-        etapa_origen_id: parseInt(edge.source),
-        etapa_destino_id: parseInt(edge.target),
-        condicion: typeof edge.label === 'string' ? edge.label : (edge.label ? JSON.stringify(edge.label) : null),
-        es_predeterminada: true,
-        activo: true,
-      }));
-
-      const workflowPayload = {
-        ...workflowData,
-        etapas,
-        conexiones,
-      };
-
       if (isEditMode && id) {
-        // Actualizar workflow existente
+        // 1. Actualizar datos básicos del workflow
+        const workflowPayload = {
+          nombre: workflowData.nombre,
+          descripcion: workflowData.descripcion,
+          version: workflowData.version,
+          estado: workflowData.estado,
+          activo: workflowData.activo,
+        };
         await workflowService.updateWorkflow(parseInt(id), workflowPayload);
-      } else {
-        // Crear nuevo workflow
-        await workflowService.createWorkflow(workflowPayload);
-      }
 
-      setSaveSuccess(true);
-      setTimeout(() => {
-        navigate('/flujos');
-      }, 1500);
+        // 2. Separar etapas existentes de nuevas
+        // Filtrar nodos que NO son visuales (inicio, fin, placeholder)
+        const etapasEditables = nodes.filter(node => {
+          const nodeId = node.id;
+          // Excluir nodos visuales
+          if (nodeId === 'inicio' || nodeId === 'fin' || node.data.is_placeholder) {
+            return false;
+          }
+          return true;
+        });
+
+        // Separar en existentes y nuevas
+        const etapasExistentes = etapasEditables.filter(node => isDbId(node.id));
+        const etapasNuevas = etapasEditables.filter(node => !isDbId(node.id));
+
+        // Calcular el orden basado en posición X (de izquierda a derecha)
+        const todasOrdenadas = [...etapasEditables].sort((a, b) => a.position.x - b.position.x);
+        
+        // 3. Actualizar etapas existentes con sus nuevas posiciones
+        const updatePromises = etapasExistentes.map((node) => {
+          const etapaId = parseInt(node.id);
+          const orden = todasOrdenadas.findIndex(n => n.id === node.id) + 1;
+          return workflowService.updateEtapa(etapaId, {
+            orden,
+            posicion_x: Math.round(node.position.x),
+            posicion_y: Math.round(node.position.y),
+          });
+        });
+
+        await Promise.all(updatePromises);
+        console.log(`Actualizadas ${etapasExistentes.length} etapas existentes`);
+
+        // 4. Crear etapas nuevas
+        if (etapasNuevas.length > 0) {
+          const createPromises = etapasNuevas.map((node) => {
+            const orden = todasOrdenadas.findIndex(n => n.id === node.id) + 1;
+            return workflowService.createEtapa({
+              workflow_id: parseInt(id),
+              codigo: node.data.codigo || `ETAPA_${Date.now()}`,
+              nombre: node.data.nombre || 'Nueva Etapa',
+              tipo_etapa: node.data.tipo_etapa || 'ETAPA',
+              orden,
+              posicion_x: Math.round(node.position.x),
+              posicion_y: Math.round(node.position.y),
+              perfiles_permitidos: node.data.perfiles_permitidos || [],
+              es_etapa_inicial: node.data.es_etapa_inicial || false,
+              es_etapa_final: node.data.es_etapa_final || false,
+              preguntas: node.data.preguntas || [],
+            });
+          });
+
+          await Promise.all(createPromises);
+          console.log(`Creadas ${etapasNuevas.length} etapas nuevas`);
+        }
+
+        setSaveSuccess(true);
+        // No navegar automáticamente, permitir seguir editando
+        setTimeout(() => {
+          setSaveSuccess(false);
+        }, 3000);
+      } else {
+        // Crear nuevo workflow - mantener lógica original
+        const etapas = nodes
+          .filter(node => {
+            const nodeId = parseInt(node.id);
+            return !isNaN(nodeId) || node.data.nombre; // Incluir nodos con nombre
+          })
+          .map((node, index) => ({
+            ...node.data,
+            orden: index,
+            posicion_x: Math.round(node.position.x),
+            posicion_y: Math.round(node.position.y),
+          }));
+
+        const conexiones = edges
+          .filter(edge => {
+            const sourceId = parseInt(edge.source);
+            const targetId = parseInt(edge.target);
+            return !isNaN(sourceId) && !isNaN(targetId);
+          })
+          .map((edge) => ({
+            etapa_origen_id: parseInt(edge.source),
+            etapa_destino_id: parseInt(edge.target),
+            condicion: typeof edge.label === 'string' ? edge.label : null,
+            es_predeterminada: true,
+            activo: true,
+          }));
+
+        const workflowPayload = {
+          ...workflowData,
+          etapas,
+          conexiones,
+        };
+
+        await workflowService.createWorkflow(workflowPayload);
+        setSaveSuccess(true);
+        setTimeout(() => {
+          navigate('/procesos');
+        }, 1500);
+      }
     } catch (error: any) {
       console.error('Error al guardar workflow:', error);
       setSaveError(error.response?.data?.detail || 'Error al guardar el workflow');
@@ -511,63 +825,64 @@ const WorkflowEditorFigmaContent: React.FC = () => {
 
   return (
     <>
-      {/* Header del Workflow */}
-      <Box sx={{ bgcolor: '#f5f5f5', borderBottom: '1px solid #e0e0e0', px: 3, py: 2 }}>
-        <Stack direction="row" spacing={3} alignItems="center" justifyContent="space-between">
-          <Stack direction="row" spacing={2} alignItems="center" sx={{ flex: 1 }}>
-            <TextField
-              label="Código"
-              value={workflowData.codigo}
-              onChange={(e) => setWorkflowData({ ...workflowData, codigo: e.target.value })}
-              size="small"
-              sx={{ width: 150 }}
-            />
-            <TextField
-              label="Nombre del Workflow"
-              value={workflowData.nombre}
-              onChange={(e) => setWorkflowData({ ...workflowData, nombre: e.target.value })}
-              size="small"
-              sx={{ flex: 1, minWidth: 300 }}
-            />
-            <FormControl size="small" sx={{ width: 150 }}>
-              <InputLabel>Estado</InputLabel>
-              <Select
-                value={workflowData.estado}
-                onChange={(e) => setWorkflowData({ ...workflowData, estado: e.target.value as EstadoWorkflow })}
-                label="Estado"
-              >
-                <MenuItem value="BORRADOR">Borrador</MenuItem>
-                <MenuItem value="ACTIVO">Activo</MenuItem>
-                <MenuItem value="INACTIVO">Inactivo</MenuItem>
-                <MenuItem value="ARCHIVADO">Archivado</MenuItem>
-              </Select>
-            </FormControl>
-          </Stack>
-          
-          <Stack direction="row" spacing={2}>
-            <Button
-              variant="outlined"
-              onClick={() => navigate('/flujos')}
-              disabled={saving}
-            >
-              Cancelar
-            </Button>
-            <Button
-              variant="contained"
-              onClick={handleSaveWorkflow}
-              disabled={saving}
-            >
-              {saving ? 'Guardando...' : 'Guardar Workflow'}
-            </Button>
-          </Stack>
-        </Stack>
+      {/* Breadcrumbs - estilo Figma */}
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2, mt: 1 }}>
+        <Link
+          underline="none"
+          sx={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: 1,
+            color: '#757575', 
+            cursor: 'pointer',
+            fontSize: '14px',
+            fontFamily: 'Roboto, sans-serif',
+            '&:hover': { color: '#333' }
+          }}
+          onClick={() => navigate('/')}
+        >
+          <HomeIcon sx={{ fontSize: 20 }} />
+          Inicio
+        </Link>
+        <Typography sx={{ color: '#757575', fontSize: '14px' }}>/</Typography>
+        <Link
+          underline="none"
+          sx={{ 
+            color: '#757575', 
+            cursor: 'pointer',
+            fontSize: '14px',
+            fontFamily: 'Roboto, sans-serif',
+            '&:hover': { color: '#333' }
+          }}
+          onClick={() => navigate('/procesos')}
+        >
+          Procesos
+        </Link>
+        <Typography sx={{ color: '#757575', fontSize: '14px' }}>/</Typography>
+        <Typography sx={{ color: '#757575', fontSize: '14px', fontFamily: 'Roboto, sans-serif' }}>
+          {workflowData.nombre || 'Permiso de Protección de Seguridad Humanitaria'}
+        </Typography>
       </Box>
 
-      {/* Tabs de navegación: General, Flujo, Estado, Historial */}
-      <Box sx={{ bgcolor: '#f1f3f4', borderBottom: '1px solid #e0e0e0', px: 3 }}>
+      {/* Título del Workflow - estilo Figma */}
+      <Typography 
+        sx={{ 
+          fontWeight: 700, 
+          color: '#333333',
+          fontSize: '48px',
+          fontFamily: 'Roboto Flex, Roboto, sans-serif',
+          mb: 4,
+          lineHeight: 1.5,
+        }}
+      >
+        {workflowData.nombre || 'Permiso de Protección de Seguridad Humanitaria'}
+      </Typography>
+
+      {/* Tabs de navegación - estilo Figma */}
+      <Box sx={{ bgcolor: '#f1f3f4', mb: 4 }}>
         <Tabs
           value={currentTab}
-          onChange={(event, newValue) => setCurrentTab(newValue)}
+          onChange={(_event, newValue) => setCurrentTab(newValue)}
           sx={{
             minHeight: 40,
             '& .MuiTab-root': {
@@ -578,6 +893,7 @@ const WorkflowEditorFigmaContent: React.FC = () => {
               color: '#4d4d4d',
               minWidth: 120,
               px: 2,
+              py: 1,
               '&.Mui-selected': {
                 color: '#0e5fa6',
                 fontWeight: 400,
@@ -616,15 +932,202 @@ const WorkflowEditorFigmaContent: React.FC = () => {
         <Alert severity="error">{saveError}</Alert>
       </Snackbar>
 
-      {/* Contenido del tab "General" */}
+      {/* Contenido del tab "General" - estilo Figma */}
       {currentTab === 0 && (
-        <Box sx={{ p: 3 }}>
-          <Typography variant="h6" gutterBottom>
-            Configuración General
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Contenido de la pestaña General (por implementar)
-          </Typography>
+        <Box sx={{ maxWidth: 700 }}>
+          {/* Campo: Nombre del proceso */}
+          <Box sx={{ mb: 4 }}>
+            <TextField
+              label="Nombre del proceso"
+              value={workflowData.nombre}
+              onChange={(e) => setWorkflowData({ ...workflowData, nombre: e.target.value })}
+              fullWidth
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: '4px',
+                  '& fieldset': {
+                    borderColor: '#333333',
+                  },
+                  '&:hover fieldset': {
+                    borderColor: '#333333',
+                  },
+                  '&.Mui-focused fieldset': {
+                    borderColor: '#333333',
+                  },
+                },
+                '& .MuiInputLabel-root': {
+                  fontFamily: 'Roboto, sans-serif',
+                  fontWeight: 500,
+                  fontSize: '14px',
+                  color: '#333333',
+                  backgroundColor: 'white',
+                  px: 0.5,
+                },
+                '& .MuiInputBase-input': {
+                  fontFamily: 'Roboto, sans-serif',
+                  fontSize: '16px',
+                  color: '#333333',
+                  py: 2,
+                  px: 2,
+                },
+              }}
+            />
+            <Typography sx={{ 
+              fontFamily: 'Roboto, sans-serif', 
+              fontWeight: 300, 
+              fontSize: '14px', 
+              color: '#333333',
+              mt: 0.5,
+              px: 2,
+            }}>
+              Indicaciones extra
+            </Typography>
+          </Box>
+
+          {/* Campo: Detalles del proceso */}
+          <Box sx={{ mb: 4 }}>
+            <TextField
+              label="Detalles del proceso"
+              value={workflowData.descripcion}
+              onChange={(e) => setWorkflowData({ ...workflowData, descripcion: e.target.value })}
+              fullWidth
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: '4px',
+                  '& fieldset': {
+                    borderColor: '#333333',
+                  },
+                  '&:hover fieldset': {
+                    borderColor: '#333333',
+                  },
+                  '&.Mui-focused fieldset': {
+                    borderColor: '#333333',
+                  },
+                },
+                '& .MuiInputLabel-root': {
+                  fontFamily: 'Roboto, sans-serif',
+                  fontWeight: 500,
+                  fontSize: '14px',
+                  color: '#333333',
+                  backgroundColor: 'white',
+                  px: 0.5,
+                },
+                '& .MuiInputBase-input': {
+                  fontFamily: 'Roboto, sans-serif',
+                  fontSize: '16px',
+                  color: '#333333',
+                  py: 2,
+                  px: 2,
+                },
+              }}
+            />
+            <Typography sx={{ 
+              fontFamily: 'Roboto, sans-serif', 
+              fontWeight: 300, 
+              fontSize: '14px', 
+              color: '#333333',
+              mt: 0.5,
+              px: 2,
+            }}>
+              Indicaciones extra
+            </Typography>
+          </Box>
+
+          {/* Campo: Estado del proceso (Switch) */}
+          <Box sx={{ mb: 6 }}>
+            <Typography sx={{ 
+              fontFamily: 'Roboto, sans-serif', 
+              fontWeight: 500, 
+              fontSize: '14px', 
+              color: '#333333',
+              mb: 1,
+              backgroundColor: 'white',
+              display: 'inline-block',
+              px: 0.5,
+            }}>
+              Estado del proceso
+            </Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Switch
+                checked={workflowData.activo ?? true}
+                onChange={(e) => setWorkflowData({ ...workflowData, activo: e.target.checked })}
+                sx={{
+                  '& .MuiSwitch-switchBase.Mui-checked': {
+                    color: '#0e5fa6',
+                    '&:hover': {
+                      backgroundColor: 'rgba(14, 95, 166, 0.08)',
+                    },
+                  },
+                  '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
+                    backgroundColor: '#0e5fa6',
+                  },
+                }}
+              />
+              <Typography sx={{ 
+                fontFamily: 'Roboto, sans-serif', 
+                fontSize: '16px', 
+                color: '#333333',
+              }}>
+                {workflowData.activo ? 'Activado' : 'Desactivado'}
+              </Typography>
+            </Box>
+            <Typography sx={{ 
+              fontFamily: 'Roboto, sans-serif', 
+              fontWeight: 300, 
+              fontSize: '14px', 
+              color: '#333333',
+              mt: 0.5,
+              px: 2,
+            }}>
+              Indicaciones extra
+            </Typography>
+          </Box>
+
+          {/* Botones - estilo Figma */}
+          <Box sx={{ display: 'flex', gap: 3 }}>
+            <Button
+              variant="outlined"
+              onClick={() => navigate('/procesos')}
+              disabled={saving}
+              sx={{
+                textTransform: 'none',
+                fontFamily: 'Roboto, sans-serif',
+                fontSize: '16px',
+                fontWeight: 400,
+                color: '#0e5fa6',
+                borderColor: '#0e5fa6',
+                borderRadius: '4px',
+                px: 2,
+                py: 1,
+                '&:hover': {
+                  borderColor: '#0e5fa6',
+                  backgroundColor: 'rgba(14, 95, 166, 0.04)',
+                },
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="contained"
+              onClick={handleSaveWorkflow}
+              disabled={saving}
+              sx={{
+                textTransform: 'none',
+                fontFamily: 'Roboto, sans-serif',
+                fontSize: '16px',
+                fontWeight: 400,
+                backgroundColor: '#0e5fa6',
+                borderRadius: '4px',
+                px: 2,
+                py: 1,
+                '&:hover': {
+                  backgroundColor: '#0a4a82',
+                },
+              }}
+            >
+              {saving ? 'Guardando...' : 'Guardar cambios'}
+            </Button>
+          </Box>
         </Box>
       )}
 
@@ -657,7 +1160,48 @@ const WorkflowEditorFigmaContent: React.FC = () => {
           },
         }}
       >
-        {/* Barra de herramientas superior */}
+        {/* Filtro por perfil - esquina superior izquierda */}
+        <Box
+          sx={{
+            position: 'absolute',
+            top: 16,
+            left: 16,
+            zIndex: 10,
+          }}
+        >
+          <FormControl size="small" sx={{ minWidth: 160 }}>
+            <Select
+              value="todos"
+              displayEmpty
+              sx={{
+                bgcolor: 'white',
+                border: '1px solid #788093',
+                borderRadius: '4px',
+                '& .MuiOutlinedInput-notchedOutline': {
+                  border: 'none',
+                },
+                '& .MuiSelect-select': {
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 1,
+                  py: 0.75,
+                  px: 1.5,
+                  fontSize: 14,
+                  color: '#333',
+                },
+              }}
+              startAdornment={<PersonIcon sx={{ fontSize: 18, color: '#788093', mr: 1 }} />}
+            >
+              <MenuItem value="todos">Todos</MenuItem>
+              <MenuItem value="ciudadano">Ciudadano</MenuItem>
+              <MenuItem value="funcionario">Funcionario</MenuItem>
+              <MenuItem value="supervisor">Supervisor</MenuItem>
+              <MenuItem value="administrador">Administrador</MenuItem>
+            </Select>
+          </FormControl>
+        </Box>
+
+        {/* Barra de herramientas superior - centro */}
         <Box
           sx={{
             position: 'absolute',
@@ -721,6 +1265,69 @@ const WorkflowEditorFigmaContent: React.FC = () => {
           >
             <AutoLayoutIcon sx={{ fontSize: 16, color: '#788093' }} />
           </IconButton>
+
+          {/* Botón de Ajustar Vista */}
+          <IconButton
+            size="small"
+            onClick={() => fitView({ padding: 0.3, minZoom: 0.1, duration: 300 })}
+            sx={{
+              border: '1px solid #788093',
+              borderRadius: '4px',
+              bgcolor: 'white',
+              p: 0.5,
+            }}
+            title="Ajustar vista a todos los nodos"
+          >
+            <FitScreenIcon sx={{ fontSize: 16, color: '#788093' }} />
+          </IconButton>
+        </Box>
+
+        {/* Botones superiores derechos - Guardar e Imprimir */}
+        <Box
+          sx={{
+            position: 'absolute',
+            top: 16,
+            right: 16,
+            zIndex: 10,
+            display: 'flex',
+            gap: 1,
+          }}
+        >
+          <Button
+            variant="contained"
+            size="small"
+            onClick={handleSaveWorkflow}
+            disabled={saving}
+            startIcon={<SaveIcon sx={{ fontSize: 16 }} />}
+            sx={{
+              textTransform: 'none',
+              fontFamily: 'Roboto, sans-serif',
+              fontSize: '14px',
+              fontWeight: 400,
+              backgroundColor: '#0e5fa6',
+              borderRadius: '4px',
+              px: 2,
+              py: 0.75,
+              '&:hover': {
+                backgroundColor: '#0a4a82',
+              },
+            }}
+          >
+            {saving ? 'Guardando...' : 'Guardar'}
+          </Button>
+          <IconButton
+            size="small"
+            onClick={() => window.print()}
+            sx={{
+              border: '1px solid #788093',
+              borderRadius: '4px',
+              bgcolor: 'white',
+              p: 0.75,
+            }}
+            title="Imprimir flujo"
+          >
+            <PrintIcon sx={{ fontSize: 18, color: '#788093' }} />
+          </IconButton>
         </Box>
 
         {/* ReactFlow Canvas */}
@@ -738,49 +1345,15 @@ const WorkflowEditorFigmaContent: React.FC = () => {
           proOptions={{ hideAttribution: true }}
           defaultViewport={{ x: 0, y: 0, zoom: 1 }}
           defaultEdgeOptions={{
-            type: 'smoothstep',
+            type: 'straight',
             animated: false,
             style: { stroke: '#4d4d4d', strokeWidth: 2 },
           }}
-          connectionLineType="smoothstep"
+          connectionLineType="straight"
           connectionLineStyle={{ stroke: '#4d4d4d', strokeWidth: 2 }}
         >
           <Background variant={BackgroundVariant.Dots} gap={12} size={1} color="#e0e0e0" />
         </ReactFlow>
-
-        {/* Botón Agregar Nodo - visible solo cuando no hay selección y el último nodo no es de tipo TERMINO o FIN */}
-        {!selectedNode && !nodes.some(n => n.data.tipo_etapa === 'TERMINO' || n.data.tipo_etapa === 'FIN') && (
-          <Box
-            sx={{
-              position: 'absolute',
-              top: '50%',
-              left: '50%',
-              transform: 'translate(-50%, -50%)',
-              zIndex: 5,
-            }}
-          >
-            <Box
-              onClick={handleAddNode}
-              sx={{
-                width: 220,
-                height: 110,
-                border: '2px dashed #788093',
-                borderRadius: '4px',
-                bgcolor: '#f1f3f4',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: 'pointer',
-                '&:hover': {
-                  bgcolor: '#e8eaed',
-                  borderColor: '#5f6368',
-                },
-              }}
-            >
-              <AddIcon sx={{ fontSize: 40, color: '#788093' }} />
-            </Box>
-          </Box>
-        )}
       </Box>
       </Grid>
 
