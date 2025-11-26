@@ -1,0 +1,430 @@
+# Sistema de Trámites MVP - Panamá
+# Proyecto: Migración Digital PPSH (Pasaportes, Permisos, Salidas, Hospedajes)
+# Stack: React 18.2 + TypeScript + FastAPI + SQL Server
+
+## TECNOLOGÍAS
+
+### Frontend
+- React 18.2.0 + TypeScript 4.9
+- Material-UI 5 (MUI)
+- ReactFlow 11 (editor workflow visual)
+- Axios (HTTP client)
+- React Router v6
+- Build: Vite/Create React App
+- Puerto: 3000
+
+### Backend
+- Python 3.11 + FastAPI 0.104
+- SQLAlchemy 2.0 (ORM)
+- Alembic (migraciones)
+- Pydantic v2 (validación)
+- python-jose (JWT)
+- Celery + Redis (tareas async)
+- Puerto: 8000
+
+### Base de Datos
+- SQL Server 2019+ (Microsoft)
+- Esquema: dbo
+- Naming: UPPER_SNAKE_CASE para tablas
+- Puerto: 1433
+
+### Infraestructura
+- Docker + Docker Compose
+- Nginx (reverse proxy)
+- Redis (cache/queue)
+
+## ARQUITECTURA
+
+### Estructura de Directorios
+```
+tramites-mvp-panama/
+├── frontend/src/
+│   ├── components/Workflow/    # Editor de workflows
+│   ├── pages/                  # Páginas principales
+│   ├── types/                  # TypeScript types
+│   └── services/               # API clients
+├── backend/app/
+│   ├── models/                 # SQLAlchemy models
+│   ├── schemas/                # Pydantic schemas
+│   ├── routers/                # FastAPI routes
+│   ├── services/               # Business logic
+│   └── infrastructure/         # DB, Redis, etc.
+└── docs/                       # Documentación
+```
+
+### Componentes Clave
+
+**Sistema de Workflows Dinámicos:**
+- Editor visual ReactFlow
+- Nodos: ETAPA, COMPUERTA, SUBPROCESO, PRESENCIAL, FIN
+- Tipos de preguntas: 18+ tipos configurables
+- Almacenamiento: WORKFLOW, WORKFLOW_ETAPA, WORKFLOW_PREGUNTA
+
+**Módulos Principales:**
+1. PPSH: Trámites de migración (pasaportes, permisos, salidas, hospedajes)
+2. SIM-FT: Sistema integrado de migración
+3. OCR: Procesamiento de documentos
+4. Workflows: Procesos dinámicos configurables
+5. Acceso Público: Consultas sin autenticación
+
+## CONVENCIONES
+
+### Naming
+- **TypeScript:** camelCase (variables), PascalCase (types/interfaces/components)
+- **Python:** snake_case (variables/funciones), PascalCase (clases)
+- **SQL:** UPPER_SNAKE_CASE (tablas/columnas)
+- **API Routes:** kebab-case (/api/workflows-etapas)
+
+### Archivos
+- Components: PascalCase.tsx
+- Types: lowercase.ts
+- Models: models_*.py
+- Schemas: schemas_*.py
+- Routes: routes_*.py
+
+### Base de Datos
+- PKs: `id` (Integer, autoincrement)
+- FKs: `{tabla}_id` (ej: workflow_id)
+- Timestamps: `created_at`, `updated_at`
+- Soft delete: `activo` (Boolean)
+- Auditoría: `created_by`, `updated_by` (String(17) - REUEX)
+
+## PATRONES CRÍTICOS
+
+### React Components
+
+**Estado Inmutable:**
+```typescript
+// ✅ Correcto
+setNodes(nodes => nodes.map(n => 
+  n.id === id ? { ...n, data: newData } : n
+));
+
+// ❌ Evitar
+nodes[index].data = newData;
+setNodes(nodes);
+```
+
+**Limpieza de Datos Temporales:**
+```typescript
+// Antes de enviar al backend
+const { is_placeholder, label, es_inicial, ...cleanData } = node.data;
+const etapa = {
+  ...cleanData,
+  posicion_x: Math.round(node.position.x),
+  posicion_y: Math.round(node.position.y)
+};
+```
+
+**Tipos TypeScript:**
+```typescript
+// Siempre definir interfaces explícitas
+export interface WorkflowEtapa {
+  id?: number;
+  codigo: string;
+  nombre: string;
+  tipo_etapa: TipoEtapa;
+  // ... más campos
+}
+```
+
+### FastAPI Backend
+
+**Schemas Pydantic:**
+```python
+# Base, Create, Update, Response pattern
+class WorkflowEtapaBase(BaseModel):
+    codigo: str = Field(..., max_length=50)
+    nombre: str = Field(..., max_length=255)
+    # Campos comunes
+
+class WorkflowEtapaCreate(WorkflowEtapaBase):
+    workflow_id: int
+
+class WorkflowEtapaUpdate(BaseModel):
+    nombre: Optional[str] = None  # Todos opcionales
+
+class WorkflowEtapaResponse(WorkflowEtapaBase):
+    id: int
+    created_at: datetime
+    model_config = ConfigDict(from_attributes=True)
+```
+
+**Validators:**
+```python
+@model_validator(mode='after')
+def validar_perfiles(self):
+    # Excepciones especiales (INICIO, FIN no requieren perfiles)
+    if self.codigo not in ['INICIO', 'FIN'] and not self.perfiles_permitidos:
+        raise ValueError('Perfiles requeridos')
+    return self
+```
+
+**Routes:**
+```python
+@router.get("/workflows/{id}", response_model=WorkflowResponse)
+async def get_workflow(id: int, db: Session = Depends(get_db)):
+    workflow = db.query(Workflow).filter(Workflow.id == id).first()
+    if not workflow:
+        raise HTTPException(status_code=404, detail="Not found")
+    return workflow
+```
+
+### SQLAlchemy Models
+
+**Estructura Estándar:**
+```python
+class WorkflowEtapa(Base):
+    __tablename__ = "WORKFLOW_ETAPA"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    workflow_id = Column(Integer, ForeignKey('WORKFLOW.id'), nullable=False)
+    codigo = Column(String(50), nullable=False, index=True)
+    nombre = Column(String(255), nullable=False)
+    tipo_etapa = Column(SQLEnum(TipoEtapa), nullable=False)
+    
+    # JSON fields para datos flexibles
+    perfiles_permitidos = Column(JSON)
+    reglas_transicion = Column(JSON)
+    
+    # Auditoría estándar
+    activo = Column(Boolean, nullable=False, default=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    created_by = Column(String(17))
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    updated_by = Column(String(17))
+    
+    # Relationships
+    workflow = relationship("Workflow", back_populates="etapas")
+    preguntas = relationship("WorkflowPregunta", back_populates="etapa", 
+                           cascade="all, delete-orphan")
+```
+
+## WORKFLOWS: COMPONENTES ESPECIALES
+
+### Tipos de Nodos
+
+**FIN (Terminación):**
+- Forma: Círculo (80x80px editor, 32x32px viewer)
+- Color: #f44336 (rojo)
+- Excepción: NO requiere perfiles_permitidos
+- NO permite conexiones de salida
+
+**PRESENCIAL (Etapa Manual):**
+- Borde: 2px dashed #333333
+- NO usa sistema de preguntas estándar
+- Campos propios: descripcion_presencial, documento_presencial
+- Color: #fce1e1 (rosa claro)
+
+**ETAPA (Estándar):**
+- Borde: 2px solid
+- Color: #e3f2fd (azul claro)
+- Contiene formulario con preguntas
+
+**COMPUERTA (Decisión):**
+- Color: #fff3e0 (naranja claro)
+- Permite múltiples salidas condicionales
+
+### Tipos de Preguntas con Lógica Especial
+
+**REVISION_OCR:**
+- Auto-poblar: texto = nombre del tipo, es_obligatoria = true
+- Ocultar: campos "Texto", "Ayuda", checkbox "Obligatoria"
+- Campo especial: etapa_origen_id (dropdown con mockup text)
+
+**DATOS_CASO:**
+- Ocultar: campos generales "Texto", "Ayuda", "Obligatoria"
+- Sección propia con: "Pregunta", "Obligatoria", lista de checkboxes
+- Checkboxes: REUEX, NOMBRE, NACIONALIDAD, TRAMITE, PASAPORTE, SEXO, EXPEDIENTE, FECHA_NACIMIENTO
+- Almacenar: campos_caso (string[])
+
+**REVISION_MANUAL_DOCUMENTOS:**
+- Label: "Pregunta" (no "Texto")
+- Ocultar: campo "Ayuda"
+- Campo especial: etapa_origen_id (dropdown)
+
+**FECHA:**
+- Label: "Pregunta" (no "Texto")
+- Ocultar: campo "Ayuda"
+- Campo especial: agenda_origen_id (AGENDA_PPSH, AGENDA_GENERAL)
+
+### Validación de Campos Condicionales
+
+```typescript
+// Template para campos condicionales
+{(tipo !== 'REVISION_OCR' && tipo !== 'DATOS_CASO') && (
+  <TextField label="Texto" />
+)}
+
+{(tipo !== 'REVISION_MANUAL_DOCUMENTOS' && 
+  tipo !== 'FECHA' && 
+  tipo !== 'REVISION_OCR' &&
+  tipo !== 'DATOS_CASO') && (
+  <TextField label="Ayuda" />
+)}
+```
+
+## FLUJO DE DATOS
+
+### Guardar Workflow
+1. Limpiar datos temporales (is_placeholder, label, es_inicial)
+2. Redondear posiciones (Math.round)
+3. Mapear node IDs a códigos para conexiones
+4. PUT /workflows/{id} con etapas y conexiones
+5. Backend valida y guarda en transacción
+
+### Cargar Workflow
+1. GET /workflows/{id}
+2. Backend incluye etapas (con preguntas) y conexiones
+3. Frontend convierte etapas → ReactFlow nodes
+4. Frontend convierte conexiones → ReactFlow edges
+5. Renderizar en canvas
+
+## COMANDOS DOCKER
+
+```bash
+# Restart services
+docker-compose restart frontend
+docker-compose restart backend
+
+# Ver logs
+docker-compose logs -f frontend
+docker-compose logs -f backend
+
+# Exec commands
+docker-compose exec backend python script.py
+docker-compose exec -T backend alembic upgrade head
+```
+
+## MIGRACIONES
+
+**Estado actual:** ✅ Alembic funcionando correctamente (reparado Nov 17, 2025)
+**Última versión:** 017_add_presencial_fields
+
+**Crear nueva migración:**
+```bash
+docker-compose exec backend alembic revision --autogenerate -m "descripcion"
+# O sin autogenerate:
+docker-compose exec backend alembic revision -m "descripcion"
+```
+
+**Aplicar migraciones:**
+```bash
+docker-compose exec backend alembic upgrade head
+```
+
+**Ver estado actual:**
+```bash
+docker-compose exec backend alembic current
+docker-compose exec backend alembic history
+```
+
+**Si Alembic se desincroniza (versión en BD diferente a archivos):**
+
+1. Verificar estado:
+```python
+# Script: verify_alembic.py
+from sqlalchemy import create_engine, text
+from app.infrastructure.database import get_database_url
+
+engine = create_engine(get_database_url())
+with engine.connect() as conn:
+    result = conn.execute(text("SELECT version_num FROM alembic_version"))
+    print(f"Versión actual: {result.fetchone()[0]}")
+```
+
+2. Actualizar registro (sin ejecutar SQL):
+```bash
+docker-compose exec backend alembic stamp <revision_id>
+# Ejemplo: alembic stamp 017_add_presencial_fields
+```
+
+**Migración manual si necesario:**
+```python
+# Crear archivo en backend/alembic/versions/
+revision = '018_nombre'
+down_revision = '017_add_presencial_fields'
+
+def upgrade():
+    op.add_column('TABLA', sa.Column('campo', sa.String(255)))
+
+def downgrade():
+    op.drop_column('TABLA', 'campo')
+```
+
+**SQL directo (última opción):**
+```python
+from app.infrastructure.database import engine
+from sqlalchemy import text
+
+with engine.connect() as conn:
+    conn.execute(text("ALTER TABLE ... ADD ..."))
+    conn.commit()
+```
+
+## ERRORES COMUNES
+
+**422 Validation Error:**
+- Causa: Perfiles faltantes, INICIO/FIN deben estar excluidos de validación
+- Solución: Verificar validator en schema
+
+**Node data no guarda:**
+- Causa: Datos temporales no limpiados, posiciones no redondeadas
+- Solución: Aplicar limpieza antes de enviar
+
+**Type mismatch:**
+- Causa: Enums desincronizados entre frontend/backend
+- Solución: Verificar TipoEtapa, TipoPregunta en ambos lados
+
+**CORS errors:**
+- Solución: Backend tiene allow_origins=["*"] en desarrollo
+
+## ENDPOINTS PRINCIPALES
+
+```
+GET    /api/workflows              # Lista workflows
+GET    /api/workflows/{id}         # Get workflow con etapas/conexiones
+POST   /api/workflows              # Crear workflow
+PUT    /api/workflows/{id}         # Actualizar workflow completo
+DELETE /api/workflows/{id}         # Eliminar workflow
+
+GET    /api/ppsh/solicitudes       # Lista solicitudes PPSH
+POST   /api/ppsh/solicitudes       # Crear solicitud
+GET    /api/ppsh/solicitudes/{id}  # Get solicitud
+
+POST   /api/ocr/process            # Procesar documento OCR
+GET    /api/ocr/results/{id}       # Resultado OCR
+```
+
+## PERFILES DE USUARIO
+
+- CIUDADANO: Usuario externo
+- ABOGADO: Representante legal
+- RECEPCIONISTA: Recepción PPSH
+- VALIDADOR: Validación de documentos
+- DIRECTOR: Aprobaciones finales
+- SISTEMA: Procesos automáticos
+- ADMIN: Administrador general
+
+## TESTING
+
+**Frontend:** No usar archivos de test actualmente
+**Backend:** pytest configurado pero no activar sin solicitud
+**Manual:** Usar interfaz web para probar workflows
+
+## REGLAS DE EDICIÓN
+
+1. **Siempre limpiar datos temporales antes de guardar**
+2. **Validar campos obligatorios en frontend Y backend**
+3. **Usar transacciones para operaciones multi-tabla**
+4. **Mantener enums sincronizados (frontend ↔ backend)**
+5. **Documentar lógica condicional compleja**
+6. **No modificar migraciones ya aplicadas**
+7. **Usar ConfigDict(from_attributes=True) en Pydantic v2**
+8. **Redondear posiciones de nodos con Math.round()**
+
+## CONTEXTO DEL PROYECTO
+
+Este sistema digitaliza trámites de migración en Panamá (PPSH). Antes todo era en papel. Ahora los workflows son configurables visualmente y ejecutan procesos dinámicamente. El usuario crea diagramas de flujo con nodos (etapas) que tienen formularios configurables. Cada etapa ejecuta preguntas al ciudadano/funcionario según el tipo. El sistema está en producción activa.
+
+**Documentación completa:** `/docs/frontend/COMPONENTES_WORKFLOW.md`

@@ -683,31 +683,31 @@ class TestWorkflowConexionValidators:
             WorkflowConexionCreate(
                 workflow_id=1,
                 etapa_origen_id=1,
-                etapa_destino_id=1,  # Misma etapa (inválido)
-                tipo_conexion="SECUENCIAL"
+                etapa_destino_id=1  # Misma etapa (inválido)
             )
     
-    def test_tipo_conexion_valido(self):
-        """Test: Tipo de conexión debe ser válido"""
+    def test_conexion_valida(self):
+        """Test: Conexión válida entre etapas diferentes"""
+        conexion = WorkflowConexionCreate(
+            workflow_id=1,
+            etapa_origen_id=1,
+            etapa_destino_id=2
+        )
+        
+        assert conexion.etapa_origen_id == 1
+        assert conexion.etapa_destino_id == 2
+    
+    def test_conexion_con_condicion(self):
+        """Test: Conexión con condición opcional"""
         conexion = WorkflowConexionCreate(
             workflow_id=1,
             etapa_origen_id=1,
             etapa_destino_id=2,
-            tipo_conexion="SECUENCIAL"
+            condicion={"campo": "respuesta", "valor": "si"}
         )
         
-        assert conexion.tipo_conexion in ["SECUENCIAL", "CONDICIONAL", "PARALELA"]
-    
-    def test_conexion_condicional_requiere_condicion(self):
-        """Test: Conexión condicional requiere expresión de condición"""
-        with pytest.raises(ValidationError):
-            WorkflowConexionCreate(
-                workflow_id=1,
-                etapa_origen_id=1,
-                etapa_destino_id=2,
-                tipo_conexion="CONDICIONAL",
-                condicion=None  # Requerida para condicional
-            )
+        assert conexion.condicion is not None
+        assert conexion.condicion["campo"] == "respuesta"
 
 
 # ==========================================

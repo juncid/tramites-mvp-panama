@@ -1,0 +1,463 @@
+import {
+  Box,
+  Typography,
+  Link,
+  TextField,
+  InputAdornment,
+  CircularProgress,
+  Alert,
+  TablePagination,
+} from '@mui/material';
+import {
+  Home as HomeIcon,
+  Search as SearchIcon,
+  Edit as EditIcon,
+  Visibility as VisibilityIcon,
+  CheckCircleOutline as CheckCircleOutlineIcon,
+  ArrowUpward as ArrowUpwardIcon,
+  ArrowDownward as ArrowDownwardIcon,
+} from '@mui/icons-material';
+import { useNavigate } from 'react-router-dom';
+import { useState, useEffect, useCallback } from 'react';
+import { ppshService } from '../services/ppsh.service';
+import type { SolicitudListItem } from '../types/ppsh';
+
+export const Solicitudes = () => {
+  const navigate = useNavigate();
+  const [solicitudes, setSolicitudes] = useState<SolicitudListItem[]>([]);
+  const [totalItems, setTotalItems] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
+  const [sortField, setSortField] = useState<'fecha' | 'ruex' | null>('fecha');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+  const [page, setPage] = useState(0); // 0-indexed para MUI
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+
+  // Debounce para búsqueda (evitar muchas llamadas al servidor)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+      setPage(0); // Resetear a primera página al buscar
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  // Función para cargar solicitudes desde el servidor
+  const fetchSolicitudes = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const response = await ppshService.listarSolicitudes({
+        page: page + 1, // Backend usa 1-indexed
+        page_size: rowsPerPage,
+        buscar: debouncedSearchTerm || undefined,
+      });
+      
+      // Ordenar en cliente (el backend no tiene ordenamiento por fecha/ruex)
+      let sortedItems = [...response.items];
+      if (sortField) {
+        sortedItems.sort((a, b) => {
+          let comparison = 0;
+          if (sortField === 'fecha') {
+            const dateA = new Date(a.fecha_solicitud).getTime();
+            const dateB = new Date(b.fecha_solicitud).getTime();
+            comparison = dateA - dateB;
+          } else if (sortField === 'ruex') {
+            const ruexA = a.num_expediente || '';
+            const ruexB = b.num_expediente || '';
+            comparison = ruexA.localeCompare(ruexB);
+          }
+          return sortDirection === 'asc' ? comparison : -comparison;
+        });
+      }
+      
+      setSolicitudes(sortedItems);
+      setTotalItems(response.total);
+    } catch (err) {
+      console.error('Error cargando solicitudes:', err);
+      setError(err instanceof Error ? err.message : 'Error desconocido');
+    } finally {
+      setLoading(false);
+    }
+  }, [page, rowsPerPage, debouncedSearchTerm, sortField, sortDirection]);
+
+  // Cargar solicitudes cuando cambian los parámetros
+  useEffect(() => {
+    fetchSolicitudes();
+  }, [fetchSolicitudes]);
+
+  // Función para manejar el click en headers ordenables
+  const handleSort = (field: 'fecha' | 'ruex') => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('desc');
+    }
+    // No reseteamos página aquí porque el ordenamiento se hace en cliente sobre los datos ya cargados
+  };
+
+  // Handlers de paginación
+  const handleChangePage = (_event: unknown, newPage: number) => {
+    setPage(newPage);
+  };
+
+  const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setRowsPerPage(parseInt(event.target.value, 10));
+    setPage(0);
+  };
+
+  // Función para obtener estilos de estado según Figma
+  const getEstadoStyles = (estado: string) => {
+    switch (estado.toUpperCase()) {
+      case 'ACTIVO':
+      case 'RECIBIDO':
+      case 'EN_PROCESO':
+        return {
+          backgroundColor: '#e1fcef',
+          color: '#328056',
+          icon: true,
+        };
+      case 'COMPLETADO':
+      case 'RESUELTO':
+        return {
+          backgroundColor: '#e3f2fd',
+          color: '#1565c0',
+          icon: true,
+        };
+      case 'RECHAZADO':
+        return {
+          backgroundColor: '#ffebee',
+          color: '#c62828',
+          icon: true,
+        };
+      default:
+        return {
+          backgroundColor: '#f5f5f5',
+          color: '#666666',
+          icon: false,
+        };
+    }
+  };
+
+  // Función para determinar si el estado es solo lectura (no permite editar)
+  const isEstadoSoloLectura = (estado: string): boolean => {
+    const estadoUpper = estado.toUpperCase();
+    return estadoUpper === 'RECHAZADO' || estadoUpper === 'RESUELTO';
+  };
+
+  return (
+    <Box>
+      {/* Breadcrumbs - estilo Figma */}
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
+        <Link
+          underline="none"
+          sx={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: 1,
+            color: '#757575', 
+            cursor: 'pointer',
+            fontSize: '14px',
+            fontFamily: 'Roboto, sans-serif',
+            '&:hover': { color: '#333' }
+          }}
+          onClick={() => navigate('/')}
+        >
+          <HomeIcon sx={{ fontSize: 20 }} />
+          Inicio
+        </Link>
+        <Typography sx={{ color: '#757575', fontSize: '14px' }}>/</Typography>
+        <Typography sx={{ color: '#757575', fontSize: '14px', fontFamily: 'Roboto, sans-serif' }}>
+          Solicitudes
+        </Typography>
+      </Box>
+
+      {/* Título - estilo Figma */}
+      <Typography 
+        sx={{ 
+          fontWeight: 700, 
+          color: '#333333',
+          fontSize: '48px',
+          fontFamily: 'Roboto Flex, Roboto, sans-serif',
+          mb: 4,
+          lineHeight: 1.5,
+        }}
+      >
+        Solicitudes
+      </Typography>
+
+      {/* Barra de búsqueda - estilo Figma (360px, gris claro, ícono derecha) */}
+      <Box sx={{ mb: 4 }}>
+        <TextField
+          placeholder="Buscar..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          InputProps={{
+            endAdornment: (
+              <InputAdornment position="end">
+                <SearchIcon sx={{ color: '#4d4d4d', fontSize: 20 }} />
+              </InputAdornment>
+            ),
+          }}
+          sx={{
+            width: '360px',
+            '& .MuiOutlinedInput-root': {
+              backgroundColor: '#f1f3f4',
+              borderRadius: '4px',
+              height: '40px',
+              '& fieldset': {
+                borderColor: '#eef3f5',
+              },
+              '&:hover fieldset': {
+                borderColor: '#ccc',
+              },
+              '&.Mui-focused fieldset': {
+                borderColor: '#0e5fa6',
+              },
+            },
+            '& .MuiInputBase-input': {
+              fontSize: '16px',
+              color: '#4d4d4d',
+              fontFamily: 'Roboto, sans-serif',
+              padding: '8px 16px',
+            },
+            '& .MuiInputBase-input::placeholder': {
+              color: '#4d4d4d',
+              opacity: 1,
+            },
+          }}
+        />
+      </Box>
+
+      {/* Estado de carga */}
+      {loading && (
+        <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+          <CircularProgress />
+        </Box>
+      )}
+
+      {/* Estado de error */}
+      {error && (
+        <Alert severity="error" sx={{ mb: 3 }}>
+          Error cargando solicitudes: {error}
+        </Alert>
+      )}
+
+      {/* Tabla de solicitudes - estilo Figma (sin bordes, minimalista) */}
+      {!loading && !error && (
+        <Box sx={{ width: '100%', maxWidth: '1194px' }}>
+          {/* Headers */}
+          <Box 
+            sx={{ 
+              display: 'grid',
+              gridTemplateColumns: '80px 200px 180px 180px 180px 200px',
+              gap: 2,
+              pb: 1,
+            }}
+          >
+            <Typography sx={{ fontWeight: 500, color: '#333333', fontSize: '16px', fontFamily: 'Roboto, sans-serif' }}>
+              Solicitud
+            </Typography>
+            <Typography sx={{ fontWeight: 500, color: '#333333', fontSize: '16px', fontFamily: 'Roboto, sans-serif' }}>
+              Solicitante
+            </Typography>
+            <Box 
+              sx={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: 0.5, 
+                cursor: 'pointer',
+                userSelect: 'none',
+                '&:hover': { opacity: 0.7 }
+              }}
+              onClick={() => handleSort('ruex')}
+            >
+              <Typography sx={{ fontWeight: 500, color: '#333333', fontSize: '16px', fontFamily: 'Roboto, sans-serif' }}>
+                RUEX
+              </Typography>
+              {sortField === 'ruex' && (
+                sortDirection === 'asc' 
+                  ? <ArrowUpwardIcon sx={{ fontSize: 16, color: '#0e5fa6' }} />
+                  : <ArrowDownwardIcon sx={{ fontSize: 16, color: '#0e5fa6' }} />
+              )}
+            </Box>
+            <Box 
+              sx={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: 0.5, 
+                cursor: 'pointer',
+                userSelect: 'none',
+                '&:hover': { opacity: 0.7 }
+              }}
+              onClick={() => handleSort('fecha')}
+            >
+              <Typography sx={{ fontWeight: 500, color: '#333333', fontSize: '16px', fontFamily: 'Roboto, sans-serif' }}>
+                Fecha solicitud
+              </Typography>
+              {sortField === 'fecha' && (
+                sortDirection === 'asc' 
+                  ? <ArrowUpwardIcon sx={{ fontSize: 16, color: '#0e5fa6' }} />
+                  : <ArrowDownwardIcon sx={{ fontSize: 16, color: '#0e5fa6' }} />
+              )}
+            </Box>
+            <Typography sx={{ fontWeight: 500, color: '#333333', fontSize: '16px', fontFamily: 'Roboto, sans-serif' }}>
+              Estado
+            </Typography>
+            <Typography sx={{ fontWeight: 500, color: '#333333', fontSize: '16px', fontFamily: 'Roboto, sans-serif' }}>
+              Acciones
+            </Typography>
+          </Box>
+
+          {/* Línea separadora - estilo Figma */}
+          <Box sx={{ height: '4px', backgroundColor: '#f3f3f3', mb: 2 }} />
+
+          {/* Filas de datos */}
+          {solicitudes.length === 0 ? (
+            <Box sx={{ py: 4, textAlign: 'center', color: '#6B7280' }}>
+              No se encontraron solicitudes
+            </Box>
+          ) : (
+            solicitudes.map((solicitud) => {
+              const estadoStyles = getEstadoStyles(solicitud.estado_actual);
+              return (
+                <Box 
+                  key={solicitud.id_solicitud}
+                  sx={{ 
+                    display: 'grid',
+                    gridTemplateColumns: '80px 200px 180px 180px 180px 200px',
+                    gap: 2,
+                    py: 1,
+                    alignItems: 'center',
+                    '&:hover': { backgroundColor: '#fafafa' },
+                  }}
+                >
+                  {/* Solicitud (tipo) */}
+                  <Typography sx={{ color: '#333333', fontSize: '16px', fontFamily: 'Roboto, sans-serif' }}>
+                    PPSH
+                  </Typography>
+
+                  {/* Solicitante */}
+                  <Typography sx={{ color: '#333333', fontSize: '16px', fontFamily: 'Roboto, sans-serif' }}>
+                    {solicitud.nombre_titular || 'N/A'}
+                  </Typography>
+
+                  {/* RUEX */}
+                  <Typography sx={{ color: '#333333', fontSize: '16px', fontFamily: 'Roboto, sans-serif' }}>
+                    {solicitud.num_expediente || 'N/A'}
+                  </Typography>
+
+                  {/* Fecha solicitud */}
+                  <Typography sx={{ color: '#333333', fontSize: '16px', fontFamily: 'Roboto, sans-serif' }}>
+                    {new Date(solicitud.fecha_solicitud).toLocaleDateString('es-PA', {
+                      day: '2-digit',
+                      month: '2-digit',
+                      year: 'numeric'
+                    }).replace(/\//g, '.')}
+                  </Typography>
+
+                  {/* Estado - estilo Figma (chip verde con check) */}
+                  <Box 
+                    sx={{ 
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 1,
+                      backgroundColor: estadoStyles.backgroundColor,
+                      borderRadius: '16px',
+                      px: 1,
+                      py: 0.5,
+                      width: 'fit-content',
+                    }}
+                  >
+                    {estadoStyles.icon && (
+                      <CheckCircleOutlineIcon sx={{ fontSize: 16, color: estadoStyles.color }} />
+                    )}
+                    <Typography sx={{ 
+                      color: estadoStyles.color, 
+                      fontSize: '16px', 
+                      fontFamily: 'Roboto, sans-serif',
+                      textTransform: 'capitalize',
+                    }}>
+                      {solicitud.estado_actual === 'RECIBIDO' ? 'Activo' : solicitud.estado_actual.toLowerCase()}
+                    </Typography>
+                  </Box>
+
+                  {/* Acciones - estilo Figma (Ver y editar o solo Ver según estado) */}
+                  <Box 
+                    sx={{ 
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 1,
+                      cursor: 'pointer',
+                      '&:hover': { opacity: 0.8 }
+                    }}
+                    onClick={() => navigate(`/solicitudes/${solicitud.id_solicitud}/etapas`)}
+                  >
+                    {isEstadoSoloLectura(solicitud.estado_actual) ? (
+                      <>
+                        <VisibilityIcon sx={{ fontSize: 16, color: '#333333' }} />
+                        <Typography sx={{ 
+                          color: '#333333', 
+                          fontSize: '14px', 
+                          fontFamily: 'Roboto, sans-serif',
+                        }}>
+                          Ver
+                        </Typography>
+                      </>
+                    ) : (
+                      <>
+                        <EditIcon sx={{ fontSize: 16, color: '#333333' }} />
+                        <Typography sx={{ 
+                          color: '#333333', 
+                          fontSize: '14px', 
+                          fontFamily: 'Roboto, sans-serif',
+                        }}>
+                          Ver y editar
+                        </Typography>
+                      </>
+                    )}
+                  </Box>
+                </Box>
+              );
+            })
+          )}
+
+          {/* Paginación del servidor */}
+          {totalItems > 0 && (
+            <TablePagination
+              component="div"
+              count={totalItems}
+              page={page}
+              onPageChange={handleChangePage}
+              rowsPerPage={rowsPerPage}
+              onRowsPerPageChange={handleChangeRowsPerPage}
+              rowsPerPageOptions={[5, 10, 25, 50]}
+              labelRowsPerPage="Filas por página:"
+              labelDisplayedRows={({ from, to, count }) => 
+                `${from}-${to} de ${count !== -1 ? count : `más de ${to}`}`
+              }
+              sx={{
+                mt: 2,
+                '.MuiTablePagination-toolbar': {
+                  fontFamily: 'Roboto, sans-serif',
+                },
+                '.MuiTablePagination-selectLabel, .MuiTablePagination-displayedRows': {
+                  fontFamily: 'Roboto, sans-serif',
+                  fontSize: '14px',
+                  color: '#333333',
+                },
+                '.MuiTablePagination-select': {
+                  fontFamily: 'Roboto, sans-serif',
+                },
+              }}
+            />
+          )}
+        </Box>
+      )}
+    </Box>
+  );
+};

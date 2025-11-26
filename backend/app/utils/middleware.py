@@ -37,8 +37,12 @@ class LoggerMiddleware(BaseHTTPMiddleware):
         path = request.url.path
         
         # Capturar el body para logging en caso de error
+        # NOTA: No capturar body para uploads de archivos (multipart)
         request_body = None
-        if method in ["POST", "PUT", "PATCH"]:
+        content_type = request.headers.get("content-type", "")
+        is_multipart = "multipart/form-data" in content_type
+        
+        if method in ["POST", "PUT", "PATCH"] and not is_multipart:
             try:
                 body_bytes = await request.body()
                 if body_bytes:

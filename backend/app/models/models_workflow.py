@@ -29,6 +29,7 @@ class TipoEtapa(str, enum.Enum):
     ETAPA = "ETAPA"
     COMPUERTA = "COMPUERTA"
     PRESENCIAL = "PRESENCIAL"
+    FIN = "FIN"
 
 
 class TipoPregunta(str, enum.Enum):
@@ -135,6 +136,10 @@ class WorkflowEtapa(Base):
     titulo_formulario = Column(String(500))
     bajada_formulario = Column(Text)
     
+    # Campos específicos para tipo PRESENCIAL
+    descripcion_presencial = Column(Text)
+    documento_presencial = Column(String(500))
+    
     # Configuración de comportamiento
     es_etapa_inicial = Column(Boolean, nullable=False, default=False)
     es_etapa_final = Column(Boolean, nullable=False, default=False)
@@ -174,7 +179,7 @@ class WorkflowConexion(Base):
     
     # Configuración
     nombre = Column(String(255))  # Etiqueta de la conexión
-    tipo_conexion = Column(String(50))  # Tipo: SECUENCIAL, CONDICIONAL, PARALELA
+    # tipo_conexion = Column(String(50))  # TODO: Crear migración para agregar columna
     condicion = Column(JSON)  # Condiciones para seguir esta ruta (ej: si respuesta == "SI")
     es_predeterminada = Column(Boolean, nullable=False, default=False)
     
@@ -259,6 +264,7 @@ class WorkflowInstancia(Base):
     # Identificación
     num_expediente = Column(String(50), unique=True, nullable=False, index=True)
     nombre_instancia = Column(String(255))
+    codigo_acceso = Column(String(12), unique=True, index=True)  # Código corto para acceso público (ej: PPSH-A7X9)
     
     # Estado
     estado = Column(SQLEnum(EstadoInstancia), nullable=False, default=EstadoInstancia.INICIADO, index=True)
@@ -404,3 +410,33 @@ class WorkflowComentario(Base):
     
     # Relaciones
     instancia = relationship("WorkflowInstancia", back_populates="comentarios")
+
+
+# ==========================================
+# CONFIGURACIÓN DE VISTAS DINÁMICAS
+# ==========================================
+
+class WorkflowVistaConfig(Base):
+    """
+    Configuración de vistas dinámicas para etapas de workflow.
+    Permite definir formularios personalizados usando JSON.
+    """
+    __tablename__ = "workflow_vista_config"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    etapa_id = Column(Integer, ForeignKey('WORKFLOW_ETAPA.id'), nullable=False, unique=True, index=True)
+    
+    # Configuración JSON de la vista dinámica
+    config_json = Column(Text, nullable=False)  # Almacenado como texto JSON
+    
+    # Estado
+    activo = Column(Boolean, nullable=False, default=True, index=True)
+    
+    # Auditoría
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    created_by = Column(String(50))
+    updated_by = Column(String(50))
+    
+    # Relación con etapa
+    etapa = relationship("WorkflowEtapa", backref="vista_config")

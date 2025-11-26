@@ -116,7 +116,74 @@ Este proyecto sigue los principios de **Clean Architecture**, un patrón de dise
 └─────────────────────────────────────────────────────┘
 ```
 
-### Estructura de Carpetas Explicada
+## 🏗️ Decisiones de Arquitectura MVP
+
+### Sistema de Workflows y Solicitudes
+
+**Decisión:** WORKFLOW_INSTANCIA y PPSH_SOLICITUD son **sistemas independientes y paralelos**.
+
+#### Arquitectura Actual (MVP)
+
+```
+┌─────────────────────────────────────────────────────────┐
+│         SISTEMAS INDEPENDIENTES (Enfoque Liviano)       │
+├─────────────────────────────────────────────────────────┤
+│                                                          │
+│  ┌──────────────────────────────────────────┐           │
+│  │     WORKFLOW_INSTANCIA (Principal)       │           │
+│  │  - Estado definitivo del trámite         │           │
+│  │  - Fuente única de verdad                │           │
+│  │  - metadata_adicional: {                 │           │
+│  │      "ppsh_solicitud_id": 123            │           │
+│  │    }                                      │           │
+│  └─────────────────┬────────────────────────┘           │
+│                    │                                     │
+│                    │ Referencia opcional                 │
+│                    │ (no FK, solo JSON)                  │
+│                    ▼                                     │
+│  ┌──────────────────────────────────────────┐           │
+│  │     PPSH_SOLICITUD (Datos Auxiliares)    │           │
+│  │  - Solo datos específicos PPSH           │           │
+│  │  - NO se sincroniza estado               │           │
+│  │  - Creación opcional                     │           │
+│  └──────────────────────────────────────────┘           │
+│                                                          │
+│  **NO hay sincronización automática entre ellos**       │
+│                                                          │
+└─────────────────────────────────────────────────────────┘
+```
+
+#### Restricciones MVP
+
+1. **Un workflow activo a la vez**: Solo puede haber un workflow con `estado='ACTIVO'`
+2. **1 Workflow → N Solicitudes**: Un workflow puede tener múltiples instancias/solicitudes
+3. **Endpoints específicos**: Usar `/api/v1/ppsh/solicitudes` para PPSH, `/api/v1/workflow/instancias` para workflows genéricos
+4. **Sin sincronización bidireccional**: Las tablas no se sincronizan automáticamente
+5. **Fuente única de verdad**: `WORKFLOW_INSTANCIA` es la fuente del estado del trámite
+
+#### Justificación
+
+Esta decisión simplifica el MVP y evita:
+- Acoplamiento bidireccional entre sistemas
+- Lógica de mapeo de estados compleja
+- Transacciones distribuidas
+- Complejidad de testing
+- Posibles inconsistencias de datos
+
+#### Ventajas del Enfoque Liviano
+
+✅ **Simplicidad extrema**: Solo 1 función helper para crear datos auxiliares  
+✅ **Sin transacciones distribuidas**: Todo en una transacción única  
+✅ **Sin mapeo de estados**: No hay sincronización compleja  
+✅ **Testing mínimo**: 2-3 tests en lugar de 20+  
+✅ **Sin inconsistencias**: Una sola fuente de verdad  
+✅ **Escalable**: Fácil agregar otros tipos de trámites  
+
+#### Arquitectura Futura
+
+Para fases post-MVP con sincronización completa, ver: [`docs/ARQUITECTURA_FUTURA_WORKFLOW_SOLICITUDES.md`](docs/ARQUITECTURA_FUTURA_WORKFLOW_SOLICITUDES.md)
+
+---
 
 ### Estructura de Carpetas Explicada
 

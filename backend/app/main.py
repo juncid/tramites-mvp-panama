@@ -1,6 +1,7 @@
 from fastapi import FastAPI, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 from app.infrastructure.database import engine, Base, SessionLocal
 from app.routers.routers import router
 from app.utils.middleware import LoggerMiddleware, setup_logging
@@ -40,6 +41,27 @@ except ImportError:
     SIM_FT_AVAILABLE = False
     sim_ft_router = None
 
+try:
+    from app.routers.routers_ocr import router as ocr_router
+    OCR_AVAILABLE = True
+except ImportError:
+    OCR_AVAILABLE = False
+    ocr_router = None
+
+try:
+    from app.routers.websocket_ocr import router as websocket_ocr_router
+    WEBSOCKET_OCR_AVAILABLE = True
+except ImportError:
+    WEBSOCKET_OCR_AVAILABLE = False
+    websocket_ocr_router = None
+
+try:
+    from app.routes.routes_public import router as public_router
+    PUBLIC_AVAILABLE = True
+except ImportError:
+    PUBLIC_AVAILABLE = False
+    public_router = None
+
 # Configurar logging
 log_file = os.path.join("logs", "app.log") if os.path.exists("logs") else None
 setup_logging(
@@ -71,24 +93,22 @@ frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
 environment = os.getenv("ENVIRONMENT", "development")
 
 if environment == "development":
-    allowed_origins = [
-        "http://localhost:3000",
-        "http://127.0.0.1:3000", 
-        frontend_url,
-        "http://localhost:3001",  # En caso de que use otro puerto
-        "http://127.0.0.1:3001"
-    ]
-    logger.info(f"🌐 CORS configurado para desarrollo: {allowed_origins}")
+    # En desarrollo, permitir localhost y cualquier dominio ngrok
+    allowed_origins = ["*"]
+    logger.info(f"🌐 CORS configurado para desarrollo: permitiendo todos los orígenes (localhost + ngrok)")
 else:
-    allowed_origins = ["*"]  # En producción, especificar orígenes específicos
+    # Producción permite todos los orígenes por ahora
+    # En producción final, especificar dominios específicos
+    allowed_origins = ["*"]
     logger.info("🌐 CORS configurado para producción")
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
 
 # Agregar middleware de logging
@@ -118,7 +138,39 @@ if SIM_FT_AVAILABLE and sim_ft_router:
 else:
     logger.warning("⚠️  Módulo SIM_FT no disponible")
 
+# Incluir router de OCR si está disponible
+if OCR_AVAILABLE and ocr_router:
+    app.include_router(ocr_router, prefix="/api/v1")
+    logger.info("✅ Módulo OCR registrado en /api/v1/ocr")
+else:
+    logger.warning("⚠️  Módulo OCR no disponible")
+
+# Incluir WebSocket router de OCR si está disponible
+if WEBSOCKET_OCR_AVAILABLE and websocket_ocr_router:
+    app.include_router(websocket_ocr_router, prefix="/api/v1")
+    logger.info("✅ WebSocket OCR registrado en /api/v1/ws/ocr")
+else:
+    logger.warning("⚠️  WebSocket OCR no disponible")
+
+# Incluir router de solicitudes públicas si está disponible
+if PUBLIC_AVAILABLE and public_router:
+    app.include_router(public_router, prefix="/api/v1")
+    logger.info("✅ Módulo Solicitudes Públicas registrado en /api/v1/public")
+else:
+    logger.warning("⚠️  Módulo Solicitudes Públicas no disponible")
+
 logger.info("🚀 Aplicación FastAPI inicializada")
+
+# Montar archivos estáticos para documentos descargables
+static_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static")
+if os.path.exists(static_dir):
+    app.mount("/static", StaticFiles(directory=static_dir), name="static")
+    logger.info(f"📁 Archivos estáticos montados en /static desde {static_dir}")
+else:
+    # Crear directorio si no existe
+    os.makedirs(os.path.join(static_dir, "documentos"), exist_ok=True)
+    app.mount("/static", StaticFiles(directory=static_dir), name="static")
+    logger.info(f"📁 Directorio de archivos estáticos creado y montado en /static")
 
 @app.get("/", tags=["Root"])
 async def root():
@@ -150,6 +202,18 @@ async def root():
         response["modules"]["sim_ft"] = "✅ Disponible en /api/v1/sim-ft"
     else:
         response["modules"]["sim_ft"] = "❌ No disponible"
+    
+    # Agregar módulo OCR si está disponible
+    if OCR_AVAILABLE:
+        response["modules"]["ocr"] = "✅ Disponible en /api/v1/ocr"
+    else:
+        response["modules"]["ocr"] = "❌ No disponible"
+    
+    # Agregar módulo Solicitudes Públicas si está disponible
+    if PUBLIC_AVAILABLE:
+        response["modules"]["public"] = "✅ Disponible en /api/v1/public"
+    else:
+        response["modules"]["public"] = "❌ No disponible"
     
     return response
 
@@ -269,6 +333,8 @@ async def startup_event():
         logger.info("    - Workflow Dinámico: ✅")
     if SIM_FT_AVAILABLE:
         logger.info("    - SIM_FT: ✅")
+    if OCR_AVAILABLE:
+        logger.info("    - OCR: ✅")
     
     # Inicializar métricas si está disponible
     if METRICS_AVAILABLE:

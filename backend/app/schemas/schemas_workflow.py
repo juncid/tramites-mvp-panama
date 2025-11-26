@@ -24,6 +24,7 @@ class TipoEtapaEnum(str, Enum):
     ETAPA = "ETAPA"
     COMPUERTA = "COMPUERTA"
     PRESENCIAL = "PRESENCIAL"
+    FIN = "FIN"
 
 
 class TipoPreguntaEnum(str, Enum):
@@ -72,7 +73,7 @@ class WorkflowPreguntaBase(BaseModel):
     es_obligatoria: bool = False
     validacion_regex: Optional[str] = Field(None, max_length=500)
     mensaje_validacion: Optional[str] = Field(None, max_length=500)
-    opciones: Optional[List[str]] = None
+    opciones: Optional[Any] = None  # Puede ser List[str] para LISTA/OPCIONES o Dict para DESCARGA_ARCHIVO
     opciones_datos_caso: Optional[List[str]] = None
     permite_multiple: bool = False
     extensiones_permitidas: Optional[List[str]] = None
@@ -113,7 +114,7 @@ class WorkflowPreguntaUpdate(BaseModel):
     es_obligatoria: Optional[bool] = None
     validacion_regex: Optional[str] = Field(None, max_length=500)
     mensaje_validacion: Optional[str] = Field(None, max_length=500)
-    opciones: Optional[List[str]] = None
+    opciones: Optional[Any] = None  # Puede ser List[str] para LISTA/OPCIONES o Dict para DESCARGA_ARCHIVO
     opciones_datos_caso: Optional[List[str]] = None
     permite_multiple: Optional[bool] = None
     extensiones_permitidas: Optional[List[str]] = None
@@ -154,6 +155,8 @@ class WorkflowEtapaBase(BaseModel):
     perfiles_permitidos: List[str] = Field(default_factory=list, description="Lista de perfiles que pueden ejecutar esta etapa")
     titulo_formulario: Optional[str] = Field(None, max_length=500)
     bajada_formulario: Optional[str] = None
+    descripcion_presencial: Optional[str] = None
+    documento_presencial: Optional[str] = Field(None, max_length=500)
     es_etapa_inicial: bool = False
     es_etapa_final: bool = False
     requiere_validacion: bool = False
@@ -172,8 +175,9 @@ class WorkflowEtapaBase(BaseModel):
     
     @model_validator(mode='after')
     def validar_perfiles(self):
-        """Valida que se especifiquen perfiles permitidos"""
-        if not self.perfiles_permitidos or len(self.perfiles_permitidos) == 0:
+        """Valida que se especifiquen perfiles permitidos (excepto para etapa INICIO y FIN)"""
+        # Las etapas INICIO y FIN no requieren perfiles permitidos
+        if self.codigo not in ['INICIO', 'FIN'] and (not self.perfiles_permitidos or len(self.perfiles_permitidos) == 0):
             raise ValueError('La etapa debe tener al menos un perfil permitido')
         return self
 
@@ -200,6 +204,8 @@ class WorkflowEtapaUpdate(BaseModel):
     perfiles_permitidos: Optional[List[str]] = None
     titulo_formulario: Optional[str] = Field(None, max_length=500)
     bajada_formulario: Optional[str] = None
+    descripcion_presencial: Optional[str] = None
+    documento_presencial: Optional[str] = Field(None, max_length=500)
     es_etapa_inicial: Optional[bool] = None
     es_etapa_final: Optional[bool] = None
     requiere_validacion: Optional[bool] = None
@@ -207,6 +213,7 @@ class WorkflowEtapaUpdate(BaseModel):
     tiempo_estimado_minutos: Optional[int] = Field(None, ge=0)
     reglas_transicion: Optional[Dict[str, Any]] = None
     activo: Optional[bool] = None
+    preguntas: Optional[List[WorkflowPreguntaCreateNested]] = None
 
 
 class WorkflowEtapaResponse(WorkflowEtapaBase):
@@ -229,31 +236,31 @@ class WorkflowEtapaResponse(WorkflowEtapaBase):
 class WorkflowConexionBase(BaseModel):
     """Schema base para conexión"""
     nombre: Optional[str] = Field(None, max_length=255)
-    tipo_conexion: Optional[str] = Field(None, max_length=50)
+    # tipo_conexion: Optional[str] = Field(None, max_length=50)  # Comentado hasta crear migración en BD
     condicion: Optional[Dict[str, Any]] = None
     es_predeterminada: bool = False
     activo: bool = True
     
-    @field_validator('tipo_conexion')
-    @classmethod
-    def validar_tipo_conexion(cls, v: Optional[str]) -> Optional[str]:
-        """Valida que el tipo de conexión sea válido"""
-        if v is None:
-            return v
-        
-        tipos_validos = ['SECUENCIAL', 'CONDICIONAL', 'PARALELA']
-        if v not in tipos_validos:
-            raise ValueError(f'Tipo de conexión inválido. Tipos válidos: {", ".join(tipos_validos)}')
-        
-        return v
+    # @field_validator('tipo_conexion')
+    # @classmethod
+    # def validar_tipo_conexion(cls, v: Optional[str]) -> Optional[str]:
+    #     """Valida que el tipo de conexión sea válido"""
+    #     if v is None:
+    #         return v
+    #     
+    #     tipos_validos = ['SECUENCIAL', 'CONDICIONAL', 'PARALELA']
+    #     if v not in tipos_validos:
+    #         raise ValueError(f'Tipo de conexión inválido. Tipos válidos: {", ".join(tipos_validos)}')
+    #     
+    #     return v
     
-    @model_validator(mode='after')
-    def validar_condicion_condicional(self):
-        """Valida que las conexiones condicionales tengan condición"""
-        if self.tipo_conexion == 'CONDICIONAL':
-            if not self.condicion:
-                raise ValueError('Las conexiones condicionales deben tener una condición definida')
-        return self
+    # @model_validator(mode='after')
+    # def validar_condicion_condicional(self):
+    #     """Valida que las conexiones condicionales tengan condición"""
+    #     if self.tipo_conexion == 'CONDICIONAL':
+    #         if not self.condicion:
+    #             raise ValueError('Las conexiones condicionales deben tener una condición definida')
+    #     return self
 
 
 class WorkflowConexionCreate(WorkflowConexionBase):
@@ -391,7 +398,7 @@ class WorkflowRespuestaBase(BaseModel):
     """Schema base para respuesta"""
     pregunta_id: int
     valor_texto: Optional[str] = None
-    valor_json: Optional[Dict[str, Any]] = None
+    valor_json: Optional[Any] = None  # Puede ser Dict, List, o cualquier JSON válido
     valor_fecha: Optional[datetime] = None
     valor_booleano: Optional[bool] = None
     archivos: Optional[List[Dict[str, Any]]] = None
@@ -405,7 +412,7 @@ class WorkflowRespuestaCreate(WorkflowRespuestaBase):
 class WorkflowRespuestaUpdate(BaseModel):
     """Schema para actualizar respuesta"""
     valor_texto: Optional[str] = None
-    valor_json: Optional[Dict[str, Any]] = None
+    valor_json: Optional[Any] = None  # Puede ser Dict, List, o cualquier JSON válido
     valor_fecha: Optional[datetime] = None
     valor_booleano: Optional[bool] = None
     archivos: Optional[List[Dict[str, Any]]] = None
@@ -590,3 +597,116 @@ class WorkflowTransicionResponse(BaseModel):
     etapa_anterior: WorkflowEtapaResponse
     etapa_nueva: WorkflowEtapaResponse
     mensaje: str
+
+
+# ==========================================
+# SCHEMAS PARA EJECUCIÓN DE ETAPAS
+# ==========================================
+
+class EjecutarEtapaRequest(BaseModel):
+    """Schema para ejecutar una etapa"""
+    respuestas: Dict[str, Any] = Field(..., description="Respuestas del formulario {codigo_pregunta: valor}")
+    archivos: Optional[Dict[str, Any]] = Field(None, description="Archivos subidos {codigo_pregunta: file_id}")
+
+
+class EjecutarEtapaResponse(BaseModel):
+    """Schema de respuesta para ejecución de etapa"""
+    success: bool
+    mensaje: str
+    workflow_state: Dict[str, Any]
+
+
+# ==========================================
+# SCHEMAS DE INTEGRACIÓN WORKFLOW-PPSH
+# ==========================================
+
+class WorkflowInstanciaConPPSHCreate(BaseModel):
+    """
+    Schema para crear instancia de workflow con solicitud PPSH integrada
+    
+    Permite crear ambas entidades (workflow instancia + solicitud PPSH)
+    en una sola operación transaccional.
+    """
+    workflow_id: int = Field(..., description="ID del workflow a instanciar")
+    nombre_instancia: Optional[str] = Field(None, max_length=255, description="Nombre descriptivo de la instancia (generado automáticamente si se omite)")
+    
+    # Importar los campos de SolicitudCreate aquí para evitar dependencia circular
+    # Los campos se validan en el servicio
+    solicitud_ppsh: Dict[str, Any] = Field(..., description="Datos de la solicitud PPSH a crear")
+    
+    @field_validator('solicitud_ppsh')
+    @classmethod
+    def validar_solicitud_ppsh(cls, v: Dict[str, Any]) -> Dict[str, Any]:
+        """Valida estructura básica de solicitud PPSH"""
+        campos_requeridos = ['tipo_solicitud', 'cod_causa_humanitaria', 'solicitantes']
+        
+        for campo in campos_requeridos:
+            if campo not in v:
+                raise ValueError(f"Campo requerido '{campo}' no encontrado en solicitud_ppsh")
+        
+        if not v.get('solicitantes') or len(v['solicitantes']) < 1:
+            raise ValueError("La solicitud debe tener al menos un solicitante")
+        
+        return v
+
+
+class WorkflowInstanciaConPPSHExistenteCreate(BaseModel):
+    """
+    Schema para crear instancia de workflow vinculando solicitud PPSH existente
+    
+    Útil para migración de datos legacy o re-procesamiento de solicitudes.
+    """
+    workflow_id: int = Field(..., description="ID del workflow a instanciar")
+    solicitud_id: int = Field(..., description="ID de solicitud PPSH existente a vincular")
+    nombre_instancia: Optional[str] = Field(None, max_length=255, description="Nombre descriptivo de la instancia")
+
+
+class WorkflowInstanciaPPSHResponse(BaseModel):
+    """
+    Schema de respuesta para instancia creada con solicitud PPSH
+    
+    Incluye información de ambas entidades creadas/vinculadas.
+    """
+    # Datos de instancia de workflow
+    instancia_id: int
+    instancia_num_expediente: str
+    instancia_nombre: str
+    instancia_estado: EstadoInstanciaEnum
+    instancia_etapa_actual_id: Optional[int]
+    instancia_fecha_inicio: datetime
+    
+    # Datos de solicitud PPSH vinculada
+    solicitud_id: int
+    solicitud_num_expediente: str
+    solicitud_tipo: str
+    solicitud_estado: str
+    solicitud_causa_humanitaria: int
+    solicitud_fecha_solicitud: str  # ISO format
+    
+    # Metadata de vinculación
+    fecha_vinculacion: datetime
+    vinculado_por: str
+    es_vinculacion_posterior: bool = False
+    
+    # URLs de navegación (opcional)
+    url_instancia: Optional[str] = None
+    url_solicitud: Optional[str] = None
+    
+    model_config = ConfigDict(from_attributes=True)
+
+
+class DatosVinculacionPPSHResponse(BaseModel):
+    """
+    Schema de respuesta con información de vinculación PPSH
+    """
+    tiene_vinculacion: bool
+    ppsh_solicitud_id: Optional[int] = None
+    ppsh_num_expediente: Optional[str] = None
+    ppsh_tipo_solicitud: Optional[str] = None
+    ppsh_causa_humanitaria: Optional[int] = None
+    fecha_vinculacion: Optional[str] = None
+    vinculado_por: Optional[str] = None
+    es_vinculacion_posterior: bool = False
+    
+    # Datos completos de solicitud (si se solicita expanded)
+    solicitud: Optional[Dict[str, Any]] = None
