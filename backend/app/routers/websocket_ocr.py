@@ -145,7 +145,7 @@ class OCRProgressTracker:
                     "task_id": self.task_id,
                     "error": str(e)
                 })
-            except:
+            except Exception:
                 pass
             raise
 
