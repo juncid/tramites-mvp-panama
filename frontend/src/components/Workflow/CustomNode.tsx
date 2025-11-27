@@ -256,31 +256,83 @@ export const CustomNode: React.FC<NodeProps<WorkflowEtapa>> = ({ data, selected 
   // Nodo placeholder con borde punteado - estilo Figma
   if (isPlaceholder) {
     return (
-      <>
-        <Handle type="target" position={Position.Left} style={handleStyle} />
-        <Paper
-          elevation={0}
+      <Box
+        sx={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          cursor: 'pointer',
+          position: 'relative',
+        }}
+      >
+        {/* Flecha indicadora de nodo seleccionado - posición absoluta */}
+        {showArrow && (
+          <ArrowDropDownIcon 
+            sx={{ 
+              fontSize: 64, 
+              color: '#03689a',
+              position: 'absolute',
+              top: -24,
+              left: '50%',
+              transform: 'translateX(-50%)',
+            }} 
+          />
+        )}
+        
+        {/* Contenedor principal con handles */}
+        <Box
           sx={{
-            padding: 2,
-            minWidth: 80,
-            height: 80,
-            backgroundColor: '#f1f3f4',
-            border: '2px dashed #788093',
-            borderRadius: '4px',
-            cursor: 'pointer',
+            position: 'relative',
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'center',
-            '&:hover': {
-              borderColor: '#5f6368',
-              backgroundColor: '#e8eaed',
-            },
+            height: 80,
+            paddingLeft: '13px', // Espacio entre línea y el nodo
+            marginTop: '10px', // Alineación vertical con otros nodos
           }}
         >
-          <AddIcon sx={{ fontSize: 32, color: '#788093' }} />
-        </Paper>
-        <Handle type="source" position={Position.Right} style={handleStyle} />
-      </>
+          {/* Handle izquierdo */}
+          <Handle 
+            type="target" 
+            position={Position.Left} 
+            style={{
+              ...handleStyle,
+              left: 0,
+            }}
+          />
+          
+          {/* Rectángulo con borde punteado y + */}
+          <Paper
+            elevation={0}
+            sx={{
+              width: 220,
+              height: 110,
+              backgroundColor: '#f1f3f4',
+              border: showArrow ? '2px dashed #03689a' : '2px dashed #788093',
+              borderRadius: '4px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              '&:hover': {
+                borderColor: '#5f6368',
+                backgroundColor: '#e8eaed',
+              },
+            }}
+          >
+            <AddIcon sx={{ fontSize: 32, color: '#788093' }} />
+          </Paper>
+          
+          {/* Handle derecho (invisible) */}
+          <Handle 
+            type="source" 
+            position={Position.Right} 
+            style={{ 
+              ...handleStyle, 
+              opacity: 0,
+              right: 0,
+            }} 
+          />
+        </Box>
+      </Box>
     );
   }
 
