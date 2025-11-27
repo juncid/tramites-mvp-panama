@@ -55,6 +55,7 @@ import {
 } from '../components/Workflow/PreguntaFields';
 */
 import EtapaConfigPanel from '../components/Workflow/EtapaConfigPanel';
+import WorkflowHistoryView from '../components/Workflow/WorkflowHistoryView';
 import {
   ZoomIn as ZoomInIcon,
   ZoomOut as ZoomOutIcon,
@@ -1774,12 +1775,13 @@ const WorkflowEditorFigmaContent: React.FC = () => {
       {/* Contenido del tab "Historial" */}
       {currentTab === 3 && (
         <Box sx={{ p: 3 }}>
-          <Typography variant="h6" gutterBottom>
-            Historial de Cambios
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Contenido de la pestaña Historial (por implementar)
-          </Typography>
+          <WorkflowHistoryView 
+            workflowId={workflowData.id} 
+            workflowData={{
+              codigo: workflowData.codigo,
+              nombre: workflowData.nombre,
+            }}
+          />
         </Box>
       )}
 
