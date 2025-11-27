@@ -8,7 +8,7 @@ router = APIRouter()
 # Los endpoints de la tabla TRAMITE (legacy) han sido eliminados.
 # Usar los endpoints oficiales en /sim-ft/tramites
 # que utilizan las tablas SIM_FT_TRAMITE_E
-# 
+#
 # Migración:
 # - GET    /tramites              -> GET    /sim-ft/tramites
 # - GET    /tramites/{id}         -> GET    /sim-ft/tramites/{año}/{num}/{reg}

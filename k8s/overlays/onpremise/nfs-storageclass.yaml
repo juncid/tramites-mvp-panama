@@ -1,0 +1,16 @@
+# NFS Storage Class for on-premise
+# Requires nfs-subdir-external-provisioner to be installed
+# helm install nfs-subdir-external-provisioner nfs-subdir-external-provisioner/nfs-subdir-external-provisioner \
+#   --set nfs.server=<NFS_SERVER_IP> \
+#   --set nfs.path=/exported/path
+---
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: nfs-client
+provisioner: cluster.local/nfs-subdir-external-provisioner
+parameters:
+  archiveOnDelete: "true"
+reclaimPolicy: Retain
+volumeBindingMode: Immediate
+allowVolumeExpansion: true

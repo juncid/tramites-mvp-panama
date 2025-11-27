@@ -95,7 +95,7 @@ environment = os.getenv("ENVIRONMENT", "development")
 if environment == "development":
     # En desarrollo, permitir localhost y cualquier dominio ngrok
     allowed_origins = ["*"]
-    logger.info(f"🌐 CORS configurado para desarrollo: permitiendo todos los orígenes (localhost + ngrok)")
+    logger.info("🌐 CORS configurado para desarrollo: permitiendo todos los orígenes (localhost + ngrok)")
 else:
     # Producción permite todos los orígenes por ahora
     # En producción final, especificar dominios específicos
@@ -170,7 +170,7 @@ else:
     # Crear directorio si no existe
     os.makedirs(os.path.join(static_dir, "documentos"), exist_ok=True)
     app.mount("/static", StaticFiles(directory=static_dir), name="static")
-    logger.info(f"📁 Directorio de archivos estáticos creado y montado en /static")
+    logger.info("📁 Directorio de archivos estáticos creado y montado en /static")
 
 @app.get("/", tags=["Root"])
 async def root():
@@ -184,37 +184,37 @@ async def root():
         "database_status": "/health/database",
         "modules": {}
     }
-    
+
     # Agregar módulo PPSH si está disponible
     if PPSH_AVAILABLE:
         response["modules"]["ppsh"] = "✅ Disponible en /api/v1/ppsh"
     else:
         response["modules"]["ppsh"] = "❌ No disponible"
-    
+
     # Agregar módulo Workflow si está disponible
     if WORKFLOW_AVAILABLE:
         response["modules"]["workflow"] = "✅ Disponible en /api/v1/workflow"
     else:
         response["modules"]["workflow"] = "❌ No disponible"
-    
+
     # Agregar módulo SIM_FT si está disponible
     if SIM_FT_AVAILABLE:
         response["modules"]["sim_ft"] = "✅ Disponible en /api/v1/sim-ft"
     else:
         response["modules"]["sim_ft"] = "❌ No disponible"
-    
+
     # Agregar módulo OCR si está disponible
     if OCR_AVAILABLE:
         response["modules"]["ocr"] = "✅ Disponible en /api/v1/ocr"
     else:
         response["modules"]["ocr"] = "❌ No disponible"
-    
+
     # Agregar módulo Solicitudes Públicas si está disponible
     if PUBLIC_AVAILABLE:
         response["modules"]["public"] = "✅ Disponible en /api/v1/public"
     else:
         response["modules"]["public"] = "❌ No disponible"
-    
+
     return response
 
 @app.get("/health", tags=["Health"], status_code=status.HTTP_200_OK)
@@ -244,22 +244,22 @@ async def database_health_check():
         "timestamp": datetime.utcnow().isoformat(),
         "details": {}
     }
-    
+
     try:
         # Crear sesión
         db = SessionLocal()
-        
+
         try:
             # Test 1: Conexión básica
             result = db.execute(text("SELECT 1"))
             result.fetchone()
             db_status["details"]["connection"] = "✅ OK"
-            
+
             # Test 2: Verificar base de datos
             result = db.execute(text("SELECT DB_NAME()"))
             db_name = result.fetchone()[0]
             db_status["details"]["database_name"] = db_name
-            
+
             # Test 3: Contar tablas
             result = db.execute(text(
                 "SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES "
@@ -267,28 +267,28 @@ async def database_health_check():
             ))
             table_count = result.fetchone()[0]
             db_status["details"]["tables"] = table_count
-            
+
             # Test 4: Verificar tabla de trámites
             result = db.execute(text("SELECT COUNT(*) FROM tramites"))
             tramite_count = result.fetchone()[0]
             db_status["details"]["tramites_count"] = tramite_count
-            
+
             # Test 5: Verificar usuarios
             result = db.execute(text("SELECT COUNT(*) FROM SEG_TB_USUARIOS WHERE ACTIVO = 1"))
             user_count = result.fetchone()[0]
             db_status["details"]["active_users"] = user_count
-            
+
             # Test 6: Verificar versión de SQL Server
             result = db.execute(text("SELECT @@VERSION"))
             version = result.fetchone()[0]
             db_status["details"]["sql_server_version"] = version[:100] + "..."
-            
+
             # Todo OK
             db_status["status"] = "healthy"
             db_status["message"] = "Base de datos operando correctamente"
-            
+
             logger.info("✅ Health check de base de datos exitoso")
-            
+
         except Exception as e:
             db_status["status"] = "unhealthy"
             db_status["error"] = str(e)
@@ -300,7 +300,7 @@ async def database_health_check():
             )
         finally:
             db.close()
-            
+
     except Exception as e:
         db_status["status"] = "unhealthy"
         db_status["error"] = str(e)
@@ -310,7 +310,7 @@ async def database_health_check():
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             content=db_status
         )
-    
+
     return db_status
 
 @app.on_event("startup")
@@ -323,7 +323,7 @@ async def startup_event():
     logger.info(f"  Base de datos: {settings.database_name}")
     logger.info(f"  Host BD: {settings.database_host}:{settings.database_port}")
     logger.info(f"  Redis: {settings.redis_host}:{settings.redis_port}")
-    
+
     # Módulos disponibles
     logger.info("  Módulos activos:")
     logger.info("    - Trámites: ✅")
@@ -335,7 +335,7 @@ async def startup_event():
         logger.info("    - SIM_FT: ✅")
     if OCR_AVAILABLE:
         logger.info("    - OCR: ✅")
-    
+
     # Inicializar métricas si está disponible
     if METRICS_AVAILABLE:
         try:
@@ -344,7 +344,7 @@ async def startup_event():
             logger.info("  ✅ Sistema de métricas inicializado")
         except Exception as e:
             logger.warning(f"  ⚠️  No se pudo inicializar métricas: {e}")
-    
+
     logger.info("="*60)
 
 @app.on_event("shutdown")
@@ -369,7 +369,7 @@ async def metrics_endpoint():
                 "message": "Sistema de métricas no disponible"
             }
         )
-    
+
     try:
         metrics_collector = get_metrics()
         if not metrics_collector:
@@ -380,9 +380,9 @@ async def metrics_endpoint():
                     "message": "Colector de métricas no inicializado"
                 }
             )
-        
+
         all_metrics = metrics_collector.get_all_metrics()
-        
+
         # Agregar metadatos
         response = {
             "timestamp": datetime.utcnow().isoformat(),
@@ -390,9 +390,9 @@ async def metrics_endpoint():
             "version": "1.0.0",
             "metrics": all_metrics
         }
-        
+
         return response
-        
+
     except Exception as e:
         logger.error(f"Error obteniendo métricas: {e}")
         return JSONResponse(
@@ -414,7 +414,7 @@ async def metric_detail(metric_name: str):
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             content={"message": "Sistema de métricas no disponible"}
         )
-    
+
     try:
         metrics_collector = get_metrics()
         if not metrics_collector:
@@ -422,7 +422,7 @@ async def metric_detail(metric_name: str):
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 content={"message": "Colector de métricas no inicializado"}
             )
-        
+
         # Intentar obtener como contador
         counter_value = metrics_collector.get_counter(metric_name)
         if counter_value > 0:
@@ -432,7 +432,7 @@ async def metric_detail(metric_name: str):
                 "value": counter_value,
                 "timestamp": datetime.utcnow().isoformat()
             }
-        
+
         # Intentar obtener como gauge
         gauge_data = metrics_collector.get_gauge(metric_name)
         if gauge_data:
@@ -441,7 +441,7 @@ async def metric_detail(metric_name: str):
                 "type": "gauge",
                 "data": gauge_data
             }
-        
+
         # Intentar obtener stats de timing
         timing_stats = metrics_collector.get_timing_stats(metric_name)
         if timing_stats:
@@ -450,12 +450,12 @@ async def metric_detail(metric_name: str):
                 "type": "timing",
                 "stats": timing_stats
             }
-        
+
         return JSONResponse(
             status_code=status.HTTP_404_NOT_FOUND,
             content={"message": f"Métrica '{metric_name}' no encontrada"}
         )
-        
+
     except Exception as e:
         logger.error(f"Error obteniendo métrica {metric_name}: {e}")
         return JSONResponse(

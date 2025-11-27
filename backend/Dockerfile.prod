@@ -1,23 +1,23 @@
 # Production Dockerfile for FastAPI Backend
-FROM python:3.11-slim as builder
+FROM python:3.11-slim AS builder
 
 # Install system dependencies
-RUN apt-get update && apt-get install -y \
-    curl \
-    gnupg2 \
-    unixodbc \
-    unixodbc-dev \
-    # Tesseract OCR y dependencias
-    tesseract-ocr \
-    tesseract-ocr-spa \
-    tesseract-ocr-eng \
-    # Bibliotecas para OpenCV
-    libgl1 \
-    libglib2.0-0 \
-    && curl https://packages.microsoft.com/keys/microsoft.asc | apt-key add - \
-    && curl https://packages.microsoft.com/config/debian/11/prod.list > /etc/apt/sources.list.d/mssql-release.list \
+# Note: python:3.11-slim uses Debian 12 (bookworm), use matching Microsoft repo
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        curl \
+        gnupg2 \
+        unixodbc \
+        unixodbc-dev \
+        tesseract-ocr \
+        tesseract-ocr-spa \
+        tesseract-ocr-eng \
+        libgl1 \
+        libglib2.0-0 \
+    && curl -fsSL https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor -o /usr/share/keyrings/microsoft.gpg \
+    && echo "deb [arch=amd64 signed-by=/usr/share/keyrings/microsoft.gpg] https://packages.microsoft.com/debian/12/prod bookworm main" > /etc/apt/sources.list.d/mssql-release.list \
     && apt-get update \
-    && ACCEPT_EULA=Y apt-get install -y msodbcsql18 \
+    && ACCEPT_EULA=Y apt-get install -y --no-install-recommends msodbcsql18 \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -31,7 +31,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Download tessdata_best Spanish model for better OCR accuracy
-RUN curl -L -o /usr/share/tesseract-ocr/5/tessdata/spa.traineddata \
+RUN mkdir -p /usr/share/tesseract-ocr/5/tessdata \
+    && curl -fSL -o /usr/share/tesseract-ocr/5/tessdata/spa.traineddata \
     https://github.com/tesseract-ocr/tessdata_best/raw/main/spa.traineddata
 
 # Copy custom Tesseract dictionary for Panama

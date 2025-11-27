@@ -7,7 +7,7 @@ from app.infrastructure import Base
 # - SimFtTramites: Catálogo de tipos de trámites
 # - SimFtTramiteE: Encabezado del trámite (transaccional)
 # - SimFtTramiteD: Detalle de pasos del trámite
-# 
+#
 # Esta tabla se mantiene temporalmente para compatibilidad con código legacy
 # Migración disponible: 88ea061b1ac5_implementar_estructura_completa_sim_ft__
 
@@ -17,7 +17,7 @@ class Tramite(Base):
     Esta clase se mantiene solo para compatibilidad con código existente
     """
     __tablename__ = "TRAMITE"
-    
+
     id = Column(Integer, primary_key=True, index=True)
     NOM_TITULO = Column(String(255), nullable=False)
     DESCRIPCION = Column(String(1000))

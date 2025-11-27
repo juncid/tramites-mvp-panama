@@ -2,9 +2,9 @@
 Routers para el Sistema Integrado de Migración SIM_FT_*
 Endpoints API REST para gestión de trámites migratorios
 """
-from fastapi import APIRouter, Depends, HTTPException, status, Query, Path
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
-from sqlalchemy import and_, or_, desc, func
+from sqlalchemy import and_, desc, func
 from sqlalchemy.exc import IntegrityError
 from typing import List, Optional
 from datetime import datetime
@@ -22,8 +22,7 @@ from app.models.models_sim_ft import (
     SimFtUsuaSec,
     SimFtTramiteE,
     SimFtTramiteD,
-    SimFtTramiteCierre,
-    SimFtDependteCierre
+    SimFtTramiteCierre
 )
 from app.schemas.schemas_sim_ft import (
     SimFtTramitesCreate,
@@ -33,19 +32,15 @@ from app.schemas.schemas_sim_ft import (
     SimFtEstatusUpdate,
     SimFtEstatusResponse,
     SimFtConclusionCreate,
-    SimFtConclusionUpdate,
     SimFtConclusionResponse,
     SimFtPrioridadCreate,
-    SimFtPrioridadUpdate,
     SimFtPrioridadResponse,
     SimFtPasosCreate,
     SimFtPasosUpdate,
     SimFtPasosResponse,
     SimFtPasoXTramCreate,
-    SimFtPasoXTramUpdate,
     SimFtPasoXTramResponse,
     SimFtUsuaSecCreate,
-    SimFtUsuaSecUpdate,
     SimFtUsuaSecResponse,
     SimFtTramiteECreate,
     SimFtTramiteEUpdate,
@@ -54,9 +49,7 @@ from app.schemas.schemas_sim_ft import (
     SimFtTramiteDUpdate,
     SimFtTramiteDResponse,
     SimFtTramiteCierreCreate,
-    SimFtTramiteCierreResponse,
-    SimFtDependteCierreCreate,
-    SimFtDependteCierreResponse
+    SimFtTramiteCierreResponse
 )
 
 router = APIRouter(prefix="/sim-ft", tags=["SIM_FT"])
@@ -74,10 +67,10 @@ async def get_tipos_tramites(
 ):
     """Obtener catálogo de tipos de trámites"""
     query = db.query(SimFtTramites)
-    
+
     if activo is not None:
         query = query.filter(SimFtTramites.IND_ACTIVO == ('S' if activo else 'N'))
-    
+
     return query.order_by(SimFtTramites.COD_TRAMITE).offset(skip).limit(limit).all()
 
 
@@ -87,13 +80,13 @@ async def get_tipo_tramite(cod_tramite: str, db: Session = Depends(get_db)):
     tramite = db.query(SimFtTramites).filter(
         SimFtTramites.COD_TRAMITE == cod_tramite
     ).first()
-    
+
     if not tramite:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Tipo de trámite '{cod_tramite}' no encontrado"
         )
-    
+
     return tramite
 
 
@@ -107,18 +100,18 @@ async def create_tipo_tramite(
     existing = db.query(SimFtTramites).filter(
         SimFtTramites.COD_TRAMITE == tramite.COD_TRAMITE
     ).first()
-    
+
     if existing:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Ya existe un tipo de trámite con código '{tramite.COD_TRAMITE}'"
         )
-    
+
     db_tramite = SimFtTramites(**tramite.model_dump())
     db.add(db_tramite)
     db.commit()
     db.refresh(db_tramite)
-    
+
     return db_tramite
 
 
@@ -132,21 +125,21 @@ async def update_tipo_tramite(
     db_tramite = db.query(SimFtTramites).filter(
         SimFtTramites.COD_TRAMITE == cod_tramite
     ).first()
-    
+
     if not db_tramite:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Tipo de trámite '{cod_tramite}' no encontrado"
         )
-    
+
     update_data = tramite_update.model_dump(exclude_unset=True)
     for field, value in update_data.items():
         setattr(db_tramite, field, value)
-    
+
     db_tramite.FEC_MODIF_REG = datetime.now()
     db.commit()
     db.refresh(db_tramite)
-    
+
     return db_tramite
 
 
@@ -156,13 +149,13 @@ async def delete_tipo_tramite(cod_tramite: str, db: Session = Depends(get_db)):
     db_tramite = db.query(SimFtTramites).filter(
         SimFtTramites.COD_TRAMITE == cod_tramite
     ).first()
-    
+
     if not db_tramite:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Tipo de trámite '{cod_tramite}' no encontrado"
         )
-    
+
     db_tramite.IND_ACTIVO = 'N'
     db_tramite.FEC_MODIF_REG = datetime.now()
     db.commit()
@@ -181,10 +174,10 @@ async def get_estatus(
 ):
     """Obtener catálogo de estados"""
     query = db.query(SimFtEstatus)
-    
+
     if activo is not None:
         query = query.filter(SimFtEstatus.IND_ACTIVO == ('S' if activo else 'N'))
-    
+
     return query.order_by(SimFtEstatus.COD_ESTATUS).offset(skip).limit(limit).all()
 
 
@@ -194,13 +187,13 @@ async def get_estatus_by_id(cod_estatus: str, db: Session = Depends(get_db)):
     estatus = db.query(SimFtEstatus).filter(
         SimFtEstatus.COD_ESTATUS == cod_estatus
     ).first()
-    
+
     if not estatus:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Estado '{cod_estatus}' no encontrado"
         )
-    
+
     return estatus
 
 
@@ -231,17 +224,17 @@ async def update_estatus(
     db_estatus = db.query(SimFtEstatus).filter(
         SimFtEstatus.COD_ESTATUS == cod_estatus
     ).first()
-    
+
     if not db_estatus:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Estado '{cod_estatus}' no encontrado"
         )
-    
+
     update_data = estatus_update.model_dump(exclude_unset=True)
     for field, value in update_data.items():
         setattr(db_estatus, field, value)
-    
+
     db_estatus.FEC_MODIF_REG = datetime.now()
     db.commit()
     db.refresh(db_estatus)
@@ -261,10 +254,10 @@ async def get_conclusiones(
 ):
     """Obtener catálogo de conclusiones"""
     query = db.query(SimFtConclusion)
-    
+
     if activo is not None:
         query = query.filter(SimFtConclusion.IND_ACTIVO == ('S' if activo else 'N'))
-    
+
     return query.order_by(SimFtConclusion.COD_CONCLUSION).offset(skip).limit(limit).all()
 
 
@@ -298,10 +291,10 @@ async def get_prioridades(
 ):
     """Obtener catálogo de prioridades"""
     query = db.query(SimFtPrioridad)
-    
+
     if activo is not None:
         query = query.filter(SimFtPrioridad.IND_ACTIVO == ('S' if activo else 'N'))
-    
+
     return query.order_by(SimFtPrioridad.COD_PRIORIDAD).offset(skip).limit(limit).all()
 
 
@@ -336,13 +329,13 @@ async def get_pasos(
 ):
     """Obtener definición de pasos"""
     query = db.query(SimFtPasos)
-    
+
     if cod_tramite:
         query = query.filter(SimFtPasos.COD_TRAMITE == cod_tramite)
-    
+
     if activo is not None:
         query = query.filter(SimFtPasos.IND_ACTIVO == ('S' if activo else 'N'))
-    
+
     return query.order_by(
         SimFtPasos.COD_TRAMITE,
         SimFtPasos.NUM_PASO
@@ -362,13 +355,13 @@ async def get_paso(
             SimFtPasos.NUM_PASO == num_paso
         )
     ).first()
-    
+
     if not paso:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Paso {num_paso} del trámite '{cod_tramite}' no encontrado"
         )
-    
+
     return paso
 
 
@@ -379,13 +372,13 @@ async def create_paso(paso: SimFtPasosCreate, db: Session = Depends(get_db)):
     tramite_exists = db.query(SimFtTramites).filter(
         SimFtTramites.COD_TRAMITE == paso.COD_TRAMITE
     ).first()
-    
+
     if not tramite_exists:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"No existe el tipo de trámite '{paso.COD_TRAMITE}'"
         )
-    
+
     # Verificar que no existe ya el paso
     existing = db.query(SimFtPasos).filter(
         and_(
@@ -393,13 +386,13 @@ async def create_paso(paso: SimFtPasosCreate, db: Session = Depends(get_db)):
             SimFtPasos.NUM_PASO == paso.NUM_PASO
         )
     ).first()
-    
+
     if existing:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Ya existe el paso {paso.NUM_PASO} para el trámite '{paso.COD_TRAMITE}'"
         )
-    
+
     db_paso = SimFtPasos(**paso.model_dump())
     db.add(db_paso)
     db.commit()
@@ -421,17 +414,17 @@ async def update_paso(
             SimFtPasos.NUM_PASO == num_paso
         )
     ).first()
-    
+
     if not db_paso:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Paso {num_paso} del trámite '{cod_tramite}' no encontrado"
         )
-    
+
     update_data = paso_update.model_dump(exclude_unset=True)
     for field, value in update_data.items():
         setattr(db_paso, field, value)
-    
+
     db_paso.FEC_MODIF_REG = datetime.now()
     db.commit()
     db.refresh(db_paso)
@@ -452,13 +445,13 @@ async def get_flujo_pasos(
 ):
     """Obtener configuración de flujo de pasos"""
     query = db.query(SimFtPasoXTram)
-    
+
     if cod_tramite:
         query = query.filter(SimFtPasoXTram.COD_TRAMITE == cod_tramite)
-    
+
     if activo is not None:
         query = query.filter(SimFtPasoXTram.IND_ACTIVO == ('S' if activo else 'N'))
-    
+
     return query.order_by(
         SimFtPasoXTram.COD_TRAMITE,
         SimFtPasoXTram.NUM_PASO
@@ -478,13 +471,13 @@ async def create_flujo_paso(
             SimFtPasos.NUM_PASO == flujo.NUM_PASO
         )
     ).first()
-    
+
     if not paso_exists:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"No existe el paso {flujo.NUM_PASO} para el trámite '{flujo.COD_TRAMITE}'"
         )
-    
+
     db_flujo = SimFtPasoXTram(**flujo.model_dump())
     db.add(db_flujo)
     db.commit()
@@ -507,16 +500,16 @@ async def get_usuarios_secciones(
 ):
     """Obtener asignaciones de usuarios a secciones"""
     query = db.query(SimFtUsuaSec)
-    
+
     if id_usuario:
         query = query.filter(SimFtUsuaSec.ID_USUARIO == id_usuario)
-    
+
     if cod_seccion:
         query = query.filter(SimFtUsuaSec.COD_SECCION == cod_seccion)
-    
+
     if activo is not None:
         query = query.filter(SimFtUsuaSec.IND_ACTIVO == ('S' if activo else 'N'))
-    
+
     return query.order_by(
         SimFtUsuaSec.ID_USUARIO,
         SimFtUsuaSec.COD_SECCION
@@ -554,45 +547,45 @@ async def get_tramites(
 ):
     """Obtener trámites (encabezados) con cache de Redis"""
     redis = get_redis()
-    
+
     # Generar cache key basado en todos los parámetros
     cache_key = f"sim_ft:tramites:{num_annio}:{cod_tramite}:{ind_estatus}:{ind_prioridad}:{skip}:{limit}"
     if fecha_desde:
         cache_key += f":{fecha_desde.isoformat()}"
     if fecha_hasta:
         cache_key += f":{fecha_hasta.isoformat()}"
-    
+
     # Intentar obtener del cache
     cached_data = redis.get(cache_key)
     if cached_data:
         return json.loads(cached_data)
-    
+
     # Si no está en cache, consultar BD
     query = db.query(SimFtTramiteE)
-    
+
     if num_annio:
         query = query.filter(SimFtTramiteE.NUM_ANNIO == num_annio)
-    
+
     if cod_tramite:
         query = query.filter(SimFtTramiteE.COD_TRAMITE == cod_tramite)
-    
+
     if ind_estatus:
         query = query.filter(SimFtTramiteE.IND_ESTATUS == ind_estatus)
-    
+
     if ind_prioridad:
         query = query.filter(SimFtTramiteE.IND_PRIORIDAD == ind_prioridad)
-    
+
     if fecha_desde:
         query = query.filter(SimFtTramiteE.FEC_INI_TRAMITE >= fecha_desde)
-    
+
     if fecha_hasta:
         query = query.filter(SimFtTramiteE.FEC_INI_TRAMITE <= fecha_hasta)
-    
+
     tramites = query.order_by(
         desc(SimFtTramiteE.NUM_ANNIO),
         desc(SimFtTramiteE.NUM_TRAMITE)
     ).offset(skip).limit(limit).all()
-    
+
     # Cachear resultado (5 minutos)
     redis.setex(cache_key, 300, json.dumps([
         {
@@ -611,7 +604,7 @@ async def get_tramites(
             "ID_USUARIO_CREA": t.ID_USUARIO_CREA
         } for t in tramites
     ]))
-    
+
     return tramites
 
 
@@ -623,37 +616,37 @@ async def create_tramite(
 ):
     """Crear un nuevo trámite e invalidar cache"""
     redis = get_redis()
-    
+
     # Verificar que existe el tipo de trámite
     tipo_exists = db.query(SimFtTramites).filter(
         SimFtTramites.COD_TRAMITE == tramite.COD_TRAMITE
     ).first()
-    
+
     if not tipo_exists:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"No existe el tipo de trámite '{tramite.COD_TRAMITE}'"
         )
-    
+
     # Generar NUM_TRAMITE automáticamente
     max_tramite = db.query(func.max(SimFtTramiteE.NUM_TRAMITE)).filter(
         SimFtTramiteE.NUM_ANNIO == tramite.NUM_ANNIO
     ).scalar()
-    
+
     tramite_data = tramite.model_dump()
     tramite_data['NUM_TRAMITE'] = (max_tramite or 0) + 1
     tramite_data['HITS_TRAMITE'] = 0
-    
+
     db_tramite = SimFtTramiteE(**tramite_data)
     db.add(db_tramite)
     db.commit()
     db.refresh(db_tramite)
-    
+
     # Invalidar cache de trámites
     keys = redis.keys("sim_ft:tramites:*")
     if keys:
         redis.delete(*keys)
-    
+
     return db_tramite
 
 
@@ -667,7 +660,7 @@ async def update_tramite(
 ):
     """Actualizar un trámite e invalidar cache"""
     redis = get_redis()
-    
+
     db_tramite = db.query(SimFtTramiteE).filter(
         and_(
             SimFtTramiteE.NUM_ANNIO == num_annio,
@@ -675,31 +668,31 @@ async def update_tramite(
             SimFtTramiteE.NUM_REGISTRO == num_registro
         )
     ).first()
-    
+
     if not db_tramite:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Trámite {num_annio}-{num_tramite}-{num_registro} no encontrado"
         )
-    
+
     update_data = tramite_update.model_dump(exclude_unset=True)
     for field, value in update_data.items():
         setattr(db_tramite, field, value)
-    
+
     db.commit()
     db.refresh(db_tramite)
-    
+
     # Invalidar cache de trámites
     keys = redis.keys("sim_ft:tramites:*")
     if keys:
         redis.delete(*keys)
-    
+
     return db_tramite
-    
+
     db_tramite.FEC_ACTUALIZA = datetime.now()
     db.commit()
     db.refresh(db_tramite)
-    
+
     return db_tramite
 
 
@@ -721,10 +714,10 @@ async def get_tramite_pasos(
             SimFtTramiteD.NUM_TRAMITE == num_tramite
         )
     )
-    
+
     if num_registro is not None:
         query = query.filter(SimFtTramiteD.NUM_REGISTRO == num_registro)
-    
+
     return query.order_by(SimFtTramiteD.NUM_PASO).all()
 
 
@@ -745,13 +738,13 @@ async def get_tramite_paso(
             SimFtTramiteD.NUM_REGISTRO == num_registro
         )
     ).first()
-    
+
     if not paso:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Paso {num_paso} del trámite {num_annio}-{num_tramite}-{num_registro} no encontrado"
         )
-    
+
     return paso
 
 
@@ -771,13 +764,13 @@ async def create_tramite_paso(
             SimFtTramiteE.NUM_REGISTRO == paso.NUM_REGISTRO
         )
     ).first()
-    
+
     if not tramite_exists:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"No existe el trámite {num_annio}-{num_tramite}-{paso.NUM_REGISTRO}"
         )
-    
+
     # Generar NUM_ACTIVIDAD automáticamente
     max_actividad = db.query(func.max(SimFtTramiteD.NUM_ACTIVIDAD)).filter(
         and_(
@@ -787,18 +780,18 @@ async def create_tramite_paso(
             SimFtTramiteD.NUM_REGISTRO == paso.NUM_REGISTRO
         )
     ).scalar()
-    
+
     paso_data = paso.model_dump()
     paso_data['NUM_ANNIO'] = num_annio
     paso_data['NUM_TRAMITE'] = num_tramite
     paso_data['NUM_ACTIVIDAD'] = (max_actividad or 0) + 1
-    
+
     try:
         db_paso = SimFtTramiteD(**paso_data)
         db.add(db_paso)
         db.commit()
         db.refresh(db_paso)
-        
+
         # Actualizar el trámite
         tramite_exists.FEC_ACTUALIZA = datetime.now()
         # Inicializar HITS_TRAMITE si es None
@@ -806,7 +799,7 @@ async def create_tramite_paso(
             tramite_exists.HITS_TRAMITE = 0
         tramite_exists.HITS_TRAMITE += 1
         db.commit()
-        
+
         return db_paso
     except IntegrityError:
         db.rollback()
@@ -834,21 +827,21 @@ async def update_tramite_paso(
             SimFtTramiteD.NUM_REGISTRO == num_registro
         )
     ).first()
-    
+
     if not db_paso:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Paso {num_paso} del trámite {num_annio}-{num_tramite}-{num_registro} no encontrado"
         )
-    
+
     update_data = paso_update.model_dump(exclude_unset=True)
     for field, value in update_data.items():
         setattr(db_paso, field, value)
-    
+
     db_paso.FEC_ACTUALIZA = datetime.now()
     db.commit()
     db.refresh(db_paso)
-    
+
     return db_paso
 
 
@@ -861,15 +854,15 @@ async def get_tramite(
 ):
     """Obtener un trámite específico con cache"""
     redis = get_redis()
-    
+
     # Build cache key
     cache_key = f"sim_ft:tramite:{num_annio}:{num_tramite}:{num_registro}"
-    
+
     # Try to get from cache
     cached_data = redis.get(cache_key)
     if cached_data:
         return json.loads(cached_data)
-    
+
     # Query database
     tramite = db.query(SimFtTramiteE).filter(
         and_(
@@ -878,13 +871,13 @@ async def get_tramite(
             SimFtTramiteE.NUM_REGISTRO == num_registro
         )
     ).first()
-    
+
     if not tramite:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Trámite {num_annio}-{num_tramite}-{num_registro} no encontrado"
         )
-    
+
     # Cache result
     redis.setex(
         cache_key,
@@ -905,7 +898,7 @@ async def get_tramite(
             "ID_USUARIO_CREA": tramite.ID_USUARIO_CREA
         })
     )
-    
+
     return tramite
 
 
@@ -913,8 +906,8 @@ async def get_tramite(
 # CIERRE DE TRÁMITES
 # ============================================================================
 
-@router.post("/tramites/{num_annio}/{num_tramite}/{num_registro}/cierre", 
-             response_model=SimFtTramiteCierreResponse, 
+@router.post("/tramites/{num_annio}/{num_tramite}/{num_registro}/cierre",
+             response_model=SimFtTramiteCierreResponse,
              status_code=status.HTTP_201_CREATED)
 async def cerrar_tramite(
     num_annio: int,
@@ -932,13 +925,13 @@ async def cerrar_tramite(
             SimFtTramiteE.NUM_REGISTRO == num_registro
         )
     ).first()
-    
+
     if not tramite:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Trámite {num_annio}-{num_tramite}-{num_registro} no encontrado"
         )
-    
+
     # Verificar si ya está cerrado
     cierre_existente = db.query(SimFtTramiteCierre).filter(
         and_(
@@ -947,13 +940,13 @@ async def cerrar_tramite(
             SimFtTramiteCierre.NUM_REGISTRO == num_registro
         )
     ).first()
-    
+
     if cierre_existente:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"El trámite {num_annio}-{num_tramite}-{num_registro} ya está cerrado"
         )
-    
+
     # Crear el cierre
     cierre_data = cierre.model_dump()
     cierre_data['NUM_ANNIO'] = num_annio
@@ -961,23 +954,23 @@ async def cerrar_tramite(
     cierre_data['NUM_REGISTRO'] = num_registro
     cierre_data['FEC_CIERRE'] = datetime.now()
     cierre_data['ID_USUARIO_CIERRE'] = cierre.ID_USUARIO_CREA or 'SYSTEM'
-    
+
     db_cierre = SimFtTramiteCierre(**cierre_data)
     db.add(db_cierre)
-    
+
     # Actualizar el trámite
     tramite.FEC_FIN_TRAMITE = cierre_data['FEC_CIERRE']
     tramite.IND_CONCLUSION = cierre.COD_CONCLUSION
     tramite.IND_ESTATUS = '10'  # Finalizado (era '07' pero según test debe ser '10')
     tramite.FEC_ACTUALIZA = datetime.now()
-    
+
     db.commit()
     db.refresh(db_cierre)
-    
+
     return db_cierre
 
 
-@router.get("/tramites/{num_annio}/{num_tramite}/{num_registro}/cierre", 
+@router.get("/tramites/{num_annio}/{num_tramite}/{num_registro}/cierre",
             response_model=SimFtTramiteCierreResponse)
 async def get_cierre_tramite(
     num_annio: int,
@@ -993,13 +986,13 @@ async def get_cierre_tramite(
             SimFtTramiteCierre.NUM_REGISTRO == num_registro
         )
     ).first()
-    
+
     if not cierre:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"El trámite {num_annio}-{num_tramite}-{num_registro} no está cerrado"
         )
-    
+
     return cierre
 
 
@@ -1017,12 +1010,12 @@ async def get_estadisticas_por_estado(
         SimFtTramiteE.IND_ESTATUS,
         func.count(SimFtTramiteE.NUM_TRAMITE).label('total')
     )
-    
+
     if num_annio:
         query = query.filter(SimFtTramiteE.NUM_ANNIO == num_annio)
-    
+
     resultados = query.group_by(SimFtTramiteE.IND_ESTATUS).all()
-    
+
     return {
         "estadisticas": [
             {
@@ -1043,12 +1036,12 @@ async def get_estadisticas_por_tipo(
         SimFtTramiteE.COD_TRAMITE,
         func.count(SimFtTramiteE.NUM_TRAMITE).label('total')
     )
-    
+
     if num_annio:
         query = query.filter(SimFtTramiteE.NUM_ANNIO == num_annio)
-    
+
     resultados = query.group_by(SimFtTramiteE.COD_TRAMITE).all()
-    
+
     return {
         "estadisticas": [
             {
@@ -1072,26 +1065,26 @@ async def get_tiempo_promedio_tramites(
             SimFtTramiteE.FEC_FIN_TRAMITE.isnot(None)
         )
     )
-    
+
     if cod_tramite:
         query = query.filter(SimFtTramiteE.COD_TRAMITE == cod_tramite)
-    
+
     if num_annio:
         query = query.filter(SimFtTramiteE.NUM_ANNIO == num_annio)
-    
+
     tramites = query.all()
-    
+
     if not tramites:
         return {
             "total_tramites": 0,
             "tiempo_promedio_dias": 0
         }
-    
+
     tiempos = [
         (t.FEC_FIN_TRAMITE - t.FEC_INI_TRAMITE).days
         for t in tramites
     ]
-    
+
     return {
         "total_tramites": len(tramites),
         "tiempo_promedio_dias": sum(tiempos) / len(tiempos) if tiempos else 0,

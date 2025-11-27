@@ -9,8 +9,8 @@ Author: Sistema de Trámites MVP Panamá
 Date: 2025-10-20
 """
 
-from pydantic import BaseModel, Field, validator, ConfigDict, field_validator, model_validator
-from typing import Optional, List, Dict, Any, Union
+from pydantic import BaseModel, Field, ConfigDict, field_validator, model_validator
+from typing import Optional, List, Dict, Any
 from datetime import datetime
 from enum import Enum
 
@@ -84,16 +84,16 @@ class WorkflowPreguntaBase(BaseModel):
     valor_predeterminado: Optional[str] = Field(None, max_length=500)
     mostrar_si: Optional[Dict[str, Any]] = None
     activo: bool = True
-    
+
     @model_validator(mode='after')
     def validar_opciones_por_tipo(self):
         """Valida que las preguntas de tipo texto no tengan opciones"""
         tipos_sin_opciones = [TipoPreguntaEnum.RESPUESTA_TEXTO, TipoPreguntaEnum.RESPUESTA_LARGA]
-        
+
         if self.tipo_pregunta in tipos_sin_opciones:
             if self.opciones and len(self.opciones) > 0:
                 raise ValueError(f'Las preguntas de tipo {self.tipo_pregunta.value} no deben tener opciones')
-        
+
         return self
 
 
@@ -164,7 +164,7 @@ class WorkflowEtapaBase(BaseModel):
     tiempo_estimado_minutos: Optional[int] = Field(None, ge=0)
     reglas_transicion: Optional[Dict[str, Any]] = None
     activo: bool = True
-    
+
     @field_validator('orden')
     @classmethod
     def validar_orden_positivo(cls, v: int) -> int:
@@ -172,7 +172,7 @@ class WorkflowEtapaBase(BaseModel):
         if v < 0:
             raise ValueError('El orden debe ser un número positivo o cero')
         return v
-    
+
     @model_validator(mode='after')
     def validar_perfiles(self):
         """Valida que se especifiquen perfiles permitidos (excepto para etapa INICIO y FIN)"""
@@ -240,20 +240,20 @@ class WorkflowConexionBase(BaseModel):
     condicion: Optional[Dict[str, Any]] = None
     es_predeterminada: bool = False
     activo: bool = True
-    
+
     # @field_validator('tipo_conexion')
     # @classmethod
     # def validar_tipo_conexion(cls, v: Optional[str]) -> Optional[str]:
     #     """Valida que el tipo de conexión sea válido"""
     #     if v is None:
     #         return v
-    #     
+    #
     #     tipos_validos = ['SECUENCIAL', 'CONDICIONAL', 'PARALELA']
     #     if v not in tipos_validos:
     #         raise ValueError(f'Tipo de conexión inválido. Tipos válidos: {", ".join(tipos_validos)}')
-    #     
+    #
     #     return v
-    
+
     # @model_validator(mode='after')
     # def validar_condicion_condicional(self):
     #     """Valida que las conexiones condicionales tengan condición"""
@@ -268,7 +268,7 @@ class WorkflowConexionCreate(WorkflowConexionBase):
     workflow_id: int
     etapa_origen_id: int
     etapa_destino_id: int
-    
+
     @model_validator(mode='after')
     def validar_etapas_diferentes(self):
         """Valida que las etapas de origen y destino sean diferentes"""
@@ -281,7 +281,7 @@ class WorkflowConexionCreateByCodigo(WorkflowConexionBase):
     """Schema para crear conexión usando códigos de etapa (para creación completa de workflow)"""
     etapa_origen_codigo: str = Field(..., max_length=100)
     etapa_destino_codigo: str = Field(..., max_length=100)
-    
+
     @model_validator(mode='after')
     def validar_etapas_diferentes(self):
         """Valida que las etapas de origen y destino sean diferentes"""
@@ -334,7 +334,7 @@ class WorkflowCreate(WorkflowBase):
     """Schema para crear workflow completo con etapas y conexiones anidadas"""
     etapas: Optional[List[WorkflowEtapaCreateNested]] = Field(default_factory=list)
     conexiones: Optional[List[WorkflowConexionCreateByCodigo]] = Field(default_factory=list)
-    
+
     @model_validator(mode='after')
     def validar_etapa_inicial(self):
         """Valida que haya al menos una etapa inicial si se definen etapas"""
@@ -629,24 +629,24 @@ class WorkflowInstanciaConPPSHCreate(BaseModel):
     """
     workflow_id: int = Field(..., description="ID del workflow a instanciar")
     nombre_instancia: Optional[str] = Field(None, max_length=255, description="Nombre descriptivo de la instancia (generado automáticamente si se omite)")
-    
+
     # Importar los campos de SolicitudCreate aquí para evitar dependencia circular
     # Los campos se validan en el servicio
     solicitud_ppsh: Dict[str, Any] = Field(..., description="Datos de la solicitud PPSH a crear")
-    
+
     @field_validator('solicitud_ppsh')
     @classmethod
     def validar_solicitud_ppsh(cls, v: Dict[str, Any]) -> Dict[str, Any]:
         """Valida estructura básica de solicitud PPSH"""
         campos_requeridos = ['tipo_solicitud', 'cod_causa_humanitaria', 'solicitantes']
-        
+
         for campo in campos_requeridos:
             if campo not in v:
                 raise ValueError(f"Campo requerido '{campo}' no encontrado en solicitud_ppsh")
-        
+
         if not v.get('solicitantes') or len(v['solicitantes']) < 1:
             raise ValueError("La solicitud debe tener al menos un solicitante")
-        
+
         return v
 
 
@@ -674,7 +674,7 @@ class WorkflowInstanciaPPSHResponse(BaseModel):
     instancia_estado: EstadoInstanciaEnum
     instancia_etapa_actual_id: Optional[int]
     instancia_fecha_inicio: datetime
-    
+
     # Datos de solicitud PPSH vinculada
     solicitud_id: int
     solicitud_num_expediente: str
@@ -682,16 +682,16 @@ class WorkflowInstanciaPPSHResponse(BaseModel):
     solicitud_estado: str
     solicitud_causa_humanitaria: int
     solicitud_fecha_solicitud: str  # ISO format
-    
+
     # Metadata de vinculación
     fecha_vinculacion: datetime
     vinculado_por: str
     es_vinculacion_posterior: bool = False
-    
+
     # URLs de navegación (opcional)
     url_instancia: Optional[str] = None
     url_solicitud: Optional[str] = None
-    
+
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -707,6 +707,6 @@ class DatosVinculacionPPSHResponse(BaseModel):
     fecha_vinculacion: Optional[str] = None
     vinculado_por: Optional[str] = None
     es_vinculacion_posterior: bool = False
-    
+
     # Datos completos de solicitud (si se solicita expanded)
     solicitud: Optional[Dict[str, Any]] = None

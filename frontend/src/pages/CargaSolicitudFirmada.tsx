@@ -30,52 +30,55 @@ export const CargaSolicitudFirmada: React.FC = () => {
     instancia,
     workflowInstanciaId,
     handleCancelar,
-    completarEtapa,
+    handleGuardar,
     setError,
-  } = useWorkflowEtapa(ETAPA_ORDEN);
+  } = useWorkflowEtapa();
 
   // Hook para carga de documentos con OCR
   const {
-    archivoSubido,
+    uploadedFile,
     documentoId,
-    uploading,
+    isUploading,
     isLoadingOCR,
     showResult,
     ocrResult,
-    handleCargarArchivo,
-    handleCloseResult,
+    openFileSelector,
+    closeResult,
   } = useOCRUpload({
     allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png'],
-    tipoDocumento: 'Solicitud Firmada',
-    observaciones: 'Documento cargado en Etapa 3: Carga de Solicitud Firmada',
-    onUploadSuccess: (file, docId) => {
-      console.log('✅ Documento subido:', file.name, 'ID:', docId);
-    },
-    onUploadError: (errorMsg) => {
-      setError(errorMsg);
-    },
   });
+
+  const handleCargarArchivo = () => {
+    // Buscar id_solicitud o ppsh_solicitud_id (compatibilidad)
+    const solicitudIdFromInstance = instancia?.metadata_adicional?.id_solicitud || instancia?.metadata_adicional?.ppsh_solicitud_id;
+    if (!solicitudIdFromInstance) {
+      setError('No se encontró el ID de solicitud');
+      return;
+    }
+    openFileSelector(
+      solicitudIdFromInstance,
+      'Solicitud Firmada',
+      'Documento cargado en Etapa 3: Carga de Solicitud Firmada'
+    );
+  };
 
   const handleSiguiente = async () => {
     if (!workflowInstanciaId || !instancia) return;
 
     // Si no hay archivo cargado, simular uno para permitir continuar (modo desarrollo)
     let documentoIdFinal = documentoId;
-    let nombreArchivoFinal = archivoSubido?.name || 'fotos-carnet-dummy.pdf';
+    let nombreArchivoFinal = uploadedFile?.name || 'fotos-carnet-dummy.pdf';
 
-    if (!archivoSubido || !documentoId) {
+    if (!uploadedFile || !documentoId) {
       console.log('⚠️ Modo desarrollo: Creando documento dummy para continuar');
       documentoIdFinal = Math.floor(Math.random() * 9000) + 1000;
     }
 
-    await completarEtapa(
-      { 
-        CARGA_SOLICITUD: 'Archivo cargado',
-        documento_id: documentoIdFinal,
-        nombre_archivo: nombreArchivoFinal
-      },
-      'CIUDADANO'
-    );
+    await handleGuardar({ 
+      CARGA_SOLICITUD: 'Archivo cargado',
+      documento_id: documentoIdFinal,
+      nombre_archivo: nombreArchivoFinal
+    });
   };
 
   return (
@@ -90,7 +93,7 @@ export const CargaSolicitudFirmada: React.FC = () => {
           {/* TextField con borde negro según Figma */}
           <TextField
             fullWidth
-            value={archivoSubido?.name || ''}
+            value={uploadedFile?.name || ''}
             placeholder=""
             disabled
             sx={{
@@ -112,7 +115,7 @@ export const CargaSolicitudFirmada: React.FC = () => {
             variant="contained"
             startIcon={<AttachFileIcon sx={{ fontSize: 16 }} />}
             onClick={handleCargarArchivo}
-            disabled={uploading || readonly}
+            disabled={isUploading || readonly}
             sx={{
               backgroundColor: '#0e5fa6',
               color: '#ffffff',
@@ -129,7 +132,7 @@ export const CargaSolicitudFirmada: React.FC = () => {
               '&.Mui-disabled': { backgroundColor: '#e5e7eb', color: '#9ca3af' },
             }}
           >
-            {uploading ? 'Subiendo...' : 'Cargar archivo'}
+            {isUploading ? 'Subiendo...' : 'Cargar archivo'}
           </MuiButton>
           
           {/* Indicaciones extra */}
@@ -142,7 +145,7 @@ export const CargaSolicitudFirmada: React.FC = () => {
       onCancel={handleCancelar}
       onNext={readonly ? undefined : handleSiguiente}
       loading={loading}
-      completing={completing || uploading}
+      completing={completing || isUploading}
       error={error}
     >
       <OCRLoadingModal open={isLoadingOCR} />
@@ -150,7 +153,7 @@ export const CargaSolicitudFirmada: React.FC = () => {
         open={showResult}
         tipo={ocrResult.success ? 'success' : 'error'}
         mensaje={ocrResult.message}
-        onClose={handleCloseResult}
+        onClose={closeResult}
       />
     </EtapaInformativa>
   );

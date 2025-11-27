@@ -33,8 +33,8 @@ class OpcionesPreprocesamientoOCR(BaseModel):
     mejorar_contraste: bool = Field(default=True, description="Mejorar contraste con CLAHE")
     deskew: bool = Field(default=False, description="Corregir inclinación")
     resize_factor: Optional[float] = Field(
-        default=None, 
-        ge=0.5, 
+        default=None,
+        ge=0.5,
         le=3.0,
         description="Factor de escala (0.5-3.0)"
     )
@@ -56,8 +56,8 @@ class OCRRequest(BaseModel):
     mejorar_contraste: bool = Field(default=True, description="Mejorar contraste con CLAHE")
     deskew: bool = Field(default=False, description="Corregir inclinación")
     resize_factor: Optional[float] = Field(
-        default=None, 
-        ge=0.5, 
+        default=None,
+        ge=0.5,
         le=3.0,
         description="Factor de escala (0.5-3.0)"
     )
@@ -69,7 +69,7 @@ class OCRRequest(BaseModel):
         default=None,
         description="Motivo del reprocesamiento (solo para endpoint /reprocesar)"
     )
-    
+
     class Config:
         json_schema_extra = {
             "example": {
@@ -96,7 +96,7 @@ class OCRResponse(BaseModel):
         default=30,
         description="Tiempo estimado de procesamiento"
     )
-    
+
     class Config:
         json_schema_extra = {
             "example": {
@@ -132,7 +132,7 @@ class OCRStatus(BaseModel):
     confianza_promedio: Optional[float] = Field(default=None, description="Confianza promedio del OCR")
     tiempo_procesamiento_ms: Optional[int] = Field(default=None, description="Tiempo de procesamiento en ms")
     codigo_error: Optional[str] = Field(default=None, description="Código de error si falló")
-    
+
     class Config:
         json_schema_extra = {
             "example": {
@@ -161,7 +161,7 @@ class DatosEstructurados(BaseModel):
         default=None,
         description="Confianza de cada campo extraído (0-100)"
     )
-    
+
     class Config:
         json_schema_extra = {
             "example": {
@@ -186,36 +186,36 @@ class OCRResultado(BaseModel):
     id_ocr: int
     id_documento: int
     estado_ocr: EstadoOCREnum
-    
+
     # Contenido extraído
     texto_extraido: Optional[str] = None
     texto_confianza: Optional[Decimal] = Field(default=None, description="Confianza del OCR (0-100)")
-    
+
     # Metadata
     idioma_detectado: Optional[str] = None
     num_paginas: Optional[int] = None
     num_caracteres: Optional[int] = None
     num_palabras: Optional[int] = None
-    
+
     # Datos estructurados
     datos_estructurados: Optional[DatosEstructurados] = None
-    
+
     # Procesamiento
     celery_task_id: Optional[str] = None
     intentos_procesamiento: int = 0
     fecha_inicio_proceso: Optional[datetime] = None
     fecha_fin_proceso: Optional[datetime] = None
     tiempo_procesamiento_ms: Optional[int] = None
-    
+
     # Errores
     codigo_error: Optional[str] = None
     mensaje_error: Optional[str] = None
-    
+
     # Auditoría
     created_by: str
     created_at: datetime
     updated_at: Optional[datetime] = None
-    
+
     @validator('datos_estructurados', pre=True)
     def parse_datos_estructurados(cls, v):
         """Parsear JSON string a objeto"""
@@ -227,7 +227,7 @@ class OCRResultado(BaseModel):
             except:
                 return None
         return v
-    
+
     class Config:
         from_attributes = True
         json_schema_extra = {
@@ -268,7 +268,7 @@ class OCRHistorialItem(BaseModel):
     procesado_en: datetime
     procesado_por: Optional[str] = None
     motivo_reproceso: Optional[str] = None
-    
+
     class Config:
         from_attributes = True
 
@@ -277,7 +277,7 @@ class OCRReprocesarRequest(BaseModel):
     """Request para reprocesar un documento"""
     motivo: str = Field(description="Motivo del reprocesamiento")
     opciones: Optional[OCRRequest] = Field(default=None, description="Nuevas opciones de procesamiento")
-    
+
     class Config:
         json_schema_extra = {
             "example": {
@@ -304,7 +304,7 @@ class OCREstadisticas(BaseModel):
     confianza_promedio: Optional[Decimal] = None
     tiempo_promedio_ms: Optional[int] = None
     documentos_por_estado: Dict[str, int]
-    
+
     class Config:
         json_schema_extra = {
             "example": {

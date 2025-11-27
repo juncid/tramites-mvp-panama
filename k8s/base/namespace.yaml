@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: tramites-staging
+  labels:
+    app.kubernetes.io/name: tramites
+    app.kubernetes.io/environment: staging

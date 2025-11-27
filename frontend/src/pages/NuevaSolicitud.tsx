@@ -41,7 +41,7 @@ interface SolicitudResponse {
   instancia_id: number;
   solicitud_id: number;
   token: string;
-  codigo_acceso: string;  // Código corto para acceso fácil (ej: PPSH-A7X9)
+  codigo_acceso?: string;  // Código corto para acceso fácil (ej: PPSH-A7X9)
   num_expediente: string;
   link_seguimiento: string;
   mensaje: string;

@@ -16,6 +16,7 @@ export interface IniciarSolicitudResponse {
   instancia_id: number;
   solicitud_id: number;
   token: string;
+  codigo_acceso?: string;  // Optional access code for easy access
   num_expediente: string;
   link_seguimiento: string;
   mensaje: string;

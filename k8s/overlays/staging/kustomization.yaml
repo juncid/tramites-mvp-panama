@@ -1,0 +1,29 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: tramites-staging
+
+resources:
+  - ../../base
+  - nodeport-services.yaml
+
+images:
+  - name: tramites-backend
+    newName: tramites-backend
+    newTag: latest
+  - name: tramites-frontend
+    newName: tramites-frontend
+    newTag: latest
+
+labels:
+  - pairs:
+      app.kubernetes.io/environment: staging
+    includeSelectors: true
+
+patches:
+  - target:
+      kind: PersistentVolumeClaim
+    patch: |-
+      - op: add
+        path: /spec/storageClassName
+        value: standard

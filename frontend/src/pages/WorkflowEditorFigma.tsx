@@ -13,6 +13,7 @@ import ReactFlow, {
   BackgroundVariant,
   useReactFlow,
   ReactFlowProvider,
+  ConnectionLineType,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import {
@@ -821,6 +822,7 @@ const WorkflowEditorFigmaContent: React.FC = () => {
         const etapasADesactivar = etapasActivasEnBD.filter((etapa: any) => !idsEtapasEnEditor.includes(etapa.id));
         
         for (const etapa of etapasADesactivar) {
+          if (!etapa.id) continue;
           console.log(`Desactivando etapa ${etapa.id} (${etapa.codigo}) del workflow (soft delete)`);
           // Marcar como inactiva en lugar de eliminar
           await workflowService.updateEtapa(etapa.id, { activo: false });
@@ -866,6 +868,7 @@ const WorkflowEditorFigmaContent: React.FC = () => {
           // Eliminar preguntas que ya no están en el editor
           const preguntasAEliminar = preguntasEnBD.filter((p: any) => !idsEnEditor.includes(p.id));
           for (const pregunta of preguntasAEliminar) {
+            if (!pregunta.id) continue;
             console.log(`Eliminando pregunta ${pregunta.id} (${pregunta.codigo}) de etapa ${etapaId}`);
             await workflowService.deletePregunta(pregunta.id);
           }
@@ -970,6 +973,7 @@ const WorkflowEditorFigmaContent: React.FC = () => {
         });
         
         for (const conexion of conexionesADesactivar) {
+          if (!conexion.id) continue;
           console.log(`Desactivando conexión ${conexion.id}: ${conexion.etapa_origen_id} -> ${conexion.etapa_destino_id}`);
           await workflowService.updateConexion(conexion.id, { activo: false });
         }
@@ -1063,11 +1067,14 @@ const WorkflowEditorFigmaContent: React.FC = () => {
 
         const workflowPayload = {
           ...workflowData,
+          codigo: workflowData.codigo || `WORKFLOW_${Date.now()}`,
+          nombre: workflowData.nombre || 'Nuevo Workflow',
+          perfiles_creadores: workflowData.perfiles_creadores || [],
           etapas,
           conexiones,
         };
 
-        await workflowService.createWorkflow(workflowPayload);
+        await workflowService.createWorkflow(workflowPayload as any);
         setSaveSuccess(true);
         setTimeout(() => {
           navigate('/procesos');
@@ -1628,7 +1635,7 @@ const WorkflowEditorFigmaContent: React.FC = () => {
             animated: false,
             style: { stroke: '#4d4d4d', strokeWidth: 2 },
           }}
-          connectionLineType="straight"
+          connectionLineType={ConnectionLineType.Straight}
           connectionLineStyle={{ stroke: '#4d4d4d', strokeWidth: 2 }}
         >
           <Background variant={BackgroundVariant.Dots} gap={12} size={1} color="#e0e0e0" />

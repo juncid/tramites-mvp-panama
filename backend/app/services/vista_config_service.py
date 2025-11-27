@@ -19,7 +19,7 @@ from app.schemas.vista_config import VistaConfigCreate, VistaConfigUpdate
 
 class VistaConfigService:
     """Servicio para gestión de configuraciones de vistas dinámicas"""
-    
+
     @staticmethod
     def get_by_id(db: Session, config_id: int) -> Optional[WorkflowVistaConfig]:
         """Obtener configuración por ID"""
@@ -27,7 +27,7 @@ class VistaConfigService:
             WorkflowVistaConfig.id == config_id,
             WorkflowVistaConfig.activo == True
         ).first()
-    
+
     @staticmethod
     def get_by_etapa_id(db: Session, etapa_id: int) -> Optional[WorkflowVistaConfig]:
         """Obtener configuración por ID de etapa"""
@@ -35,7 +35,7 @@ class VistaConfigService:
             WorkflowVistaConfig.etapa_id == etapa_id,
             WorkflowVistaConfig.activo == True
         ).first()
-    
+
     @staticmethod
     def create(db: Session, data: VistaConfigCreate, created_by: str = "SYSTEM") -> WorkflowVistaConfig:
         """
@@ -56,10 +56,10 @@ class VistaConfigService:
         existing = VistaConfigService.get_by_etapa_id(db, data.etapa_id)
         if existing:
             raise ValueError(f"Ya existe una configuración activa para la etapa {data.etapa_id}")
-        
+
         # Convertir config_json a string JSON
         config_json_str = json.dumps(data.config_json, ensure_ascii=False)
-        
+
         # Crear nueva configuración
         config = WorkflowVistaConfig(
             etapa_id=data.etapa_id,
@@ -67,13 +67,13 @@ class VistaConfigService:
             activo=data.activo,
             created_by=created_by
         )
-        
+
         db.add(config)
         db.commit()
         db.refresh(config)
-        
+
         return config
-    
+
     @staticmethod
     def update(db: Session, config_id: int, data: VistaConfigUpdate, updated_by: str = "SYSTEM") -> WorkflowVistaConfig:
         """
@@ -94,21 +94,21 @@ class VistaConfigService:
         config = VistaConfigService.get_by_id(db, config_id)
         if not config:
             raise ValueError(f"Configuración {config_id} no encontrada")
-        
+
         # Actualizar campos
         if data.config_json is not None:
             config.config_json = json.dumps(data.config_json, ensure_ascii=False)
-        
+
         if data.activo is not None:
             config.activo = data.activo
-        
+
         config.updated_by = updated_by
-        
+
         db.commit()
         db.refresh(config)
-        
+
         return config
-    
+
     @staticmethod
     def delete(db: Session, config_id: int) -> bool:
         """
@@ -124,10 +124,10 @@ class VistaConfigService:
         config = VistaConfigService.get_by_id(db, config_id)
         if not config:
             return False
-        
+
         config.activo = False
         db.commit()
-        
+
         return True
 
 
