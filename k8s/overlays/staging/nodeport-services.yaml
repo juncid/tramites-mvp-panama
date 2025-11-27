@@ -1,0 +1,43 @@
+# NodePort Services for staging access via IP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend-nodeport
+  namespace: tramites-staging
+spec:
+  type: NodePort
+  ports:
+    - port: 80
+      targetPort: 80
+      nodePort: 30080
+  selector:
+    app: frontend
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-nodeport
+  namespace: tramites-staging
+spec:
+  type: NodePort
+  ports:
+    - port: 8000
+      targetPort: 8000
+      nodePort: 30800
+  selector:
+    app: backend
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: flower-nodeport
+  namespace: tramites-staging
+spec:
+  type: NodePort
+  ports:
+    - port: 5555
+      targetPort: 5555
+      nodePort: 30555
+  selector:
+    app: flower
