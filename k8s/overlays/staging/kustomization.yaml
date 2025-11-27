@@ -9,10 +9,10 @@ resources:
 
 images:
   - name: tramites-backend
-    newName: ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/tramites-backend
+    newName: tramites-backend
     newTag: latest
   - name: tramites-frontend
-    newName: ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/tramites-frontend
+    newName: tramites-frontend
     newTag: latest
 
 labels:
@@ -26,4 +26,4 @@ patches:
     patch: |-
       - op: add
         path: /spec/storageClassName
-        value: gp3
+        value: standard

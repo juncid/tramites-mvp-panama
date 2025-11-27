@@ -2,7 +2,7 @@
 
 ## Overview
 
-This guide covers deploying Tramites MVP Panama to Kubernetes, both for EKS staging and on-premise production environments.
+This guide covers deploying Tramites MVP Panama to Kubernetes for local/on-premise environments.
 
 ## Architecture
 
@@ -32,17 +32,15 @@ This guide covers deploying Tramites MVP Panama to Kubernetes, both for EKS stag
 
 ## Prerequisites
 
-### For EKS Staging
-- AWS CLI configured with appropriate permissions
-- kubectl configured for EKS cluster
-- ECR repositories created:
-  - `tramites-backend`
-  - `tramites-frontend`
+### Local Development (minikube/kind/Docker Desktop)
+- Docker installed
+- minikube, kind, or Docker Desktop with Kubernetes enabled
+- kubectl configured
 
-### For On-Premise
+### On-Premise Production
 - Kubernetes cluster (1.25+)
 - kubectl configured
-- Harbor registry or private registry
+- Harbor registry or private registry (optional)
 - NFS server (for persistent storage)
 
 ## Quick Start
@@ -50,7 +48,7 @@ This guide covers deploying Tramites MVP Panama to Kubernetes, both for EKS stag
 ### 1. Install Cluster Dependencies
 
 ```bash
-# For EKS (minimal)
+# For local development (minimal)
 ./scripts/k8s/install-cluster-addons.sh
 
 # For On-Premise (with Ingress and NFS)
