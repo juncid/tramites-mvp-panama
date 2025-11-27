@@ -108,6 +108,23 @@ class WorkflowService:
                 )
             logger.info(f"Creadas {len(workflow_data.conexiones)} conexiones para workflow {workflow_data.codigo}")
 
+        # Registrar en historial
+        WorkflowCambiosService.registrar_cambio(
+            db=db,
+            workflow_id=db_workflow.id,
+            tipo_cambio="workflow",
+            accion="crear",
+            created_by=created_by,
+            descripcion=f"Workflow '{workflow_data.nombre}' creado con {len(workflow_data.etapas or [])} etapas",
+            datos_adicionales={
+                "codigo": workflow_data.codigo,
+                "nombre": workflow_data.nombre,
+                "categoria": workflow_data.categoria,
+                "total_etapas": len(workflow_data.etapas or []),
+                "total_conexiones": len(workflow_data.conexiones or [])
+            }
+        )
+
         db.commit()
         db.refresh(db_workflow)
         logger.info(f"✅ Workflow {workflow_data.codigo} creado exitosamente con ID: {db_workflow.id}")
@@ -189,11 +206,34 @@ class WorkflowService:
         if "codigo" in update_data:
             WorkflowService.verificar_codigo_unico(db, update_data["codigo"], workflow_id)
 
-        # Actualizar campos
-        for field, value in update_data.items():
-            setattr(db_workflow, field, value)
+        # Guardar valores anteriores para el historial
+        cambios_registrados = []
+        for field, new_value in update_data.items():
+            old_value = getattr(db_workflow, field, None)
+            if old_value != new_value:
+                cambios_registrados.append({
+                    "campo": field,
+                    "anterior": str(old_value) if old_value is not None else None,
+                    "nuevo": str(new_value) if new_value is not None else None
+                })
+            setattr(db_workflow, field, new_value)
 
         db_workflow.updated_by = updated_by
+
+        # Registrar cada cambio en historial
+        for cambio in cambios_registrados:
+            WorkflowCambiosService.registrar_cambio(
+                db=db,
+                workflow_id=workflow_id,
+                tipo_cambio="workflow",
+                accion="editar",
+                created_by=updated_by,
+                campo_modificado=cambio["campo"],
+                valor_anterior=cambio["anterior"],
+                valor_nuevo=cambio["nuevo"],
+                descripcion=f"Campo '{cambio['campo']}' modificado"
+            )
+
         db.commit()
         db.refresh(db_workflow)
         return db_workflow
@@ -204,6 +244,19 @@ class WorkflowService:
         db_workflow = WorkflowService.obtener_workflow(db, workflow_id)
         db_workflow.activo = False
         db_workflow.updated_by = updated_by
+
+        # Registrar en historial
+        WorkflowCambiosService.registrar_cambio(
+            db=db,
+            workflow_id=workflow_id,
+            tipo_cambio="workflow",
+            accion="eliminar",
+            created_by=updated_by,
+            descripcion=f"Workflow '{db_workflow.nombre}' desactivado",
+            valor_anterior="activo",
+            valor_nuevo="inactivo"
+        )
+
         db.commit()
 
 
@@ -277,6 +330,23 @@ class EtapaService:
                     pregunta_create = schemas.WorkflowPreguntaCreate(**pregunta_dict, etapa_id=db_etapa.id)
                     PreguntaService.crear_pregunta(db, pregunta_create, db_etapa.id, created_by)
 
+        # Registrar en historial
+        WorkflowCambiosService.registrar_cambio(
+            db=db,
+            workflow_id=workflow_id,
+            tipo_cambio="etapa",
+            accion="crear",
+            created_by=created_by,
+            etapa_id=db_etapa.id,
+            etapa_codigo=etapa_data.codigo,
+            etapa_nombre=etapa_data.nombre,
+            descripcion=f"Etapa '{etapa_data.nombre}' creada",
+            datos_adicionales={
+                "tipo_etapa": etapa_data.tipo_etapa,
+                "total_preguntas": len(etapa_data.preguntas or [])
+            }
+        )
+
         return db_etapa
 
     @staticmethod
@@ -313,8 +383,25 @@ class EtapaService:
                 db, db_etapa.workflow_id, update_data["codigo"], etapa_id
             )
 
-        for field, value in update_data.items():
-            setattr(db_etapa, field, value)
+        # Registrar cambios de campos en historial
+        for field, new_value in update_data.items():
+            old_value = getattr(db_etapa, field, None)
+            if old_value != new_value:
+                WorkflowCambiosService.registrar_cambio(
+                    db=db,
+                    workflow_id=db_etapa.workflow_id,
+                    tipo_cambio="etapa",
+                    accion="editar",
+                    created_by=updated_by,
+                    etapa_id=etapa_id,
+                    etapa_codigo=db_etapa.codigo,
+                    etapa_nombre=db_etapa.nombre,
+                    campo_modificado=field,
+                    valor_anterior=str(old_value) if old_value is not None else None,
+                    valor_nuevo=str(new_value) if new_value is not None else None,
+                    descripcion=f"Campo '{field}' de etapa '{db_etapa.nombre}' modificado"
+                )
+            setattr(db_etapa, field, new_value)
 
         db_etapa.updated_by = updated_by
 
@@ -347,6 +434,20 @@ class EtapaService:
         db_etapa = EtapaService.obtener_etapa(db, etapa_id)
         db_etapa.activo = False
         db_etapa.updated_by = updated_by
+
+        # Registrar en historial
+        WorkflowCambiosService.registrar_cambio(
+            db=db,
+            workflow_id=db_etapa.workflow_id,
+            tipo_cambio="etapa",
+            accion="eliminar",
+            created_by=updated_by,
+            etapa_id=etapa_id,
+            etapa_codigo=db_etapa.codigo,
+            etapa_nombre=db_etapa.nombre,
+            descripcion=f"Etapa '{db_etapa.nombre}' eliminada"
+        )
+
         db.commit()
 
 
