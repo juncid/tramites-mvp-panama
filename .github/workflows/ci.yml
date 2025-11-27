@@ -47,7 +47,7 @@ jobs:
             unixodbc-dev \
             tesseract-ocr \
             tesseract-ocr-spa \
-            libgl1-mesa-glx
+            libgl1
 
       - name: Install Python dependencies
         working-directory: backend
