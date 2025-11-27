@@ -1710,53 +1710,6 @@ const WorkflowEditorFigmaContent: React.FC = () => {
 
       {/* Fin del Panel Derecho - EtapaConfigPanel ahora está en uso */}
     </Grid>
-
-      {/* JSON Debug - Workflow Completo */}
-      <Box
-        sx={{
-          mt: 3,
-          p: 2,
-          bgcolor: '#1e1e1e',
-          borderRadius: 1,
-          maxHeight: '400px',
-          overflow: 'auto',
-        }}
-      >
-        <Typography 
-          variant="caption" 
-          sx={{ 
-            color: '#4ec9b0', 
-            fontWeight: 'bold',
-            display: 'block',
-            mb: 1,
-          }}
-        >
-          📋 JSON Debug - Workflow Completo:
-        </Typography>
-        <Box
-          component="pre"
-          sx={{
-            m: 0,
-            p: 0,
-            fontFamily: 'Monaco, Consolas, "Courier New", monospace',
-            fontSize: '11px',
-            lineHeight: 1.4,
-            color: '#d4d4d4',
-            whiteSpace: 'pre-wrap',
-            wordBreak: 'break-all',
-          }}
-        >
-          {JSON.stringify({
-            ...workflowData,
-            etapas: nodes
-              .filter(n => n.id !== 'placeholder-add-node')
-              .map(n => ({
-                id: n.id,
-                ...n.data,
-              }))
-          }, null, 2)}
-        </Box>
-      </Box>
       </>
       )}
 
