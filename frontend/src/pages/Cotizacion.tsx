@@ -45,7 +45,7 @@ export const Cotizacion = () => {
     setCompleting,
     navigate,
     basePath,
-  } = useWorkflowEtapa(ETAPA_ORDEN);
+  } = useWorkflowEtapa();
 
   const [items, setItems] = useState<CotizacionItem[]>([
     { id: '1', codigo: '832', descripcion: 'Carné de Tramite', precio: 50.0, checked: true },

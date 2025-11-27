@@ -1,12 +1,10 @@
 import React from 'react';
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Box, TextField, Button, Typography } from '@mui/material';
 import { AttachFile as AttachFileIcon } from '@mui/icons-material';
 import { EtapaInformativa } from '../components/workflow/EtapaInformativa';
 import { OCRLoadingModal, OCRResultModal } from '../components/PPSH';
 import { useWorkflowEtapa, useOCRUpload } from '../hooks';
-
-const ETAPA_ORDEN = 2;
 
 /**
  * Vista para la Etapa 2: Carga de Poder General
@@ -18,10 +16,9 @@ const ETAPA_ORDEN = 2;
  * - Modo readonly para visualizar etapas completadas
  */
 export const CargaPoderGeneral: React.FC = () => {
-  const { instanciaId, id: solicitudId } = useParams<{ instanciaId?: string; id?: string }>();
-  const navigate = useNavigate();
+  const routeNavigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const readonly = searchParams.get('readonly') === 'true';
+  const isReadonly = searchParams.get('readonly') === 'true';
   
   // Hook para manejar el workflow
   const {
@@ -31,13 +28,11 @@ export const CargaPoderGeneral: React.FC = () => {
     instancia,
     completing,
     workflowInstanciaId,
-    getBasePath,
-    completarEtapaActual,
-  } = useWorkflowEtapa({
-    instanciaId,
-    solicitudId,
-    etapaOrden: ETAPA_ORDEN,
-  });
+    basePath,
+    handleGuardar,
+    readonly,
+    navigate,
+  } = useWorkflowEtapa();
 
   // Hook para OCR y carga de archivos
   const {
@@ -70,7 +65,7 @@ export const CargaPoderGeneral: React.FC = () => {
   };
 
   const handleCancelar = () => {
-    navigate(`${getBasePath()}/etapas`);
+    navigate(`${basePath}/etapas`);
   };
 
   const handleSiguiente = async () => {
@@ -85,14 +80,14 @@ export const CargaPoderGeneral: React.FC = () => {
       documentoIdFinal = Math.floor(Math.random() * 9000) + 1000;
     }
 
-    const success = await completarEtapaActual({ 
+    const success = await handleGuardar({ 
       CARGA_PODER: 'Archivo cargado',
       documento_id: documentoIdFinal,
       nombre_archivo: nombreArchivoFinal
     });
 
     if (success) {
-      navigate(`${getBasePath()}/etapas`);
+      navigate(`${basePath}/etapas`);
     }
   };
 

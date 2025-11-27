@@ -36,6 +36,11 @@ export interface UseWorkflowEtapaResult {
   saving: boolean;
   error: string | null;
   
+  // Aliases for backward compatibility
+  completing: boolean;
+  setCompleting: (value: boolean) => void;
+  setLoading: (value: boolean) => void;
+  
   // IDs del workflow
   workflowInstanciaId: number | null;
   etapaId: number | null;
@@ -50,6 +55,9 @@ export interface UseWorkflowEtapaResult {
   
   // Rutas base para navegación
   basePath: string;
+  
+  // Navigation function
+  navigate: (path: string) => void;
   
   // Usuario actual
   usuario: any;
@@ -196,6 +204,11 @@ export function useWorkflowEtapa(options: UseWorkflowEtapaOptions = {}): UseWork
     saving,
     error,
     
+    // Aliases for backward compatibility
+    completing: saving,
+    setCompleting: setSaving,
+    setLoading,
+    
     // IDs
     workflowInstanciaId,
     etapaId,
@@ -210,6 +223,9 @@ export function useWorkflowEtapa(options: UseWorkflowEtapaOptions = {}): UseWork
     
     // Rutas
     basePath,
+    
+    // Navigation
+    navigate,
     
     // Usuario
     usuario,

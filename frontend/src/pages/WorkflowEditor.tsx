@@ -386,7 +386,7 @@ export const WorkflowEditor: React.FC = () => {
           nodeIdMap.set(node.id, node.data.id);
         } else {
           savedEtapa = await workflowService.createEtapa(etapaData);
-          nodeIdMap.set(node.id, savedEtapa.id);
+          nodeIdMap.set(node.id, savedEtapa.id ?? 0);
         }
       }
 

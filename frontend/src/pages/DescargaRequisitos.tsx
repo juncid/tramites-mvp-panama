@@ -32,7 +32,7 @@ export const DescargaRequisitos: React.FC = () => {
     setCompleting,
     setError,
     navigate,
-  } = useWorkflowEtapa(ETAPA_ORDEN);
+  } = useWorkflowEtapa();
 
   const handleDescargar = () => {
     // URL del archivo de requisitos en el backend

@@ -40,7 +40,7 @@ export const ImpresionListaCasos = () => {
     setLoading,
     navigate,
     basePath,
-  } = useWorkflowEtapa(ETAPA_ORDEN);
+  } = useWorkflowEtapa();
 
   const [casos, setCasos] = useState<CasoImpresion[]>([]);
   const [casosSeleccionados, setCasosSeleccionados] = useState<Set<number>>(new Set());

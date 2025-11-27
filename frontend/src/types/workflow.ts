@@ -16,7 +16,14 @@ export type TipoPregunta =
   | 'REVISION_MANUAL_DOCUMENTOS'  // Revisión manual de documentos
   | 'REVISION_OCR'         // Revisión OCR
   | 'IMPRESION'            // Impresión
-  | 'SELECCION_FECHA';     // Selección de fecha
+  | 'SELECCION_FECHA'      // Selección de fecha
+  // Additional types used in editor
+  | 'NUMERO'               // Número
+  | 'SELECCION_MULTIPLE'   // Selección múltiple
+  | 'FIRMA_DIGITAL'        // Firma digital
+  | 'PAGO'                 // Pago
+  | 'NOTIFICACION'         // Notificación
+  | 'SELECCIONAR';         // Placeholder type for editor
 
 export type EstadoWorkflow = 'BORRADOR' | 'ACTIVO' | 'INACTIVO' | 'ARCHIVADO';
 
@@ -73,10 +80,12 @@ export interface WorkflowPregunta {
   codigo: string;
   pregunta: string;
   texto: string;
+  texto_pregunta?: string;  // Alias for backward compatibility
   tipo_pregunta: TipoPregunta;
   tipo: TipoPregunta;
   orden: number;
   es_obligatoria: boolean;
+  requerido?: boolean;  // Alias for backward compatibility
   texto_ayuda?: string;
   ayuda?: string;
   valor_por_defecto?: string;
@@ -102,6 +111,11 @@ export interface WorkflowPregunta {
   etapa_origen_id?: string;
   // Campos específicos para FECHA
   agenda_origen_id?: string;
+  // Campos adicionales usados en editor
+  placeholder?: string;
+  descripcion?: string;
+  extensiones_permitidas?: string[];
+  tamano_maximo_mb?: number;
 }
 
 export interface WorkflowConexion {

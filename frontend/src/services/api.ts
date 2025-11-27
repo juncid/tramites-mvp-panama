@@ -46,20 +46,24 @@ class ApiClient {
       body: fetchOptions.body ? JSON.parse(fetchOptions.body as string) : undefined,
     });
     
-    // Agregar token de autorización si está disponible
+    // Use Headers to avoid merging typed header objects that cause TS errors
     const token = localStorage.getItem('token');
-    const defaultHeaders: Record<string, string> = {
-      'Content-Type': 'application/json',
-      ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
-      ...(fetchOptions.headers || {}),
-    };
+    const headers = new Headers(fetchOptions.headers as HeadersInit);
+    
+    // Ensure Content-Type / Authorization are set
+    if (!headers.has('Content-Type')) {
+      headers.set('Content-Type', 'application/json');
+    }
+    if (token) {
+      headers.set('Authorization', `Bearer ${token}`);
+    }
 
     const startTime = performance.now();
 
     try {
       const response = await fetch(url, {
         ...fetchOptions,
-        headers: defaultHeaders,
+        headers,
       });
 
       const duration = performance.now() - startTime;

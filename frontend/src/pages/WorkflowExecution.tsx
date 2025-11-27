@@ -114,7 +114,7 @@ export const WorkflowExecution: React.FC = () => {
       }
 
       // Solo cargar vista actual si la instancia NO está completada
-      if (instanciaData.estado !== 'COMPLETADO' && instanciaData.etapa_actual_id) {
+      if (instanciaData.estado !== 'COMPLETADA' && instanciaData.etapa_actual_id) {
         const vista = await workflowService.getVistaActual(numericId, userPerfil);
         setVistaActual(vista);
       } else {

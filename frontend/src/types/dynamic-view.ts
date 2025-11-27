@@ -47,6 +47,7 @@ export interface ConfigComponente {
   tipos_permitidos?: string[];
   max_size_mb?: number;
   max_archivos?: number;
+  requiere_ocr?: boolean;
   
   // Para CHECKBOX_LIST
   items?: {
