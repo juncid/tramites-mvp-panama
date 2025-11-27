@@ -552,8 +552,8 @@ export const EtapaConfigPanel: React.FC<EtapaConfigPanelProps> = ({
             multiline
             rows={3}
             label="Bajada del formulario"
-            value={formData.descripcion_formulario || ''}
-            onChange={(e) => handleChange('descripcion_formulario', e.target.value)}
+            value={formData.bajada_formulario || ''}
+            onChange={(e) => handleChange('bajada_formulario', e.target.value)}
             InputProps={{ readOnly: isReadOnly }}
             sx={{ '& .MuiOutlinedInput-root': { backgroundColor: isReadOnly ? '#f5f5f5' : 'white' } }}
           />

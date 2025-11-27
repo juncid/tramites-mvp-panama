@@ -20,9 +20,7 @@ const handleStyle = {
   height: 8,
 };
 
-// Tamaño del contenedor invisible para nodos circulares (inicio/fin)
-// Debe coincidir con la altura de los nodos rectangulares para alinear las flechas
-const CIRCULAR_NODE_CONTAINER_SIZE = 80;
+// Tamaño del círculo para nodos de inicio/fin
 const CIRCLE_SIZE = 32;
 
 export const CustomNode: React.FC<NodeProps<WorkflowEtapa>> = ({ data, selected }) => {
@@ -89,7 +87,8 @@ export const CustomNode: React.FC<NodeProps<WorkflowEtapa>> = ({ data, selected 
     return data.tipo_etapa === 'PRESENCIAL' ? 'dashed' : 'solid';
   };
 
-  // Nodo circular para inicio - con contenedor cuadrado invisible para alinear flechas
+  // Nodo circular para inicio - según diseño Figma
+  // El círculo debe estar alineado verticalmente con el centro de los nodos rectangulares
   if (isInicio) {
     return (
       <Box
@@ -98,51 +97,54 @@ export const CustomNode: React.FC<NodeProps<WorkflowEtapa>> = ({ data, selected 
           flexDirection: 'column',
           alignItems: 'center',
           cursor: 'pointer',
+          position: 'relative',
         }}
       >
-        {/* Flecha indicadora de nodo seleccionado o último nodo por defecto */}
+        {/* Flecha indicadora de nodo seleccionado - posición absoluta */}
         {showArrow && (
           <ArrowDropDownIcon 
             sx={{ 
               fontSize: 64, 
               color: '#03689a',
-              mt: -3,
-              mb: -2,
+              position: 'absolute',
+              top: -24,
+              left: '50%',
+              transform: 'translateX(-50%)',
             }} 
           />
         )}
         
-        {/* Contenedor cuadrado invisible que contiene el círculo y los handles */}
+        {/* Contenedor principal con handles */}
         <Box
           sx={{
-            width: CIRCULAR_NODE_CONTAINER_SIZE,
-            height: CIRCULAR_NODE_CONTAINER_SIZE,
+            position: 'relative',
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'center',
-            position: 'relative',
+            height: 80,
+            paddingRight: '13px', // Espacio entre círculo y línea (8px + 5px extra)
+            marginTop: '10px', // Bajar el círculo para centrarlo mejor
           }}
         >
-          {/* Handle izquierdo (invisible, solo para recibir conexiones) */}
+          {/* Handle izquierdo (invisible) */}
           <Handle 
             type="target" 
             position={Position.Left} 
             style={{ 
               ...handleStyle, 
               opacity: 0,
-              top: '50%',
-              transform: 'translateY(-50%)',
+              left: 0,
             }} 
           />
           
-          {/* Círculo verde centrado */}
+          {/* Círculo verde lima - según Figma */}
           <Box
             sx={{
               width: CIRCLE_SIZE,
               height: CIRCLE_SIZE,
               borderRadius: '50%',
-              backgroundColor: '#4caf50',
-              border: showArrow ? '2px solid #03689a' : 'none',
+              background: 'linear-gradient(180deg, #d4ed6e 0%, #aed547 100%)',
+              border: showArrow ? '2px solid #03689a' : '2px solid #7cb342',
+              boxShadow: 'inset 0 -2px 4px rgba(0,0,0,0.1)',
               '&:hover': {
                 opacity: 0.9,
               },
@@ -153,15 +155,14 @@ export const CustomNode: React.FC<NodeProps<WorkflowEtapa>> = ({ data, selected 
           <Handle 
             type="source" 
             position={Position.Right} 
-            style={{ 
+            style={{
               ...handleStyle,
-              top: '50%',
-              transform: 'translateY(-50%)',
+              right: 0,
             }}
           />
         </Box>
         
-        {/* Texto debajo del contenedor */}
+        {/* Texto debajo - según Figma */}
         <Typography 
           sx={{ 
             fontFamily: 'Roboto, sans-serif',
@@ -169,7 +170,6 @@ export const CustomNode: React.FC<NodeProps<WorkflowEtapa>> = ({ data, selected 
             fontSize: '14px',
             lineHeight: 1.5,
             color: '#4d4d4d',
-            mt: 0.5,
           }}
         >
           Inicio
@@ -178,7 +178,7 @@ export const CustomNode: React.FC<NodeProps<WorkflowEtapa>> = ({ data, selected 
     );
   }
 
-  // Nodo circular para fin - con contenedor cuadrado invisible para alinear flechas
+  // Nodo circular para fin - simplificado sin contenedor invisible
   if (isFin) {
     return (
       <Box
@@ -187,54 +187,42 @@ export const CustomNode: React.FC<NodeProps<WorkflowEtapa>> = ({ data, selected 
           flexDirection: 'column',
           alignItems: 'center',
           cursor: 'pointer',
+          position: 'relative',
         }}
       >
-        {/* Flecha indicadora de nodo seleccionado o último nodo por defecto */}
+        {/* Flecha indicadora de nodo seleccionado - posición absoluta */}
         {showArrow && (
           <ArrowDropDownIcon 
             sx={{ 
               fontSize: 64, 
               color: '#03689a',
-              mt: -3,
-              mb: -2,
+              position: 'absolute',
+              top: -48,
+              left: '50%',
+              transform: 'translateX(-50%)',
             }} 
           />
         )}
         
-        {/* Contenedor cuadrado invisible */}
+        {/* Círculo rojo con handles */}
         <Box
           sx={{
-            width: CIRCULAR_NODE_CONTAINER_SIZE,
-            height: CIRCULAR_NODE_CONTAINER_SIZE,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
+            width: CIRCLE_SIZE,
+            height: CIRCLE_SIZE,
+            borderRadius: '50%',
+            backgroundColor: '#f44336',
+            border: showArrow ? '2px solid #03689a' : 'none',
             position: 'relative',
+            '&:hover': {
+              opacity: 0.9,
+            },
           }}
         >
           {/* Handle izquierdo (para conexiones entrantes) */}
           <Handle 
             type="target" 
             position={Position.Left} 
-            style={{ 
-              ...handleStyle,
-              top: '50%',
-              transform: 'translateY(-50%)',
-            }}
-          />
-          
-          {/* Círculo rojo centrado */}
-          <Box
-            sx={{
-              width: CIRCLE_SIZE,
-              height: CIRCLE_SIZE,
-              borderRadius: '50%',
-              backgroundColor: '#f44336',
-              border: showArrow ? '2px solid #03689a' : 'none',
-              '&:hover': {
-                opacity: 0.9,
-              },
-            }}
+            style={handleStyle}
           />
           
           {/* Handle derecho (invisible, no debería tener conexiones salientes) */}
@@ -244,13 +232,11 @@ export const CustomNode: React.FC<NodeProps<WorkflowEtapa>> = ({ data, selected 
             style={{ 
               ...handleStyle, 
               opacity: 0,
-              top: '50%',
-              transform: 'translateY(-50%)',
             }} 
           />
         </Box>
         
-        {/* Texto debajo del contenedor */}
+        {/* Texto debajo del círculo */}
         <Typography 
           sx={{ 
             fontFamily: 'Roboto, sans-serif',
@@ -308,15 +294,18 @@ export const CustomNode: React.FC<NodeProps<WorkflowEtapa>> = ({ data, selected 
   const isCompuerta = data.tipo_etapa === 'COMPUERTA';
   
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-      {/* Flecha indicadora de nodo seleccionado o último nodo por defecto */}
+    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative' }}>
+      {/* Flecha indicadora de nodo seleccionado o último nodo por defecto - posición absoluta */}
       {showArrow && (
         <ArrowDropDownIcon 
           sx={{ 
             fontSize: 64, 
             color: '#03689a',
-            mt: -3,
-            mb: -1,
+            position: 'absolute',
+            top: -48,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 10,
           }} 
         />
       )}

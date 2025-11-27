@@ -438,6 +438,8 @@ export const DynamicEtapaView: React.FC<DynamicEtapaViewProps> = ({
                   onComplete={onComplete ? handleComplete : undefined}
                   onBack={onBack}
                   buttonLabels={buttonLabels}
+                  titulo={vistaActual.etapa_actual.titulo_formulario}
+                  descripcion={vistaActual.etapa_actual.bajada_formulario}
                 />
               ) : (
                 // Si solo hay uno o ningún archivo, renderizar normal
@@ -513,15 +515,6 @@ export const DynamicEtapaView: React.FC<DynamicEtapaViewProps> = ({
           </Stack>
         );
         })()}
-
-        {/* Metadata de instancia (debug - solo en desarrollo) */}
-        {import.meta.env.DEV && vistaActual.metadata_instancia && (
-          <Box sx={{ mt: 4, p: 2, backgroundColor: '#f5f5f5', borderRadius: 1 }}>
-            <Typography variant="caption" color="text.secondary">
-              Debug - Metadata: {JSON.stringify(vistaActual.metadata_instancia, null, 2)}
-            </Typography>
-          </Box>
-        )}
       </Box>
     );
   }

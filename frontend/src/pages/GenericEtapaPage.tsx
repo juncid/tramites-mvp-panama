@@ -400,6 +400,7 @@ export const GenericEtapaPage: React.FC = () => {
         {numExpediente && (
           <Typography
             sx={{
+              display: 'none', // Oculto temporalmente
               color: 'white',
               fontSize: '18px',
               fontWeight: 400,

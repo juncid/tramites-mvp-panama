@@ -3,37 +3,35 @@
  * Sistema de Trámites Migratorios de Panamá
  * 
  * Wizard para carga de múltiples documentos paso a paso.
- * Cuando una etapa tiene varios campos de tipo CARGA_ARCHIVO,
- * este componente los presenta como un wizard guiado.
+ * Muestra UN SOLO documento a la vez, avanzando secuencialmente.
+ * Integra validación OCR con modales de estado.
+ * 
+ * Diseño basado en Figma: https://www.figma.com/design/yX0REVjuXYg13XO0ZgD1GQ/
  * 
  * @author Sistema de Trámites MVP Panamá
  * @date 2025-11-26
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   Box,
   Typography,
   Button,
-  Stepper,
-  Step,
-  StepLabel,
-  StepContent,
-  Paper,
-  Alert,
   Stack,
-  Chip,
-  LinearProgress,
+  IconButton,
+  Link,
+  Dialog,
+  DialogContent,
+  DialogActions,
+  CircularProgress,
 } from '@mui/material';
 import {
+  Delete as DeleteIcon,
+  AttachFile as AttachFileIcon,
   CheckCircle as CheckCircleIcon,
-  CloudUpload as UploadIcon,
-  Description as DocumentIcon,
-  ArrowForward as NextIcon,
-  ArrowBack as BackIcon,
+  Error as ErrorIcon,
 } from '@mui/icons-material';
-import type { WorkflowPregunta } from '../../types/workflow';
-import { CargaArchivoView } from './QuestionViews/CargaArchivoView';
+import { workflowService } from '../../services/workflow.service';
 
 interface CampoArchivo {
   id: number;
@@ -59,6 +57,8 @@ interface FileUploadWizardProps {
   onComplete?: () => void;
   onBack?: () => void;
   buttonLabels?: { back?: string; next?: string };
+  titulo?: string;
+  descripcion?: string;
 }
 
 export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
@@ -70,278 +70,499 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
   onComplete,
   onBack,
   buttonLabels = { back: 'Volver', next: 'Siguiente' },
+  titulo,
+  descripcion,
 }) => {
-  const [activeStep, setActiveStep] = useState(0);
-  const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set());
+  const [currentStep, setCurrentStep] = useState(0);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  
+  // Estados para los modales de OCR
+  const [isLoadingOCR, setIsLoadingOCR] = useState(false);
+  const [showResultModal, setShowResultModal] = useState(false);
+  const [ocrResult, setOcrResult] = useState<{ success: boolean; message: string }>({ success: true, message: '' });
 
   // Ordenar campos por orden
   const camposOrdenados = [...campos].sort((a, b) => a.orden - b.orden);
   const totalSteps = camposOrdenados.length;
+  const campoActual = camposOrdenados[currentStep];
 
-  // Verificar si un paso está completo (tiene archivo cargado)
-  const isStepComplete = (stepIndex: number): boolean => {
-    const campo = camposOrdenados[stepIndex];
-    if (!campo) return false;
-    
-    const valor = respuestas[campo.codigo];
+  // Verificar si el paso actual tiene archivo cargado
+  const isCurrentStepComplete = (): boolean => {
+    if (!campoActual) return false;
+    const valor = respuestas[campoActual.codigo];
     if (!valor) return false;
-    
-    // Si es un array, verificar que tenga elementos
     if (Array.isArray(valor)) return valor.length > 0;
-    
-    // Si es string (ruta de archivo), verificar que no esté vacío
     if (typeof valor === 'string') return valor.trim() !== '';
-    
-    // Si es objeto, verificar que tenga contenido
     if (typeof valor === 'object') return Object.keys(valor).length > 0;
-    
     return false;
   };
 
-  // Actualizar completedSteps cuando cambian las respuestas
-  useEffect(() => {
-    const newCompleted = new Set<number>();
-    camposOrdenados.forEach((_, index) => {
-      if (isStepComplete(index)) {
-        newCompleted.add(index);
-      }
-    });
-    setCompletedSteps(newCompleted);
-  }, [respuestas, camposOrdenados]);
-
-  // Convertir campo a formato WorkflowPregunta para CargaArchivoView
-  const campoToPregunta = (campo: CampoArchivo): WorkflowPregunta => ({
-    id: campo.id,
-    codigo: campo.codigo,
-    pregunta: campo.pregunta,
-    texto: campo.pregunta,
-    tipo_pregunta: 'CARGA_ARCHIVO' as any,
-    tipo: 'CARGA_ARCHIVO' as any,
-    orden: campo.orden,
-    es_obligatoria: campo.es_obligatoria,
-    texto_ayuda: campo.texto_ayuda,
-    ayuda: campo.texto_ayuda,
-    activo: true,
-    es_visible: true,
-    extensiones_permitidas: campo.extensiones_permitidas?.join(','),
-    max_size_mb: campo.tamano_maximo_mb,
-    requiere_ocr: campo.requiere_ocr,
-  } as any);
-
   const handleNext = () => {
-    // Verificar si el paso actual está completo (si es obligatorio)
-    const campoActual = camposOrdenados[activeStep];
-    if (campoActual.es_obligatoria && !isStepComplete(activeStep)) {
-      // No permitir avanzar si es obligatorio y no está completo
+    // Validar si es obligatorio y no está completo
+    if (campoActual?.es_obligatoria && !isCurrentStepComplete()) {
+      alert('Debe cargar el documento requerido para continuar');
       return;
     }
-    
-    if (activeStep < totalSteps - 1) {
-      setActiveStep(prev => prev + 1);
+
+    if (currentStep < totalSteps - 1) {
+      // Avanzar al siguiente paso del wizard
+      setCurrentStep(prev => prev + 1);
     } else if (onComplete) {
-      // Último paso - verificar todos los obligatorios
-      const faltantes = camposOrdenados.filter((campo, index) => 
-        campo.es_obligatoria && !isStepComplete(index)
-      );
-      
-      if (faltantes.length === 0) {
-        onComplete();
-      }
+      // Último paso - completar etapa y avanzar a la siguiente
+      onComplete();
     }
   };
 
   const handleBack = () => {
-    if (activeStep > 0) {
-      setActiveStep(prev => prev - 1);
+    if (currentStep > 0) {
+      // Volver al paso anterior del wizard
+      setCurrentStep(prev => prev - 1);
     } else if (onBack) {
+      // Primer paso - volver a la etapa anterior
       onBack();
     }
   };
 
-  const handleStepClick = (stepIndex: number) => {
-    // Permitir ir a pasos anteriores o al siguiente si el actual está completo
-    if (stepIndex < activeStep || (stepIndex === activeStep + 1 && isStepComplete(activeStep))) {
-      setActiveStep(stepIndex);
+  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    
+    if (!files || files.length === 0 || !campoActual) {
+      return;
+    }
+
+    const file = files[0];
+    const maxSizeMb = campoActual.tamano_maximo_mb || 10;
+
+    // Validar tamaño
+    if (file.size > maxSizeMb * 1024 * 1024) {
+      setOcrResult({ success: false, message: `El archivo es muy grande. Tamaño máximo: ${maxSizeMb} MB` });
+      setShowResultModal(true);
+      return;
+    }
+
+    // Validar extensión (solo si hay extensiones definidas)
+    if (campoActual.extensiones_permitidas && campoActual.extensiones_permitidas.length > 0) {
+      const ext = file.name.split('.').pop()?.toLowerCase();
+      
+      // Normalizar extensiones (quitar punto si lo tiene) para comparación
+      const extensionesNormalizadas = campoActual.extensiones_permitidas.map(
+        (e: string) => e.toLowerCase().replace(/^\./, '')
+      );
+      
+      if (ext && !extensionesNormalizadas.includes(ext)) {
+        setOcrResult({ 
+          success: false, 
+          message: `Tipo de archivo no permitido. Formatos permitidos: ${extensionesNormalizadas.join(', ').toUpperCase()}` 
+        });
+        setShowResultModal(true);
+        return;
+      }
+    }
+
+    // Iniciar proceso de carga con OCR
+    setIsLoadingOCR(true);
+
+    try {
+      // Siempre subir al servidor si hay solicitudId (campos CARGA_ARCHIVO requieren OCR por defecto)
+      if (solicitudId) {
+        const resultado = await workflowService.subirDocumentoEtapa(
+          solicitudId,
+          file,
+          {
+            tipo_documento_texto: campoActual.pregunta,
+            observaciones: `Documento: ${campoActual.codigo}`
+          }
+        );
+
+        // Guardar archivo con datos del servidor
+        onAnswerChange(campoActual.codigo, [{
+          nombre: file.name,
+          size: file.size,
+          file: file,
+          uploaded_at: new Date().toISOString(),
+          id_documento: resultado.id_documento,
+          ocr_procesado: true
+        }]);
+
+        setOcrResult({ 
+          success: true, 
+          message: 'Documento procesado y verificado exitosamente' 
+        });
+      } else {
+        // Sin solicitudId - guardar archivo localmente (modo preview/desarrollo)
+        onAnswerChange(campoActual.codigo, [{
+          nombre: file.name,
+          size: file.size,
+          file: file,
+          uploaded_at: new Date().toISOString()
+        }]);
+
+        setOcrResult({ 
+          success: true, 
+          message: 'Documento cargado exitosamente' 
+        });
+      }
+
+      setShowResultModal(true);
+    } catch (err: any) {
+      console.error('Error procesando documento:', err);
+      setOcrResult({ 
+        success: false, 
+        message: err.message || 'Error al procesar el documento. Por favor, intente nuevamente.' 
+      });
+      setShowResultModal(true);
+    } finally {
+      setIsLoadingOCR(false);
     }
   };
 
-  // Calcular progreso
-  const progress = totalSteps > 0 ? (completedSteps.size / totalSteps) * 100 : 0;
+  const handleRemoveFile = () => {
+    if (!campoActual) return;
+    onAnswerChange(campoActual.codigo, []);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
 
-  const campoActual = camposOrdenados[activeStep];
-  const isCurrentStepComplete = isStepComplete(activeStep);
-  const isLastStep = activeStep === totalSteps - 1;
-  const canProceed = !campoActual?.es_obligatoria || isCurrentStepComplete;
+  const triggerFileInput = () => {
+    fileInputRef.current?.click();
+  };
+
+  const getFileName = (valor: any): string | null => {
+    if (!valor) return null;
+    if (Array.isArray(valor) && valor.length > 0) {
+      return valor[0].nombre || valor[0].name || valor[0];
+    }
+    if (typeof valor === 'string') return valor;
+    if (typeof valor === 'object' && valor.nombre) return valor.nombre;
+    return null;
+  };
+
+  if (!campoActual) {
+    return null;
+  }
+
+  const currentFileName = getFileName(respuestas[campoActual.codigo]);
+  const isLastStep = currentStep === totalSteps - 1;
+  const isFirstStep = currentStep === 0;
+
+  // Obtener extensiones permitidas para el accept del input
+  // Permitir cualquier archivo si no hay restricciones definidas
+  const acceptTypes = campoActual.extensiones_permitidas?.length 
+    ? campoActual.extensiones_permitidas.map(ext => `.${ext.toLowerCase().replace('.', '')}`).join(',')
+    : '*/*';
 
   return (
     <Box>
-      {/* Header del Wizard */}
-      <Paper elevation={0} sx={{ p: 3, mb: 3, backgroundColor: '#f8fafc', borderRadius: 2 }}>
-        <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2}>
-          <Typography variant="h6" sx={{ fontWeight: 600, color: '#1e293b' }}>
-            Carga de Documentos
-          </Typography>
-          <Chip 
-            icon={<DocumentIcon />}
-            label={`${completedSteps.size} de ${totalSteps} documentos`}
-            color={completedSteps.size === totalSteps ? 'success' : 'default'}
-            variant={completedSteps.size === totalSteps ? 'filled' : 'outlined'}
-          />
-        </Stack>
-        
-        <LinearProgress 
-          variant="determinate" 
-          value={progress} 
+      {/* Descripción de la etapa (bajada_formulario) - Solo en el primer paso */}
+      {descripcion && currentStep === 0 && (
+        <Typography 
           sx={{ 
-            height: 8, 
-            borderRadius: 4,
-            backgroundColor: '#e2e8f0',
-            '& .MuiLinearProgress-bar': {
-              backgroundColor: completedSteps.size === totalSteps ? '#22c55e' : '#0e5fa6',
-              borderRadius: 4,
-            }
-          }} 
-        />
-        
-        <Typography variant="caption" sx={{ mt: 1, display: 'block', color: '#64748b' }}>
-          Complete la carga de todos los documentos requeridos para continuar
-        </Typography>
-      </Paper>
-
-      {/* Stepper Vertical */}
-      <Stepper activeStep={activeStep} orientation="vertical" sx={{ mb: 3 }}>
-        {camposOrdenados.map((campo, index) => {
-          const stepComplete = isStepComplete(index);
-          
-          return (
-            <Step key={campo.id} completed={stepComplete}>
-              <StepLabel
-                onClick={() => handleStepClick(index)}
-                sx={{ 
-                  cursor: index <= activeStep || stepComplete ? 'pointer' : 'default',
-                  '& .MuiStepLabel-label': {
-                    fontWeight: index === activeStep ? 600 : 400,
-                    color: index === activeStep ? '#0e5fa6' : '#64748b',
-                  }
-                }}
-                optional={
-                  <Stack direction="row" spacing={1} alignItems="center">
-                    {campo.es_obligatoria && (
-                      <Chip label="Requerido" size="small" color="error" variant="outlined" sx={{ height: 20, fontSize: '0.7rem' }} />
-                    )}
-                    {campo.requiere_ocr && (
-                      <Chip label="OCR" size="small" color="info" variant="outlined" sx={{ height: 20, fontSize: '0.7rem' }} />
-                    )}
-                    {stepComplete && (
-                      <CheckCircleIcon sx={{ color: '#22c55e', fontSize: 18 }} />
-                    )}
-                  </Stack>
-                }
-                StepIconProps={{
-                  sx: {
-                    '&.Mui-completed': { color: '#22c55e' },
-                    '&.Mui-active': { color: '#0e5fa6' },
-                  }
-                }}
-              >
-                {campo.pregunta}
-              </StepLabel>
-              
-              <StepContent>
-                <Box sx={{ py: 2 }}>
-                  {/* Texto de ayuda */}
-                  {campo.texto_ayuda && (
-                    <Alert severity="info" sx={{ mb: 2 }}>
-                      {campo.texto_ayuda}
-                    </Alert>
-                  )}
-
-                  {/* Información de formatos permitidos */}
-                  {campo.extensiones_permitidas && campo.extensiones_permitidas.length > 0 && (
-                    <Typography variant="caption" sx={{ display: 'block', mb: 2, color: '#64748b' }}>
-                      Formatos permitidos: {campo.extensiones_permitidas.join(', ').toUpperCase()}
-                      {campo.tamano_maximo_mb && ` • Tamaño máximo: ${campo.tamano_maximo_mb} MB`}
-                    </Typography>
-                  )}
-
-                  {/* Componente de carga de archivo */}
-                  <CargaArchivoView
-                    pregunta={campoToPregunta(campo)}
-                    readonly={readonly || !campo.puede_editar_campo}
-                    onAnswerChange={(archivos) => onAnswerChange(campo.codigo, archivos)}
-                    solicitudId={solicitudId}
-                    value={respuestas[campo.codigo]}
-                  />
-
-                  {/* Botones de navegación dentro del step */}
-                  <Stack direction="row" spacing={2} sx={{ mt: 3 }}>
-                    <Button
-                      onClick={handleBack}
-                      variant="outlined"
-                      startIcon={<BackIcon />}
-                      sx={{
-                        borderColor: '#0e5fa6',
-                        color: '#0e5fa6',
-                        textTransform: 'none',
-                        '&:hover': {
-                          borderColor: '#0d5391',
-                          backgroundColor: 'rgba(14, 95, 166, 0.04)',
-                        },
-                      }}
-                    >
-                      {activeStep === 0 ? buttonLabels.back : 'Anterior'}
-                    </Button>
-                    
-                    <Button
-                      onClick={handleNext}
-                      variant="contained"
-                      disabled={!canProceed}
-                      endIcon={isLastStep ? <CheckCircleIcon /> : <NextIcon />}
-                      sx={{
-                        backgroundColor: '#0e5fa6',
-                        textTransform: 'none',
-                        '&:hover': {
-                          backgroundColor: '#0d5391',
-                        },
-                        '&:disabled': {
-                          backgroundColor: '#94a3b8',
-                        },
-                      }}
-                    >
-                      {isLastStep ? buttonLabels.next : 'Siguiente documento'}
-                    </Button>
-                  </Stack>
-                </Box>
-              </StepContent>
-            </Step>
-          );
-        })}
-      </Stepper>
-
-      {/* Resumen cuando todos están completos */}
-      {completedSteps.size === totalSteps && totalSteps > 0 && (
-        <Paper 
-          elevation={0} 
-          sx={{ 
-            p: 3, 
-            backgroundColor: '#f0fdf4', 
-            borderRadius: 2,
-            border: '1px solid #86efac',
+            fontFamily: 'Roboto, sans-serif',
+            fontWeight: 400,
+            fontSize: '16px',
+            lineHeight: 1.5,
+            color: '#333333',
+            mb: 4,
+            maxWidth: '1167px',
           }}
         >
-          <Stack direction="row" spacing={2} alignItems="center">
-            <CheckCircleIcon sx={{ color: '#22c55e', fontSize: 32 }} />
-            <Box>
-              <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#166534' }}>
-                ¡Todos los documentos han sido cargados!
-              </Typography>
-              <Typography variant="body2" sx={{ color: '#15803d' }}>
-                Puede continuar con el siguiente paso del proceso.
-              </Typography>
-            </Box>
-          </Stack>
-        </Paper>
+          {descripcion}
+        </Typography>
       )}
+
+      {/* Solo mostrar el documento actual */}
+      <Box sx={{ mb: 4 }}>
+        {/* Label del documento */}
+        <Typography 
+          sx={{ 
+            fontFamily: 'Roboto, sans-serif',
+            fontWeight: 500,
+            fontSize: '16px',
+            lineHeight: 1.5,
+            color: '#333333',
+            mb: 1,
+          }}
+        >
+          {campoActual.pregunta}
+          {campoActual.es_obligatoria && <span style={{ color: '#d32f2f' }}> *</span>}
+        </Typography>
+
+        {/* Campo con archivo cargado o vacío */}
+        <Box
+          sx={{
+            border: '1px solid #333333',
+            borderRadius: '4px',
+            height: '56px',
+            width: '520px',
+            maxWidth: '100%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            px: 2,
+            mb: 1,
+          }}
+        >
+          {currentFileName ? (
+            <>
+              <Link
+                href="#"
+                underline="always"
+                sx={{
+                  fontFamily: 'Roboto, sans-serif',
+                  fontSize: '16px',
+                  color: '#0e5fa6',
+                  cursor: 'pointer',
+                }}
+                onClick={(e) => {
+                  e.preventDefault();
+                }}
+              >
+                {currentFileName}
+              </Link>
+              <IconButton 
+                onClick={handleRemoveFile}
+                disabled={readonly}
+                size="small"
+                sx={{ color: '#333333' }}
+              >
+                <DeleteIcon sx={{ fontSize: 20 }} />
+              </IconButton>
+            </>
+          ) : (
+            <Typography 
+              sx={{ 
+                color: '#9e9e9e',
+                fontFamily: 'Roboto, sans-serif',
+                fontSize: '16px',
+              }}
+            >
+              Sin archivo seleccionado
+            </Typography>
+          )}
+        </Box>
+
+        {/* Botón Cargar archivo */}
+        <input
+          type="file"
+          ref={fileInputRef}
+          style={{ display: 'none' }}
+          accept={acceptTypes}
+          onChange={handleFileSelect}
+          disabled={readonly}
+        />
+        <Button
+          variant="text"
+          startIcon={<AttachFileIcon sx={{ fontSize: 16 }} />}
+          onClick={triggerFileInput}
+          disabled={readonly}
+          sx={{
+            backgroundColor: '#f1f3f4',
+            borderRadius: '2px',
+            height: '32px',
+            px: 1,
+            ml: 2,
+            textTransform: 'none',
+            fontFamily: 'Roboto, sans-serif',
+            fontWeight: 400,
+            fontSize: '16px',
+            color: '#788093',
+            '&:hover': {
+              backgroundColor: '#e4e6e8',
+            },
+          }}
+        >
+          Cargar archivo
+        </Button>
+
+        {/* Indicaciones extra */}
+        {campoActual.texto_ayuda && (
+          <Typography
+            sx={{
+              fontFamily: 'Roboto, sans-serif',
+              fontWeight: 300,
+              fontSize: '14px',
+              lineHeight: 1.5,
+              color: '#333333',
+              mt: 1,
+              ml: 2,
+            }}
+          >
+            {campoActual.texto_ayuda}
+          </Typography>
+        )}
+
+        {/* Información de formatos y tamaño */}
+        {(campoActual.extensiones_permitidas?.length || campoActual.tamano_maximo_mb) && (
+          <Typography
+            sx={{
+              fontFamily: 'Roboto, sans-serif',
+              fontWeight: 300,
+              fontSize: '14px',
+              lineHeight: 1.5,
+              color: '#666666',
+              mt: 0.5,
+              ml: 2,
+            }}
+          >
+            {campoActual.extensiones_permitidas?.length && 
+              `Formatos: ${campoActual.extensiones_permitidas.join(', ').toUpperCase()}`}
+            {campoActual.extensiones_permitidas?.length && campoActual.tamano_maximo_mb && ' • '}
+            {campoActual.tamano_maximo_mb && `Máximo: ${campoActual.tamano_maximo_mb} MB`}
+          </Typography>
+        )}
+      </Box>
+
+      {/* Botones de acción - Estilo Figma */}
+      <Stack 
+        direction="row" 
+        justifyContent="space-between" 
+        alignItems="center"
+        sx={{ 
+          mt: 6,
+          width: '1194px',
+          maxWidth: '100%',
+        }}
+      >
+        <Button
+          variant="outlined"
+          onClick={handleBack}
+          sx={{
+            width: '124px',
+            height: '40px',
+            borderRadius: '4px',
+            borderColor: '#0e5fa6',
+            color: '#0e5fa6',
+            textTransform: 'none',
+            fontFamily: 'Roboto, sans-serif',
+            fontWeight: 400,
+            fontSize: '16px',
+            '&:hover': {
+              borderColor: '#0d5391',
+              backgroundColor: 'rgba(14, 95, 166, 0.04)',
+            },
+          }}
+        >
+          {buttonLabels.back}
+        </Button>
+
+        <Button
+          variant="contained"
+          onClick={handleNext}
+          sx={{
+            width: '124px',
+            height: '40px',
+            borderRadius: '4px',
+            backgroundColor: '#0e5fa6',
+            textTransform: 'none',
+            fontFamily: 'Roboto, sans-serif',
+            fontWeight: 400,
+            fontSize: '16px',
+            '&:hover': {
+              backgroundColor: '#0d5391',
+            },
+          }}
+        >
+          {buttonLabels.next}
+        </Button>
+      </Stack>
+
+      {/* Modal de Loading - Procesando OCR */}
+      <Dialog
+        open={isLoadingOCR}
+        PaperProps={{
+          sx: {
+            borderRadius: '8px',
+            padding: '24px',
+            minWidth: '320px',
+            textAlign: 'center',
+          }
+        }}
+      >
+        <DialogContent sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+          <CircularProgress size={48} sx={{ color: '#0e5fa6' }} />
+          <Typography 
+            sx={{ 
+              fontFamily: 'Roboto, sans-serif',
+              fontSize: '16px',
+              fontWeight: 500,
+              color: '#333333',
+            }}
+          >
+            Procesando documento...
+          </Typography>
+          <Typography 
+            sx={{ 
+              fontFamily: 'Roboto, sans-serif',
+              fontSize: '14px',
+              color: '#666666',
+            }}
+          >
+            Por favor espere mientras verificamos el documento
+          </Typography>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de Resultado - Éxito o Error */}
+      <Dialog
+        open={showResultModal}
+        onClose={() => setShowResultModal(false)}
+        PaperProps={{
+          sx: {
+            borderRadius: '8px',
+            padding: '24px',
+            minWidth: '360px',
+            textAlign: 'center',
+          }
+        }}
+      >
+        <DialogContent sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, pb: 1 }}>
+          {ocrResult.success ? (
+            <CheckCircleIcon sx={{ fontSize: 64, color: '#4caf50' }} />
+          ) : (
+            <ErrorIcon sx={{ fontSize: 64, color: '#f44336' }} />
+          )}
+          <Typography 
+            sx={{ 
+              fontFamily: 'Roboto, sans-serif',
+              fontSize: '18px',
+              fontWeight: 500,
+              color: ocrResult.success ? '#4caf50' : '#f44336',
+            }}
+          >
+            {ocrResult.success ? '¡Éxito!' : 'Error'}
+          </Typography>
+          <Typography 
+            sx={{ 
+              fontFamily: 'Roboto, sans-serif',
+              fontSize: '14px',
+              color: '#333333',
+              lineHeight: 1.5,
+            }}
+          >
+            {ocrResult.message}
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ justifyContent: 'center', pt: 0 }}>
+          <Button
+            variant="contained"
+            onClick={() => setShowResultModal(false)}
+            sx={{
+              backgroundColor: ocrResult.success ? '#0e5fa6' : '#f44336',
+              textTransform: 'none',
+              fontFamily: 'Roboto, sans-serif',
+              fontWeight: 400,
+              fontSize: '14px',
+              px: 4,
+              '&:hover': {
+                backgroundColor: ocrResult.success ? '#0d5391' : '#d32f2f',
+              },
+            }}
+          >
+            Aceptar
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };
