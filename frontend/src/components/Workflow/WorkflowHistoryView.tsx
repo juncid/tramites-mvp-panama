@@ -102,151 +102,32 @@ export const WorkflowHistoryView = ({ workflowId, workflowData }: WorkflowHistor
     const loadHistorial = async () => {
       setLoading(true);
       setError(null);
+      setUsingMockData(false);
       
-      // Si hay workflowId, intentar cargar desde API
+      // Si hay workflowId, cargar desde API
       if (workflowId) {
         try {
           const data = await workflowService.getWorkflowHistorialCambios(workflowId);
           
           if (data && data.length > 0) {
             setHistorial(data.map(convertApiToHistoryEvent));
-            setUsingMockData(false);
-            setLoading(false);
-            return;
+          } else {
+            // API devolvió vacío - mostrar estado vacío
+            setHistorial([]);
           }
+          setLoading(false);
+          return;
         } catch (err) {
-          console.warn('No se pudo cargar historial desde API, usando datos de ejemplo:', err);
+          console.error('Error al cargar historial:', err);
+          setError('No se pudo cargar el historial de cambios');
+          setHistorial([]);
+          setLoading(false);
+          return;
         }
       }
       
-      // Fallback a mock data si no hay datos o falla la API
-      setUsingMockData(true);
-      setHistorial([
-        {
-          id: 8,
-          fecha: '2025-11-27',
-          hora: '16:45:00',
-          tipo: 'EDICION_ETAPA',
-          accion: 'Etapa modificada',
-          descripcion: 'Se actualizó la configuración de la etapa "Revisión de documentos"',
-          usuario: {
-            nombre: 'Admin',
-            apellido: 'Sistema',
-          },
-          detalles: {
-            etapa_nombre: 'Revisión de documentos',
-            campo_modificado: 'perfiles_permitidos',
-            valor_anterior: 'Funcionario',
-            valor_nuevo: 'Funcionario, Supervisor',
-          },
-        },
-        {
-          id: 7,
-          fecha: '2025-11-27',
-          hora: '15:30:00',
-          tipo: 'NUEVA_ETAPA',
-          accion: 'Nueva etapa agregada',
-          descripcion: 'Se agregó la etapa "Validación OCR" al flujo',
-          usuario: {
-            nombre: 'Admin',
-            apellido: 'Sistema',
-          },
-          detalles: {
-            etapa_nombre: 'Validación OCR',
-          },
-        },
-        {
-          id: 6,
-          fecha: '2025-11-26',
-          hora: '14:20:00',
-          tipo: 'CAMBIO_CONEXION',
-          accion: 'Conexión modificada',
-          descripcion: 'Se actualizó la conexión entre "Carga de documentos" y "Revisión"',
-          usuario: {
-            nombre: 'María',
-            apellido: 'González',
-          },
-          detalles: {
-            valor_anterior: 'Conexión directa',
-            valor_nuevo: 'Conexión condicional',
-          },
-        },
-        {
-          id: 5,
-          fecha: '2025-11-25',
-          hora: '11:15:00',
-          tipo: 'CONFIGURACION',
-          accion: 'Configuración actualizada',
-          descripcion: 'Se modificaron los perfiles creadores del workflow',
-          usuario: {
-            nombre: 'Admin',
-            apellido: 'Sistema',
-          },
-          detalles: {
-            campo_modificado: 'perfiles_creadores',
-            valor_nuevo: 'Ciudadano, Abogado',
-          },
-        },
-        {
-          id: 4,
-          fecha: '2025-11-24',
-          hora: '10:00:00',
-          tipo: 'ELIMINAR_ETAPA',
-          accion: 'Etapa eliminada',
-          descripcion: 'Se eliminó la etapa "Paso temporal" del flujo',
-          usuario: {
-            nombre: 'María',
-            apellido: 'González',
-          },
-          detalles: {
-            etapa_nombre: 'Paso temporal',
-          },
-        },
-        {
-          id: 3,
-          fecha: '2025-11-23',
-          hora: '16:30:00',
-          tipo: 'EDICION_ETAPA',
-          accion: 'Etapa modificada',
-          descripcion: 'Se actualizó el nombre y descripción de la etapa inicial',
-          usuario: {
-            nombre: 'Admin',
-            apellido: 'Sistema',
-          },
-          detalles: {
-            etapa_nombre: 'Recolectar requisitos',
-            campo_modificado: 'nombre',
-          },
-        },
-        {
-          id: 2,
-          fecha: '2025-11-22',
-          hora: '09:45:00',
-          tipo: 'CAMBIO_ESTADO',
-          accion: 'Estado cambiado',
-          descripcion: 'El workflow pasó de BORRADOR a EN_REVISION',
-          usuario: {
-            nombre: 'Admin',
-            apellido: 'Sistema',
-          },
-          detalles: {
-            valor_anterior: 'BORRADOR',
-            valor_nuevo: 'EN_REVISION',
-          },
-        },
-        {
-          id: 1,
-          fecha: '2025-11-20',
-          hora: '08:00:00',
-          tipo: 'CREACION',
-          accion: 'Workflow creado',
-          descripcion: `Se creó el workflow "${workflowData?.nombre || 'Nuevo Workflow'}"`,
-          usuario: {
-            nombre: 'Admin',
-            apellido: 'Sistema',
-          },
-        },
-      ]);
+      // Sin workflowId - mostrar estado vacío
+      setHistorial([]);
       setLoading(false);
     };
 
