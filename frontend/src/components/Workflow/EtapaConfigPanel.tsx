@@ -188,12 +188,14 @@ export const EtapaConfigPanel: React.FC<EtapaConfigPanelProps> = ({
   const handleEditPregunta = (index: number) => {
     const pregunta = preguntas[index];
     // Normalizar para asegurar que tipo, tipo_pregunta, texto y pregunta estén sincronizados
+    // También mapear tamano_maximo_mb del backend a max_size_mb del frontend
     const preguntaNormalizada = {
       ...pregunta,
       tipo: pregunta.tipo_pregunta || pregunta.tipo,
       tipo_pregunta: pregunta.tipo_pregunta || pregunta.tipo,
       texto: pregunta.pregunta || pregunta.texto || '',
       pregunta: pregunta.pregunta || pregunta.texto || '',
+      max_size_mb: pregunta.max_size_mb || pregunta.tamano_maximo_mb || 10,
     };
     setTempPregunta(preguntaNormalizada);
     setEditingIndex(index);
@@ -1087,7 +1089,7 @@ export const EtapaConfigPanel: React.FC<EtapaConfigPanelProps> = ({
                         <FormControl fullWidth size="small" sx={{ mb: 2 }}>
                           <InputLabel>Tamaño máximo</InputLabel>
                           <Select
-                            value={tempPregunta.max_size_mb || 100}
+                            value={tempPregunta.max_size_mb || 10}
                             label="Tamaño máximo"
                             onChange={(e) => handlePreguntaChange('max_size_mb', e.target.value as number)}
                           >
