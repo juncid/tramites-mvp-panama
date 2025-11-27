@@ -4,6 +4,7 @@ import {
   Typography,
   CircularProgress,
   Chip,
+  Alert,
 } from '@mui/material';
 import {
   Timeline,
@@ -24,8 +25,9 @@ import {
   SwapHoriz as SwapIcon,
   Person as PersonIcon,
 } from '@mui/icons-material';
+import { workflowService, WorkflowCambio } from '../../services/workflow.service';
 
-// Tipos para el historial del workflow
+// Tipos para el historial del workflow (interno del componente)
 interface WorkflowHistoryEvent {
   id: number;
   fecha: string;
@@ -34,7 +36,6 @@ interface WorkflowHistoryEvent {
   accion: string;
   descripcion: string;
   usuario: {
-    id: number;
     nombre: string;
     apellido: string;
   };
@@ -57,158 +58,196 @@ interface WorkflowHistoryViewProps {
 }
 
 /**
+ * Convierte los datos del API al formato interno del componente
+ */
+const convertApiToHistoryEvent = (cambio: WorkflowCambio): WorkflowHistoryEvent => {
+  const fecha = new Date(cambio.created_at);
+  const nombreParts = (cambio.created_by_nombre || cambio.created_by || 'Sistema').split(' ');
+  
+  return {
+    id: cambio.id,
+    fecha: fecha.toISOString().split('T')[0],
+    hora: fecha.toTimeString().split(' ')[0],
+    tipo: cambio.tipo_cambio as WorkflowHistoryEvent['tipo'],
+    accion: cambio.accion,
+    descripcion: cambio.descripcion || '',
+    usuario: {
+      nombre: nombreParts[0] || 'Sistema',
+      apellido: nombreParts.slice(1).join(' ') || '',
+    },
+    detalles: cambio.detalles || (
+      (cambio.etapa_nombre || cambio.campo_modificado || cambio.valor_anterior || cambio.valor_nuevo)
+        ? {
+            etapa_nombre: cambio.etapa_nombre,
+            campo_modificado: cambio.campo_modificado,
+            valor_anterior: cambio.valor_anterior,
+            valor_nuevo: cambio.valor_nuevo,
+          }
+        : undefined
+    ),
+  };
+};
+
+/**
  * Vista de Historial de Cambios del Workflow
  * Muestra una timeline con los cambios realizados al workflow (del más reciente al más antiguo)
  */
 export const WorkflowHistoryView = ({ workflowId, workflowData }: WorkflowHistoryViewProps) => {
   const [historial, setHistorial] = useState<WorkflowHistoryEvent[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [usingMockData, setUsingMockData] = useState(false);
 
   useEffect(() => {
     const loadHistorial = async () => {
       setLoading(true);
+      setError(null);
       
-      // TODO: Reemplazar con llamada real a API cuando exista el endpoint
-      // const data = await workflowService.getWorkflowHistory(workflowId);
+      // Si hay workflowId, intentar cargar desde API
+      if (workflowId) {
+        try {
+          const data = await workflowService.getWorkflowHistorialCambios(workflowId);
+          
+          if (data && data.length > 0) {
+            setHistorial(data.map(convertApiToHistoryEvent));
+            setUsingMockData(false);
+            setLoading(false);
+            return;
+          }
+        } catch (err) {
+          console.warn('No se pudo cargar historial desde API, usando datos de ejemplo:', err);
+        }
+      }
       
-      // Mock data - ordenado del más reciente al más antiguo
-      setTimeout(() => {
-        setHistorial([
-          {
-            id: 8,
-            fecha: '2025-11-27',
-            hora: '16:45:00',
-            tipo: 'EDICION_ETAPA',
-            accion: 'Etapa modificada',
-            descripcion: 'Se actualizó la configuración de la etapa "Revisión de documentos"',
-            usuario: {
-              id: 1,
-              nombre: 'Admin',
-              apellido: 'Sistema',
-            },
-            detalles: {
-              etapa_nombre: 'Revisión de documentos',
-              campo_modificado: 'perfiles_permitidos',
-              valor_anterior: 'Funcionario',
-              valor_nuevo: 'Funcionario, Supervisor',
-            },
+      // Fallback a mock data si no hay datos o falla la API
+      setUsingMockData(true);
+      setHistorial([
+        {
+          id: 8,
+          fecha: '2025-11-27',
+          hora: '16:45:00',
+          tipo: 'EDICION_ETAPA',
+          accion: 'Etapa modificada',
+          descripcion: 'Se actualizó la configuración de la etapa "Revisión de documentos"',
+          usuario: {
+            nombre: 'Admin',
+            apellido: 'Sistema',
           },
-          {
-            id: 7,
-            fecha: '2025-11-27',
-            hora: '15:30:00',
-            tipo: 'NUEVA_ETAPA',
-            accion: 'Nueva etapa agregada',
-            descripcion: 'Se agregó la etapa "Validación OCR" al flujo',
-            usuario: {
-              id: 1,
-              nombre: 'Admin',
-              apellido: 'Sistema',
-            },
-            detalles: {
-              etapa_nombre: 'Validación OCR',
-            },
+          detalles: {
+            etapa_nombre: 'Revisión de documentos',
+            campo_modificado: 'perfiles_permitidos',
+            valor_anterior: 'Funcionario',
+            valor_nuevo: 'Funcionario, Supervisor',
           },
-          {
-            id: 6,
-            fecha: '2025-11-26',
-            hora: '14:20:00',
-            tipo: 'CAMBIO_CONEXION',
-            accion: 'Conexión modificada',
-            descripcion: 'Se actualizó la conexión entre "Carga de documentos" y "Revisión"',
-            usuario: {
-              id: 2,
-              nombre: 'María',
-              apellido: 'González',
-            },
-            detalles: {
-              valor_anterior: 'Conexión directa',
-              valor_nuevo: 'Conexión condicional',
-            },
+        },
+        {
+          id: 7,
+          fecha: '2025-11-27',
+          hora: '15:30:00',
+          tipo: 'NUEVA_ETAPA',
+          accion: 'Nueva etapa agregada',
+          descripcion: 'Se agregó la etapa "Validación OCR" al flujo',
+          usuario: {
+            nombre: 'Admin',
+            apellido: 'Sistema',
           },
-          {
-            id: 5,
-            fecha: '2025-11-25',
-            hora: '11:15:00',
-            tipo: 'CONFIGURACION',
-            accion: 'Configuración actualizada',
-            descripcion: 'Se modificaron los perfiles creadores del workflow',
-            usuario: {
-              id: 1,
-              nombre: 'Admin',
-              apellido: 'Sistema',
-            },
-            detalles: {
-              campo_modificado: 'perfiles_creadores',
-              valor_nuevo: 'Ciudadano, Abogado',
-            },
+          detalles: {
+            etapa_nombre: 'Validación OCR',
           },
-          {
-            id: 4,
-            fecha: '2025-11-24',
-            hora: '10:00:00',
-            tipo: 'ELIMINAR_ETAPA',
-            accion: 'Etapa eliminada',
-            descripcion: 'Se eliminó la etapa "Paso temporal" del flujo',
-            usuario: {
-              id: 2,
-              nombre: 'María',
-              apellido: 'González',
-            },
-            detalles: {
-              etapa_nombre: 'Paso temporal',
-            },
+        },
+        {
+          id: 6,
+          fecha: '2025-11-26',
+          hora: '14:20:00',
+          tipo: 'CAMBIO_CONEXION',
+          accion: 'Conexión modificada',
+          descripcion: 'Se actualizó la conexión entre "Carga de documentos" y "Revisión"',
+          usuario: {
+            nombre: 'María',
+            apellido: 'González',
           },
-          {
-            id: 3,
-            fecha: '2025-11-23',
-            hora: '16:30:00',
-            tipo: 'EDICION_ETAPA',
-            accion: 'Etapa modificada',
-            descripcion: 'Se actualizó el nombre y descripción de la etapa inicial',
-            usuario: {
-              id: 1,
-              nombre: 'Admin',
-              apellido: 'Sistema',
-            },
-            detalles: {
-              etapa_nombre: 'Recolectar requisitos',
-              campo_modificado: 'nombre',
-            },
+          detalles: {
+            valor_anterior: 'Conexión directa',
+            valor_nuevo: 'Conexión condicional',
           },
-          {
-            id: 2,
-            fecha: '2025-11-22',
-            hora: '09:45:00',
-            tipo: 'CAMBIO_ESTADO',
-            accion: 'Estado cambiado',
-            descripcion: 'El workflow pasó de BORRADOR a EN_REVISION',
-            usuario: {
-              id: 1,
-              nombre: 'Admin',
-              apellido: 'Sistema',
-            },
-            detalles: {
-              valor_anterior: 'BORRADOR',
-              valor_nuevo: 'EN_REVISION',
-            },
+        },
+        {
+          id: 5,
+          fecha: '2025-11-25',
+          hora: '11:15:00',
+          tipo: 'CONFIGURACION',
+          accion: 'Configuración actualizada',
+          descripcion: 'Se modificaron los perfiles creadores del workflow',
+          usuario: {
+            nombre: 'Admin',
+            apellido: 'Sistema',
           },
-          {
-            id: 1,
-            fecha: '2025-11-20',
-            hora: '08:00:00',
-            tipo: 'CREACION',
-            accion: 'Workflow creado',
-            descripcion: `Se creó el workflow "${workflowData?.nombre || 'Nuevo Workflow'}"`,
-            usuario: {
-              id: 1,
-              nombre: 'Admin',
-              apellido: 'Sistema',
-            },
+          detalles: {
+            campo_modificado: 'perfiles_creadores',
+            valor_nuevo: 'Ciudadano, Abogado',
           },
-        ]);
-        setLoading(false);
-      }, 500);
+        },
+        {
+          id: 4,
+          fecha: '2025-11-24',
+          hora: '10:00:00',
+          tipo: 'ELIMINAR_ETAPA',
+          accion: 'Etapa eliminada',
+          descripcion: 'Se eliminó la etapa "Paso temporal" del flujo',
+          usuario: {
+            nombre: 'María',
+            apellido: 'González',
+          },
+          detalles: {
+            etapa_nombre: 'Paso temporal',
+          },
+        },
+        {
+          id: 3,
+          fecha: '2025-11-23',
+          hora: '16:30:00',
+          tipo: 'EDICION_ETAPA',
+          accion: 'Etapa modificada',
+          descripcion: 'Se actualizó el nombre y descripción de la etapa inicial',
+          usuario: {
+            nombre: 'Admin',
+            apellido: 'Sistema',
+          },
+          detalles: {
+            etapa_nombre: 'Recolectar requisitos',
+            campo_modificado: 'nombre',
+          },
+        },
+        {
+          id: 2,
+          fecha: '2025-11-22',
+          hora: '09:45:00',
+          tipo: 'CAMBIO_ESTADO',
+          accion: 'Estado cambiado',
+          descripcion: 'El workflow pasó de BORRADOR a EN_REVISION',
+          usuario: {
+            nombre: 'Admin',
+            apellido: 'Sistema',
+          },
+          detalles: {
+            valor_anterior: 'BORRADOR',
+            valor_nuevo: 'EN_REVISION',
+          },
+        },
+        {
+          id: 1,
+          fecha: '2025-11-20',
+          hora: '08:00:00',
+          tipo: 'CREACION',
+          accion: 'Workflow creado',
+          descripcion: `Se creó el workflow "${workflowData?.nombre || 'Nuevo Workflow'}"`,
+          usuario: {
+            nombre: 'Admin',
+            apellido: 'Sistema',
+          },
+        },
+      ]);
+      setLoading(false);
     };
 
     loadHistorial();
@@ -291,6 +330,14 @@ export const WorkflowHistoryView = ({ workflowId, workflowData }: WorkflowHistor
     );
   }
 
+  if (error) {
+    return (
+      <Box sx={{ py: 4 }}>
+        <Alert severity="error">{error}</Alert>
+      </Box>
+    );
+  }
+
   if (historial.length === 0) {
     return (
       <Box sx={{ py: 4, textAlign: 'center' }}>
@@ -306,6 +353,12 @@ export const WorkflowHistoryView = ({ workflowId, workflowData }: WorkflowHistor
       <Typography variant="h6" sx={{ mb: 3, fontWeight: 600, color: '#1a1a1a' }}>
         Historial de Cambios
       </Typography>
+      
+      {usingMockData && (
+        <Alert severity="info" sx={{ mb: 2 }}>
+          Mostrando datos de ejemplo. Los cambios reales se registrarán automáticamente al modificar el workflow.
+        </Alert>
+      )}
       
       <Typography variant="body2" sx={{ mb: 3, color: '#666' }}>
         Mostrando {historial.length} cambios ordenados del más reciente al más antiguo

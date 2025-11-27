@@ -22,7 +22,8 @@ from app.services import (
     ConexionService,
     InstanciaService,
     ComentarioService,
-    HistorialService
+    HistorialService,
+    WorkflowCambiosService
 )
 from app.services.workflow_execution_service import WorkflowExecutionService
 from app.services.workflow_ppsh_service import WorkflowPPSHIntegrationService
@@ -90,6 +91,75 @@ def eliminar_workflow(
 ):
     """Elimina (desactiva) un workflow"""
     WorkflowService.eliminar_workflow(db, workflow_id, current_user)
+
+
+@router.get("/workflows/{workflow_id}/historial-cambios", response_model=List[schemas.WorkflowCambiosResponse])
+def obtener_historial_cambios_workflow(
+    workflow_id: int,
+    limit: int = Query(50, ge=1, le=200, description="Número máximo de registros a retornar"),
+    offset: int = Query(0, ge=0, description="Número de registros a saltar"),
+    db: Session = Depends(get_db)
+):
+    """
+    Obtiene el historial de cambios de un workflow (plantilla).
+    
+    Retorna los cambios ordenados del más reciente al más antiguo.
+    Incluye: creación, edición de etapas, nuevas etapas, eliminación de etapas,
+    cambios de conexiones, publicación, configuración, cambios de estado.
+    """
+    # Verificar que el workflow existe
+    WorkflowService.obtener_workflow(db, workflow_id)
+    
+    # Obtener historial
+    cambios = WorkflowCambiosService.obtener_historial(db, workflow_id, limit, offset)
+    
+    # Convertir a response con detalles estructurados
+    return [schemas.WorkflowCambiosResponse.from_orm_with_detalles(c) for c in cambios]
+
+
+@router.post("/workflows/{workflow_id}/historial-cambios", response_model=schemas.WorkflowCambiosResponse, status_code=status.HTTP_201_CREATED)
+def registrar_cambio_workflow(
+    workflow_id: int,
+    cambio: schemas.WorkflowCambiosCreate,
+    db: Session = Depends(get_db),
+    current_user: str = "ADMIN"
+):
+    """
+    Registra un cambio en el historial del workflow.
+    
+    Tipos de cambio válidos:
+    - CREACION: Workflow creado
+    - EDICION_ETAPA: Etapa modificada
+    - NUEVA_ETAPA: Nueva etapa agregada
+    - ELIMINAR_ETAPA: Etapa eliminada
+    - CAMBIO_CONEXION: Conexión modificada
+    - PUBLICACION: Workflow publicado
+    - CONFIGURACION: Configuración actualizada
+    - CAMBIO_ESTADO: Estado del workflow cambiado
+    """
+    # Verificar que el workflow existe
+    WorkflowService.obtener_workflow(db, workflow_id)
+    
+    db_cambio = WorkflowCambiosService.registrar_cambio(
+        db=db,
+        workflow_id=workflow_id,
+        tipo_cambio=cambio.tipo_cambio,
+        accion=cambio.accion,
+        descripcion=cambio.descripcion,
+        etapa_id=cambio.etapa_id,
+        etapa_codigo=cambio.etapa_codigo,
+        etapa_nombre=cambio.etapa_nombre,
+        campo_modificado=cambio.campo_modificado,
+        valor_anterior=cambio.valor_anterior,
+        valor_nuevo=cambio.valor_nuevo,
+        datos_adicionales=cambio.datos_adicionales,
+        created_by=current_user,
+        created_by_nombre=current_user  # TODO: Obtener nombre real del usuario
+    )
+    db.commit()
+    db.refresh(db_cambio)
+    
+    return schemas.WorkflowCambiosResponse.from_orm_with_detalles(db_cambio)
 
 
 # ==========================================

@@ -14,6 +14,46 @@ import type {
   WorkflowRespuesta,
 } from '../types/workflow';
 
+// Tipos para historial de cambios del workflow
+export interface WorkflowCambioDetalles {
+  etapa_nombre?: string;
+  campo_modificado?: string;
+  valor_anterior?: string;
+  valor_nuevo?: string;
+}
+
+export interface WorkflowCambio {
+  id: number;
+  workflow_id: number;
+  tipo_cambio: string;
+  accion: string;
+  descripcion?: string;
+  etapa_id?: number;
+  etapa_codigo?: string;
+  etapa_nombre?: string;
+  campo_modificado?: string;
+  valor_anterior?: string;
+  valor_nuevo?: string;
+  datos_adicionales?: Record<string, any>;
+  created_at: string;
+  created_by: string;
+  created_by_nombre?: string;
+  detalles?: WorkflowCambioDetalles;
+}
+
+export interface WorkflowCambioCreate {
+  tipo_cambio: string;
+  accion: string;
+  descripcion?: string;
+  etapa_id?: number;
+  etapa_codigo?: string;
+  etapa_nombre?: string;
+  campo_modificado?: string;
+  valor_anterior?: string;
+  valor_nuevo?: string;
+  datos_adicionales?: Record<string, any>;
+}
+
 export const workflowService = {
   /**
    * Listar todos los workflows
@@ -260,6 +300,38 @@ export const workflowService = {
     return apiClient.get<any>(`/workflow/instancias/${instanciaId}/vinculacion-ppsh`, {
       expanded
     });
+  },
+
+  // ==========================================
+  // MÉTODOS DE HISTORIAL DE CAMBIOS DEL WORKFLOW
+  // ==========================================
+
+  /**
+   * Obtener historial de cambios de un workflow (plantilla)
+   * Retorna los cambios ordenados del más reciente al más antiguo
+   */
+  async getWorkflowHistorialCambios(
+    workflowId: number,
+    limit: number = 50,
+    offset: number = 0
+  ): Promise<WorkflowCambio[]> {
+    return apiClient.get<WorkflowCambio[]>(
+      `/workflow/workflows/${workflowId}/historial-cambios`,
+      { limit, offset }
+    );
+  },
+
+  /**
+   * Registrar un cambio en el historial del workflow
+   */
+  async registrarCambioWorkflow(
+    workflowId: number,
+    cambio: WorkflowCambioCreate
+  ): Promise<WorkflowCambio> {
+    return apiClient.post<WorkflowCambio>(
+      `/workflow/workflows/${workflowId}/historial-cambios`,
+      cambio
+    );
   },
 
   // ==========================================

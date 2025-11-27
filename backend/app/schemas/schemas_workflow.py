@@ -537,7 +537,7 @@ class WorkflowHistorialCreate(BaseModel):
 
 
 class WorkflowHistorialResponse(BaseModel):
-    """Schema de respuesta para historial"""
+    """Schema de respuesta para historial de instancias"""
     id: int
     instancia_id: int
     tipo_cambio: str
@@ -551,6 +551,84 @@ class WorkflowHistorialResponse(BaseModel):
     created_by: str
 
     model_config = ConfigDict(from_attributes=True)
+
+
+# ==========================================
+# SCHEMAS DE HISTORIAL DE CAMBIOS DEL WORKFLOW (PLANTILLA)
+# ==========================================
+
+class WorkflowCambiosCreate(BaseModel):
+    """Schema para crear entrada de historial de cambios del workflow"""
+    tipo_cambio: str = Field(..., max_length=50)
+    accion: str = Field(..., max_length=100)
+    descripcion: Optional[str] = None
+    etapa_id: Optional[int] = None
+    etapa_codigo: Optional[str] = None
+    etapa_nombre: Optional[str] = None
+    campo_modificado: Optional[str] = None
+    valor_anterior: Optional[str] = None
+    valor_nuevo: Optional[str] = None
+    datos_adicionales: Optional[Dict[str, Any]] = None
+
+
+class WorkflowCambiosDetalles(BaseModel):
+    """Detalles de un cambio específico"""
+    etapa_nombre: Optional[str] = None
+    campo_modificado: Optional[str] = None
+    valor_anterior: Optional[str] = None
+    valor_nuevo: Optional[str] = None
+
+
+class WorkflowCambiosResponse(BaseModel):
+    """Schema de respuesta para historial de cambios del workflow"""
+    id: int
+    workflow_id: int
+    tipo_cambio: str
+    accion: str
+    descripcion: Optional[str]
+    etapa_id: Optional[int]
+    etapa_codigo: Optional[str]
+    etapa_nombre: Optional[str]
+    campo_modificado: Optional[str]
+    valor_anterior: Optional[str]
+    valor_nuevo: Optional[str]
+    datos_adicionales: Optional[Dict[str, Any]]
+    created_at: datetime
+    created_by: str
+    created_by_nombre: Optional[str]
+    
+    # Campo calculado para el frontend
+    detalles: Optional[WorkflowCambiosDetalles] = None
+
+    model_config = ConfigDict(from_attributes=True)
+    
+    @classmethod
+    def from_orm_with_detalles(cls, obj):
+        """Crea el response incluyendo detalles estructurados"""
+        data = {
+            "id": obj.id,
+            "workflow_id": obj.workflow_id,
+            "tipo_cambio": obj.tipo_cambio,
+            "accion": obj.accion,
+            "descripcion": obj.descripcion,
+            "etapa_id": obj.etapa_id,
+            "etapa_codigo": obj.etapa_codigo,
+            "etapa_nombre": obj.etapa_nombre,
+            "campo_modificado": obj.campo_modificado,
+            "valor_anterior": obj.valor_anterior,
+            "valor_nuevo": obj.valor_nuevo,
+            "datos_adicionales": obj.datos_adicionales,
+            "created_at": obj.created_at,
+            "created_by": obj.created_by,
+            "created_by_nombre": obj.created_by_nombre,
+            "detalles": WorkflowCambiosDetalles(
+                etapa_nombre=obj.etapa_nombre,
+                campo_modificado=obj.campo_modificado,
+                valor_anterior=obj.valor_anterior,
+                valor_nuevo=obj.valor_nuevo,
+            ) if any([obj.etapa_nombre, obj.campo_modificado, obj.valor_anterior, obj.valor_nuevo]) else None
+        }
+        return cls(**data)
 
 
 # ==========================================

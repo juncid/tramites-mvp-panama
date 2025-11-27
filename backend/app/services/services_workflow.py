@@ -1322,6 +1322,71 @@ class HistorialService:
 
 
 # ==========================================
+# SERVICIOS DE HISTORIAL DE CAMBIOS DEL WORKFLOW (PLANTILLA)
+# ==========================================
+
+class WorkflowCambiosService:
+    """Servicio para operaciones de Historial de Cambios del Workflow"""
+
+    @staticmethod
+    def registrar_cambio(
+        db: Session,
+        workflow_id: int,
+        tipo_cambio: str,
+        accion: str,
+        created_by: str,
+        created_by_nombre: Optional[str] = None,
+        descripcion: Optional[str] = None,
+        etapa_id: Optional[int] = None,
+        etapa_codigo: Optional[str] = None,
+        etapa_nombre: Optional[str] = None,
+        campo_modificado: Optional[str] = None,
+        valor_anterior: Optional[str] = None,
+        valor_nuevo: Optional[str] = None,
+        datos_adicionales: Optional[Dict[str, Any]] = None
+    ) -> models.WorkflowHistorialCambios:
+        """Registra un cambio en el historial del workflow"""
+        db_cambio = models.WorkflowHistorialCambios(
+            workflow_id=workflow_id,
+            tipo_cambio=tipo_cambio,
+            accion=accion,
+            descripcion=descripcion,
+            etapa_id=etapa_id,
+            etapa_codigo=etapa_codigo,
+            etapa_nombre=etapa_nombre,
+            campo_modificado=campo_modificado,
+            valor_anterior=valor_anterior,
+            valor_nuevo=valor_nuevo,
+            datos_adicionales=datos_adicionales,
+            created_by=created_by,
+            created_by_nombre=created_by_nombre or created_by
+        )
+        db.add(db_cambio)
+        return db_cambio
+
+    @staticmethod
+    def obtener_historial(
+        db: Session,
+        workflow_id: int,
+        limit: int = 50,
+        offset: int = 0
+    ) -> List[models.WorkflowHistorialCambios]:
+        """Obtiene el historial de cambios de un workflow (del más reciente al más antiguo)"""
+        return db.query(models.WorkflowHistorialCambios).filter(
+            models.WorkflowHistorialCambios.workflow_id == workflow_id
+        ).order_by(
+            models.WorkflowHistorialCambios.created_at.desc()
+        ).offset(offset).limit(limit).all()
+
+    @staticmethod
+    def contar_cambios(db: Session, workflow_id: int) -> int:
+        """Cuenta el total de cambios de un workflow"""
+        return db.query(models.WorkflowHistorialCambios).filter(
+            models.WorkflowHistorialCambios.workflow_id == workflow_id
+        ).count()
+
+
+# ==========================================
 # SERVICIOS DE COMENTARIO
 # ==========================================
 
