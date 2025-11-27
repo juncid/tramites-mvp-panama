@@ -19,14 +19,13 @@ from datetime import datetime
 import logging
 
 from app.models import models_workflow as models
-from app.schemas import schemas_workflow as schemas
 
 logger = logging.getLogger(__name__)
 
 
 class WorkflowExecutionService:
     """Servicio para ejecución de workflows por usuarios"""
-    
+
     @staticmethod
     def obtener_etapas_por_perfil(
         db: Session,
@@ -46,19 +45,19 @@ class WorkflowExecutionService:
             Lista de etapas accesibles para el perfil
         """
         logger.info(f"Obteniendo etapas del workflow {workflow_id} para perfil {perfil}")
-        
+
         # Verificar que el workflow existe
         workflow = db.query(models.Workflow).filter(
             models.Workflow.id == workflow_id,
             models.Workflow.activo == True
         ).first()
-        
+
         if not workflow:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Workflow con id {workflow_id} no encontrado"
             )
-        
+
         # Obtener todas las etapas activas del workflow
         etapas = db.query(models.WorkflowEtapa).options(
             joinedload(models.WorkflowEtapa.preguntas)
@@ -66,7 +65,7 @@ class WorkflowExecutionService:
             models.WorkflowEtapa.workflow_id == workflow_id,
             models.WorkflowEtapa.activo == True
         ).order_by(models.WorkflowEtapa.orden).all()
-        
+
         # Filtrar etapas por perfil
         etapas_filtradas = []
         for etapa in etapas:
@@ -76,10 +75,10 @@ class WorkflowExecutionService:
             # Si el perfil está en la lista de perfiles permitidos
             elif isinstance(etapa.perfiles_permitidos, list) and perfil in etapa.perfiles_permitidos:
                 etapas_filtradas.append(etapa)
-        
+
         logger.info(f"Encontradas {len(etapas_filtradas)} etapas de {len(etapas)} totales para perfil {perfil}")
         return etapas_filtradas
-    
+
     @staticmethod
     def obtener_estado_workflow(
         db: Session,
@@ -98,7 +97,7 @@ class WorkflowExecutionService:
             Diccionario con estado del workflow, etapa actual, etapas completadas, progreso
         """
         logger.info(f"Obteniendo estado del workflow para instancia {instancia_id}")
-        
+
         # Obtener la instancia con sus relaciones
         instancia = db.query(models.WorkflowInstancia).options(
             joinedload(models.WorkflowInstancia.workflow).joinedload(models.Workflow.etapas),
@@ -108,23 +107,23 @@ class WorkflowExecutionService:
             models.WorkflowInstancia.id == instancia_id,
             models.WorkflowInstancia.activo == True
         ).first()
-        
+
         if not instancia:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Instancia con id {instancia_id} no encontrada"
             )
-        
+
         # Obtener etapas completadas
         etapas_completadas_ids = [
-            resp_etapa.etapa_id 
-            for resp_etapa in instancia.respuestas_etapa 
+            resp_etapa.etapa_id
+            for resp_etapa in instancia.respuestas_etapa
             if resp_etapa.completada
         ]
-        
+
         # Obtener todas las etapas del workflow
         todas_etapas = instancia.workflow.etapas
-        
+
         # Filtrar por perfil si se proporciona
         if perfil:
             etapas_visibles = [
@@ -133,12 +132,12 @@ class WorkflowExecutionService:
             ]
         else:
             etapas_visibles = todas_etapas
-        
+
         # Calcular progreso
         total_etapas = len(todas_etapas)
         completadas = len(etapas_completadas_ids)
         porcentaje = (completadas / total_etapas * 100) if total_etapas > 0 else 0
-        
+
         # Construir respuestas por etapa
         respuestas_dict = {}
         for resp_etapa in instancia.respuestas_etapa:
@@ -154,11 +153,11 @@ class WorkflowExecutionService:
                     valor = respuesta.valor_booleano
                 else:
                     valor = respuesta.valor_texto
-                
+
                 respuestas_etapa[pregunta_codigo] = valor
-            
+
             respuestas_dict[str(resp_etapa.etapa_id)] = respuestas_etapa
-        
+
         estado = {
             "instancia_id": instancia.id,
             "workflow_id": instancia.workflow_id,
@@ -195,10 +194,10 @@ class WorkflowExecutionService:
             "creado_por": instancia.creado_por_user_id,
             "asignado_a": instancia.asignado_a_user_id
         }
-        
+
         logger.info(f"Estado del workflow calculado: {completadas}/{total_etapas} etapas completadas")
         return estado
-    
+
     @staticmethod
     def validar_permiso_etapa(
         etapa: models.WorkflowEtapa,
@@ -217,10 +216,10 @@ class WorkflowExecutionService:
         # Si no hay perfiles definidos, todos tienen acceso
         if not etapa.perfiles_permitidos:
             return True
-        
+
         # Validar si el perfil está en la lista
         return perfil in etapa.perfiles_permitidos
-    
+
     @staticmethod
     def ejecutar_etapa(
         db: Session,
@@ -247,7 +246,7 @@ class WorkflowExecutionService:
             Estado actualizado del workflow
         """
         logger.info(f"Ejecutando etapa {etapa_id} de instancia {instancia_id} por usuario {user_id}")
-        
+
         # Obtener instancia
         instancia = db.query(models.WorkflowInstancia).options(
             joinedload(models.WorkflowInstancia.etapa_actual),
@@ -256,20 +255,20 @@ class WorkflowExecutionService:
             models.WorkflowInstancia.id == instancia_id,
             models.WorkflowInstancia.activo == True
         ).first()
-        
+
         if not instancia:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Instancia {instancia_id} no encontrada"
             )
-        
+
         # Validar que la etapa es la actual
         if instancia.etapa_actual_id != etapa_id:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"La etapa {etapa_id} no es la etapa actual. Etapa actual: {instancia.etapa_actual_id}"
             )
-        
+
         # Obtener la etapa
         etapa = db.query(models.WorkflowEtapa).options(
             joinedload(models.WorkflowEtapa.preguntas),
@@ -278,20 +277,20 @@ class WorkflowExecutionService:
             models.WorkflowEtapa.id == etapa_id,
             models.WorkflowEtapa.activo == True
         ).first()
-        
+
         if not etapa:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Etapa {etapa_id} no encontrada"
             )
-        
+
         # Validar permisos
         if not WorkflowExecutionService.validar_permiso_etapa(etapa, perfil):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail=f"El perfil {perfil} no tiene permiso para ejecutar esta etapa"
             )
-        
+
         # Validar respuestas obligatorias
         for pregunta in etapa.preguntas:
             if pregunta.es_obligatoria:
@@ -300,13 +299,13 @@ class WorkflowExecutionService:
                         status_code=status.HTTP_400_BAD_REQUEST,
                         detail=f"La pregunta '{pregunta.pregunta}' ({pregunta.codigo}) es obligatoria"
                     )
-        
+
         # Crear o actualizar RespuestaEtapa
         respuesta_etapa = db.query(models.WorkflowRespuestaEtapa).filter(
             models.WorkflowRespuestaEtapa.instancia_id == instancia_id,
             models.WorkflowRespuestaEtapa.etapa_id == etapa_id
         ).first()
-        
+
         if not respuesta_etapa:
             respuesta_etapa = models.WorkflowRespuestaEtapa(
                 instancia_id=instancia_id,
@@ -316,12 +315,12 @@ class WorkflowExecutionService:
             )
             db.add(respuesta_etapa)
             db.flush()
-        
+
         # Guardar respuestas individuales
         for pregunta in etapa.preguntas:
             valor_respuesta = respuestas.get(pregunta.codigo)
             archivos_respuesta = (archivos or {}).get(pregunta.codigo)
-            
+
             # Crear respuesta
             respuesta_obj = models.WorkflowRespuesta(
                 respuesta_etapa_id=respuesta_etapa.id,
@@ -329,7 +328,7 @@ class WorkflowExecutionService:
                 created_by=user_id,
                 updated_by=user_id
             )
-            
+
             # Asignar valor según tipo de pregunta
             if pregunta.tipo_pregunta in [
                 models.TipoPregunta.LISTA,
@@ -347,19 +346,19 @@ class WorkflowExecutionService:
                 respuesta_obj.archivos = archivos_respuesta or []
             else:
                 respuesta_obj.valor_texto = valor_respuesta
-            
+
             db.add(respuesta_obj)
-        
+
         # Marcar etapa como completada
         respuesta_etapa.completada = True
         respuesta_etapa.fecha_completado = datetime.utcnow()
         respuesta_etapa.updated_by = user_id
-        
+
         # Determinar siguiente etapa
         siguiente_etapa = WorkflowExecutionService._determinar_siguiente_etapa(
             db, etapa, respuestas
         )
-        
+
         # Actualizar instancia
         etapa_anterior_id = instancia.etapa_actual_id
         if siguiente_etapa:
@@ -370,9 +369,9 @@ class WorkflowExecutionService:
             instancia.etapa_actual_id = None
             instancia.estado = models.EstadoInstancia.COMPLETADO
             instancia.fecha_fin = datetime.utcnow()
-        
+
         instancia.updated_by = user_id
-        
+
         # Registrar en historial
         historial = models.WorkflowInstanciaHistorial(
             instancia_id=instancia_id,
@@ -385,19 +384,19 @@ class WorkflowExecutionService:
             created_by=user_id
         )
         db.add(historial)
-        
+
         db.commit()
         db.refresh(instancia)
-        
+
         logger.info(f"✅ Etapa {etapa_id} ejecutada exitosamente. Nueva etapa: {instancia.etapa_actual_id}")
-        
+
         # Retornar estado actualizado
         return {
             "success": True,
             "mensaje": "Etapa completada exitosamente",
             "workflow_state": WorkflowExecutionService.obtener_estado_workflow(db, instancia_id, perfil)
         }
-    
+
     @staticmethod
     def _determinar_siguiente_etapa(
         db: Session,
@@ -416,22 +415,22 @@ class WorkflowExecutionService:
             Siguiente etapa o None si es la última
         """
         logger.debug(f"Determinando siguiente etapa desde {etapa_actual.codigo}")
-        
+
         # Si es etapa final, no hay siguiente
         if etapa_actual.es_etapa_final:
             logger.info("Etapa actual es final, no hay siguiente")
             return None
-        
+
         # Obtener conexiones desde esta etapa
         conexiones = db.query(models.WorkflowConexion).filter(
             models.WorkflowConexion.etapa_origen_id == etapa_actual.id,
             models.WorkflowConexion.activo == True
         ).order_by(models.WorkflowConexion.es_predeterminada.desc()).all()
-        
+
         if not conexiones:
             logger.warning(f"No hay conexiones desde etapa {etapa_actual.codigo}")
             return None
-        
+
         # Evaluar condiciones de cada conexión
         for conexion in conexiones:
             # Si tiene condición, evaluarla
@@ -443,11 +442,11 @@ class WorkflowExecutionService:
             elif conexion.es_predeterminada:
                 logger.info(f"Usando conexión predeterminada, siguiente: {conexion.etapa_destino_id}")
                 return conexion.etapa_destino
-        
+
         # Si no se cumplió ninguna condición, usar la primera conexión
         logger.info(f"Usando primera conexión disponible, siguiente: {conexiones[0].etapa_destino_id}")
         return conexiones[0].etapa_destino
-    
+
     @staticmethod
     def _evaluar_condicion(condicion: Dict[str, Any], respuestas: Dict[str, Any]) -> bool:
         """
@@ -471,12 +470,12 @@ class WorkflowExecutionService:
             campo = condicion.get("campo")
             operador = condicion.get("operador", "==")
             valor_esperado = condicion.get("valor")
-            
+
             if not campo:
                 return True
-            
+
             valor_actual = respuestas.get(campo)
-            
+
             if operador == "==":
                 return valor_actual == valor_esperado
             elif operador == "!=":

@@ -40,7 +40,7 @@ def check_vista_config_exists(
         dict: {"existe": bool, "config_id": int | None}
     """
     config = vista_config_service.get_by_etapa_id(db, etapa_id)
-    
+
     return {
         "existe": config is not None and config.activo,
         "config_id": config.id if config else None
@@ -65,10 +65,10 @@ def get_vista_config_by_etapa(
         VistaConfig si existe, None si no hay configuración
     """
     config = vista_config_service.get_by_etapa_id(db, etapa_id)
-    
+
     if not config:
         return None
-    
+
     # Parse JSON para retornar como objeto
     config_dict = {
         "id": config.id,
@@ -80,7 +80,7 @@ def get_vista_config_by_etapa(
         "created_by": config.created_by,
         "updated_by": config.updated_by
     }
-    
+
     return config_dict
 
 
@@ -106,7 +106,7 @@ def create_vista_config(
     """
     try:
         config = vista_config_service.create(db, data)
-        
+
         return {
             "id": config.id,
             "etapa_id": config.etapa_id,
@@ -143,7 +143,7 @@ def update_vista_config(
     """
     try:
         config = vista_config_service.update(db, config_id, data)
-        
+
         return {
             "id": config.id,
             "etapa_id": config.etapa_id,
@@ -174,8 +174,8 @@ def delete_vista_config(
         HTTPException 404: Si la configuración no existe
     """
     success = vista_config_service.delete(db, config_id)
-    
+
     if not success:
         raise HTTPException(status_code=404, detail="Configuración no encontrada")
-    
+
     return None

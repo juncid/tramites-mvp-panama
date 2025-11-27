@@ -11,22 +11,15 @@ Siguiendo principios SOLID:
 """
 
 from sqlalchemy.orm import Session, joinedload, selectinload
-from sqlalchemy import func, and_, or_, desc, extract, text
+from sqlalchemy import func, and_, or_, desc, text
 from typing import List, Optional, Dict, Tuple
-from datetime import datetime, date, timedelta
+from datetime import datetime, date
 from fastapi import HTTPException, status
 import logging
 
 from app.models import models_ppsh
 from app.schemas import (
-    SolicitudCreate, SolicitudUpdate, SolicitudResponse,
-    SolicitanteCreate, SolicitanteUpdate, SolicitanteResponse,
-    DocumentoCreate, DocumentoUpdate, DocumentoResponse,
-    EntrevistaCreate, EntrevistaUpdate, EntrevistaResponse,
-    ComentarioCreate, ComentarioResponse,
-    CambiarEstadoRequest, EstadoHistorialResponse,
-    SolicitudFiltros, EstadisticasGenerales, EstadisticasPorEstado,
-    PaginatedResponse, SolicitudListResponse
+    SolicitudCreate, SolicitudUpdate, DocumentoCreate, EntrevistaCreate, EntrevistaUpdate, ComentarioCreate, CambiarEstadoRequest, SolicitudFiltros, EstadisticasGenerales, EstadisticasPorEstado
 )
 
 logger = logging.getLogger(__name__)
@@ -72,25 +65,25 @@ class PPSHPermissionException(HTTPException):
 PERMISOS_CAMBIO_ESTADO: Dict[str, List[str]] = {
     # RECIBIDO: Estado inicial, generado automáticamente por el sistema
     "RECIBIDO": ["SISTEMA", "ADMIN"],
-    
+
     # EN_REVISION: Cuando el expediente pasa a análisis documental
     "EN_REVISION": ["FUNCIONARIO", "ANALISTA", "JEFE", "DIRECTOR", "ADMIN"],
-    
+
     # EN_EVALUACION: Durante elaboración de resolución
     "EN_EVALUACION": ["ANALISTA", "JEFE", "DIRECTOR", "ADMIN"],
-    
+
     # APROBADO: Requiere firma de jefatura/dirección
     "APROBADO": ["JEFE", "DIRECTOR", "ADMIN"],
-    
+
     # RECHAZADO: Requiere autorización de jefatura y motivo obligatorio
     "RECHAZADO": ["JEFE", "DIRECTOR", "ADMIN"],
-    
+
     # RESUELTO: Conclusión formal después de entrega de documentos
     "RESUELTO": ["FUNCIONARIO", "ANALISTA", "JEFE", "DIRECTOR", "ADMIN"],
-    
+
     # SUBSANACION: Requiere documentos adicionales
     "SUBSANACION": ["FUNCIONARIO", "ANALISTA", "JEFE", "DIRECTOR", "ADMIN"],
-    
+
     # CANCELADO: Solo administradores
     "CANCELADO": ["JEFE", "DIRECTOR", "ADMIN"],
 }
@@ -119,23 +112,23 @@ def validar_permiso_cambio_estado(
     """
     # Obtener perfiles permitidos para este estado
     perfiles_permitidos = PERMISOS_CAMBIO_ESTADO.get(estado_nuevo, [])
-    
+
     # Si el estado no está en la matriz, solo ADMIN puede cambiarlo
     if not perfiles_permitidos:
         if user_perfil != "ADMIN":
             return False, f"El estado '{estado_nuevo}' no está configurado. Contacte al administrador."
         return True, None
-    
+
     # Verificar si el perfil está permitido
     if user_perfil not in perfiles_permitidos:
         perfiles_str = ", ".join(perfiles_permitidos)
         return False, f"Su perfil '{user_perfil}' no puede asignar el estado '{estado_nuevo}'. Perfiles permitidos: {perfiles_str}"
-    
+
     # Verificar si el estado requiere motivo obligatorio
     if estado_nuevo in ESTADOS_REQUIEREN_MOTIVO:
         if not observaciones or len(observaciones.strip()) < 10:
             return False, f"El estado '{estado_nuevo}' requiere observaciones/motivo (mínimo 10 caracteres)"
-    
+
     return True, None
 
 
@@ -145,7 +138,7 @@ def validar_permiso_cambio_estado(
 
 class CatalogoService:
     """Servicio para manejar catálogos del sistema PPSH"""
-    
+
     @staticmethod
     def get_causas_humanitarias(db: Session, activos_solo: bool = True) -> List[models_ppsh.PPSHCausaHumanitaria]:
         """Obtiene todas las causas humanitarias"""
@@ -153,7 +146,7 @@ class CatalogoService:
         if activos_solo:
             query = query.filter(models_ppsh.PPSHCausaHumanitaria.activo == True)
         return query.order_by(models_ppsh.PPSHCausaHumanitaria.nombre_causa).all()
-    
+
     @staticmethod
     def get_tipos_documento(db: Session, activos_solo: bool = True) -> List[models_ppsh.PPSHTipoDocumento]:
         """Obtiene todos los tipos de documento"""
@@ -161,7 +154,7 @@ class CatalogoService:
         if activos_solo:
             query = query.filter(models_ppsh.PPSHTipoDocumento.activo == True)
         return query.order_by(models_ppsh.PPSHTipoDocumento.orden).all()
-    
+
     @staticmethod
     def get_estados(db: Session, activos_solo: bool = True) -> List[models_ppsh.PPSHEstado]:
         """Obtiene todos los estados posibles"""
@@ -169,7 +162,7 @@ class CatalogoService:
         if activos_solo:
             query = query.filter(models_ppsh.PPSHEstado.activo == True)
         return query.order_by(models_ppsh.PPSHEstado.orden).all()
-    
+
     @staticmethod
     def get_estado_by_codigo(db: Session, codigo: str) -> models_ppsh.PPSHEstado:
         """Obtiene un estado por código"""
@@ -185,7 +178,7 @@ class CatalogoService:
 
 class SolicitudService:
     """Servicio para manejar solicitudes PPSH"""
-    
+
     @staticmethod
     def _generar_numero_expediente(db: Session) -> str:
         """
@@ -194,7 +187,7 @@ class SolicitudService:
         """
         año_actual = datetime.now().year
         prefijo = f"PPSH-{año_actual}-"
-        
+
         # Obtener el último número del año
         ultima_solicitud = (
             db.query(models_ppsh.PPSHSolicitud)
@@ -202,15 +195,15 @@ class SolicitudService:
             .order_by(desc(models_ppsh.PPSHSolicitud.num_expediente))
             .first()
         )
-        
+
         if ultima_solicitud:
             ultimo_numero = int(ultima_solicitud.num_expediente.split('-')[-1])
             nuevo_numero = ultimo_numero + 1
         else:
             nuevo_numero = 1
-        
+
         return f"{prefijo}{nuevo_numero:06d}"
-    
+
     @staticmethod
     def crear_solicitud(
         db: Session,
@@ -219,18 +212,18 @@ class SolicitudService:
     ) -> models_ppsh.PPSHSolicitud:
         """Crea una nueva solicitud PPSH con sus solicitantes"""
         logger.info(f"Creando solicitud PPSH por usuario {user_id}")
-        
+
         # Validar que existe la causa humanitaria
         causa = db.query(models_ppsh.PPSHCausaHumanitaria).filter(
             models_ppsh.PPSHCausaHumanitaria.cod_causa == solicitud_data.cod_causa_humanitaria,
             models_ppsh.PPSHCausaHumanitaria.activo == True
         ).first()
-        
+
         if not causa:
             raise PPSHBusinessException(
                 f"Causa humanitaria {solicitud_data.cod_causa_humanitaria} no existe o está inactiva"
             )
-        
+
         try:
             # Crear solicitud principal
             solicitud = models_ppsh.PPSHSolicitud(
@@ -246,10 +239,10 @@ class SolicitudService:
                 observaciones_generales=solicitud_data.observaciones_generales,
                 activo=True
             )
-            
+
             db.add(solicitud)
             db.flush()  # Obtener ID sin hacer commit
-            
+
             # Crear solicitantes
             for idx, sol_data in enumerate(solicitud_data.solicitantes):
                 solicitante = models_ppsh.PPSHSolicitante(
@@ -278,7 +271,7 @@ class SolicitudService:
                     activo=True
                 )
                 db.add(solicitante)
-            
+
             # Crear registro inicial en historial de estados
             historial = models_ppsh.PPSHEstadoHistorial(
                 id_solicitud=solicitud.id_solicitud,
@@ -291,18 +284,18 @@ class SolicitudService:
                 dias_en_estado_anterior=None
             )
             db.add(historial)
-            
+
             db.commit()
             db.refresh(solicitud)
-            
+
             logger.info(f"Solicitud {solicitud.num_expediente} creada exitosamente")
             return solicitud
-            
+
         except Exception as e:
             db.rollback()
             logger.error(f"Error creando solicitud: {str(e)}")
             raise PPSHBusinessException(f"Error creando solicitud: {str(e)}")
-    
+
     @staticmethod
     def get_solicitud(
         db: Session,
@@ -311,7 +304,7 @@ class SolicitudService:
     ) -> models_ppsh.PPSHSolicitud:
         """Obtiene una solicitud por ID con sus relaciones"""
         query = db.query(models_ppsh.PPSHSolicitud).filter(models_ppsh.PPSHSolicitud.id_solicitud == id_solicitud)
-        
+
         if incluir_relaciones:
             query = query.options(
                 joinedload(models_ppsh.PPSHSolicitud.causa_humanitaria),
@@ -322,24 +315,24 @@ class SolicitudService:
                 selectinload(models_ppsh.PPSHSolicitud.entrevistas),
                 selectinload(models_ppsh.PPSHSolicitud.comentarios)
             )
-        
+
         solicitud = query.first()
-        
+
         if not solicitud:
             raise PPSHNotFoundException("Solicitud", str(id_solicitud))
-        
+
         # Verificar si tiene workflow vinculado por num_expediente
         from app.models.models_workflow import WorkflowInstancia
         workflow_instancia = db.query(WorkflowInstancia).filter(
             WorkflowInstancia.num_expediente == solicitud.num_expediente,
             WorkflowInstancia.activo == True
         ).first()
-        
+
         # Asignar workflow_instancia_id si existe
         solicitud.workflow_instancia_id = workflow_instancia.id if workflow_instancia else None
-        
+
         return solicitud
-    
+
     @staticmethod
     def listar_solicitudes(
         db: Session,
@@ -351,34 +344,34 @@ class SolicitudService:
     ) -> Tuple[List[models_ppsh.PPSHSolicitud], int]:
         """Lista solicitudes con filtros y paginación"""
         query = db.query(models_ppsh.PPSHSolicitud).filter(models_ppsh.PPSHSolicitud.activo == True)
-        
+
         # Si no es admin, solo ve sus solicitudes asignadas
         if not es_admin and user_id:
             query = query.filter(models_ppsh.PPSHSolicitud.user_id_asignado == user_id)
-        
+
         # Aplicar filtros
         if filtros:
             if filtros.estado:
                 query = query.filter(models_ppsh.PPSHSolicitud.estado_actual == filtros.estado)
-            
+
             if filtros.prioridad:
                 query = query.filter(models_ppsh.PPSHSolicitud.prioridad == filtros.prioridad.value)
-            
+
             if filtros.causa_humanitaria:
                 query = query.filter(models_ppsh.PPSHSolicitud.cod_causa_humanitaria == filtros.causa_humanitaria)
-            
+
             if filtros.fecha_desde:
                 query = query.filter(models_ppsh.PPSHSolicitud.fecha_solicitud >= filtros.fecha_desde)
-            
+
             if filtros.fecha_hasta:
                 query = query.filter(models_ppsh.PPSHSolicitud.fecha_solicitud <= filtros.fecha_hasta)
-            
+
             if filtros.agencia:
                 query = query.filter(models_ppsh.PPSHSolicitud.cod_agencia == filtros.agencia)
-            
+
             if filtros.asignado_a:
                 query = query.filter(models_ppsh.PPSHSolicitud.user_id_asignado == filtros.asignado_a)
-            
+
             if filtros.buscar:
                 # Búsqueda en múltiples campos
                 buscar_like = f"%{filtros.buscar}%"
@@ -390,25 +383,25 @@ class SolicitudService:
                         models_ppsh.PPSHSolicitante.num_documento.like(buscar_like)
                     )
                 )
-        
+
         # Contar total
         total = query.count()
-        
+
         # Aplicar paginación y ordenar
         query = query.order_by(desc(models_ppsh.PPSHSolicitud.fecha_solicitud))
         query = query.offset((page - 1) * page_size).limit(page_size)
-        
+
         # Cargar relaciones necesarias para listado
         query = query.options(
             joinedload(models_ppsh.PPSHSolicitud.causa_humanitaria),
             joinedload(models_ppsh.PPSHSolicitud.estado),
             selectinload(models_ppsh.PPSHSolicitud.solicitantes)
         )
-        
+
         solicitudes = query.all()
-        
+
         return solicitudes, total
-    
+
     @staticmethod
     def actualizar_solicitud(
         db: Session,
@@ -418,30 +411,30 @@ class SolicitudService:
     ) -> models_ppsh.PPSHSolicitud:
         """Actualiza una solicitud existente"""
         solicitud = SolicitudService.get_solicitud(db, id_solicitud, incluir_relaciones=False)
-        
+
         logger.info(f"Actualizando solicitud {solicitud.num_expediente} por usuario {user_id}")
-        
+
         try:
             # Actualizar campos si están presentes
             update_data = solicitud_data.model_dump(exclude_unset=True)
-            
+
             for campo, valor in update_data.items():
                 if hasattr(solicitud, campo):
                     setattr(solicitud, campo, valor)
-            
+
             solicitud.updated_at = datetime.now()
-            
+
             db.commit()
             db.refresh(solicitud)
-            
+
             logger.info(f"Solicitud {solicitud.num_expediente} actualizada")
             return solicitud
-            
+
         except Exception as e:
             db.rollback()
             logger.error(f"Error actualizando solicitud: {str(e)}")
             raise PPSHBusinessException(f"Error actualizando solicitud: {str(e)}")
-    
+
     @staticmethod
     def asignar_solicitud(
         db: Session,
@@ -451,13 +444,13 @@ class SolicitudService:
     ) -> models_ppsh.PPSHSolicitud:
         """Asigna una solicitud a un funcionario"""
         solicitud = SolicitudService.get_solicitud(db, id_solicitud, incluir_relaciones=False)
-        
+
         logger.info(f"Asignando solicitud {solicitud.num_expediente} a {user_id_asignado}")
-        
+
         solicitud.user_id_asignado = user_id_asignado
         solicitud.fecha_asignacion = datetime.now()
         solicitud.updated_at = datetime.now()
-        
+
         # Registrar en comentarios
         comentario = models_ppsh.PPSHComentario(
             id_solicitud=id_solicitud,
@@ -466,12 +459,12 @@ class SolicitudService:
             es_interno=True
         )
         db.add(comentario)
-        
+
         db.commit()
         db.refresh(solicitud)
-        
+
         return solicitud
-    
+
     @staticmethod
     def cambiar_estado(
         db: Session,
@@ -498,10 +491,10 @@ class SolicitudService:
             PPSHBusinessException: Si hay error en la operación
         """
         solicitud = SolicitudService.get_solicitud(db, id_solicitud, incluir_relaciones=False)
-        
+
         # Validar que existe el nuevo estado
         nuevo_estado = CatalogoService.get_estado_by_codigo(db, cambio.estado_nuevo)
-        
+
         # ========================================
         # VALIDACIÓN DE PERMISOS POR PERFIL
         # ========================================
@@ -510,20 +503,20 @@ class SolicitudService:
             user_perfil=user_perfil,
             observaciones=cambio.observaciones
         )
-        
+
         if not es_valido:
             logger.warning(
                 f"Permiso denegado: Usuario {user_id} (perfil={user_perfil}) "
                 f"intentó cambiar solicitud {solicitud.num_expediente} a estado {cambio.estado_nuevo}"
             )
             raise PPSHPermissionException(mensaje_error)
-        
+
         logger.info(
             f"Cambiando estado de solicitud {solicitud.num_expediente} "
             f"de {solicitud.estado_actual} a {cambio.estado_nuevo} "
             f"(usuario={user_id}, perfil={user_perfil})"
         )
-        
+
         try:
             # Calcular días en estado anterior
             ultimo_cambio = (
@@ -532,11 +525,11 @@ class SolicitudService:
                 .order_by(desc(models_ppsh.PPSHEstadoHistorial.fecha_cambio))
                 .first()
             )
-            
+
             dias_en_estado = None
             if ultimo_cambio:
                 dias_en_estado = (datetime.now() - ultimo_cambio.fecha_cambio).days
-            
+
             # Crear registro en historial
             historial = models_ppsh.PPSHEstadoHistorial(
                 id_solicitud=id_solicitud,
@@ -551,57 +544,57 @@ class SolicitudService:
                 dias_en_estado_anterior=dias_en_estado
             )
             db.add(historial)
-            
+
             # Actualizar estado actual
             solicitud.estado_actual = cambio.estado_nuevo
             solicitud.updated_at = datetime.now()
-            
+
             # Si es estado final con resolución, actualizar fecha
             if nuevo_estado.es_final:
                 solicitud.fecha_resolucion = date.today()
-            
+
             db.commit()
             db.refresh(solicitud)
-            
-            logger.info(f"Estado actualizado exitosamente")
+
+            logger.info("Estado actualizado exitosamente")
             return solicitud
-            
+
         except Exception as e:
             db.rollback()
             logger.error(f"Error cambiando estado: {str(e)}")
             raise PPSHBusinessException(f"Error cambiando estado: {str(e)}")
-    
+
     @staticmethod
     def get_estadisticas(db: Session) -> EstadisticasGenerales:
         """Obtiene estadísticas generales del sistema PPSH"""
-        
+
         # Totales básicos
         total_solicitudes = db.query(func.count(models_ppsh.PPSHSolicitud.id_solicitud)).scalar()
         solicitudes_activas = db.query(func.count(models_ppsh.PPSHSolicitud.id_solicitud)).filter(
             models_ppsh.PPSHSolicitud.activo == True
         ).scalar()
-        
+
         # Estados finales
         estados_finales = db.query(models_ppsh.PPSHEstado.cod_estado).filter(
             models_ppsh.PPSHEstado.es_final == True
         ).all()
         codigos_finales = [e[0] for e in estados_finales]
-        
+
         solicitudes_aprobadas = db.query(func.count(models_ppsh.PPSHSolicitud.id_solicitud)).filter(
             models_ppsh.PPSHSolicitud.estado_actual == "APROBADO"
         ).scalar()
-        
+
         solicitudes_rechazadas = db.query(func.count(models_ppsh.PPSHSolicitud.id_solicitud)).filter(
             models_ppsh.PPSHSolicitud.estado_actual == "RECHAZADO"
         ).scalar()
-        
+
         solicitudes_en_proceso = db.query(func.count(models_ppsh.PPSHSolicitud.id_solicitud)).filter(
             and_(
                 models_ppsh.PPSHSolicitud.activo == True,
                 ~models_ppsh.PPSHSolicitud.estado_actual.in_(codigos_finales)
             )
         ).scalar()
-        
+
         # Promedio de días de procesamiento (solicitudes finalizadas)
         promedio_dias_result = db.execute(
             text("""
@@ -611,7 +604,7 @@ class SolicitudService:
             """)
         ).scalar()
         promedio_dias = float(promedio_dias_result) if promedio_dias_result else None
-        
+
         # Estadísticas por estado
         stats_result = db.execute(
             text("""
@@ -627,7 +620,7 @@ class SolicitudService:
                 ORDER BY e.orden
             """)
         ).fetchall()
-        
+
         stats_por_estado = [
             EstadisticasPorEstado(
                 cod_estado=row[0],
@@ -638,7 +631,7 @@ class SolicitudService:
             )
             for row in stats_result
         ]
-        
+
         return EstadisticasGenerales(
             total_solicitudes=total_solicitudes or 0,
             solicitudes_activas=solicitudes_activas or 0,
@@ -656,30 +649,30 @@ class SolicitudService:
 
 class DocumentoService:
     """Servicio para manejar documentos de solicitudes"""
-    
+
     @staticmethod
     def listar_documentos(
         db: Session,
         id_solicitud: int
     ) -> List[models_ppsh.PPSHDocumento]:
         """Lista todos los documentos de una solicitud con información de OCR"""
-        
+
         # Validar que existe la solicitud
         SolicitudService.get_solicitud(db, id_solicitud, incluir_relaciones=False)
-        
+
         logger.info(f"Listando documentos para solicitud {id_solicitud}")
-        
+
         # Eager load de la relación ocr_results para evitar N+1 queries
         from sqlalchemy.orm import joinedload
-        
+
         documentos = db.query(models_ppsh.PPSHDocumento).options(
             joinedload(models_ppsh.PPSHDocumento.ocr_results)
         ).filter(
             models_ppsh.PPSHDocumento.id_solicitud == id_solicitud
         ).order_by(models_ppsh.PPSHDocumento.uploaded_at.desc()).all()
-        
+
         return documentos
-    
+
     @staticmethod
     def actualizar_estado_ocr_documentos(
         db: Session,
@@ -705,28 +698,28 @@ class DocumentoService:
             }
         """
         from app.models.models_ocr import PPSHDocumentoOCR
-        
+
         logger.info(f"Actualizando estado OCR de {len(documentos_update)} documentos")
-        
+
         count = 0
         for doc_data in documentos_update:
             id_documento = doc_data['id_documento']
             ocr_exitoso = doc_data['ocr_exitoso']
-            
+
             # Verificar que el documento existe
             documento = db.query(models_ppsh.PPSHDocumento).filter(
                 models_ppsh.PPSHDocumento.id_documento == id_documento
             ).first()
-            
+
             if not documento:
                 logger.warning(f"Documento {id_documento} no encontrado")
                 continue
-            
+
             # Buscar o crear registro OCR
             ocr_record = db.query(PPSHDocumentoOCR).filter(
                 PPSHDocumentoOCR.id_documento == id_documento
             ).order_by(PPSHDocumentoOCR.created_at.desc()).first()
-            
+
             if ocr_record:
                 # Actualizar registro existente
                 if ocr_exitoso:
@@ -747,12 +740,12 @@ class DocumentoService:
                         created_at=datetime.now()
                     )
                     db.add(nuevo_ocr)
-            
+
             count += 1
-        
+
         db.commit()
         logger.info(f"Se actualizaron {count} documentos correctamente")
-        
+
         # Verificar si todos los documentos de la solicitud tienen OCR exitoso
         resultado = {
             'documentos_actualizados': count,
@@ -760,32 +753,32 @@ class DocumentoService:
             'total_documentos': 0,
             'documentos_con_ocr': 0
         }
-        
+
         if id_solicitud:
             # Obtener todos los documentos de la solicitud
             todos_documentos = db.query(models_ppsh.PPSHDocumento).filter(
                 models_ppsh.PPSHDocumento.id_solicitud == id_solicitud
             ).all()
-            
+
             resultado['total_documentos'] = len(todos_documentos)
-            
+
             # Contar documentos con OCR exitoso
             documentos_con_ocr_exitoso = 0
             for doc in todos_documentos:
                 ocr_record = db.query(PPSHDocumentoOCR).filter(
                     PPSHDocumentoOCR.id_documento == doc.id_documento
                 ).order_by(PPSHDocumentoOCR.created_at.desc()).first()
-                
+
                 if ocr_record and ocr_record.estado_ocr == 'COMPLETADO' and ocr_record.texto_confianza and ocr_record.texto_confianza >= 70.0:
                     documentos_con_ocr_exitoso += 1
-            
+
             resultado['documentos_con_ocr'] = documentos_con_ocr_exitoso
-            
+
             # Todos los documentos tienen OCR exitoso?
             if resultado['total_documentos'] > 0 and documentos_con_ocr_exitoso == resultado['total_documentos']:
                 resultado['revision_ocr_completada'] = True
                 logger.info(f"✅ Todos los documentos de la solicitud {id_solicitud} tienen OCR exitoso - Etapa 1.7 COMPLETADA")
-                
+
                 # Actualizar etapa 1.7 a COMPLETADO
                 try:
                     PPSHEtapaService.actualizar_estado_etapa(
@@ -798,9 +791,9 @@ class DocumentoService:
                     )
                 except Exception as e:
                     logger.warning(f"No se pudo actualizar etapa 1.7: {str(e)}")
-        
+
         return resultado
-    
+
     @staticmethod
     def registrar_documento(
         db: Session,
@@ -810,12 +803,12 @@ class DocumentoService:
         uploaded_by: str
     ) -> models_ppsh.PPSHDocumento:
         """Registra un documento en una solicitud"""
-        
+
         # Validar que existe la solicitud
         SolicitudService.get_solicitud(db, id_solicitud, incluir_relaciones=False)
-        
+
         logger.info(f"Registrando documento {documento_data.nombre_archivo} para solicitud {id_solicitud}")
-        
+
         documento = models_ppsh.PPSHDocumento(
             id_solicitud=id_solicitud,
             cod_tipo_documento=documento_data.cod_tipo_documento,
@@ -828,13 +821,13 @@ class DocumentoService:
             uploaded_at=datetime.now(),
             observaciones=documento_data.observaciones
         )
-        
+
         db.add(documento)
         db.commit()
         db.refresh(documento)
-        
+
         return documento
-    
+
     @staticmethod
     def verificar_documento(
         db: Session,
@@ -847,21 +840,21 @@ class DocumentoService:
         documento = db.query(models_ppsh.PPSHDocumento).filter(
             models_ppsh.PPSHDocumento.id_documento == id_documento
         ).first()
-        
+
         if not documento:
             raise PPSHNotFoundException("Documento", str(id_documento))
-        
+
         logger.info(f"Verificando documento {id_documento} con estado {estado}")
-        
+
         documento.estado_verificacion = estado
         documento.verificado_por = verificado_por
         documento.fecha_verificacion = datetime.now()
         if observaciones:
             documento.observaciones = observaciones
-        
+
         db.commit()
         db.refresh(documento)
-        
+
         return documento
 
 
@@ -871,7 +864,7 @@ class DocumentoService:
 
 class EntrevistaService:
     """Servicio para manejar entrevistas"""
-    
+
     @staticmethod
     def programar_entrevista(
         db: Session,
@@ -880,12 +873,12 @@ class EntrevistaService:
         user_id: str
     ) -> models_ppsh.PPSHEntrevista:
         """Programa una entrevista para una solicitud"""
-        
+
         # Validar que existe la solicitud
         solicitud = SolicitudService.get_solicitud(db, id_solicitud, incluir_relaciones=False)
-        
+
         logger.info(f"Programando entrevista para solicitud {solicitud.num_expediente}")
-        
+
         entrevista = models_ppsh.PPSHEntrevista(
             id_solicitud=id_solicitud,
             fecha_programada=entrevista_data.fecha_programada,
@@ -896,9 +889,9 @@ class EntrevistaService:
             observaciones=entrevista_data.observaciones,
             requiere_segunda_entrevista=False
         )
-        
+
         db.add(entrevista)
-        
+
         # Registrar comentario
         comentario = models_ppsh.PPSHComentario(
             id_solicitud=id_solicitud,
@@ -907,12 +900,12 @@ class EntrevistaService:
             es_interno=True
         )
         db.add(comentario)
-        
+
         db.commit()
         db.refresh(entrevista)
-        
+
         return entrevista
-    
+
     @staticmethod
     def registrar_resultado(
         db: Session,
@@ -924,20 +917,20 @@ class EntrevistaService:
         entrevista = db.query(models_ppsh.PPSHEntrevista).filter(
             models_ppsh.PPSHEntrevista.id_entrevista == id_entrevista
         ).first()
-        
+
         if not entrevista:
             raise PPSHNotFoundException("Entrevista", str(id_entrevista))
-        
+
         logger.info(f"Registrando resultado de entrevista {id_entrevista}")
-        
+
         # Actualizar campos
         update_data = entrevista_data.model_dump(exclude_unset=True)
         for campo, valor in update_data.items():
             if hasattr(entrevista, campo):
                 setattr(entrevista, campo, valor)
-        
+
         entrevista.updated_at = datetime.now()
-        
+
         # Registrar comentario si cambió resultado
         if entrevista_data.resultado:
             comentario = models_ppsh.PPSHComentario(
@@ -947,10 +940,10 @@ class EntrevistaService:
                 es_interno=True
             )
             db.add(comentario)
-        
+
         db.commit()
         db.refresh(entrevista)
-        
+
         return entrevista
 
 
@@ -960,7 +953,7 @@ class EntrevistaService:
 
 class PPSHComentarioService:
     """Servicio para manejar comentarios de PPSH"""
-    
+
     @staticmethod
     def crear_comentario(
         db: Session,
@@ -969,25 +962,25 @@ class PPSHComentarioService:
         user_id: str
     ) -> models_ppsh.PPSHComentario:
         """Crea un nuevo comentario en una solicitud"""
-        
+
         # Validar que existe la solicitud
         SolicitudService.get_solicitud(db, id_solicitud, incluir_relaciones=False)
-        
+
         logger.info(f"Agregando comentario a solicitud {id_solicitud}")
-        
+
         comentario = models_ppsh.PPSHComentario(
             id_solicitud=id_solicitud,
             user_id=user_id,
             comentario=comentario_data.comentario,
             es_interno=comentario_data.es_interno
         )
-        
+
         db.add(comentario)
         db.commit()
         db.refresh(comentario)
-        
+
         return comentario
-    
+
     @staticmethod
     def listar_comentarios(
         db: Session,
@@ -998,10 +991,10 @@ class PPSHComentarioService:
         query = db.query(models_ppsh.PPSHComentario).filter(
             models_ppsh.PPSHComentario.id_solicitud == id_solicitud
         )
-        
+
         if not incluir_internos:
             query = query.filter(models_ppsh.PPSHComentario.es_interno == False)
-        
+
         return query.order_by(models_ppsh.PPSHComentario.created_at).all()
 
 
@@ -1011,7 +1004,7 @@ class PPSHComentarioService:
 
 class PPSHEtapaService:
     """Servicio para gestión de etapas de solicitudes PPSH"""
-    
+
     @staticmethod
     def obtener_etapas_solicitud(
         db: Session,
@@ -1023,19 +1016,19 @@ class PPSHEtapaService:
         """
         # Verificar que la solicitud existe
         solicitud = SolicitudService.get_solicitud(db, id_solicitud, incluir_relaciones=False)
-        
+
         # Obtener etapas existentes
         etapas = db.query(models_ppsh.PPSHEtapaSolicitud).filter(
             models_ppsh.PPSHEtapaSolicitud.id_solicitud == id_solicitud
         ).order_by(models_ppsh.PPSHEtapaSolicitud.orden).all()
-        
+
         # Si no hay etapas, crearlas
         if not etapas:
             logger.info(f"Creando etapas por defecto para solicitud {id_solicitud}")
             etapas = PPSHEtapaService._crear_etapas_por_defecto(db, id_solicitud)
-        
+
         return etapas
-    
+
     @staticmethod
     def _crear_etapas_por_defecto(
         db: Session,
@@ -1056,7 +1049,7 @@ class PPSHEtapaService:
                 'orden': 2
             }
         ]
-        
+
         etapas_creadas = []
         for config in etapas_config:
             nueva_etapa = models_ppsh.PPSHEtapaSolicitud(
@@ -1066,15 +1059,15 @@ class PPSHEtapaService:
             )
             db.add(nueva_etapa)
             etapas_creadas.append(nueva_etapa)
-        
+
         db.commit()
-        
+
         # Refrescar para obtener IDs
         for etapa in etapas_creadas:
             db.refresh(etapa)
-        
+
         return etapas_creadas
-    
+
     @staticmethod
     def actualizar_estado_etapa(
         db: Session,
@@ -1092,7 +1085,7 @@ class PPSHEtapaService:
             models_ppsh.PPSHEtapaSolicitud.id_solicitud == id_solicitud,
             models_ppsh.PPSHEtapaSolicitud.codigo_etapa == codigo_etapa
         ).first()
-        
+
         if not etapa:
             # Si no existe la etapa, crearla
             logger.info(f"Etapa {codigo_etapa} no existe para solicitud {id_solicitud}, creando...")
@@ -1105,28 +1098,28 @@ class PPSHEtapaService:
                 created_at=datetime.now()
             )
             db.add(etapa)
-        
+
         # Actualizar estado
         estado_anterior = etapa.estado
         etapa.estado = nuevo_estado
-        
+
         if observaciones:
             etapa.observaciones = observaciones
-        
+
         # Si cambió a COMPLETADO, marcar fecha
         if nuevo_estado == 'COMPLETADO' and estado_anterior != 'COMPLETADO':
             etapa.fecha_completado = datetime.now()
             if completado_por:
                 etapa.completado_por = completado_por
             logger.info(f"✅ Etapa {codigo_etapa} de solicitud {id_solicitud} marcada como COMPLETADA")
-        
+
         # Si cambió a EN_PROCESO por primera vez, marcar fecha de inicio
         if nuevo_estado == 'EN_PROCESO' and not etapa.fecha_inicio:
             etapa.fecha_inicio = datetime.now()
-        
+
         etapa.updated_at = datetime.now()
-        
+
         db.commit()
         db.refresh(etapa)
-        
+
         return etapa

@@ -30,7 +30,7 @@ class IniciarSolicitudRequest(BaseModel):
     email: Optional[EmailStr] = Field(None, description="Email del solicitante (opcional)")
     nacionalidad: Optional[str] = Field(None, max_length=50, description="Nacionalidad del solicitante")
     sexo: Optional[str] = Field(None, pattern="^(M|F|OTRO)$", description="Sexo del solicitante (M/F/OTRO)")
-    
+
     class Config:
         json_schema_extra = {
             "example": {
@@ -69,7 +69,7 @@ class ValidarCodigoRequest(BaseModel):
     """Request para validar acceso por código y pasaporte"""
     codigo_acceso: str = Field(..., min_length=8, max_length=12, description="Código de acceso (ej: PPSH-A7X9)")
     pasaporte: str = Field(..., min_length=5, max_length=20, description="Número de pasaporte del solicitante")
-    
+
     class Config:
         json_schema_extra = {
             "example": {
@@ -137,12 +137,12 @@ def iniciar_solicitud(
             nacionalidad=request.nacionalidad,
             sexo=request.sexo
         )
-        
+
         return IniciarSolicitudResponse(
             success=True,
             **result
         )
-        
+
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -175,10 +175,10 @@ def validar_token(
     **Acceso:** Público (sin autenticación)
     """
     instancia = PublicSolicitudService.obtener_instancia_por_token(db, token)
-    
+
     if not instancia:
         return ValidarTokenResponse(valid=False)
-    
+
     return ValidarTokenResponse(
         valid=True,
         instancia_id=instancia.id,
@@ -208,13 +208,13 @@ def obtener_instancia_por_token(
     **Acceso:** Público (con token válido)
     """
     instancia = PublicSolicitudService.obtener_instancia_por_token(db, token)
-    
+
     if not instancia:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Token inválido o expirado"
         )
-    
+
     # Retornar datos básicos de la instancia con etapas del workflow
     etapas_data = []
     if instancia.workflow and instancia.workflow.etapas:
@@ -229,7 +229,7 @@ def obtener_instancia_por_token(
                     "es_etapa_inicial": etapa.es_etapa_inicial,
                     "es_etapa_final": etapa.es_etapa_final,
                 })
-    
+
     return {
         "id": instancia.id,
         "workflow_id": instancia.workflow_id,
@@ -286,13 +286,13 @@ def validar_codigo_acceso(
         codigo_acceso=request.codigo_acceso,
         pasaporte=request.pasaporte
     )
-    
+
     if not result:
         return ValidarCodigoResponse(
             success=False,
             mensaje="Código de acceso o pasaporte inválido. Verifique sus datos e intente nuevamente."
         )
-    
+
     return ValidarCodigoResponse(
         success=True,
         **result
@@ -314,7 +314,7 @@ def verificar_codigo_existe(
     **Acceso:** Público (sin autenticación)
     """
     instancia = PublicSolicitudService.obtener_instancia_por_codigo(db, codigo_acceso)
-    
+
     return {
         "existe": instancia is not None,
         "codigo_acceso": codigo_acceso.strip().upper()

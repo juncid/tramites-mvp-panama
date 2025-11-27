@@ -39,7 +39,7 @@ class WorkflowPPSHIntegrationService:
     solicitudes PPSH específicas, manteniendo ambos sistemas independientes
     pero referenciados.
     """
-    
+
     @staticmethod
     def crear_instancia_con_solicitud_ppsh(
         db: Session,
@@ -73,17 +73,17 @@ class WorkflowPPSHIntegrationService:
             f"Iniciando creación de instancia de workflow {workflow_id} "
             f"con solicitud PPSH por usuario {user_id}"
         )
-        
+
         try:
             # 1. Validar que el workflow existe y está activo
             workflow = WorkflowService.obtener_workflow(db, workflow_id)
-            
+
             if not workflow.activo:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail=f"El workflow {workflow.codigo} no está activo"
                 )
-            
+
             # 2. Validar que el workflow es compatible con PPSH (opcional)
             # TODO: Agregar campo tipo_solicitud_asociado a WORKFLOW para validación estricta
             if workflow.categoria and workflow.categoria != "PPSH":
@@ -91,7 +91,7 @@ class WorkflowPPSHIntegrationService:
                     f"Workflow {workflow.codigo} tiene categoría '{workflow.categoria}' "
                     f"diferente a PPSH. Continuando sin validación estricta."
                 )
-            
+
             # 3. Crear solicitud PPSH primero (para obtener su ID)
             logger.debug("Creando solicitud PPSH...")
             solicitud = SolicitudService.crear_solicitud(
@@ -103,10 +103,10 @@ class WorkflowPPSHIntegrationService:
                 f"✅ Solicitud PPSH creada: ID={solicitud.id_solicitud}, "
                 f"Expediente={solicitud.num_expediente}"
             )
-            
+
             # 4. Crear instancia de workflow con referencia a solicitud PPSH
             logger.debug("Creando instancia de workflow...")
-            
+
             # Construir metadata_adicional con referencia a solicitud
             metadata_adicional = {
                 "ppsh_solicitud_id": solicitud.id_solicitud,
@@ -116,7 +116,7 @@ class WorkflowPPSHIntegrationService:
                 "fecha_vinculacion": datetime.now().isoformat(),
                 "vinculado_por": user_id
             }
-            
+
             # Construir nombre de instancia si no se proporcionó
             if not nombre_instancia:
                 causa = solicitud.causa_humanitaria
@@ -124,7 +124,7 @@ class WorkflowPPSHIntegrationService:
                     f"Solicitud PPSH - {causa.nombre_causa if causa else 'Sin causa'} - "
                     f"{solicitud.num_expediente}"
                 )
-            
+
             # Crear datos de instancia
             instancia_create = schemas_workflow.WorkflowInstanciaCreate(
                 workflow_id=workflow_id,
@@ -132,33 +132,33 @@ class WorkflowPPSHIntegrationService:
                 metadata_adicional=metadata_adicional,
                 prioridad=solicitud.prioridad  # Sincronizar prioridad inicial
             )
-            
+
             instancia = InstanciaService.crear_instancia(
                 db=db,
                 instancia_data=instancia_create,
                 created_by=user_id
             )
-            
+
             logger.info(
                 f"✅ Instancia de workflow creada: ID={instancia.id}, "
                 f"Expediente={instancia.num_expediente}"
             )
-            
+
             # 5. Commit de la transacción
             db.commit()
-            
+
             logger.info(
                 f"🎉 Integración completada exitosamente: "
                 f"Workflow Instancia {instancia.id} ↔ Solicitud PPSH {solicitud.id_solicitud}"
             )
-            
+
             return instancia, solicitud
-            
+
         except HTTPException:
             # Re-lanzar excepciones HTTP (ya tienen el formato correcto)
             db.rollback()
             raise
-            
+
         except SQLAlchemyError as e:
             db.rollback()
             logger.error(f"Error de base de datos al crear instancia con solicitud PPSH: {str(e)}")
@@ -166,7 +166,7 @@ class WorkflowPPSHIntegrationService:
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Error al crear la instancia de workflow con solicitud PPSH"
             )
-            
+
         except Exception as e:
             db.rollback()
             logger.error(f"Error inesperado al crear instancia con solicitud PPSH: {str(e)}")
@@ -174,7 +174,7 @@ class WorkflowPPSHIntegrationService:
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Error inesperado: {str(e)}"
             )
-    
+
     @staticmethod
     def vincular_solicitud_existente(
         db: Session,
@@ -208,26 +208,26 @@ class WorkflowPPSHIntegrationService:
             f"Vinculando solicitud PPSH existente {solicitud_id} "
             f"a workflow {workflow_id} por usuario {user_id}"
         )
-        
+
         try:
             # 1. Validar que el workflow existe y está activo
             workflow = WorkflowService.obtener_workflow(db, workflow_id)
-            
+
             if not workflow.activo:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail=f"El workflow {workflow.codigo} no está activo"
                 )
-            
+
             # 2. Validar que la solicitud existe
             solicitud = SolicitudService.get_solicitud(db, solicitud_id)
-            
+
             if not solicitud.activo:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail=f"La solicitud {solicitud.num_expediente} no está activa"
                 )
-            
+
             # 3. Verificar que la solicitud no esté ya vinculada a otra instancia
             instancia_existente = db.query(models_workflow.WorkflowInstancia).filter(
                 models_workflow.WorkflowInstancia.metadata_adicional.contains(
@@ -235,7 +235,7 @@ class WorkflowPPSHIntegrationService:
                 ),
                 models_workflow.WorkflowInstancia.activo == True
             ).first()
-            
+
             if instancia_existente:
                 logger.warning(
                     f"Solicitud {solicitud.num_expediente} ya está vinculada "
@@ -248,7 +248,7 @@ class WorkflowPPSHIntegrationService:
                         f"a la instancia de workflow {instancia_existente.num_expediente}"
                     )
                 )
-            
+
             # 4. Crear metadata_adicional con referencia a solicitud
             metadata_adicional = {
                 "ppsh_solicitud_id": solicitud.id_solicitud,
@@ -259,7 +259,7 @@ class WorkflowPPSHIntegrationService:
                 "vinculado_por": user_id,
                 "es_vinculacion_posterior": True  # Marca que fue vinculada después
             }
-            
+
             # 5. Construir nombre de instancia si no se proporcionó
             if not nombre_instancia:
                 causa = solicitud.causa_humanitaria
@@ -267,7 +267,7 @@ class WorkflowPPSHIntegrationService:
                     f"Solicitud PPSH - {causa.nombre_causa if causa else 'Sin causa'} - "
                     f"{solicitud.num_expediente}"
                 )
-            
+
             # 6. Crear instancia
             instancia_create = schemas_workflow.WorkflowInstanciaCreate(
                 workflow_id=workflow_id,
@@ -275,26 +275,26 @@ class WorkflowPPSHIntegrationService:
                 metadata_adicional=metadata_adicional,
                 prioridad=solicitud.prioridad
             )
-            
+
             instancia = InstanciaService.crear_instancia(
                 db=db,
                 instancia_data=instancia_create,
                 created_by=user_id
             )
-            
+
             db.commit()
-            
+
             logger.info(
                 f"✅ Solicitud existente vinculada: "
                 f"Instancia {instancia.id} ↔ Solicitud {solicitud.id_solicitud}"
             )
-            
+
             return instancia
-            
+
         except HTTPException:
             db.rollback()
             raise
-            
+
         except Exception as e:
             db.rollback()
             logger.error(f"Error al vincular solicitud existente: {str(e)}")
@@ -302,7 +302,7 @@ class WorkflowPPSHIntegrationService:
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Error al vincular solicitud existente: {str(e)}"
             )
-    
+
     @staticmethod
     def obtener_solicitud_ppsh_desde_instancia(
         db: Session,
@@ -323,16 +323,16 @@ class WorkflowPPSHIntegrationService:
         """
         # Obtener instancia
         instancia = InstanciaService.obtener_instancia(db, instancia_id)
-        
+
         # Extraer solicitud_id de metadata_adicional
         if not instancia.metadata_adicional:
             return None
-        
+
         solicitud_id = instancia.metadata_adicional.get("ppsh_solicitud_id")
-        
+
         if not solicitud_id:
             return None
-        
+
         # Obtener solicitud
         try:
             solicitud = SolicitudService.get_solicitud(db, solicitud_id)
@@ -345,7 +345,7 @@ class WorkflowPPSHIntegrationService:
                 )
                 return None
             raise
-    
+
     @staticmethod
     def obtener_datos_vinculacion(
         db: Session,
@@ -362,10 +362,10 @@ class WorkflowPPSHIntegrationService:
             Diccionario con datos de vinculación o None si no hay vinculación
         """
         instancia = InstanciaService.obtener_instancia(db, instancia_id)
-        
+
         if not instancia.metadata_adicional:
             return None
-        
+
         # Extraer datos de vinculación
         vinculacion = {
             "ppsh_solicitud_id": instancia.metadata_adicional.get("ppsh_solicitud_id"),
@@ -376,9 +376,9 @@ class WorkflowPPSHIntegrationService:
             "vinculado_por": instancia.metadata_adicional.get("vinculado_por"),
             "es_vinculacion_posterior": instancia.metadata_adicional.get("es_vinculacion_posterior", False)
         }
-        
+
         # Validar que al menos tenga solicitud_id
         if not vinculacion["ppsh_solicitud_id"]:
             return None
-        
+
         return vinculacion

@@ -11,7 +11,7 @@ class ValidarAccesoRequest(BaseModel):
     numero_solicitud: str = Field(..., min_length=5, max_length=50)
     tipo_documento: str = Field(..., regex="^(PASAPORTE|CEDULA)$")
     numero_documento: str = Field(..., min_length=5, max_length=50)
-    
+
     @validator('numero_solicitud', 'numero_documento')
     def to_uppercase(cls, v):
         return v.upper().strip()
@@ -64,7 +64,7 @@ class SolicitudPublicaResponse(BaseModel):
     documentos_requeridos: List[DocumentoPublico]
     observaciones: Optional[str]
     proximo_paso: Optional[str]
-    
+
     class Config:
         from_attributes = True
 
@@ -92,6 +92,6 @@ class AccesoPublicoInDB(BaseModel):
     intentos_fallidos: int
     bloqueado_hasta: Optional[datetime]
     fecha_creacion: datetime
-    
+
     class Config:
         from_attributes = True

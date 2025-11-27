@@ -29,11 +29,9 @@ from app.schemas import (
     SolicitudCreate, SolicitudUpdate, SolicitudResponse,
     SolicitudListResponse, PaginatedResponse, SolicitudFiltros,
     # Solicitantes
-    SolicitanteUpdate, SolicitanteResponse,
-    # Estados
     CambiarEstadoRequest, EstadoHistorialResponse, EstadoResponse,
     # Documentos
-    DocumentoCreate, DocumentoUpdate, DocumentoResponse,
+    DocumentoCreate, DocumentoResponse,
     ActualizarOCRDocumentosRequest,
     # Entrevistas
     EntrevistaCreate, EntrevistaUpdate, EntrevistaResponse,
@@ -46,7 +44,7 @@ from app.schemas import (
     # Etapas
     EtapaSolicitudResponse, ActualizarEstadoEtapaRequest,
     # Enums
-    PrioridadEnum, TipoSolicitudEnum, EstadoVerificacionEnum
+    PrioridadEnum, EstadoVerificacionEnum
 )
 from app.models.models_ppsh import PPSHDocumento
 
@@ -203,7 +201,7 @@ async def listar_solicitudes(
         asignado_a=asignado_a,
         buscar=buscar
     )
-    
+
     solicitudes, total = SolicitudService.listar_solicitudes(
         db=db,
         filtros=filtros,
@@ -212,13 +210,13 @@ async def listar_solicitudes(
         user_id=current_user["user_id"],
         es_admin=current_user.get("es_admin", False)
     )
-    
+
     # Convertir a response simplificado para listados
     items = []
     for sol in solicitudes:
         titular = next((s for s in sol.solicitantes if s.es_titular), None)
         dias_transcurridos = (date.today() - sol.fecha_solicitud).days
-        
+
         items.append(SolicitudListResponse(
             id_solicitud=sol.id_solicitud,
             num_expediente=sol.num_expediente,
@@ -231,9 +229,9 @@ async def listar_solicitudes(
             dias_transcurridos=dias_transcurridos,
             created_at=sol.created_at
         ))
-    
+
     total_pages = (total + page_size - 1) // page_size
-    
+
     return PaginatedResponse(
         total=total,
         page=page,
@@ -257,11 +255,11 @@ async def obtener_solicitud(
     """Obtiene una solicitud con todas sus relaciones"""
     try:
         solicitud = SolicitudService.get_solicitud(db, id_solicitud, incluir_relaciones=True)
-        
+
         # Verificar permisos (admin o asignado)
         if not current_user.get("es_admin") and solicitud.user_id_asignado != current_user["user_id"]:
             raise PPSHPermissionException()
-        
+
         return solicitud
     except PPSHNotFoundException as e:
         raise e
@@ -285,7 +283,7 @@ async def actualizar_solicitud(
         solicitud_db = SolicitudService.get_solicitud(db, id_solicitud, incluir_relaciones=False)
         if not current_user.get("es_admin") and solicitud_db.user_id_asignado != current_user["user_id"]:
             raise PPSHPermissionException()
-        
+
         return SolicitudService.actualizar_solicitud(
             db=db,
             id_solicitud=id_solicitud,
@@ -311,7 +309,7 @@ async def asignar_solicitud(
     """Asigna una solicitud a un funcionario. Requiere rol admin."""
     if not current_user.get("es_admin"):
         raise PPSHPermissionException("Solo administradores pueden asignar solicitudes")
-    
+
     try:
         return SolicitudService.asignar_solicitud(
             db=db,
@@ -358,12 +356,12 @@ async def cambiar_estado_solicitud(
         solicitud = SolicitudService.get_solicitud(db, id_solicitud, incluir_relaciones=False)
         if not current_user.get("es_admin") and solicitud.user_id_asignado != current_user["user_id"]:
             raise PPSHPermissionException("No tiene la solicitud asignada")
-        
+
         # Obtener perfil del usuario
         user_perfil = current_user.get("perfil", "FUNCIONARIO")
         if current_user.get("es_admin"):
             user_perfil = "ADMIN"
-        
+
         return SolicitudService.cambiar_estado(
             db=db,
             id_solicitud=id_solicitud,
@@ -389,11 +387,11 @@ async def obtener_historial_estados(
     """Obtiene el historial de estados de una solicitud"""
     try:
         solicitud = SolicitudService.get_solicitud(db, id_solicitud, incluir_relaciones=True)
-        
+
         # Verificar permisos
         if not current_user.get("es_admin") and solicitud.user_id_asignado != current_user["user_id"]:
             raise PPSHPermissionException()
-        
+
         return solicitud.historial
     except PPSHNotFoundException as e:
         raise e
@@ -427,32 +425,32 @@ async def listar_documentos(
     try:
         # Verificar que la solicitud existe y el usuario tiene permisos
         solicitud = SolicitudService.get_solicitud(db, id_solicitud, incluir_relaciones=False)
-        
+
         # Verificar permisos (admin o asignado)
         if not current_user.get("es_admin") and solicitud.user_id_asignado != current_user["user_id"]:
             raise PPSHPermissionException()
-        
+
         documentos = DocumentoService.listar_documentos(db, id_solicitud)
-        
+
         # Convertir a response incluyendo información de OCR
         response_list = []
         for doc in documentos:
             # Obtener el resultado OCR más reciente si existe
             ocr_resultado = None
             ocr_exitoso = False
-            
+
             if doc.ocr_results:
                 # Ordenar por fecha de creación y tomar el más reciente
                 ultimo_ocr = sorted(doc.ocr_results, key=lambda x: x.created_at, reverse=True)[0]
-                
+
                 # Determinar si el OCR fue exitoso
                 # Criterios: estado_ocr = 'COMPLETADO' y confianza >= 70%
                 ocr_exitoso = (
-                    ultimo_ocr.estado_ocr == 'COMPLETADO' and 
-                    ultimo_ocr.texto_confianza is not None and 
+                    ultimo_ocr.estado_ocr == 'COMPLETADO' and
+                    ultimo_ocr.texto_confianza is not None and
                     float(ultimo_ocr.texto_confianza) >= 70.0
                 )
-                
+
                 # Parsear datos estructurados si existen
                 import json
                 datos_estructurados = None
@@ -461,7 +459,7 @@ async def listar_documentos(
                         datos_estructurados = json.loads(ultimo_ocr.datos_estructurados)
                     except:
                         datos_estructurados = None
-                
+
                 ocr_resultado = {
                     "id_ocr": ultimo_ocr.id_ocr,
                     "estado_ocr": ultimo_ocr.estado_ocr,
@@ -473,7 +471,7 @@ async def listar_documentos(
                     "mensaje_error": ultimo_ocr.mensaje_error,
                     "fecha_procesamiento": ultimo_ocr.fecha_fin_proceso
                 }
-            
+
             response_list.append(
                 DocumentoResponse(
                     id_documento=doc.id_documento,
@@ -493,7 +491,7 @@ async def listar_documentos(
                     ocr_exitoso=ocr_exitoso
                 )
             )
-        
+
         return response_list
     except (PPSHNotFoundException, PPSHPermissionException) as e:
         raise e
@@ -523,11 +521,11 @@ async def actualizar_ocr_documentos(
     try:
         # Verificar que la solicitud existe y el usuario tiene permisos
         solicitud = SolicitudService.get_solicitud(db, id_solicitud, incluir_relaciones=False)
-        
+
         # Verificar permisos (admin o asignado)
         if not current_user.get("es_admin") and solicitud.user_id_asignado != current_user["user_id"]:
             raise PPSHPermissionException()
-        
+
         # Preparar datos para actualización
         documentos_update = [
             {
@@ -536,22 +534,22 @@ async def actualizar_ocr_documentos(
             }
             for doc in request.documentos
         ]
-        
+
         # Actualizar documentos y verificar completitud
         resultado = DocumentoService.actualizar_estado_ocr_documentos(
-            db, 
+            db,
             documentos_update,
             id_solicitud=id_solicitud
         )
-        
+
         # Construir mensaje de respuesta
         mensaje = f"Se actualizaron {resultado['documentos_actualizados']} documentos correctamente"
-        
+
         if resultado['revision_ocr_completada']:
             mensaje += f". ✅ Etapa 1.7 completada: todos los documentos ({resultado['total_documentos']}) tienen OCR exitoso"
         elif resultado['total_documentos'] > 0:
             mensaje += f". Progreso: {resultado['documentos_con_ocr']}/{resultado['total_documentos']} documentos con OCR exitoso"
-        
+
         return {
             "message": mensaje,
             "documentos_actualizados": resultado['documentos_actualizados'],
@@ -593,24 +591,24 @@ async def subir_documento(
     # Log inmediato al entrar al endpoint
     logger.info(f"🚀 ENDPOINT ALCANZADO - subir_documento para solicitud {id_solicitud}")
     logger.info(f"📄 Archivo recibido: {archivo.filename if archivo else 'None'}")
-    
-    from app.services.file_storage_service import FileStorageService, FileStorageConfig
-    
+
+    from app.services.file_storage_service import FileStorageService
+
     # Usuario temporal para testing
     current_user = {"user_id": "TEST_USER"}
-    
+
     try:
         logger.info(f"📤 Iniciando subida de documento para solicitud {id_solicitud}")
         logger.info(f"📄 Archivo: {archivo.filename}, Content-Type: {archivo.content_type}")
-        
+
         # Leer archivo para obtener tamaño
-        logger.info(f"📖 Leyendo contenido del archivo...")
-        
+        logger.info("📖 Leyendo contenido del archivo...")
+
         # Leer archivo directamente (sin timeout complejo que puede bloquear)
         contents = await archivo.read()
         tamano_bytes = len(contents)
         logger.info(f"✅ Archivo leído: {tamano_bytes} bytes ({tamano_bytes / (1024*1024):.2f} MB)")
-        
+
         # Validar archivo (tamaño y extensión)
         is_valid, error_msg = FileStorageService.validate_file(contents, archivo.filename)
         if not is_valid:
@@ -619,10 +617,10 @@ async def subir_documento(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail={"error": "invalid_file", "message": error_msg}
             )
-        
+
         # Extraer extensión
         extension = archivo.filename.split('.')[-1].lower() if '.' in archivo.filename else None
-        
+
         # Crear registro en BD primero para obtener ID
         documento_data = DocumentoCreate(
             cod_tipo_documento=cod_tipo_documento,
@@ -631,8 +629,8 @@ async def subir_documento(
             extension=extension,
             observaciones=observaciones
         )
-        
-        logger.info(f"💾 Registrando documento en base de datos...")
+
+        logger.info("💾 Registrando documento en base de datos...")
         documento = DocumentoService.registrar_documento(
             db=db,
             id_solicitud=id_solicitud,
@@ -640,12 +638,12 @@ async def subir_documento(
             tamano_bytes=tamano_bytes,
             uploaded_by=current_user["user_id"]
         )
-        
+
         logger.info(f"✅ Documento registrado con ID: {documento.id_documento}")
-        
+
         # Guardar archivo en disco con compresión automática de imágenes
         try:
-            logger.info(f"💾 Guardando archivo en disco...")
+            logger.info("💾 Guardando archivo en disco...")
             ruta_archivo = FileStorageService.save_file(
                 solicitud_id=id_solicitud,
                 documento_id=documento.id_documento,
@@ -653,13 +651,13 @@ async def subir_documento(
                 filename=archivo.filename,
                 compress_images=True
             )
-            
+
             # Actualizar ruta en BD
             documento.ruta_archivo = ruta_archivo
             db.commit()
-            
+
             logger.info(f"✅ Archivo guardado en: {ruta_archivo}")
-            
+
         except ValueError as e:
             # Error de validación (tamaño, extensión)
             logger.error(f"❌ Error guardando archivo: {e}")
@@ -673,16 +671,16 @@ async def subir_documento(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail={"error": "file_storage_error", "message": f"Error al guardar archivo: {str(e)}"}
             )
-        
+
         # Encolar OCR automático si está habilitado y es imagen (PNG o JPG)
         task_id = None
         if ejecutar_ocr and extension in ['png', 'jpg', 'jpeg']:
             try:
                 logger.info(f"🔍 Encolando tarea OCR para documento {documento.id_documento}...")
-                
+
                 # Importar y encolar tarea Celery
                 from app.tasks.ocr_tasks import procesar_documento_ocr
-                
+
                 task = procesar_documento_ocr.apply_async(
                     args=[documento.id_documento],
                     queue='ocr_default',
@@ -690,13 +688,13 @@ async def subir_documento(
                     time_limit=70        # 70 segundos hard limit
                 )
                 task_id = task.id
-                
+
                 logger.info(f"✅ Tarea OCR encolada: {task_id}")
-                
+
             except Exception as e:
                 logger.warning(f"⚠️ No se pudo encolar OCR (continuando sin OCR): {e}")
                 # No fallar el upload si OCR no está disponible
-        
+
         # Construir respuesta con información adicional
         response = DocumentoResponse(
             id_documento=documento.id_documento,
@@ -714,15 +712,15 @@ async def subir_documento(
             observaciones=documento.observaciones,
             ruta_archivo=ruta_archivo
         )
-        
+
         # Agregar task_id a la respuesta si hay OCR
         response_dict = response.model_dump()
         if task_id:
             response_dict["ocr_task_id"] = task_id
             response_dict["ocr_websocket_url"] = f"/ws/ocr/{task_id}"
-        
+
         return response_dict
-        
+
     except PPSHNotFoundException as e:
         raise e
 
@@ -749,7 +747,7 @@ async def verificar_documento(
             verificado_por=current_user["user_id"],
             observaciones=observaciones
         )
-        
+
         # Convertir modelo a schema response para asegurar campos correctos
         return DocumentoResponse(
             id_documento=documento.id_documento,
@@ -793,24 +791,24 @@ async def descargar_documento(
     from app.services.file_storage_service import FileStorageService
     import mimetypes
     import io
-    
+
     try:
         # Buscar documento en BD
         documento = db.query(PPSHDocumento).filter(
             PPSHDocumento.id_documento == id_documento
         ).first()
-        
+
         if not documento:
             raise PPSHNotFoundException(
                 detail=f"Documento {id_documento} no encontrado"
             )
-        
+
         if not documento.ruta_archivo:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail={"error": "file_not_found", "message": "El documento no tiene archivo asociado"}
             )
-        
+
         # Leer archivo desde disco
         try:
             file_content = FileStorageService.get_file(documento.ruta_archivo)
@@ -825,26 +823,26 @@ async def descargar_documento(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail={"error": "read_error", "message": "Error leyendo archivo"}
             )
-        
+
         # Determinar content-type
         content_type, _ = mimetypes.guess_type(documento.nombre_archivo)
         if not content_type:
             content_type = "application/octet-stream"
-        
+
         # Preparar headers
         headers = {
             "Content-Disposition": f'attachment; filename="{documento.nombre_archivo}"',
             "Content-Length": str(len(file_content))
         }
-        
+
         logger.info(f"📥 Descargando documento {id_documento}: {documento.nombre_archivo}")
-        
+
         return StreamingResponse(
             io.BytesIO(file_content),
             media_type=content_type,
             headers=headers
         )
-        
+
     except PPSHNotFoundException:
         raise
     except HTTPException:
@@ -957,7 +955,7 @@ async def listar_comentarios(
         solicitud = SolicitudService.get_solicitud(db, id_solicitud, incluir_relaciones=False)
         if solicitud.user_id_asignado != current_user["user_id"]:
             incluir_internos = False
-    
+
     return PPSHComentarioService.listar_comentarios(
         db=db,
         id_solicitud=id_solicitud,
@@ -1043,20 +1041,20 @@ async def debug_upload_test(
     - PDFs generados por software antiguo con encoding no estándar
     """
     try:
-        logger.info(f"🧪 DEBUG: Recibiendo archivo...")
+        logger.info("🧪 DEBUG: Recibiendo archivo...")
         logger.info(f"📄 Filename: {archivo.filename}")
         logger.info(f"📦 Content-Type: {archivo.content_type}")
         logger.info(f"📏 Size (from header): {archivo.size if hasattr(archivo, 'size') else 'N/A'}")
-        
+
         # Intentar leer el archivo con timeout
-        logger.info(f"📖 Intentando leer contenido...")
-        
+        logger.info("📖 Intentando leer contenido...")
+
         import asyncio
         try:
             contents = await asyncio.wait_for(archivo.read(), timeout=30.0)
             tamano = len(contents)
             logger.info(f"✅ Archivo leído exitosamente: {tamano} bytes")
-            
+
             return {
                 "status": "success",
                 "filename": archivo.filename,
@@ -1124,14 +1122,14 @@ async def obtener_etapas_solicitud(
     try:
         # Verificar permisos
         solicitud = SolicitudService.get_solicitud(db, id_solicitud, incluir_relaciones=False)
-        
+
         # Solo admin o asignado puede ver las etapas
         if not current_user.get("es_admin") and solicitud.user_id_asignado != current_user["user_id"]:
             raise PPSHPermissionException()
-        
+
         # Obtener etapas
         etapas = PPSHEtapaService.obtener_etapas_solicitud(db, id_solicitud)
-        
+
         return etapas
     except (PPSHNotFoundException, PPSHPermissionException) as e:
         raise e
@@ -1165,10 +1163,10 @@ async def actualizar_estado_etapa(
     try:
         # Verificar permisos
         solicitud = SolicitudService.get_solicitud(db, id_solicitud, incluir_relaciones=False)
-        
+
         if not current_user.get("es_admin") and solicitud.user_id_asignado != current_user["user_id"]:
             raise PPSHPermissionException()
-        
+
         # Actualizar etapa
         etapa = PPSHEtapaService.actualizar_estado_etapa(
             db=db,
@@ -1178,7 +1176,7 @@ async def actualizar_estado_etapa(
             completado_por=current_user.get("user_id"),
             observaciones=request.observaciones
         )
-        
+
         return etapa
     except (PPSHNotFoundException, PPSHPermissionException) as e:
         raise e

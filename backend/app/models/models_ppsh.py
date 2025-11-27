@@ -11,7 +11,7 @@ Siguiendo principios SOLID:
 """
 
 from sqlalchemy import (
-    Column, Integer, String, Date, DateTime, Boolean, 
+    Column, Integer, String, Date, DateTime, Boolean,
     Text, ForeignKey, BigInteger, LargeBinary
 )
 from sqlalchemy.orm import relationship
@@ -70,7 +70,7 @@ class PPSHEstado(Base):
 
     # Relaciones
     solicitudes_actual = relationship(
-        "PPSHSolicitud", 
+        "PPSHSolicitud",
         foreign_keys="PPSHSolicitud.estado_actual",
         back_populates="estado"
     )
@@ -118,7 +118,7 @@ class PPSHSolicitud(Base):
     # Relaciones
     causa_humanitaria = relationship("PPSHCausaHumanitaria", back_populates="solicitudes")
     estado = relationship(
-        "PPSHEstado", 
+        "PPSHEstado",
         foreign_keys=[estado_actual],
         back_populates="solicitudes_actual"
     )
@@ -167,7 +167,7 @@ class PPSHSolicitante(Base):
 
     # Relaciones
     solicitud = relationship("PPSHSolicitud", back_populates="solicitantes")
-    
+
     @property
     def nombre_completo(self) -> str:
         """Genera el nombre completo del solicitante"""

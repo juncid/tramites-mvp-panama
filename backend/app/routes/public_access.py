@@ -3,7 +3,6 @@ Rutas para el acceso público (sin autenticación)
 """
 from fastapi import APIRouter, Depends, Request, HTTPException, status
 from sqlalchemy.orm import Session
-from typing import Optional
 
 from app.database import get_db
 from app.services.public_access_service import PublicAccessService
@@ -26,9 +25,9 @@ def get_client_info(request: Request) -> tuple:
     ip_address = request.headers.get("X-Real-IP") or \
                  request.headers.get("X-Forwarded-For", "").split(",")[0].strip() or \
                  request.client.host if request.client else None
-    
+
     user_agent = request.headers.get("User-Agent")
-    
+
     return ip_address, user_agent
 
 
@@ -52,7 +51,7 @@ async def validar_acceso(
     """
     service = PublicAccessService(db)
     ip_address, user_agent = get_client_info(request)
-    
+
     try:
         result = service.validar_acceso(
             data=data,
@@ -91,11 +90,11 @@ async def obtener_solicitud_publica(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token de acceso requerido"
         )
-    
+
     token = auth_header.replace("Bearer ", "")
-    
+
     service = PublicAccessService(db)
-    
+
     try:
         result = service.obtener_solicitud_publica(
             numero_solicitud=numero_solicitud.upper(),

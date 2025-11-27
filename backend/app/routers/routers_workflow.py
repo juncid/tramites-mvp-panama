@@ -261,7 +261,7 @@ def crear_instancia_con_ppsh(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Se requieren campos 'workflow_id' y 'solicitud_ppsh'"
         )
-    
+
     # Parsear solicitud_ppsh con schema Pydantic
     try:
         solicitud_data = schemas_ppsh.SolicitudCreate(**datos["solicitud_ppsh"])
@@ -270,7 +270,7 @@ def crear_instancia_con_ppsh(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Error al validar datos de solicitud PPSH: {str(e)}"
         )
-    
+
     # Crear instancia con solicitud
     instancia, solicitud = WorkflowPPSHIntegrationService.crear_instancia_con_solicitud_ppsh(
         db=db,
@@ -279,10 +279,10 @@ def crear_instancia_con_ppsh(
         nombre_instancia=datos.get("nombre_instancia"),
         user_id=current_user
     )
-    
+
     # Construir respuesta
     vinculacion = WorkflowPPSHIntegrationService.obtener_datos_vinculacion(db, instancia.id)
-    
+
     return schemas.WorkflowInstanciaPPSHResponse(
         instancia_id=instancia.id,
         instancia_num_expediente=instancia.num_expediente,
@@ -330,18 +330,18 @@ def vincular_ppsh_existente(
         nombre_instancia=datos.nombre_instancia,
         user_id=current_user
     )
-    
+
     # Obtener solicitud para respuesta
     solicitud = WorkflowPPSHIntegrationService.obtener_solicitud_ppsh_desde_instancia(db, instancia.id)
-    
+
     if not solicitud:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Error al obtener solicitud vinculada"
         )
-    
+
     vinculacion = WorkflowPPSHIntegrationService.obtener_datos_vinculacion(db, instancia.id)
-    
+
     return schemas.WorkflowInstanciaPPSHResponse(
         instancia_id=instancia.id,
         instancia_num_expediente=instancia.num_expediente,
@@ -378,15 +378,15 @@ def obtener_vinculacion_ppsh(
         DatosVinculacionPPSHResponse con información de vinculación
     """
     vinculacion = WorkflowPPSHIntegrationService.obtener_datos_vinculacion(db, instancia_id)
-    
+
     if not vinculacion:
         return schemas.DatosVinculacionPPSHResponse(tiene_vinculacion=False)
-    
+
     response = schemas.DatosVinculacionPPSHResponse(
         tiene_vinculacion=True,
         **vinculacion
     )
-    
+
     # Si se solicita expanded, incluir datos completos de solicitud
     if expanded:
         solicitud = WorkflowPPSHIntegrationService.obtener_solicitud_ppsh_desde_instancia(db, instancia_id)
@@ -401,7 +401,7 @@ def obtener_vinculacion_ppsh(
                 "descripcion_caso": solicitud.descripcion_caso,
                 "prioridad": solicitud.prioridad
             }
-    
+
     return response
 
 
@@ -558,7 +558,7 @@ def verificar_permisos_etapa(
     """
     # Obtener instancia
     instancia = InstanciaService.obtener_instancia(db, instancia_id)
-    
+
     # Si no se especifica etapa, usar etapa actual
     if not etapa_id:
         if not instancia.etapa_actual_id:
@@ -567,19 +567,19 @@ def verificar_permisos_etapa(
                 detail="La instancia no tiene una etapa actual definida"
             )
         etapa_id = instancia.etapa_actual_id
-    
+
     # Obtener etapa
     etapa = EtapaService.obtener_etapa(db, etapa_id)
-    
+
     # Verificar permisos
     puede_ver = InstanciaService.puede_usuario_ver_etapa(
         db, current_user, user_perfil, etapa_id
     )
-    
+
     puede_editar = InstanciaService.puede_usuario_editar_etapa(
         db, current_user, user_perfil, instancia_id, etapa_id
     )
-    
+
     # Construir razón
     razones = []
     if not puede_ver:
@@ -593,7 +593,7 @@ def verificar_permisos_etapa(
             razones.append(f"La instancia está asignada a otro usuario ({instancia.asignado_a_user_id})")
         else:
             razones.append("Sin permiso de edición")
-    
+
     return {
         "puede_ver": puede_ver,
         "puede_editar": puede_editar,
@@ -727,35 +727,35 @@ async def upload_archivo_estatico(
     # Validar tipo de archivo
     extensiones_permitidas = ['.pdf', '.doc', '.docx', '.xls', '.xlsx', '.txt', '.png', '.jpg', '.jpeg']
     extension = os.path.splitext(file.filename)[1].lower()
-    
+
     if extension not in extensiones_permitidas:
         raise HTTPException(
             status_code=400,
             detail=f"Tipo de archivo no permitido. Extensiones permitidas: {', '.join(extensiones_permitidas)}"
         )
-    
+
     # Crear directorio si no existe
     os.makedirs(STATIC_DIR, exist_ok=True)
-    
+
     # Generar nombre único para el archivo
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     unique_id = str(uuid.uuid4())[:8]
     nombre_archivo = nombre_personalizado or file.filename
     nombre_seguro = f"{timestamp}_{unique_id}_{nombre_archivo.replace(' ', '_')}"
-    
+
     # Guardar archivo
     file_path = os.path.join(STATIC_DIR, nombre_seguro)
-    
+
     try:
         contents = await file.read()
         with open(file_path, 'wb') as f:
             f.write(contents)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al guardar archivo: {str(e)}")
-    
+
     # Construir URL del archivo
     archivo_url = f"/static/documentos/{nombre_seguro}"
-    
+
     return {
         "success": True,
         "archivo_url": archivo_url,
@@ -767,7 +767,7 @@ async def upload_archivo_estatico(
             "nombre_archivo": nombre_archivo,
             "tipo_archivo": file.content_type
         },
-        "mensaje": f"Archivo subido correctamente. Use el campo 'opciones_json' para configurar la pregunta de tipo DESCARGA_ARCHIVO."
+        "mensaje": "Archivo subido correctamente. Use el campo 'opciones_json' para configurar la pregunta de tipo DESCARGA_ARCHIVO."
     }
 
 
@@ -778,7 +778,7 @@ def listar_archivos_estaticos():
     """
     if not os.path.exists(STATIC_DIR):
         return {"archivos": [], "directorio": STATIC_DIR}
-    
+
     archivos = []
     for filename in os.listdir(STATIC_DIR):
         file_path = os.path.join(STATIC_DIR, filename)
@@ -789,7 +789,7 @@ def listar_archivos_estaticos():
                 "tamano_bytes": os.path.getsize(file_path),
                 "fecha_modificacion": datetime.fromtimestamp(os.path.getmtime(file_path)).isoformat()
             })
-    
+
     return {
         "archivos": archivos,
         "total": len(archivos),
@@ -809,28 +809,28 @@ def configurar_pregunta_descarga(
     """
     from app.models.models_workflow import WorkflowPregunta
     import json
-    
+
     pregunta = db.query(WorkflowPregunta).filter(WorkflowPregunta.id == pregunta_id).first()
-    
+
     if not pregunta:
         raise HTTPException(status_code=404, detail="Pregunta no encontrada")
-    
+
     if pregunta.tipo_pregunta.value != "DESCARGA_ARCHIVO":
         raise HTTPException(
-            status_code=400, 
+            status_code=400,
             detail=f"La pregunta no es de tipo DESCARGA_ARCHIVO (es {pregunta.tipo_pregunta.value})"
         )
-    
+
     # Actualizar opciones con la URL del archivo
     opciones = {
         "archivo_url": archivo_url,
         "nombre_archivo": nombre_archivo,
         "tipo_archivo": "application/octet-stream"  # Tipo genérico
     }
-    
+
     pregunta.opciones = json.dumps(opciones)
     db.commit()
-    
+
     return {
         "success": True,
         "pregunta_id": pregunta_id,

@@ -11,10 +11,8 @@ Endpoints:
 - DELETE /ocr/cancelar/{task_id} - Cancelar tarea en ejecución
 """
 
-from typing import Optional
 import json
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from celery.result import AsyncResult
@@ -68,26 +66,26 @@ def procesar_documento(
     documento = db.query(PPSHDocumento).filter(
         PPSHDocumento.id_documento == id_documento
     ).first()
-    
+
     if not documento:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Documento con ID {id_documento} no encontrado"
         )
-    
+
     # Validar que el documento tiene contenido
     if not documento.contenido_binario and not documento.ruta_archivo:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="El documento no tiene contenido disponible para OCR"
         )
-    
+
     # Verificar si ya existe un procesamiento en curso
     ocr_existente = db.query(PPSHDocumentoOCR).filter(
         PPSHDocumentoOCR.id_documento == id_documento,
         PPSHDocumentoOCR.estado_ocr == 'PROCESANDO'
     ).first()
-    
+
     if ocr_existente:
         # Retornar la tarea existente
         return OCRResponse(
@@ -97,7 +95,7 @@ def procesar_documento(
             estado=EstadoOCREnum.PROCESANDO,
             id_documento=id_documento
         )
-    
+
     # Preparar opciones para la tarea
     opciones = {
         'idioma': request.idioma,
@@ -110,7 +108,7 @@ def procesar_documento(
         },
         'extraer_datos_estructurados': request.extraer_datos_estructurados
     }
-    
+
     # Encolar tarea según prioridad
     if request.prioridad == 'alta':
         task = process_urgent_document.apply_async(
@@ -130,7 +128,7 @@ def procesar_documento(
             queue='ocr_default',
             priority=5
         )
-    
+
     return OCRResponse(
         success=True,
         message="Documento encolado para procesamiento OCR",
@@ -152,7 +150,7 @@ def obtener_estado(task_id: str):
         OCRStatus con el estado actual y progreso
     """
     task_result = AsyncResult(task_id, app=celery_app)
-    
+
     if task_result.state == 'PENDING':
         return OCRStatus(
             task_id=task_id,
@@ -160,7 +158,7 @@ def obtener_estado(task_id: str):
             porcentaje_completado=0,
             mensaje="Tarea en cola esperando procesamiento"
         )
-        
+
     elif task_result.state == 'PROGRESS':
         meta = task_result.info or {}
         return OCRStatus(
@@ -171,7 +169,7 @@ def obtener_estado(task_id: str):
             paso_actual=meta.get('current'),
             total_pasos=meta.get('total')
         )
-        
+
     elif task_result.state == 'SUCCESS':
         result = task_result.result
         return OCRStatus(
@@ -184,7 +182,7 @@ def obtener_estado(task_id: str):
             confianza_promedio=result.get('confianza'),
             tiempo_procesamiento_ms=result.get('tiempo_ms')
         )
-        
+
     elif task_result.state == 'FAILURE':
         return OCRStatus(
             task_id=task_id,
@@ -193,7 +191,7 @@ def obtener_estado(task_id: str):
             mensaje=f"Error en procesamiento: {str(task_result.info)}",
             codigo_error=type(task_result.info).__name__ if task_result.info else 'UnknownError'
         )
-        
+
     elif task_result.state == 'RETRY':
         return OCRStatus(
             task_id=task_id,
@@ -201,7 +199,7 @@ def obtener_estado(task_id: str):
             porcentaje_completado=0,
             mensaje="Reintentando procesamiento después de un error temporal"
         )
-        
+
     else:
         return OCRStatus(
             task_id=task_id,
@@ -230,20 +228,20 @@ def obtener_resultado(
     ).order_by(
         PPSHDocumentoOCR.created_at.desc()
     ).first()
-    
+
     if not ocr_resultado:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"No se encontró resultado OCR para documento {id_documento}"
         )
-    
+
     # Verificar estado
     if ocr_resultado.estado_ocr not in ['COMPLETADO', 'ERROR']:
         raise HTTPException(
             status_code=status.HTTP_425_TOO_EARLY,
             detail=f"El procesamiento aún no ha finalizado. Estado actual: {ocr_resultado.estado_ocr}"
         )
-    
+
     # Construir respuesta
     resultado = OCRResultado(
         id_ocr=ocr_resultado.id_ocr,
@@ -266,16 +264,16 @@ def obtener_resultado(
         created_at=ocr_resultado.created_at,
         updated_at=ocr_resultado.updated_at
     )
-    
+
     # Agregar datos estructurados si existen
     if ocr_resultado.datos_estructurados:
         resultado.datos_estructurados = ocr_resultado.datos_estructurados
-    
+
     # Agregar información de error si aplica
     if ocr_resultado.estado_ocr == 'ERROR':
         resultado.codigo_error = ocr_resultado.codigo_error
         resultado.mensaje_error = ocr_resultado.mensaje_error
-    
+
     return resultado
 
 
@@ -309,18 +307,18 @@ def reprocesar_documento(
     ).order_by(
         PPSHDocumentoOCR.created_at.desc()
     ).first()
-    
+
     if not ocr_anterior:
         # Si no hay resultado anterior, procesaremos como nuevo
         return procesar_documento(id_documento, request, db, user_id)
-    
+
     # Guardar en historial si se solicita
     if guardar_historial and ocr_anterior.estado_ocr == 'COMPLETADO':
         # Obtener último número de versión
         ultima_version = db.query(func.max(PPSHDocumentoOCRHistorial.version))\
             .filter(PPSHDocumentoOCRHistorial.id_ocr == ocr_anterior.id_ocr)\
             .scalar() or 0
-        
+
         historial = PPSHDocumentoOCRHistorial(
             id_ocr=ocr_anterior.id_ocr,
             version=ultima_version + 1,
@@ -338,11 +336,11 @@ def reprocesar_documento(
         )
         db.add(historial)
         db.commit()
-    
+
     # Marcar el resultado anterior como obsoleto o eliminarlo
     db.delete(ocr_anterior)
     db.commit()
-    
+
     # Procesar como nuevo documento
     return procesar_documento(id_documento, request, db, user_id)
 
@@ -363,7 +361,7 @@ def obtener_estadisticas(
     if desde_cache:
         # Ejecutar tarea de estadísticas de forma síncrona
         stats = generate_ocr_statistics.apply().get()
-        
+
         return OCREstadisticas(
             total_procesados=stats.get('total', 0),
             total_completados=stats['por_estado'].get('COMPLETADO', 0),
@@ -377,29 +375,29 @@ def obtener_estadisticas(
     else:
         # Calcular estadísticas en tiempo real (más lento pero más preciso)
         from sqlalchemy import func
-        
+
         total = db.query(PPSHDocumentoOCR).count()
-        
+
         # Contar por estado
         estados = db.query(
             PPSHDocumentoOCR.estado_ocr,
             func.count(PPSHDocumentoOCR.id_ocr)
         ).group_by(PPSHDocumentoOCR.estado_ocr).all()
-        
+
         estados_dict = {estado: count for estado, count in estados}
-        
+
         # Confianza promedio
         confianza_avg = db.query(
             func.avg(PPSHDocumentoOCR.texto_confianza)
         ).filter(PPSHDocumentoOCR.estado_ocr == 'COMPLETADO').scalar()
-        
+
         # Tiempo promedio
         tiempo_avg = db.query(
             func.avg(PPSHDocumentoOCR.tiempo_procesamiento_ms)
         ).filter(PPSHDocumentoOCR.estado_ocr == 'COMPLETADO').scalar()
-        
+
         from datetime import datetime
-        
+
         return OCREstadisticas(
             total_procesados=total,
             total_completados=estados_dict.get('COMPLETADO', 0),
@@ -427,17 +425,17 @@ def cancelar_tarea(
     """
     # Revocar la tarea en Celery
     celery_app.control.revoke(task_id, terminate=True, signal='SIGKILL')
-    
+
     # Actualizar estado en BD
     ocr_record = db.query(PPSHDocumentoOCR).filter(
         PPSHDocumentoOCR.celery_task_id == task_id
     ).first()
-    
+
     if ocr_record:
         ocr_record.estado_ocr = 'CANCELADO'
         ocr_record.mensaje_error = 'Procesamiento cancelado por el usuario'
         db.commit()
-    
+
     return {
         "mensaje": f"Tarea {task_id} cancelada exitosamente",
         "task_id": task_id,
@@ -465,10 +463,10 @@ def obtener_historial(
     ).order_by(
         PPSHDocumentoOCRHistorial.created_at.desc()
     ).limit(limit).all()
-    
+
     if not historial:
         return {"mensaje": "No hay historial de reprocesamiento", "resultados": []}
-    
+
     return {
         "id_documento": id_documento,
         "total_reprocesos": len(historial),

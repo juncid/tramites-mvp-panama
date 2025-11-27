@@ -21,5 +21,5 @@ class TramiteResponse(TramiteBase):
     IND_ACTIVO: bool = Field(default=True, description="Indica si el trámite está activo")
     FEC_CREA_REG: datetime = Field(..., description="Fecha de creación")
     FEC_MODIF_REG: Optional[datetime] = Field(default=None, description="Fecha de modificación")
-    
+
     model_config = ConfigDict(from_attributes=True)

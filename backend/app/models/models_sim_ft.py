@@ -15,7 +15,7 @@ Date: 2025-10-22
 """
 
 from sqlalchemy import (
-    Column, Integer, String, DateTime, Text, 
+    Column, Integer, String, DateTime, Text,
     ForeignKey, PrimaryKeyConstraint, Index
 )
 from sqlalchemy.orm import relationship
@@ -39,13 +39,13 @@ class SimFtTramites(Base):
     DESC_TRAMITE = Column(String(500), nullable=False, comment='Descripción del trámite')
     PAG_TRAMITE = Column(String(255), nullable=True, comment='Página web asociada al trámite')
     IND_ACTIVO = Column(String(1), nullable=False, server_default='S', comment='Indicador de activo (S/N)')
-    
+
     # Campos de auditoría
     ID_USUARIO_CREA = Column(String(17), nullable=True, comment='Usuario que creó el registro')
     FEC_CREA_REG = Column(DateTime, nullable=True, server_default=func.now(), comment='Fecha de creación')
     ID_USUARIO_MODIF = Column(String(17), nullable=True, comment='Usuario que modificó el registro')
     FEC_MODIF_REG = Column(DateTime, nullable=True, onupdate=func.now(), comment='Fecha de modificación')
-    
+
     # Relaciones
     tramites_encabezado = relationship("SimFtTramiteE", back_populates="tipo_tramite")
     pasos = relationship("SimFtPasos", back_populates="tramite")
@@ -66,13 +66,13 @@ class SimFtPasos(Base):
     NUM_PASO = Column(Integer, nullable=False, comment='Número del paso')
     NOM_DESCRIPCION = Column(String(255), nullable=False, comment='Nombre/descripción del paso')
     IND_ACTIVO = Column(String(1), nullable=False, server_default='S', comment='Indicador de activo (S/N)')
-    
+
     # Campos de auditoría
     ID_USUARIO_CREA = Column(String(17), nullable=True)
     FEC_CREA_REG = Column(DateTime, nullable=True, server_default=func.now())
     ID_USUARIO_MODIF = Column(String(17), nullable=True)
     FEC_MODIF_REG = Column(DateTime, nullable=True, onupdate=func.now())
-    
+
     # Relaciones
     tramite = relationship("SimFtTramites", back_populates="pasos")
     # Nota: configuracion y detalles_tramite requieren joins complejos por claves compuestas
@@ -95,13 +95,13 @@ class SimFtPasoXTram(Base):
     COD_SECCION = Column(String(4), nullable=False, comment='Sección responsable')
     ID_PASO_SGTE = Column(Integer, nullable=True, comment='Paso siguiente')
     IND_ACTIVO = Column(String(1), nullable=False, server_default='S', comment='Indicador de activo (S/N)')
-    
+
     # Campos de auditoría
     ID_USUARIO_CREA = Column(String(17), nullable=True)
     FEC_CREA_REG = Column(DateTime, nullable=True, server_default=func.now())
     ID_USUARIO_MODIF = Column(String(17), nullable=True)
     FEC_MODIF_REG = Column(DateTime, nullable=True, onupdate=func.now())
-    
+
     # Relaciones
     tramite = relationship("SimFtTramites", back_populates="pasos_configuracion")
     # Nota: paso_definicion requiere join complejo por clave compuesta (COD_TRAMITE, NUM_PASO)
@@ -116,7 +116,7 @@ class SimFtEstatus(Base):
     COD_ESTATUS = Column(String(2), primary_key=True, comment='Código del estado')
     NOM_ESTATUS = Column(String(100), nullable=False, comment='Nombre del estado')
     IND_ACTIVO = Column(String(1), nullable=False, server_default='S', comment='Indicador de activo (S/N)')
-    
+
     # Campos de auditoría
     ID_USUARIO_CREA = Column(String(17), nullable=True)
     FEC_CREA_REG = Column(DateTime, nullable=True, server_default=func.now())
@@ -133,7 +133,7 @@ class SimFtConclusion(Base):
     COD_CONCLUSION = Column(String(2), primary_key=True, comment='Código de conclusión')
     NOM_CONCLUSION = Column(String(100), nullable=False, comment='Nombre de la conclusión')
     IND_ACTIVO = Column(String(1), nullable=False, server_default='S', comment='Indicador de activo (S/N)')
-    
+
     # Campos de auditoría
     ID_USUARIO_CREA = Column(String(17), nullable=True)
     FEC_CREA_REG = Column(DateTime, nullable=True, server_default=func.now())
@@ -150,7 +150,7 @@ class SimFtPrioridad(Base):
     COD_PRIORIDAD = Column(String(1), primary_key=True, comment='Código de prioridad')
     NOM_PRIORIDAD = Column(String(50), nullable=False, comment='Nombre de la prioridad')
     IND_ACTIVO = Column(String(1), nullable=False, server_default='S', comment='Indicador de activo (S/N)')
-    
+
     # Campos de auditoría
     ID_USUARIO_CREA = Column(String(17), nullable=True)
     FEC_CREA_REG = Column(DateTime, nullable=True, server_default=func.now())
@@ -174,7 +174,7 @@ class SimFtUsuaSec(Base):
     COD_SECCION = Column(String(4), nullable=False, comment='Código de sección')
     COD_AGENCIA = Column(String(4), nullable=False, comment='Código de agencia')
     IND_ACTIVO = Column(String(1), nullable=False, server_default='S', comment='Indicador de activo (S/N)')
-    
+
     # Campos de auditoría
     ID_USUARIO_CREA = Column(String(17), nullable=True)
     FEC_CREA_REG = Column(DateTime, nullable=True, server_default=func.now())
@@ -206,25 +206,25 @@ class SimFtTramiteE(Base):
     NUM_ANNIO = Column(Integer, nullable=False, comment='Año del registro')
     NUM_TRAMITE = Column(Integer, nullable=False, comment='Número consecutivo del trámite')
     NUM_REGISTRO = Column(Integer, nullable=False, comment='Número de registro de filiación o persona')
-    
+
     # Información del trámite
     COD_TRAMITE = Column(String(10), ForeignKey('SIM_FT_TRAMITES.COD_TRAMITE'), nullable=False, comment='Código que identifica el tipo de trámite')
-    
+
     # Fechas y estado
     FEC_INI_TRAMITE = Column(DateTime, nullable=True, comment='Fecha de inicio del trámite')
     FEC_FIN_TRAMITE = Column(DateTime, nullable=True, comment='Fecha de fin del trámite')
     IND_ESTATUS = Column(String(2), ForeignKey('SIM_FT_ESTATUS.COD_ESTATUS'), nullable=True, comment='Indicador del estado actual')
     IND_CONCLUSION = Column(String(2), ForeignKey('SIM_FT_CONCLUSION.COD_CONCLUSION'), nullable=True, comment='Indicador de conclusión')
     IND_PRIORIDAD = Column(String(1), ForeignKey('SIM_FT_PRIORIDAD.COD_PRIORIDAD'), nullable=True, comment='Indicador de prioridad')
-    
+
     # Observaciones y métricas
     OBS_OBSERVA = Column(Text, nullable=True, comment='Observaciones generales')
     HITS_TRAMITE = Column(Integer, nullable=True, default=0, comment='Contador de actividad en el trámite')
-    
+
     # Campos de auditoría
     ID_USUARIO_CREA = Column(String(17), nullable=True, comment='Usuario que creó el registro')
     FEC_ACTUALIZA = Column(DateTime, nullable=True, onupdate=func.now(), comment='Fecha de última actualización')
-    
+
     # Relaciones
     tipo_tramite = relationship("SimFtTramites", back_populates="tramites_encabezado")
     estatus = relationship("SimFtEstatus", foreign_keys=[IND_ESTATUS])
@@ -255,26 +255,26 @@ class SimFtTramiteD(Base):
     NUM_TRAMITE = Column(Integer, nullable=False, comment='Número del trámite')
     NUM_PASO = Column(Integer, nullable=False, comment='El paso específico dentro del trámite')
     NUM_REGISTRO = Column(Integer, nullable=False, comment='Número de registro')
-    
+
     # Información del paso
     COD_TRAMITE = Column(String(10), nullable=False, comment='Tipo de trámite')
     NUM_ACTIVIDAD = Column(Integer, nullable=True, comment='Número de actividad')
-    
+
     # Responsables
     COD_SECCION = Column(String(4), nullable=True, comment='Sección responsable del paso')
     COD_AGENCIA = Column(String(4), nullable=True, comment='Agencia responsable')
     ID_USUAR_RESP = Column(String(17), nullable=True, comment='Usuario responsable del paso')
-    
+
     # Observaciones y control
     OBS_OBSERVACION = Column(Text, nullable=True, comment='Observaciones por paso')
     NUM_PASO_SGTE = Column(Integer, nullable=True, comment='El siguiente paso en la secuencia')
     IND_ESTATUS = Column(String(2), nullable=True, comment='Estado del paso')
     IND_CONCLUSION = Column(String(2), nullable=True, comment='Conclusión del paso')
-    
+
     # Campos de auditoría
     ID_USUARIO_CREA = Column(String(17), nullable=True, comment='Usuario que creó el registro')
     FEC_ACTUALIZA = Column(DateTime, nullable=True, onupdate=func.now(), comment='Fecha de última actualización')
-    
+
     # Relaciones
     # Nota: tramite_encabezado y paso_definicion requieren joins complejos por claves compuestas
     # Se recomienda usar queries manuales para estas relaciones
@@ -301,11 +301,11 @@ class SimFtTramiteCierre(Base):
     ID_USUARIO_CIERRE = Column(String(17), nullable=False, comment='Usuario que realizó el cierre')
     OBS_CIERRE = Column(Text, nullable=True, comment='Observaciones del cierre')
     COD_CONCLUSION = Column(String(2), ForeignKey('SIM_FT_CONCLUSION.COD_CONCLUSION'), nullable=True, comment='Código de conclusión')
-    
+
     # Campos de auditoría
     ID_USUARIO_CREA = Column(String(17), nullable=True)
     FEC_CREA_REG = Column(DateTime, nullable=True, server_default=func.now())
-    
+
     # Relaciones
     conclusion = relationship("SimFtConclusion", foreign_keys=[COD_CONCLUSION])
     # Nota: tramite y dependientes requieren joins complejos por claves compuestas
@@ -326,10 +326,10 @@ class SimFtDependteCierre(Base):
     NUM_REGISTRO_DEP = Column(Integer, nullable=False, comment='Número de registro del dependiente')
     TIP_DEPENDENCIA = Column(String(2), nullable=True, comment='Tipo de dependencia')
     FEC_INCLUSION = Column(DateTime, nullable=True, comment='Fecha de inclusión en el cierre')
-    
+
     # Campos de auditoría
     ID_USUARIO_CREA = Column(String(17), nullable=True)
     FEC_CREA_REG = Column(DateTime, nullable=True, server_default=func.now())
-    
+
     # Relaciones
     # Nota: cierre_tramite requiere join complejo por clave compuesta

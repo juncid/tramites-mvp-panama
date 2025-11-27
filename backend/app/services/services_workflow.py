@@ -29,20 +29,20 @@ logger = logging.getLogger(__name__)
 
 class WorkflowService:
     """Servicio para operaciones de Workflow"""
-    
+
     @staticmethod
     def verificar_codigo_unico(db: Session, codigo: str, workflow_id: Optional[int] = None) -> None:
         """Verifica que un código de workflow sea único"""
         query = db.query(models.Workflow).filter(models.Workflow.codigo == codigo)
         if workflow_id:
             query = query.filter(models.Workflow.id != workflow_id)
-        
+
         if query.first():
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Ya existe un workflow con el código '{codigo}'"
             )
-    
+
     @staticmethod
     def crear_workflow(
         db: Session,
@@ -51,10 +51,10 @@ class WorkflowService:
     ) -> models.Workflow:
         """Crea un nuevo workflow con sus etapas y conexiones"""
         logger.info(f"Creando workflow: {workflow_data.codigo} por usuario: {created_by}")
-        
+
         # Verificar código único
         WorkflowService.verificar_codigo_unico(db, workflow_data.codigo)
-        
+
         # Crear workflow
         db_workflow = models.Workflow(
             **workflow_data.model_dump(exclude={"etapas", "conexiones"}),
@@ -62,9 +62,9 @@ class WorkflowService:
         )
         db.add(db_workflow)
         db.flush()
-        
+
         logger.debug(f"Workflow creado con ID: {db_workflow.id}")
-        
+
         # Crear etapas
         etapas_map = {}  # Para mapear códigos a IDs
         if workflow_data.etapas:
@@ -74,14 +74,14 @@ class WorkflowService:
                 )
                 etapas_map[etapa_data.codigo] = db_etapa.id
             logger.info(f"Creadas {len(workflow_data.etapas)} etapas para workflow {workflow_data.codigo}")
-        
+
         # Crear conexiones usando los códigos de etapa
         if workflow_data.conexiones:
             for conexion_data in workflow_data.conexiones:
                 # Convertir códigos a IDs usando el mapeo
                 etapa_origen_id = etapas_map.get(conexion_data.etapa_origen_codigo)
                 etapa_destino_id = etapas_map.get(conexion_data.etapa_destino_codigo)
-                
+
                 if not etapa_origen_id:
                     raise HTTPException(
                         status_code=status.HTTP_400_BAD_REQUEST,
@@ -92,7 +92,7 @@ class WorkflowService:
                         status_code=status.HTTP_400_BAD_REQUEST,
                         detail=f"Etapa destino con código '{conexion_data.etapa_destino_codigo}' no encontrada"
                     )
-                
+
                 # Crear la conexión con los IDs reales
                 conexion_create = schemas.WorkflowConexionCreate(
                     workflow_id=db_workflow.id,
@@ -107,12 +107,12 @@ class WorkflowService:
                     db, conexion_create, db_workflow.id, created_by
                 )
             logger.info(f"Creadas {len(workflow_data.conexiones)} conexiones para workflow {workflow_data.codigo}")
-        
+
         db.commit()
         db.refresh(db_workflow)
         logger.info(f"✅ Workflow {workflow_data.codigo} creado exitosamente con ID: {db_workflow.id}")
         return db_workflow
-    
+
     @staticmethod
     def obtener_workflow(db: Session, workflow_id: int) -> models.Workflow:
         """Obtiene un workflow por ID con todas sus relaciones"""
@@ -122,14 +122,14 @@ class WorkflowService:
         ).filter(
             models.Workflow.id == workflow_id
         ).first()
-        
+
         if not workflow:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Workflow con id {workflow_id} no encontrado"
             )
         return workflow
-    
+
     @staticmethod
     def listar_workflows(
         db: Session,
@@ -141,10 +141,10 @@ class WorkflowService:
     ) -> List[Dict[str, Any]]:
         """Lista workflows con filtros. Por defecto solo muestra workflows activos."""
         query = db.query(models.Workflow)
-        
+
         # Filtrar por workflows activos (por defecto)
         query = query.filter(models.Workflow.activo == activo)
-        
+
         if estado:
             query = query.filter(models.Workflow.estado == estado)
         if categoria:
@@ -171,9 +171,9 @@ class WorkflowService:
                 "total_instancias": len(wf.instancias) if wf.instancias else 0
             }
             result.append(wf_dict)
-        
+
         return result
-    
+
     @staticmethod
     def actualizar_workflow(
         db: Session,
@@ -183,21 +183,21 @@ class WorkflowService:
     ) -> models.Workflow:
         """Actualiza un workflow"""
         db_workflow = WorkflowService.obtener_workflow(db, workflow_id)
-        
+
         # Si se actualiza el código, verificar unicidad
         update_data = workflow_update.model_dump(exclude_unset=True)
         if "codigo" in update_data:
             WorkflowService.verificar_codigo_unico(db, update_data["codigo"], workflow_id)
-        
+
         # Actualizar campos
         for field, value in update_data.items():
             setattr(db_workflow, field, value)
-        
+
         db_workflow.updated_by = updated_by
         db.commit()
         db.refresh(db_workflow)
         return db_workflow
-    
+
     @staticmethod
     def eliminar_workflow(db: Session, workflow_id: int, updated_by: str) -> None:
         """Desactiva un workflow (soft delete)"""
@@ -213,7 +213,7 @@ class WorkflowService:
 
 class EtapaService:
     """Servicio para operaciones de Etapa"""
-    
+
     @staticmethod
     def verificar_codigo_unico_en_workflow(
         db: Session,
@@ -230,13 +230,13 @@ class EtapaService:
         )
         if etapa_id:
             query = query.filter(models.WorkflowEtapa.id != etapa_id)
-        
+
         if query.first():
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Ya existe una etapa con el código '{codigo}' en este workflow"
             )
-    
+
     @staticmethod
     def crear_etapa_con_preguntas(
         db: Session,
@@ -247,15 +247,15 @@ class EtapaService:
         """Crea una etapa con sus preguntas"""
         # Verificar que el workflow existe
         WorkflowService.obtener_workflow(db, workflow_id)
-        
+
         # Verificar código único
         EtapaService.verificar_codigo_unico_en_workflow(db, workflow_id, etapa_data.codigo)
-        
+
         # Crear etapa (excluir workflow_id si existe en el data)
         exclude_fields = {"preguntas"}
         if hasattr(etapa_data, 'workflow_id'):
             exclude_fields.add("workflow_id")
-        
+
         etapa_dict = etapa_data.model_dump(exclude=exclude_fields)
         db_etapa = models.WorkflowEtapa(
             **etapa_dict,
@@ -264,7 +264,7 @@ class EtapaService:
         )
         db.add(db_etapa)
         db.flush()
-        
+
         # Crear preguntas
         if etapa_data.preguntas:
             for pregunta_data in etapa_data.preguntas:
@@ -276,9 +276,9 @@ class EtapaService:
                     pregunta_dict = pregunta_data.model_dump()
                     pregunta_create = schemas.WorkflowPreguntaCreate(**pregunta_dict, etapa_id=db_etapa.id)
                     PreguntaService.crear_pregunta(db, pregunta_create, db_etapa.id, created_by)
-        
+
         return db_etapa
-    
+
     @staticmethod
     def obtener_etapa(db: Session, etapa_id: int) -> models.WorkflowEtapa:
         """Obtiene una etapa por ID con sus preguntas"""
@@ -287,14 +287,14 @@ class EtapaService:
         ).filter(
             models.WorkflowEtapa.id == etapa_id
         ).first()
-        
+
         if not etapa:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Etapa con id {etapa_id} no encontrada"
             )
         return etapa
-    
+
     @staticmethod
     def actualizar_etapa(
         db: Session,
@@ -304,27 +304,27 @@ class EtapaService:
     ) -> models.WorkflowEtapa:
         """Actualiza una etapa y sus preguntas"""
         db_etapa = EtapaService.obtener_etapa(db, etapa_id)
-        
+
         update_data = etapa_update.model_dump(exclude_unset=True, exclude={'preguntas'})
-        
+
         # Si se actualiza el código, verificar unicidad
         if "codigo" in update_data:
             EtapaService.verificar_codigo_unico_en_workflow(
                 db, db_etapa.workflow_id, update_data["codigo"], etapa_id
             )
-        
+
         for field, value in update_data.items():
             setattr(db_etapa, field, value)
-        
+
         db_etapa.updated_by = updated_by
-        
+
         # Actualizar preguntas si se proporcionan
         if etapa_update.preguntas is not None:
             # Eliminar preguntas existentes
             db.query(models.WorkflowPregunta).filter(
                 models.WorkflowPregunta.etapa_id == etapa_id
             ).delete()
-            
+
             # Crear nuevas preguntas
             for pregunta_data in etapa_update.preguntas:
                 # Convertir a dict si no lo es
@@ -332,15 +332,15 @@ class EtapaService:
                     pregunta_dict = pregunta_data.model_dump()
                 else:
                     pregunta_dict = pregunta_data
-                
+
                 # Crear como WorkflowPreguntaCreate con etapa_id
                 pregunta_create = schemas.WorkflowPreguntaCreate(**pregunta_dict, etapa_id=etapa_id)
                 PreguntaService.crear_pregunta(db, pregunta_create, etapa_id, updated_by)
-        
+
         db.commit()
         db.refresh(db_etapa)
         return db_etapa
-    
+
     @staticmethod
     def eliminar_etapa(db: Session, etapa_id: int, updated_by: str) -> None:
         """Desactiva una etapa"""
@@ -356,7 +356,7 @@ class EtapaService:
 
 class PreguntaService:
     """Servicio para operaciones de Pregunta"""
-    
+
     @staticmethod
     def verificar_codigo_unico_en_etapa(
         db: Session,
@@ -373,13 +373,13 @@ class PreguntaService:
         )
         if pregunta_id:
             query = query.filter(models.WorkflowPregunta.id != pregunta_id)
-        
+
         if query.first():
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Ya existe una pregunta con el código '{codigo}' en esta etapa"
             )
-    
+
     @staticmethod
     def crear_pregunta(
         db: Session,
@@ -390,10 +390,10 @@ class PreguntaService:
         """Crea una pregunta"""
         # Verificar que la etapa existe
         EtapaService.obtener_etapa(db, etapa_id)
-        
+
         # Verificar código único
         PreguntaService.verificar_codigo_unico_en_etapa(db, etapa_id, pregunta_data.codigo)
-        
+
         pregunta_dict = pregunta_data.model_dump(exclude={"etapa_id"})
         db_pregunta = models.WorkflowPregunta(
             **pregunta_dict,
@@ -402,7 +402,7 @@ class PreguntaService:
         )
         db.add(db_pregunta)
         return db_pregunta
-    
+
     @staticmethod
     def obtener_pregunta(db: Session, pregunta_id: int) -> models.WorkflowPregunta:
         """Obtiene una pregunta por ID con su etapa"""
@@ -411,14 +411,14 @@ class PreguntaService:
         ).filter(
             models.WorkflowPregunta.id == pregunta_id
         ).first()
-        
+
         if not pregunta:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Pregunta con id {pregunta_id} no encontrada"
             )
         return pregunta
-    
+
     @staticmethod
     def actualizar_pregunta(
         db: Session,
@@ -428,16 +428,16 @@ class PreguntaService:
     ) -> models.WorkflowPregunta:
         """Actualiza una pregunta"""
         db_pregunta = PreguntaService.obtener_pregunta(db, pregunta_id)
-        
+
         update_data = pregunta_update.model_dump(exclude_unset=True)
         for field, value in update_data.items():
             setattr(db_pregunta, field, value)
-        
+
         db_pregunta.updated_by = updated_by
         db.commit()
         db.refresh(db_pregunta)
         return db_pregunta
-    
+
     @staticmethod
     def eliminar_pregunta(db: Session, pregunta_id: int, updated_by: str) -> None:
         """Desactiva una pregunta"""
@@ -453,7 +453,7 @@ class PreguntaService:
 
 class ConexionService:
     """Servicio para operaciones de Conexión"""
-    
+
     @staticmethod
     def validar_conexion(
         db: Session,
@@ -463,15 +463,15 @@ class ConexionService:
         """Valida que las etapas existan y pertenezcan al mismo workflow"""
         etapa_origen = EtapaService.obtener_etapa(db, etapa_origen_id)
         etapa_destino = EtapaService.obtener_etapa(db, etapa_destino_id)
-        
+
         if etapa_origen.workflow_id != etapa_destino.workflow_id:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Las etapas deben pertenecer al mismo workflow"
             )
-        
+
         return etapa_origen, etapa_destino
-    
+
     @staticmethod
     def crear_conexion(
         db: Session,
@@ -484,7 +484,7 @@ class ConexionService:
         ConexionService.validar_conexion(
             db, conexion_data.etapa_origen_id, conexion_data.etapa_destino_id
         )
-        
+
         conexion_dict = conexion_data.model_dump(exclude={"workflow_id"})
         db_conexion = models.WorkflowConexion(
             **conexion_dict,
@@ -493,7 +493,7 @@ class ConexionService:
         )
         db.add(db_conexion)
         return db_conexion
-    
+
     @staticmethod
     def obtener_conexion(db: Session, conexion_id: int) -> models.WorkflowConexion:
         """Obtiene una conexión por ID con sus etapas"""
@@ -503,14 +503,14 @@ class ConexionService:
         ).filter(
             models.WorkflowConexion.id == conexion_id
         ).first()
-        
+
         if not conexion:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Conexión con id {conexion_id} no encontrada"
             )
         return conexion
-    
+
     @staticmethod
     def actualizar_conexion(
         db: Session,
@@ -519,15 +519,15 @@ class ConexionService:
     ) -> models.WorkflowConexion:
         """Actualiza una conexión"""
         db_conexion = ConexionService.obtener_conexion(db, conexion_id)
-        
+
         update_data = conexion_update.model_dump(exclude_unset=True)
         for field, value in update_data.items():
             setattr(db_conexion, field, value)
-        
+
         db.commit()
         db.refresh(db_conexion)
         return db_conexion
-    
+
     @staticmethod
     def eliminar_conexion(db: Session, conexion_id: int) -> None:
         """Elimina una conexión"""
@@ -542,7 +542,7 @@ class ConexionService:
 
 class InstanciaService:
     """Servicio para operaciones de Instancia"""
-    
+
     @staticmethod
     def generar_numero_expediente(db: Session, workflow: models.Workflow) -> str:
         """Genera un número de expediente único"""
@@ -551,9 +551,9 @@ class InstanciaService:
             models.WorkflowInstancia.workflow_id == workflow.id,
             func.extract('year', models.WorkflowInstancia.created_at) == year
         ).scalar()
-        
+
         return f"WF-{workflow.codigo}-{year}-{str(count + 1).zfill(6)}"
-    
+
     @staticmethod
     def obtener_etapa_inicial(db: Session, workflow_id: int) -> models.WorkflowEtapa:
         """Obtiene la etapa inicial de un workflow"""
@@ -564,15 +564,15 @@ class InstanciaService:
                 models.WorkflowEtapa.activo == True
             )
         ).first()
-        
+
         if not etapa_inicial:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="El workflow no tiene una etapa inicial definida"
             )
-        
+
         return etapa_inicial
-    
+
     @staticmethod
     def crear_instancia(
         db: Session,
@@ -587,25 +587,25 @@ class InstanciaService:
                 models.Workflow.activo == True
             )
         ).first()
-        
+
         if not workflow:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Workflow con id {instancia_data.workflow_id} no encontrado o inactivo"
             )
-        
+
         if workflow.estado != "ACTIVO":
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"El workflow debe estar en estado ACTIVO. Estado actual: {workflow.estado}"
             )
-        
+
         # Obtener etapa inicial
         etapa_inicial = InstanciaService.obtener_etapa_inicial(db, workflow.id)
-        
+
         # Generar número de expediente
         num_expediente = InstanciaService.generar_numero_expediente(db, workflow)
-        
+
         # Crear instancia
         db_instancia = models.WorkflowInstancia(
             workflow_id=workflow.id,
@@ -619,7 +619,7 @@ class InstanciaService:
         )
         db.add(db_instancia)
         db.flush()
-        
+
         # Crear entrada en historial
         HistorialService.registrar_cambio(
             db=db,
@@ -630,11 +630,11 @@ class InstanciaService:
             descripcion=f"Instancia iniciada en etapa '{etapa_inicial.nombre}'",
             created_by=created_by
         )
-        
+
         db.commit()
         db.refresh(db_instancia)
         return db_instancia
-    
+
     @staticmethod
     def obtener_instancia(db: Session, instancia_id: int) -> models.WorkflowInstancia:
         """Obtiene una instancia por ID con workflow, etapa actual e historial"""
@@ -646,14 +646,14 @@ class InstanciaService:
         ).filter(
             models.WorkflowInstancia.id == instancia_id
         ).first()
-        
+
         if not instancia:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Instancia con id {instancia_id} no encontrada"
             )
         return instancia
-    
+
     @staticmethod
     def listar_instancias(
         db: Session,
@@ -668,7 +668,7 @@ class InstanciaService:
         query = db.query(models.WorkflowInstancia).filter(
             models.WorkflowInstancia.activo == True
         )
-        
+
         if workflow_id:
             query = query.filter(models.WorkflowInstancia.workflow_id == workflow_id)
         if estado:
@@ -677,11 +677,11 @@ class InstanciaService:
             query = query.filter(models.WorkflowInstancia.creado_por_user_id == creado_por)
         if asignado_a:
             query = query.filter(models.WorkflowInstancia.asignado_a_user_id == asignado_a)
-        
+
         return query.order_by(
             models.WorkflowInstancia.created_at.desc()
         ).offset(skip).limit(limit).all()
-    
+
     @staticmethod
     def actualizar_instancia(
         db: Session,
@@ -691,9 +691,9 @@ class InstanciaService:
     ) -> models.WorkflowInstancia:
         """Actualiza una instancia"""
         db_instancia = InstanciaService.obtener_instancia(db, instancia_id)
-        
+
         update_data = instancia_update.model_dump(exclude_unset=True)
-        
+
         # Registrar cambios importantes
         if "estado" in update_data and update_data["estado"] != db_instancia.estado:
             HistorialService.registrar_cambio(
@@ -705,7 +705,7 @@ class InstanciaService:
                 descripcion=f"Estado cambiado de {db_instancia.estado} a {update_data['estado']}",
                 created_by=updated_by
             )
-        
+
         if "asignado_a_user_id" in update_data and update_data["asignado_a_user_id"] != db_instancia.asignado_a_user_id:
             HistorialService.registrar_cambio(
                 db=db,
@@ -715,16 +715,16 @@ class InstanciaService:
                 datos_adicionales={"usuario_anterior": db_instancia.asignado_a_user_id},
                 created_by=updated_by
             )
-        
+
         # Actualizar campos
         for field, value in update_data.items():
             setattr(db_instancia, field, value)
-        
+
         db_instancia.updated_by = updated_by
         db.commit()
         db.refresh(db_instancia)
         return db_instancia
-    
+
     @staticmethod
     def transicionar_instancia(
         db: Session,
@@ -734,11 +734,11 @@ class InstanciaService:
     ) -> Dict[str, Any]:
         """Realiza una transición entre etapas"""
         db_instancia = InstanciaService.obtener_instancia(db, instancia_id)
-        
+
         # Obtener etapas
         etapa_actual = EtapaService.obtener_etapa(db, db_instancia.etapa_actual_id)
         etapa_destino = EtapaService.obtener_etapa(db, transicion.etapa_destino_id)
-        
+
         # Verificar conexión válida
         conexion = db.query(models.WorkflowConexion).filter(
             and_(
@@ -747,29 +747,29 @@ class InstanciaService:
                 models.WorkflowConexion.activo == True
             )
         ).first()
-        
+
         if not conexion:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"No existe una conexión válida desde '{etapa_actual.nombre}' hacia '{etapa_destino.nombre}'"
             )
-        
+
         # Guardar respuestas
         if transicion.respuestas:
             RespuestaService.guardar_respuestas_etapa(
                 db, instancia_id, etapa_actual.id, transicion.respuestas, current_user
             )
-        
+
         # Actualizar etapa actual
         db_instancia.etapa_actual_id = transicion.etapa_destino_id
         db_instancia.estado = "EN_PROGRESO"
         db_instancia.updated_by = current_user
-        
+
         # Si es etapa final
         if etapa_destino.es_etapa_final:
             db_instancia.estado = "COMPLETADO"
             db_instancia.fecha_fin = datetime.now()
-        
+
         # Registrar en historial
         HistorialService.registrar_cambio(
             db=db,
@@ -782,7 +782,7 @@ class InstanciaService:
             descripcion=transicion.comentario or f"Transición de '{etapa_actual.nombre}' a '{etapa_destino.nombre}'",
             created_by=current_user
         )
-        
+
         # ========================================
         # SINCRONIZACIÓN CON SOLICITUD PPSH
         # ========================================
@@ -792,16 +792,16 @@ class InstanciaService:
                 from app.services.workflow_ppsh_service import WorkflowPPSHIntegrationService
                 from app.services.services_ppsh import SolicitudService
                 from app.schemas import CambiarEstadoRequest
-                
+
                 # Obtener solicitud PPSH vinculada
                 solicitud_ppsh = WorkflowPPSHIntegrationService.obtener_solicitud_ppsh_desde_instancia(
                     db, instancia_id
                 )
-                
+
                 if solicitud_ppsh:
                     # Determinar estado final según el tipo de etapa
                     estado_final = "RESUELTO"  # Por defecto
-                    
+
                     # Si el workflow tiene metadata que indica aprobación/rechazo
                     if db_instancia.metadata_adicional:
                         resultado = db_instancia.metadata_adicional.get("resultado_workflow")
@@ -809,13 +809,13 @@ class InstanciaService:
                             estado_final = "APROBADO"
                         elif resultado == "RECHAZADO":
                             estado_final = "RECHAZADO"
-                    
+
                     # Actualizar estado de solicitud PPSH
                     cambio = CambiarEstadoRequest(
                         estado_nuevo=estado_final,
                         observaciones=f"Estado actualizado automáticamente al completar workflow. Etapa final: {etapa_destino.nombre}"
                     )
-                    
+
                     SolicitudService.cambiar_estado(
                         db=db,
                         id_solicitud=solicitud_ppsh.id_solicitud,
@@ -823,7 +823,7 @@ class InstanciaService:
                         user_id=current_user,
                         user_perfil="SISTEMA"  # Cambio automático por sistema
                     )
-                    
+
                     logger.info(
                         f"Sincronización PPSH: Solicitud {solicitud_ppsh.num_expediente} "
                         f"actualizada a estado {estado_final}"
@@ -831,10 +831,10 @@ class InstanciaService:
             except Exception as e:
                 logger.warning(f"Error sincronizando estado con PPSH: {str(e)}")
                 # No fallar la transición por error de sincronización
-        
+
         db.commit()
         db.refresh(db_instancia)
-        
+
         return {
             "success": True,
             "instancia": db_instancia,
@@ -842,7 +842,7 @@ class InstanciaService:
             "etapa_nueva": etapa_destino,
             "mensaje": f"Transición exitosa a la etapa '{etapa_destino.nombre}'"
         }
-    
+
     @staticmethod
     def puede_usuario_ver_etapa(
         db: Session,
@@ -864,26 +864,26 @@ class InstanciaService:
         """
         try:
             etapa = EtapaService.obtener_etapa(db, etapa_id)
-            
+
             # Si no hay perfiles permitidos configurados, permitir acceso
             # (útil para etapas de INICIO y FIN)
             if not etapa.perfiles_permitidos or len(etapa.perfiles_permitidos) == 0:
                 return True
-            
+
             # Verificar si el perfil del usuario está en la lista de perfiles permitidos
             if user_perfil in etapa.perfiles_permitidos:
                 return True
-            
+
             # ADMIN siempre tiene acceso (rol especial)
             if user_perfil == "ADMIN":
                 return True
-            
+
             return False
-            
+
         except HTTPException:
             # Si la etapa no existe, no tiene permiso
             return False
-    
+
     @staticmethod
     def puede_usuario_editar_etapa(
         db: Session,
@@ -914,23 +914,23 @@ class InstanciaService:
             # Verificar permisos de visualización primero
             if not InstanciaService.puede_usuario_ver_etapa(db, user_id, user_perfil, etapa_id):
                 return False
-            
+
             # Obtener instancia
             instancia = InstanciaService.obtener_instancia(db, instancia_id)
-            
+
             # Verificar que la instancia esté activa
             if not instancia.activo:
                 return False
-            
+
             # Verificar que la instancia no esté en estado terminal
             if instancia.estado in ["COMPLETADO", "CANCELADO"]:
                 return False
-            
+
             # Verificar que la etapa es la etapa actual de la instancia
             # (solo se puede editar la etapa actual)
             if instancia.etapa_actual_id != etapa_id:
                 return False
-            
+
             # Verificar si el usuario es el asignado
             # Si hay un usuario asignado, solo ese usuario puede editar
             if instancia.asignado_a_user_id:
@@ -938,12 +938,12 @@ class InstanciaService:
                     # ADMIN puede editar incluso si está asignado a otro
                     if user_perfil != "ADMIN":
                         return False
-            
+
             return True
-            
+
         except HTTPException:
             return False
-    
+
     @staticmethod
     def obtener_vista_actual_para_usuario(
         db: Session,
@@ -977,31 +977,31 @@ class InstanciaService:
         """
         # Obtener instancia con relaciones
         instancia = InstanciaService.obtener_instancia(db, instancia_id)
-        
+
         if not instancia.etapa_actual_id:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="La instancia no tiene una etapa actual definida"
             )
-        
+
         # Obtener etapa actual con preguntas
         etapa_actual = EtapaService.obtener_etapa(db, instancia.etapa_actual_id)
-        
+
         # Verificar permisos
         puede_ver = InstanciaService.puede_usuario_ver_etapa(
             db, user_id, user_perfil, etapa_actual.id
         )
-        
+
         puede_editar = InstanciaService.puede_usuario_editar_etapa(
             db, user_id, user_perfil, instancia.id, etapa_actual.id
         )
-        
+
         if not puede_ver:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail=f"El usuario no tiene permiso para ver la etapa '{etapa_actual.nombre}'"
             )
-        
+
         # Obtener respuestas previas de la etapa (si existen)
         respuesta_etapa = db.query(models.WorkflowRespuestaEtapa).filter(
             and_(
@@ -1009,7 +1009,7 @@ class InstanciaService:
                 models.WorkflowRespuestaEtapa.etapa_id == etapa_actual.id
             )
         ).first()
-        
+
         respuestas_previas = {}
         if respuesta_etapa:
             for respuesta in respuesta_etapa.respuestas:
@@ -1020,13 +1020,13 @@ class InstanciaService:
                     "valor_booleano": respuesta.valor_booleano,
                     "archivos": respuesta.archivos
                 }
-        
+
         # Construir lista de campos visibles
         campos = []
         for pregunta in sorted(etapa_actual.preguntas, key=lambda p: p.orden):
             if not pregunta.activo:
                 continue
-            
+
             campo = {
                 "id": pregunta.id,
                 "codigo": pregunta.codigo,
@@ -1050,7 +1050,7 @@ class InstanciaService:
                 "valor_actual": respuestas_previas.get(pregunta.id)
             }
             campos.append(campo)
-        
+
         return {
             "instancia": {
                 "id": instancia.id,
@@ -1107,17 +1107,17 @@ class InstanciaService:
         """
         # Obtener instancia
         instancia = InstanciaService.obtener_instancia(db, instancia_id)
-        
+
         # Obtener la etapa específica
         etapa = EtapaService.obtener_etapa(db, etapa_id)
-        
+
         # Verificar que la etapa pertenece al mismo workflow
         if etapa.workflow_id != instancia.workflow_id:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="La etapa no pertenece al workflow de esta instancia"
             )
-        
+
         # Verificar si la etapa ya fue completada en esta instancia
         respuesta_etapa = db.query(models.WorkflowRespuestaEtapa).filter(
             and_(
@@ -1125,9 +1125,9 @@ class InstanciaService:
                 models.WorkflowRespuestaEtapa.etapa_id == etapa_id
             )
         ).first()
-        
+
         es_etapa_completada = respuesta_etapa and respuesta_etapa.completada
-        
+
         # Verificar permisos de visualización
         # Funcionarios y admins pueden ver cualquier etapa completada (historial)
         perfiles_admin = ['FUNCIONARIO', 'ADMIN', 'SUPERVISOR']
@@ -1137,20 +1137,20 @@ class InstanciaService:
             puede_ver = InstanciaService.puede_usuario_ver_etapa(
                 db, user_id, user_perfil, etapa_id
             )
-        
+
         # Solo puede editar si es la etapa actual
         puede_editar = False
         if instancia.etapa_actual_id == etapa_id:
             puede_editar = InstanciaService.puede_usuario_editar_etapa(
                 db, user_id, user_perfil, instancia.id, etapa_id
             )
-        
+
         if not puede_ver:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail=f"El usuario no tiene permiso para ver la etapa '{etapa.nombre}'"
             )
-        
+
         # Las respuestas ya las obtuvimos antes para verificar si estaba completada
         respuestas_previas = {}
         if respuesta_etapa:
@@ -1164,13 +1164,13 @@ class InstanciaService:
                     "valores_multiples": respuesta.valor_json if isinstance(respuesta.valor_json, list) else None,
                     "metadata": None
                 }
-        
+
         # Construir lista de campos
         campos = []
         for pregunta in sorted(etapa.preguntas, key=lambda p: p.orden):
             if not pregunta.activo:
                 continue
-            
+
             campo = {
                 "id": pregunta.id,
                 "codigo": pregunta.codigo,
@@ -1194,7 +1194,7 @@ class InstanciaService:
                 "valor_actual": respuestas_previas.get(pregunta.id)
             }
             campos.append(campo)
-        
+
         return {
             "instancia": {
                 "id": instancia.id,
@@ -1230,7 +1230,7 @@ class InstanciaService:
 
 class RespuestaService:
     """Servicio para operaciones de Respuesta"""
-    
+
     @staticmethod
     def guardar_respuestas_etapa(
         db: Session,
@@ -1247,7 +1247,7 @@ class RespuestaService:
                 models.WorkflowRespuestaEtapa.etapa_id == etapa_id
             )
         ).first()
-        
+
         if not respuesta_etapa:
             respuesta_etapa = models.WorkflowRespuestaEtapa(
                 instancia_id=instancia_id,
@@ -1262,7 +1262,7 @@ class RespuestaService:
             respuesta_etapa.completada = True
             respuesta_etapa.fecha_completado = datetime.now()
             respuesta_etapa.completado_por_user_id = created_by
-        
+
         # Guardar respuestas individuales
         for resp_data in respuestas:
             db_respuesta = models.WorkflowRespuesta(
@@ -1271,7 +1271,7 @@ class RespuestaService:
                 created_by=created_by
             )
             db.add(db_respuesta)
-        
+
         return respuesta_etapa
 
 
@@ -1281,7 +1281,7 @@ class RespuestaService:
 
 class HistorialService:
     """Servicio para operaciones de Historial"""
-    
+
     @staticmethod
     def registrar_cambio(
         db: Session,
@@ -1309,7 +1309,7 @@ class HistorialService:
         )
         db.add(db_historial)
         return db_historial
-    
+
     @staticmethod
     def obtener_historial(
         db: Session,
@@ -1327,7 +1327,7 @@ class HistorialService:
 
 class ComentarioService:
     """Servicio para operaciones de Comentario"""
-    
+
     @staticmethod
     def crear_comentario(
         db: Session,
@@ -1338,7 +1338,7 @@ class ComentarioService:
         """Crea un comentario en una instancia"""
         # Verificar que la instancia existe
         InstanciaService.obtener_instancia(db, instancia_id)
-        
+
         db_comentario = models.WorkflowComentario(
             **comentario_data.model_dump(),
             instancia_id=instancia_id,
@@ -1348,7 +1348,7 @@ class ComentarioService:
         db.commit()
         db.refresh(db_comentario)
         return db_comentario
-    
+
     @staticmethod
     def listar_comentarios(
         db: Session,
@@ -1359,10 +1359,10 @@ class ComentarioService:
         query = db.query(models.WorkflowComentario).filter(
             models.WorkflowComentario.instancia_id == instancia_id
         )
-        
+
         if not incluir_internos:
             query = query.filter(models.WorkflowComentario.es_interno == False)
-        
+
         return query.order_by(
             models.WorkflowComentario.created_at.desc()
         ).all()
