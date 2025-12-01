@@ -11,6 +11,8 @@ RUN apt-get update && apt-get install -y \
     tesseract-ocr \
     tesseract-ocr-spa \
     tesseract-ocr-eng \
+    # Poppler para conversión de PDF a imagen
+    poppler-utils \
     # Bibliotecas para OpenCV (actualizado para Debian 13)
     libgl1 \
     libglib2.0-0 \

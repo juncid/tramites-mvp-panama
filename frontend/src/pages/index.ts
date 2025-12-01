@@ -16,21 +16,38 @@ export { WorkflowViewer } from './WorkflowViewer'
 export { WorkflowEditorFigma } from './WorkflowEditorFigma'
 export { GenericEtapaPage } from './GenericEtapaPage'
 
-// Etapas de solicitud
-export { DescargaRequisitos } from './DescargaRequisitos'
-export { CargaPoderGeneral } from './CargaPoderGeneral'
-export { CargaSolicitudFirmada } from './CargaSolicitudFirmada'
-export { Cotizacion } from './Cotizacion'
-export { RecepcionRecibosPagos } from './RecepcionRecibosPagos'
-export { ImpresionListaCasos } from './ImpresionListaCasos'
-export { ReasignacionCaso } from './ReasignacionCaso'
-export { ProgramacionEntrevista } from './ProgramacionEntrevista'
-export { RecepcionRex } from './RecepcionRex'
-export { RecepcionReciboTesoreria } from './RecepcionReciboTesoreria'
-export { NotasEntrevista } from './NotasEntrevista'
-export { DictamenFinal } from './DictamenFinal'
-export { EntregaResolucion } from './EntregaResolucion'
-export { RevisionRequisitos } from './RevisionRequisitos'
+// =============================================================================
+// ETAPAS CON LÓGICA ESPECIAL (mantener - no se pueden reemplazar con GenericEtapaPage)
+// =============================================================================
+export { DescargaRequisitos } from './DescargaRequisitos'       // Auto-completa 3 etapas
+export { CargaPoderGeneral } from './CargaPoderGeneral'         // OCR upload especial
+export { CargaSolicitudFirmada } from './CargaSolicitudFirmada' // OCR upload especial
+export { Cotizacion } from './Cotizacion'                       // Items dinámicos de cotización
+export { RevisionRequisitos } from './RevisionRequisitos'       // OCR masivo especial
+
+// =============================================================================
+// ETAPAS SIMPLES - DEPRECADAS (usar GenericEtapaPage en su lugar)
+// Mantener exports para compatibilidad, pero no usar en nuevas rutas
+// Archivos movidos a _deprecated/
+// =============================================================================
+/** @deprecated Usar GenericEtapaPage con ?etapaCode=RECEPCION_RECIBOS */
+export { RecepcionRecibosPagos } from './_deprecated/RecepcionRecibosPagos'
+/** @deprecated Usar GenericEtapaPage con ?etapaCode=IMPRESION_LISTA */
+export { ImpresionListaCasos } from './_deprecated/ImpresionListaCasos'
+/** @deprecated Usar GenericEtapaPage con ?etapaCode=REASIGNACION */
+export { ReasignacionCaso } from './_deprecated/ReasignacionCaso'
+/** @deprecated Usar GenericEtapaPage con ?etapaCode=PROGRAMACION_ENTREVISTA */
+export { ProgramacionEntrevista } from './_deprecated/ProgramacionEntrevista'
+/** @deprecated Usar GenericEtapaPage con ?etapaCode=RECEPCION_REX */
+export { RecepcionRex } from './_deprecated/RecepcionRex'
+/** @deprecated Usar GenericEtapaPage con ?etapaCode=RECEPCION_TESORERIA */
+export { RecepcionReciboTesoreria } from './_deprecated/RecepcionReciboTesoreria'
+/** @deprecated Usar GenericEtapaPage con ?etapaCode=NOTAS_ENTREVISTA */
+export { NotasEntrevista } from './_deprecated/NotasEntrevista'
+/** @deprecated Usar GenericEtapaPage con ?etapaCode=DICTAMEN_FINAL */
+export { DictamenFinal } from './_deprecated/DictamenFinal'
+/** @deprecated Usar GenericEtapaPage con ?etapaCode=ENTREGA_RESOLUCION */
+export { EntregaResolucion } from './_deprecated/EntregaResolucion'
 
 // Páginas públicas
 export { InicioTramite } from './InicioTramite'

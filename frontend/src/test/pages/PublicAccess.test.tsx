@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
 import PublicAccess from '../../pages/PublicAccess';
@@ -13,7 +13,14 @@ vi.mock('react-router-dom', async () => {
   };
 });
 
+// Mock fetch
+global.fetch = vi.fn();
+
 describe('PublicAccess Component', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   it('renderiza el formulario correctamente', () => {
     render(
       <BrowserRouter>
@@ -21,22 +28,22 @@ describe('PublicAccess Component', () => {
       </BrowserRouter>
     );
 
-    expect(screen.getByText(/Consulta de Solicitud/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/Número de Solicitud/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/Tipo de Documento/i)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Consultar Solicitud/i })).toBeInTheDocument();
+    // El título ahora es "Continuar Solicitud"
+    expect(screen.getByText(/Continuar Solicitud/i)).toBeInTheDocument();
+    // Campos principales
+    expect(screen.getByLabelText(/Código de Acceso/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Número de Pasaporte/i)).toBeInTheDocument();
   });
 
-  it('muestra error cuando se envía el formulario vacío', async () => {
+  it('muestra el botón deshabilitado cuando los campos están vacíos', async () => {
     render(
       <BrowserRouter>
         <PublicAccess />
       </BrowserRouter>
     );
 
-    const submitButton = screen.getByRole('button', { name: /Consultar Solicitud/i });
-    
     // El botón debe estar deshabilitado si los campos están vacíos
+    const submitButton = screen.getByRole('button', { name: /Continuar Trámite/i });
     expect(submitButton).toBeDisabled();
   });
 
@@ -47,50 +54,43 @@ describe('PublicAccess Component', () => {
       </BrowserRouter>
     );
 
-    const numeroSolicitudInput = screen.getByLabelText(/Número de Solicitud/i);
-    const numeroDocumentoInput = screen.getByLabelText(/Número de Pasaporte/i);
-    const submitButton = screen.getByRole('button', { name: /Consultar Solicitud/i });
+    const codigoInput = screen.getByLabelText(/Código de Acceso/i);
+    const pasaporteInput = screen.getByLabelText(/Número de Pasaporte/i);
+    const submitButton = screen.getByRole('button', { name: /Continuar Trámite/i });
 
-    fireEvent.change(numeroSolicitudInput, { target: { value: 'PPSH-2025-00001' } });
-    fireEvent.change(numeroDocumentoInput, { target: { value: 'N123456789' } });
+    fireEvent.change(codigoInput, { target: { value: 'PPSH-A7X9' } });
+    fireEvent.change(pasaporteInput, { target: { value: 'N123456789' } });
 
     await waitFor(() => {
       expect(submitButton).not.toBeDisabled();
     });
   });
 
-  it('convierte el número de solicitud a mayúsculas', async () => {
+  it('convierte el código de acceso a mayúsculas', async () => {
     render(
       <BrowserRouter>
         <PublicAccess />
       </BrowserRouter>
     );
 
-    const numeroSolicitudInput = screen.getByLabelText(/Número de Solicitud/i) as HTMLInputElement;
+    const codigoInput = screen.getByLabelText(/Código de Acceso/i) as HTMLInputElement;
 
-    fireEvent.change(numeroSolicitudInput, { target: { value: 'ppsh-2025-00001' } });
+    fireEvent.change(codigoInput, { target: { value: 'ppsh-a7x9' } });
 
     await waitFor(() => {
-      expect(numeroSolicitudInput.value).toBe('PPSH-2025-00001');
+      expect(codigoInput.value).toBe('PPSH-A7X9');
     });
   });
 
-  it('cambia el label del documento según el tipo seleccionado', async () => {
+  it('tiene tabs para cambiar entre código de acceso y link completo', async () => {
     render(
       <BrowserRouter>
         <PublicAccess />
       </BrowserRouter>
     );
 
-    // Por defecto debe mostrar "Pasaporte"
-    expect(screen.getByLabelText(/Número de Pasaporte/i)).toBeInTheDocument();
-
-    // Cambiar a Cédula
-    const tipoDocumentoSelect = screen.getByLabelText(/Tipo de Documento/i);
-    fireEvent.change(tipoDocumentoSelect, { target: { value: 'CEDULA' } });
-
-    await waitFor(() => {
-      expect(screen.getByLabelText(/Número de Cédula/i)).toBeInTheDocument();
-    });
+    // Debe haber tabs
+    expect(screen.getByRole('tab', { name: /Código de Acceso/i })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /Link Completo/i })).toBeInTheDocument();
   });
 });

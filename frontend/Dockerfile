@@ -32,11 +32,10 @@ RUN chown -R nodejs:nodejs /app
 USER nodejs
 
 # Copy package files
-# Nota: package-lock.json está excluido en .dockerignore
-COPY --chown=nodejs:nodejs package.json ./
+COPY --chown=nodejs:nodejs package.json package-lock.json* ./
 
 # Install dependencies
-RUN npm install --no-audit --progress=false
+RUN npm ci --no-audit --progress=false || npm install --no-audit --progress=false
 
 # Copy application files
 COPY --chown=nodejs:nodejs . .

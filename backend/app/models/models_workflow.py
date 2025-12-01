@@ -45,6 +45,7 @@ class TipoPregunta(str, enum.Enum):
     REVISION_MANUAL_DOCUMENTOS = "REVISION_MANUAL_DOCUMENTOS"
     REVISION_OCR = "REVISION_OCR"
     IMPRESION = "IMPRESION"
+    IMPRESION_LISTA_CASOS = "IMPRESION_LISTA_CASOS"
     SELECCION_FECHA = "SELECCION_FECHA"
 
 
@@ -106,6 +107,49 @@ class Workflow(Base):
     etapas = relationship("WorkflowEtapa", back_populates="workflow", cascade="all, delete-orphan", order_by="WorkflowEtapa.orden")
     conexiones = relationship("WorkflowConexion", back_populates="workflow", cascade="all, delete-orphan")
     instancias = relationship("WorkflowInstancia", back_populates="workflow")
+    historial_cambios = relationship("WorkflowHistorialCambios", back_populates="workflow", cascade="all, delete-orphan", order_by="WorkflowHistorialCambios.created_at.desc()")
+
+
+class WorkflowHistorialCambios(Base):
+    """
+    Historial de cambios en la definición de un workflow (plantilla).
+    Registra modificaciones a etapas, conexiones, configuración, etc.
+    """
+    __tablename__ = "WORKFLOW_HISTORIAL_CAMBIOS"
+
+    id = Column(Integer, primary_key=True, index=True)
+    workflow_id = Column(Integer, ForeignKey('WORKFLOW.id'), nullable=False, index=True)
+
+    # Tipo de cambio
+    tipo_cambio = Column(String(50), nullable=False, index=True)
+    # Valores: CREACION, EDICION_ETAPA, NUEVA_ETAPA, ELIMINAR_ETAPA, 
+    #          CAMBIO_CONEXION, PUBLICACION, CONFIGURACION, CAMBIO_ESTADO
+
+    # Detalles del cambio
+    accion = Column(String(100), nullable=False)
+    descripcion = Column(Text)
+
+    # Referencia a etapa afectada (opcional)
+    etapa_id = Column(Integer, ForeignKey('WORKFLOW_ETAPA.id'), nullable=True)
+    etapa_codigo = Column(String(50))
+    etapa_nombre = Column(String(255))
+
+    # Cambios específicos
+    campo_modificado = Column(String(100))
+    valor_anterior = Column(Text)
+    valor_nuevo = Column(Text)
+
+    # Datos adicionales en JSON
+    datos_adicionales = Column(JSON)
+
+    # Auditoría
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now(), index=True)
+    created_by = Column(String(17), nullable=False, index=True)
+    created_by_nombre = Column(String(100))
+
+    # Relaciones
+    workflow = relationship("Workflow", back_populates="historial_cambios")
+    etapa = relationship("WorkflowEtapa", foreign_keys=[etapa_id])
 
 
 class WorkflowEtapa(Base):

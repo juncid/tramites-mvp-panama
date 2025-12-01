@@ -17,6 +17,7 @@ from fastapi import HTTPException, status
 import logging
 
 from app.models import models_workflow as models
+from app.models import models_ppsh
 from app.schemas import schemas_workflow as schemas
 
 # Configurar logger
@@ -108,6 +109,23 @@ class WorkflowService:
                 )
             logger.info(f"Creadas {len(workflow_data.conexiones)} conexiones para workflow {workflow_data.codigo}")
 
+        # Registrar en historial
+        WorkflowCambiosService.registrar_cambio(
+            db=db,
+            workflow_id=db_workflow.id,
+            tipo_cambio="workflow",
+            accion="crear",
+            created_by=created_by,
+            descripcion=f"Workflow '{workflow_data.nombre}' creado con {len(workflow_data.etapas or [])} etapas",
+            datos_adicionales={
+                "codigo": workflow_data.codigo,
+                "nombre": workflow_data.nombre,
+                "categoria": workflow_data.categoria,
+                "total_etapas": len(workflow_data.etapas or []),
+                "total_conexiones": len(workflow_data.conexiones or [])
+            }
+        )
+
         db.commit()
         db.refresh(db_workflow)
         logger.info(f"✅ Workflow {workflow_data.codigo} creado exitosamente con ID: {db_workflow.id}")
@@ -189,11 +207,34 @@ class WorkflowService:
         if "codigo" in update_data:
             WorkflowService.verificar_codigo_unico(db, update_data["codigo"], workflow_id)
 
-        # Actualizar campos
-        for field, value in update_data.items():
-            setattr(db_workflow, field, value)
+        # Guardar valores anteriores para el historial
+        cambios_registrados = []
+        for field, new_value in update_data.items():
+            old_value = getattr(db_workflow, field, None)
+            if old_value != new_value:
+                cambios_registrados.append({
+                    "campo": field,
+                    "anterior": str(old_value) if old_value is not None else None,
+                    "nuevo": str(new_value) if new_value is not None else None
+                })
+            setattr(db_workflow, field, new_value)
 
         db_workflow.updated_by = updated_by
+
+        # Registrar cada cambio en historial
+        for cambio in cambios_registrados:
+            WorkflowCambiosService.registrar_cambio(
+                db=db,
+                workflow_id=workflow_id,
+                tipo_cambio="workflow",
+                accion="editar",
+                created_by=updated_by,
+                campo_modificado=cambio["campo"],
+                valor_anterior=cambio["anterior"],
+                valor_nuevo=cambio["nuevo"],
+                descripcion=f"Campo '{cambio['campo']}' modificado"
+            )
+
         db.commit()
         db.refresh(db_workflow)
         return db_workflow
@@ -204,6 +245,19 @@ class WorkflowService:
         db_workflow = WorkflowService.obtener_workflow(db, workflow_id)
         db_workflow.activo = False
         db_workflow.updated_by = updated_by
+
+        # Registrar en historial
+        WorkflowCambiosService.registrar_cambio(
+            db=db,
+            workflow_id=workflow_id,
+            tipo_cambio="workflow",
+            accion="eliminar",
+            created_by=updated_by,
+            descripcion=f"Workflow '{db_workflow.nombre}' desactivado",
+            valor_anterior="activo",
+            valor_nuevo="inactivo"
+        )
+
         db.commit()
 
 
@@ -277,6 +331,23 @@ class EtapaService:
                     pregunta_create = schemas.WorkflowPreguntaCreate(**pregunta_dict, etapa_id=db_etapa.id)
                     PreguntaService.crear_pregunta(db, pregunta_create, db_etapa.id, created_by)
 
+        # Registrar en historial
+        WorkflowCambiosService.registrar_cambio(
+            db=db,
+            workflow_id=workflow_id,
+            tipo_cambio="etapa",
+            accion="crear",
+            created_by=created_by,
+            etapa_id=db_etapa.id,
+            etapa_codigo=etapa_data.codigo,
+            etapa_nombre=etapa_data.nombre,
+            descripcion=f"Etapa '{etapa_data.nombre}' creada",
+            datos_adicionales={
+                "tipo_etapa": etapa_data.tipo_etapa,
+                "total_preguntas": len(etapa_data.preguntas or [])
+            }
+        )
+
         return db_etapa
 
     @staticmethod
@@ -313,8 +384,25 @@ class EtapaService:
                 db, db_etapa.workflow_id, update_data["codigo"], etapa_id
             )
 
-        for field, value in update_data.items():
-            setattr(db_etapa, field, value)
+        # Registrar cambios de campos en historial
+        for field, new_value in update_data.items():
+            old_value = getattr(db_etapa, field, None)
+            if old_value != new_value:
+                WorkflowCambiosService.registrar_cambio(
+                    db=db,
+                    workflow_id=db_etapa.workflow_id,
+                    tipo_cambio="etapa",
+                    accion="editar",
+                    created_by=updated_by,
+                    etapa_id=etapa_id,
+                    etapa_codigo=db_etapa.codigo,
+                    etapa_nombre=db_etapa.nombre,
+                    campo_modificado=field,
+                    valor_anterior=str(old_value) if old_value is not None else None,
+                    valor_nuevo=str(new_value) if new_value is not None else None,
+                    descripcion=f"Campo '{field}' de etapa '{db_etapa.nombre}' modificado"
+                )
+            setattr(db_etapa, field, new_value)
 
         db_etapa.updated_by = updated_by
 
@@ -347,6 +435,20 @@ class EtapaService:
         db_etapa = EtapaService.obtener_etapa(db, etapa_id)
         db_etapa.activo = False
         db_etapa.updated_by = updated_by
+
+        # Registrar en historial
+        WorkflowCambiosService.registrar_cambio(
+            db=db,
+            workflow_id=db_etapa.workflow_id,
+            tipo_cambio="etapa",
+            accion="eliminar",
+            created_by=updated_by,
+            etapa_id=etapa_id,
+            etapa_codigo=db_etapa.codigo,
+            etapa_nombre=db_etapa.nombre,
+            descripcion=f"Etapa '{db_etapa.nombre}' eliminada"
+        )
+
         db.commit()
 
 
@@ -653,6 +755,66 @@ class InstanciaService:
                 detail=f"Instancia con id {instancia_id} no encontrada"
             )
         return instancia
+
+    @staticmethod
+    def _obtener_datos_solicitante_por_expediente(db: Session, num_expediente: str) -> Optional[Dict[str, Any]]:
+        """
+        Obtiene los datos del solicitante titular de una solicitud PPSH
+        usando el número de expediente para relacionar la instancia con la solicitud.
+        
+        Args:
+            db: Sesión de base de datos
+            num_expediente: Número de expediente de la instancia
+            
+        Returns:
+            Diccionario con datos del solicitante o None si no se encuentra
+        """
+        try:
+            # Buscar la solicitud PPSH por num_expediente
+            solicitud = db.query(models_ppsh.PPSHSolicitud).filter(
+                models_ppsh.PPSHSolicitud.num_expediente == num_expediente
+            ).first()
+            
+            if not solicitud:
+                logger.debug(f"No se encontró solicitud PPSH con expediente {num_expediente}")
+                return None
+            
+            # Buscar el solicitante titular
+            solicitante = db.query(models_ppsh.PPSHSolicitante).filter(
+                models_ppsh.PPSHSolicitante.id_solicitud == solicitud.id_solicitud,
+                models_ppsh.PPSHSolicitante.es_titular == True
+            ).first()
+            
+            if not solicitante:
+                logger.debug(f"No se encontró solicitante titular para solicitud {solicitud.id_solicitud}")
+                return None
+            
+            # Construir nombre completo
+            nombres = solicitante.primer_nombre
+            if solicitante.segundo_nombre:
+                nombres += f" {solicitante.segundo_nombre}"
+            
+            apellidos = solicitante.primer_apellido
+            if solicitante.segundo_apellido:
+                apellidos += f" {solicitante.segundo_apellido}"
+            
+            # Formatear fecha de nacimiento
+            fecha_nacimiento_str = None
+            if solicitante.fecha_nacimiento:
+                fecha_nacimiento_str = solicitante.fecha_nacimiento.strftime("%Y-%m-%d")
+            
+            return {
+                "pasaporte": solicitante.num_documento,
+                "nacionalidad": solicitante.cod_nacionalidad,
+                "nombres": nombres,
+                "apellidos": apellidos,
+                "fecha_nacimiento": fecha_nacimiento_str,
+                "id_solicitud": solicitud.id_solicitud
+            }
+            
+        except Exception as e:
+            logger.error(f"Error al obtener datos de solicitante: {str(e)}")
+            return None
 
     @staticmethod
     def listar_instancias(
@@ -1075,7 +1237,8 @@ class InstanciaService:
             "puede_ver": puede_ver,
             "puede_editar": puede_editar,
             "campos": campos,
-            "metadata_instancia": instancia.metadata_adicional
+            "metadata_instancia": instancia.metadata_adicional,
+            "datos_solicitante": InstanciaService._obtener_datos_solicitante_por_expediente(db, instancia.num_expediente)
         }
 
     @staticmethod
@@ -1319,6 +1482,71 @@ class HistorialService:
         return db.query(models.WorkflowInstanciaHistorial).filter(
             models.WorkflowInstanciaHistorial.instancia_id == instancia_id
         ).order_by(models.WorkflowInstanciaHistorial.created_at.desc()).all()
+
+
+# ==========================================
+# SERVICIOS DE HISTORIAL DE CAMBIOS DEL WORKFLOW (PLANTILLA)
+# ==========================================
+
+class WorkflowCambiosService:
+    """Servicio para operaciones de Historial de Cambios del Workflow"""
+
+    @staticmethod
+    def registrar_cambio(
+        db: Session,
+        workflow_id: int,
+        tipo_cambio: str,
+        accion: str,
+        created_by: str,
+        created_by_nombre: Optional[str] = None,
+        descripcion: Optional[str] = None,
+        etapa_id: Optional[int] = None,
+        etapa_codigo: Optional[str] = None,
+        etapa_nombre: Optional[str] = None,
+        campo_modificado: Optional[str] = None,
+        valor_anterior: Optional[str] = None,
+        valor_nuevo: Optional[str] = None,
+        datos_adicionales: Optional[Dict[str, Any]] = None
+    ) -> models.WorkflowHistorialCambios:
+        """Registra un cambio en el historial del workflow"""
+        db_cambio = models.WorkflowHistorialCambios(
+            workflow_id=workflow_id,
+            tipo_cambio=tipo_cambio,
+            accion=accion,
+            descripcion=descripcion,
+            etapa_id=etapa_id,
+            etapa_codigo=etapa_codigo,
+            etapa_nombre=etapa_nombre,
+            campo_modificado=campo_modificado,
+            valor_anterior=valor_anterior,
+            valor_nuevo=valor_nuevo,
+            datos_adicionales=datos_adicionales,
+            created_by=created_by,
+            created_by_nombre=created_by_nombre or created_by
+        )
+        db.add(db_cambio)
+        return db_cambio
+
+    @staticmethod
+    def obtener_historial(
+        db: Session,
+        workflow_id: int,
+        limit: int = 50,
+        offset: int = 0
+    ) -> List[models.WorkflowHistorialCambios]:
+        """Obtiene el historial de cambios de un workflow (del más reciente al más antiguo)"""
+        return db.query(models.WorkflowHistorialCambios).filter(
+            models.WorkflowHistorialCambios.workflow_id == workflow_id
+        ).order_by(
+            models.WorkflowHistorialCambios.created_at.desc()
+        ).offset(offset).limit(limit).all()
+
+    @staticmethod
+    def contar_cambios(db: Session, workflow_id: int) -> int:
+        """Cuenta el total de cambios de un workflow"""
+        return db.query(models.WorkflowHistorialCambios).filter(
+            models.WorkflowHistorialCambios.workflow_id == workflow_id
+        ).count()
 
 
 # ==========================================

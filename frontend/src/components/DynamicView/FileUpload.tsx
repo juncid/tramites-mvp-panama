@@ -14,11 +14,22 @@ import type { Componente } from '../../types/dynamic-view';
 import { OCRLoadingModal } from '../PPSH/OCRLoadingModal';
 import { OCRResultModal } from '../PPSH/OCRResultModal';
 
+interface ArchivoSubido {
+  nombre: string;
+  size?: number;
+  uploaded_at?: string;
+}
+
+type ArchivoValue = ArchivoSubido | string;
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type OnChangeHandler = (preguntaId: number, value: any) => void;
+
 interface FileUploadProps {
   componente: Componente;
-  value: any; // Array de archivos o IDs
+  value: ArchivoValue[]; // Array de archivos o IDs
   error?: string;
-  onChange: (preguntaId: number, value: any) => void;
+  onChange: OnChangeHandler;
 }
 
 export const FileUpload: React.FC<FileUploadProps> = ({ 
@@ -117,9 +128,15 @@ export const FileUpload: React.FC<FileUploadProps> = ({
 
   const handleRemove = (index: number) => {
     if (pregunta_id) {
-      const nuevos = archivos.filter((_: any, i: number) => i !== index);
+      const nuevos = archivos.filter((_: ArchivoValue, i: number) => i !== index);
       onChange(pregunta_id, nuevos);
     }
+  };
+
+  // Helper para obtener el nombre del archivo
+  const getArchivoNombre = (archivo: ArchivoValue): string => {
+    if (typeof archivo === 'string') return archivo;
+    return archivo.nombre || '';
   };
 
   return (
@@ -133,13 +150,13 @@ export const FileUpload: React.FC<FileUploadProps> = ({
         {/* Lista de archivos */}
         {archivos.length > 0 && (
           <div className="space-y-1">
-            {archivos.map((archivo: any, index: number) => (
+            {archivos.map((archivo: ArchivoValue, index: number) => (
               <div 
                 key={index} 
                 className="flex items-center justify-between bg-gray-50 p-2 rounded border border-gray-200"
               >
                 <span className="text-sm text-gray-700 truncate flex-1">
-                  📄 {archivo.nombre || archivo}
+                  📄 {getArchivoNombre(archivo)}
                 </span>
                 <button
                   type="button"

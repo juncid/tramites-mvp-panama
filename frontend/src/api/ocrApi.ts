@@ -61,7 +61,7 @@ export interface OCRResultado {
   created_by: string;
   created_at: string;
   updated_at?: string;
-  datos_estructurados?: string | Record<string, any>; // Puede venir como JSON string
+  datos_estructurados?: string | Record<string, unknown>; // Puede venir como JSON string
 }
 
 export interface OCREstadisticas {

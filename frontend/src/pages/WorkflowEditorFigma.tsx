@@ -55,6 +55,7 @@ import {
 } from '../components/Workflow/PreguntaFields';
 */
 import EtapaConfigPanel from '../components/Workflow/EtapaConfigPanel';
+import WorkflowHistoryView from '../components/Workflow/WorkflowHistoryView';
 import {
   ZoomIn as ZoomInIcon,
   ZoomOut as ZoomOutIcon,
@@ -879,14 +880,19 @@ const WorkflowEditorFigmaContent: React.FC = () => {
               const pregunta = preguntasEnEditor[i];
               // Verificar si es una pregunta existente (ID numérico de BD, no temporal)
               const isExistingPregunta = pregunta.id && typeof pregunta.id === 'number' && pregunta.id < 1000000000;
+              // El orden siempre es la posición en el array + 1 (para evitar duplicados)
+              const ordenCalculado = i + 1;
+              // CARGA_ARCHIVO obligatorio = requiere_ocr true
+              const tipoPregunta = pregunta.tipo_pregunta || pregunta.tipo;
+              const esObligatoria = pregunta.es_obligatoria ?? false;
+              const requiereOcr = (tipoPregunta === 'CARGA_ARCHIVO' && esObligatoria) ? true : (pregunta.requiere_ocr ?? false);
               
               if (isExistingPregunta) {
-                // Pregunta existente - actualizar
+                // Pregunta existente - actualizar (solo campos permitidos en WorkflowPreguntaUpdate)
                 await workflowService.updatePregunta(pregunta.id, {
-                  codigo: pregunta.codigo,
                   pregunta: pregunta.pregunta || pregunta.texto,
-                  tipo_pregunta: pregunta.tipo_pregunta || pregunta.tipo,
-                  orden: pregunta.orden ?? i + 1,
+                  tipo_pregunta: tipoPregunta,
+                  orden: ordenCalculado,
                   es_obligatoria: pregunta.es_obligatoria,
                   opciones: pregunta.opciones,
                   texto_ayuda: pregunta.texto_ayuda || pregunta.ayuda,
@@ -894,6 +900,7 @@ const WorkflowEditorFigmaContent: React.FC = () => {
                   extensiones_permitidas: pregunta.extensiones_permitidas,
                   tamano_maximo_mb: pregunta.tamano_maximo_mb || pregunta.max_size_mb,
                   permite_multiple: pregunta.permite_multiple,
+                  requiere_ocr: requiereOcr,
                 });
               } else {
                 // Pregunta nueva - crear
@@ -903,7 +910,7 @@ const WorkflowEditorFigmaContent: React.FC = () => {
                   codigo: pregunta.codigo || `PREGUNTA_${Date.now()}_${i}`,
                   pregunta: pregunta.pregunta || pregunta.texto || '',
                   tipo_pregunta: pregunta.tipo_pregunta || pregunta.tipo || 'TEXTO',
-                  orden: pregunta.orden ?? i + 1,
+                  orden: ordenCalculado,
                   es_obligatoria: pregunta.es_obligatoria ?? false,
                   opciones: pregunta.opciones,
                   texto_ayuda: pregunta.texto_ayuda || pregunta.ayuda,
@@ -911,6 +918,7 @@ const WorkflowEditorFigmaContent: React.FC = () => {
                   extensiones_permitidas: pregunta.extensiones_permitidas,
                   tamano_maximo_mb: pregunta.tamano_maximo_mb || pregunta.max_size_mb,
                   permite_multiple: pregunta.permite_multiple,
+                  requiere_ocr: requiereOcr,
                 });
               }
             }
@@ -1667,6 +1675,7 @@ const WorkflowEditorFigmaContent: React.FC = () => {
           <EtapaConfigPanel
             etapa={selectedNode.data}
             hideCloseButton={true}
+            allEtapas={nodes.filter(n => n.type === 'custom').map(n => n.data as Partial<WorkflowEtapa>)}
             onSave={(updatedEtapa) => {
               setNodes((nds) =>
                 nds.map((node) => {
@@ -1774,12 +1783,13 @@ const WorkflowEditorFigmaContent: React.FC = () => {
       {/* Contenido del tab "Historial" */}
       {currentTab === 3 && (
         <Box sx={{ p: 3 }}>
-          <Typography variant="h6" gutterBottom>
-            Historial de Cambios
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Contenido de la pestaña Historial (por implementar)
-          </Typography>
+          <WorkflowHistoryView 
+            workflowId={workflowData.id} 
+            workflowData={{
+              codigo: workflowData.codigo,
+              nombre: workflowData.nombre,
+            }}
+          />
         </Box>
       )}
 

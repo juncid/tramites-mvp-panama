@@ -20,6 +20,7 @@ import { DatosCasoView } from './QuestionViews/DatosCasoView';
 import { SeleccionFechaView } from './QuestionViews/SeleccionFechaView';
 import { DescargaArchivoView } from './QuestionViews/DescargaArchivoView';
 import { ImpresionView } from './QuestionViews/ImpresionView';
+import { FileUploadWizard } from './FileUploadWizard';
 
 interface DynamicEtapaViewProps {
   etapa?: WorkflowEtapa; // Opcional si usamos instanciaId
@@ -83,6 +84,14 @@ interface VistaActual {
   puede_editar: boolean;
   campos: CampoVista[];
   metadata_instancia?: any;
+  datos_solicitante?: {
+    pasaporte: string;
+    nacionalidad: string;
+    nombres: string;
+    apellidos: string;
+    fecha_nacimiento?: string;
+    id_solicitud?: number;
+  };
 }
 
 /**
@@ -131,6 +140,7 @@ export const DynamicEtapaView: React.FC<DynamicEtapaViewProps> = ({
       console.log('📋 Vista cargada:', vista);
       console.log('📋 metadata_instancia:', vista.metadata_instancia);
       console.log('📋 solicitud_id:', vista.metadata_instancia?.id_solicitud);
+      console.log('📋 datos_solicitante:', vista.datos_solicitante);
       setVistaActual(vista);
 
       // Cargar valores actuales en el estado de respuestas
@@ -171,7 +181,8 @@ export const DynamicEtapaView: React.FC<DynamicEtapaViewProps> = ({
     }
   };
 
-  const handleSave = async () => {
+  // handleSave preparado para uso futuro con botón guardar parcial
+  const _handleSave = async () => {
     if (!onSave || !instanciaId) return;
 
     setSaving(true);
@@ -183,6 +194,8 @@ export const DynamicEtapaView: React.FC<DynamicEtapaViewProps> = ({
       setSaving(false);
     }
   };
+  // Suprimir warning de variable no usada temporalmente
+  void _handleSave;
 
   const handleComplete = async () => {
     if (!onComplete || !instanciaId) return;
@@ -409,15 +422,55 @@ export const DynamicEtapaView: React.FC<DynamicEtapaViewProps> = ({
           </Alert>
         )}
 
-        {/* Renderizar campos */}
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-          {vistaActual.campos
-            .sort((a, b) => a.orden - b.orden)
-            .map(campo => renderCampo(campo))}
-        </Box>
+        {/* Renderizar campos - Usar FileUploadWizard si hay múltiples CARGA_ARCHIVO */}
+        {(() => {
+          const camposOrdenados = [...vistaActual.campos].sort((a, b) => a.orden - b.orden);
+          const camposArchivo = camposOrdenados.filter(c => c.tipo_pregunta === 'CARGA_ARCHIVO');
+          const camposOtros = camposOrdenados.filter(c => c.tipo_pregunta !== 'CARGA_ARCHIVO');
+          
+          // Si hay más de un campo de archivo, usar el wizard
+          const usarWizard = camposArchivo.length > 1;
+          
+          // Obtener solicitudId del metadata
+          const solicitudId = vistaActual.metadata_instancia?.id_solicitud;
+          
+          return (
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+              {/* Renderizar campos que no son de archivo primero */}
+              {camposOtros.map(campo => renderCampo(campo))}
+              
+              {/* Si hay múltiples archivos, usar wizard */}
+              {usarWizard ? (
+                <FileUploadWizard
+                  campos={camposArchivo}
+                  respuestas={respuestas}
+                  onAnswerChange={handleAnswerChange}
+                  solicitudId={solicitudId}
+                  readonly={readonlyProp || !vistaActual.puede_editar}
+                  onComplete={onComplete ? handleComplete : undefined}
+                  onBack={onBack}
+                  buttonLabels={buttonLabels}
+                  titulo={vistaActual.etapa_actual.titulo_formulario}
+                  descripcion={vistaActual.etapa_actual.bajada_formulario}
+                  datosSolicitante={vistaActual.datos_solicitante}
+                />
+              ) : (
+                // Si solo hay uno o ningún archivo, renderizar normal
+                camposArchivo.map(campo => renderCampo(campo))
+              )}
+            </Box>
+          );
+        })()}
 
-        {/* Botones de acción - Estilo Figma */}
-        {vistaActual.puede_editar && (onBack || onComplete) && (
+        {/* Botones de acción - Solo mostrar si NO usamos el wizard (el wizard tiene sus propios botones) */}
+        {(() => {
+          const camposArchivo = vistaActual.campos.filter(c => c.tipo_pregunta === 'CARGA_ARCHIVO');
+          const usarWizard = camposArchivo.length > 1;
+          
+          // Si usamos wizard, no mostrar botones aquí
+          if (usarWizard) return null;
+          
+          return vistaActual.puede_editar && (onBack || onComplete) && (
           <Stack 
             direction="row" 
             justifyContent="space-between" 
@@ -473,16 +526,8 @@ export const DynamicEtapaView: React.FC<DynamicEtapaViewProps> = ({
               </Button>
             )}
           </Stack>
-        )}
-
-        {/* Metadata de instancia (debug - solo en desarrollo) */}
-        {import.meta.env.DEV && vistaActual.metadata_instancia && (
-          <Box sx={{ mt: 4, p: 2, backgroundColor: '#f5f5f5', borderRadius: 1 }}>
-            <Typography variant="caption" color="text.secondary">
-              Debug - Metadata: {JSON.stringify(vistaActual.metadata_instancia, null, 2)}
-            </Typography>
-          </Box>
-        )}
+        );
+        })()}
       </Box>
     );
   }

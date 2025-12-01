@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   Box,
   TextField,
@@ -56,8 +56,6 @@ export const IndicacionesField: React.FC<{
 export const CargaArchivoFields: React.FC<PreguntaFieldsProps> = ({
   pregunta,
   onChange,
-  uploadedFileName = '',
-  onFileUpload,
 }) => (
   <>
     <TextField
@@ -239,7 +237,7 @@ export const CargaArchivoConPreguntaFields: React.FC<PreguntaFieldsProps> = ({
     <FormControl fullWidth size="small" sx={{ mb: 2 }}>
       <InputLabel>Tamaño máximo</InputLabel>
       <Select
-        value={pregunta.max_size_mb || 100}
+        value={pregunta.max_size_mb || pregunta.tamano_maximo_mb || 10}
         label="Tamaño máximo"
         onChange={(e) => onChange('max_size_mb', e.target.value as number)}
       >
@@ -247,7 +245,6 @@ export const CargaArchivoConPreguntaFields: React.FC<PreguntaFieldsProps> = ({
         <MenuItem value={25}>25MB</MenuItem>
         <MenuItem value={50}>50MB</MenuItem>
         <MenuItem value={100}>100MB</MenuItem>
-        <MenuItem value={200}>200MB</MenuItem>
       </Select>
     </FormControl>
 

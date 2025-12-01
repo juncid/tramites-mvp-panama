@@ -14,6 +14,46 @@ import type {
   WorkflowRespuesta,
 } from '../types/workflow';
 
+// Tipos para historial de cambios del workflow
+export interface WorkflowCambioDetalles {
+  etapa_nombre?: string;
+  campo_modificado?: string;
+  valor_anterior?: string;
+  valor_nuevo?: string;
+}
+
+export interface WorkflowCambio {
+  id: number;
+  workflow_id: number;
+  tipo_cambio: string;
+  accion: string;
+  descripcion?: string;
+  etapa_id?: number;
+  etapa_codigo?: string;
+  etapa_nombre?: string;
+  campo_modificado?: string;
+  valor_anterior?: string;
+  valor_nuevo?: string;
+  datos_adicionales?: Record<string, any>;
+  created_at: string;
+  created_by: string;
+  created_by_nombre?: string;
+  detalles?: WorkflowCambioDetalles;
+}
+
+export interface WorkflowCambioCreate {
+  tipo_cambio: string;
+  accion: string;
+  descripcion?: string;
+  etapa_id?: number;
+  etapa_codigo?: string;
+  etapa_nombre?: string;
+  campo_modificado?: string;
+  valor_anterior?: string;
+  valor_nuevo?: string;
+  datos_adicionales?: Record<string, any>;
+}
+
 export const workflowService = {
   /**
    * Listar todos los workflows
@@ -263,6 +303,38 @@ export const workflowService = {
   },
 
   // ==========================================
+  // MÉTODOS DE HISTORIAL DE CAMBIOS DEL WORKFLOW
+  // ==========================================
+
+  /**
+   * Obtener historial de cambios de un workflow (plantilla)
+   * Retorna los cambios ordenados del más reciente al más antiguo
+   */
+  async getWorkflowHistorialCambios(
+    workflowId: number,
+    limit: number = 50,
+    offset: number = 0
+  ): Promise<WorkflowCambio[]> {
+    return apiClient.get<WorkflowCambio[]>(
+      `/workflow/workflows/${workflowId}/historial-cambios`,
+      { limit, offset }
+    );
+  },
+
+  /**
+   * Registrar un cambio en el historial del workflow
+   */
+  async registrarCambioWorkflow(
+    workflowId: number,
+    cambio: WorkflowCambioCreate
+  ): Promise<WorkflowCambio> {
+    return apiClient.post<WorkflowCambio>(
+      `/workflow/workflows/${workflowId}/historial-cambios`,
+      cambio
+    );
+  },
+
+  // ==========================================
   // MÉTODOS DE PERMISOS Y VISTAS DINÁMICAS
   // ==========================================
 
@@ -385,6 +457,33 @@ export const workflowService = {
       file,
       data,
       'archivo'
+    );
+  },
+
+  /**
+   * Validar datos OCR contra los datos del solicitante
+   * Compara los datos extraídos del documento con los datos ingresados en el formulario
+   */
+  async validarOCR(
+    solicitudId: number,
+    idDocumento: number
+  ): Promise<{
+    validacion_exitosa: boolean;
+    campos_validados: Record<string, string>;
+    campos_no_encontrados: string[];
+    campos_con_discrepancia: Array<{
+      campo: string;
+      valor_ingresado: string;
+      valor_ocr: string;
+    }>;
+    mensaje: string;
+    puede_continuar: boolean;
+    datos_ocr_raw?: Record<string, any>;
+    texto_ocr_completo?: string;
+  }> {
+    return apiClient.post<any>(
+      `/ppsh/solicitudes/${solicitudId}/validar-ocr`,
+      { id_documento: idDocumento }
     );
   },
 };

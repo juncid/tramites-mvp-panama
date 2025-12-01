@@ -107,6 +107,12 @@ celery_app.conf.beat_schedule = {
         'task': 'app.tasks.ocr_tasks.generate_ocr_statistics',
         'schedule': crontab(minute=0),
     },
+    # Procesar documentos pendientes de OCR cada 5 minutos
+    'process-pending-ocr': {
+        'task': 'ocr.process_pending_documents',
+        'schedule': crontab(minute='*/5'),  # Cada 5 minutos
+        'kwargs': {'limit': 50},  # Procesar hasta 50 documentos por ejecución
+    },
 }
 
 if __name__ == '__main__':

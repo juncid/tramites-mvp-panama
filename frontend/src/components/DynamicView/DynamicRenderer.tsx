@@ -10,8 +10,11 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import type { ConfigJson, FormData, FormErrors } from '../../types/dynamic-view';
+import type { ConfigJson, FormData, FormErrors, Componente } from '../../types/dynamic-view';
 import { TextInput, NumberInput, DatePicker, SelectSimple, FileUpload, RadioGroup, CheckboxList } from './index';
+
+// Tipo para valores de formulario
+type FormValue = string | number | boolean | string[] | Record<string, unknown> | null | undefined;
 
 interface DynamicRendererProps {
   config: ConfigJson;
@@ -36,7 +39,7 @@ export const DynamicRenderer: React.FC<DynamicRendererProps> = ({
   }, [initialData]);
 
   // Handler genérico para cambios
-  const handleChange = (preguntaId: number, value: any) => {
+  const handleChange = (preguntaId: number, value: FormValue) => {
     setFormData(prev => ({
       ...prev,
       [preguntaId]: value
@@ -112,7 +115,7 @@ export const DynamicRenderer: React.FC<DynamicRendererProps> = ({
   };
 
   // Renderizar componente según tipo
-  const renderComponente = (componente: any) => {
+  const renderComponente = (componente: Componente) => {
     const commonProps = {
       componente,
       value: componente.pregunta_id ? formData[componente.pregunta_id] : undefined,
@@ -137,7 +140,7 @@ export const DynamicRenderer: React.FC<DynamicRendererProps> = ({
             key={componente.pregunta_id}
             id={String(componente.pregunta_id)}
             label={componente.label}
-            options={componente.config?.opciones?.map((op: any) => ({
+            options={componente.config?.opciones?.map((op: { valor: string | number; etiqueta: string }) => ({
               value: String(op.valor),
               label: op.etiqueta
             })) || []}

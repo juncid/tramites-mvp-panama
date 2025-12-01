@@ -21,6 +21,10 @@ import { DynamicEtapaView } from '../components/Workflow/DynamicEtapaView';
 /**
  * Página para ejecutar workflow con acceso público (token JWT)
  * Diseño basado en Figma: https://www.figma.com/design/yX0REVjuXYg13XO0ZgD1GQ/
+ * 
+ * FUNCIONALIDAD:
+ * - Si el ciudadano tiene una etapa donde puede interactuar (CIUDADANO en perfiles), muestra el formulario
+ * - Si la etapa actual requiere otro perfil (FUNCIONARIO), redirige a la vista de etapas (/solicitudes/:token/etapas)
  */
 export const SolicitudPublicaWorkflow: React.FC = () => {
   const { token } = useParams<{ token: string }>();
@@ -49,6 +53,7 @@ export const SolicitudPublicaWorkflow: React.FC = () => {
     setError(null);
 
     try {
+      // 1. Validar token
       const validacion = await publicService.validarToken(token);
       
       if (!validacion.valid) {
@@ -58,22 +63,43 @@ export const SolicitudPublicaWorkflow: React.FC = () => {
       }
 
       setTokenValid(true);
+
+      // 2. Obtener instancia
       const instanciaData = await publicService.getInstanciaPorToken(token);
       setInstancia(instanciaData);
       
-      if (instanciaData.etapa_actual) {
-        setEtapaActual(instanciaData.etapa_actual);
+      // 3. Determinar si el ciudadano puede interactuar con la etapa actual
+      const etapaActualData = instanciaData.etapa_actual;
+      setEtapaActual(etapaActualData);
+      
+      if (etapaActualData) {
+        const perfilesPermitidos = etapaActualData.perfiles_permitidos || [];
+        const ciudadanoPuedeEditar = perfilesPermitidos.includes('CIUDADANO') || 
+                                     perfilesPermitidos.includes('ABOGADO') ||
+                                     perfilesPermitidos.length === 0; // Si no hay perfiles, asumir que todos pueden
+        
+        // Si el ciudadano NO puede editar la etapa actual, redirigir a la vista de etapas
+        if (!ciudadanoPuedeEditar) {
+          navigate(`/solicitudes/${token}/etapas`, { replace: true });
+          return;
+        }
+      } else {
+        // No hay etapa actual (workflow completado o error)
+        // Redirigir a la vista de etapas para mostrar el estado
+        navigate(`/solicitudes/${token}/etapas`, { replace: true });
+        return;
       }
 
     } catch (err: any) {
       console.error('Error validando token:', err);
       
-      // Si es error 403, la etapa actual requiere funcionario
+      // Si es error 403, la etapa actual requiere funcionario - redirigir a vista de etapas
       if (err.response?.status === 403) {
-        setError('Esta etapa requiere revisión de un funcionario. Su solicitud está en proceso de evaluación.');
-      } else {
-        setError(err.response?.data?.detail || 'Error al cargar la solicitud.');
+        navigate(`/solicitudes/${token}/etapas`, { replace: true });
+        return;
       }
+      
+      setError(err.response?.data?.detail || 'Error al cargar la solicitud.');
     } finally {
       setLoading(false);
     }
@@ -96,9 +122,10 @@ export const SolicitudPublicaWorkflow: React.FC = () => {
     } catch (err: any) {
       console.error('Error completando etapa:', err);
       
-      // Si error 403, probablemente llegamos a una etapa que requiere funcionario
+      // Si error 403, llegamos a una etapa que requiere funcionario - redirigir
       if (err.response?.status === 403) {
-        setError('Las siguientes etapas requieren revisión de un funcionario. Su solicitud será procesada próximamente.');
+        navigate(`/solicitudes/${token}/etapas`, { replace: true });
+        return;
       }
       throw err;
     }
@@ -106,23 +133,21 @@ export const SolicitudPublicaWorkflow: React.FC = () => {
 
   /**
    * Handler para botón Volver
-   * - Primera etapa (orden 1): navegar a /inicio
-   * - Otras etapas: navegar a la etapa anterior (sin cambiar estado)
    */
   const handleVolver = () => {
-    // Determinar si es la primera etapa
     const ordenActual = etapaActual?.orden || 1;
     
     if (ordenActual <= 1) {
-      // Primera etapa: ir a inicio
       navigate('/inicio');
     } else {
-      // Otras etapas: retroceder a la etapa anterior
-      // Navegamos a la ruta de etapa anterior (solo visualización, sin modificar estado)
-      const etapaAnteriorOrden = ordenActual - 1;
-      navigate(`/solicitudes/${token}/etapa/${etapaAnteriorOrden}`);
+      // Ir a la vista de etapas
+      navigate(`/solicitudes/${token}/etapas`);
     }
   };
+
+  // ============================================================================
+  // RENDER: LOADING
+  // ============================================================================
 
   if (loading) {
     return (
@@ -135,31 +160,27 @@ export const SolicitudPublicaWorkflow: React.FC = () => {
     );
   }
 
-  if (error || !tokenValid) {
-    // Determinar si es un error de permisos (403) o error general
-    const isPermissionError = error?.includes('requiere revisión de un funcionario') || error?.includes('requiere funcionario');
-    const severity = isPermissionError ? 'warning' : 'error';
-    const title = isPermissionError ? 'Revisión Pendiente' : 'Enlace Inválido o Expirado';
-    
+  // ============================================================================
+  // RENDER: ERROR (token inválido)
+  // ============================================================================
+
+  if (error && !tokenValid) {
     return (
       <Container maxWidth="md" sx={{ py: 4 }}>
-        <Alert severity={severity} sx={{ mb: 3 }}>
-          <Typography variant="h6" gutterBottom>{title}</Typography>
+        <Alert severity="error" sx={{ mb: 3 }}>
+          <Typography variant="h6" gutterBottom>Enlace Inválido o Expirado</Typography>
           <Typography variant="body2">{error || 'El enlace no es válido.'}</Typography>
-          {isPermissionError && (
-            <Typography variant="body2" sx={{ mt: 2 }}>
-              Ha completado las etapas disponibles para ciudadanos. Un funcionario del Servicio Nacional de Migración revisará su solicitud próximamente.
-            </Typography>
-          )}
         </Alert>
-        {!isPermissionError && (
-          <Button variant="contained" onClick={() => navigate('/solicitudes/nueva')} fullWidth size="large">
-            Iniciar Nueva Solicitud
-          </Button>
-        )}
+        <Button variant="contained" onClick={() => navigate('/solicitudes/nueva')} fullWidth size="large">
+          Iniciar Nueva Solicitud
+        </Button>
       </Container>
     );
   }
+
+  // ============================================================================
+  // RENDER: WORKFLOW COMPLETADO
+  // ============================================================================
 
   if (instancia?.estado === 'COMPLETADO') {
     return (
@@ -174,11 +195,31 @@ export const SolicitudPublicaWorkflow: React.FC = () => {
     );
   }
 
+  // ============================================================================
+  // RENDER: VISTA DE FORMULARIO (interacción)
+  // ============================================================================
+
   return (
     <>
-      <Box sx={{ backgroundColor: '#0e5fa6', py: 5, px: { xs: 2, sm: 3, md: '7.69rem' }, minHeight: '276px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+      {/* Header */}
+      <Box sx={{ 
+        backgroundColor: '#0e5fa6', 
+        py: 5, 
+        px: { xs: 2, sm: 3, md: '7.69rem' }, 
+        minHeight: '220px', 
+        display: 'flex', 
+        flexDirection: 'column', 
+        justifyContent: 'space-between' 
+      }}>
         <Box>
-          <Typography variant="h2" sx={{ color: 'white', fontWeight: 700, fontSize: { xs: '32px', md: '64px' }, lineHeight: 1.1, mb: 2, maxWidth: '896px' }}>
+          <Typography variant="h2" sx={{ 
+            color: 'white', 
+            fontWeight: 700, 
+            fontSize: { xs: '32px', md: '64px' }, 
+            lineHeight: 1.1, 
+            mb: 2, 
+            maxWidth: '896px' 
+          }}>
             Permiso de Protección de Seguridad Humanitaria
           </Typography>
           {instancia?.num_expediente && (
@@ -198,6 +239,7 @@ export const SolicitudPublicaWorkflow: React.FC = () => {
         </Breadcrumbs>
       </Box>
 
+      {/* Content */}
       <Container maxWidth={false} sx={{ px: { xs: 2, sm: 3, md: '7.69rem' }, py: 4, backgroundColor: 'white' }}>
         <Typography variant="h3" sx={{ fontSize: '48px', fontWeight: 700, color: '#333333', mb: 3, lineHeight: 1.5 }}>
           {etapaActual?.titulo_formulario || etapaActual?.nombre || 'Etapa actual'}

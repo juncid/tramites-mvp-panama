@@ -22,7 +22,8 @@ from app.services import (
     ConexionService,
     InstanciaService,
     ComentarioService,
-    HistorialService
+    HistorialService,
+    WorkflowCambiosService
 )
 from app.services.workflow_execution_service import WorkflowExecutionService
 from app.services.workflow_ppsh_service import WorkflowPPSHIntegrationService
@@ -90,6 +91,75 @@ def eliminar_workflow(
 ):
     """Elimina (desactiva) un workflow"""
     WorkflowService.eliminar_workflow(db, workflow_id, current_user)
+
+
+@router.get("/workflows/{workflow_id}/historial-cambios", response_model=List[schemas.WorkflowCambiosResponse])
+def obtener_historial_cambios_workflow(
+    workflow_id: int,
+    limit: int = Query(50, ge=1, le=200, description="Número máximo de registros a retornar"),
+    offset: int = Query(0, ge=0, description="Número de registros a saltar"),
+    db: Session = Depends(get_db)
+):
+    """
+    Obtiene el historial de cambios de un workflow (plantilla).
+    
+    Retorna los cambios ordenados del más reciente al más antiguo.
+    Incluye: creación, edición de etapas, nuevas etapas, eliminación de etapas,
+    cambios de conexiones, publicación, configuración, cambios de estado.
+    """
+    # Verificar que el workflow existe
+    WorkflowService.obtener_workflow(db, workflow_id)
+    
+    # Obtener historial
+    cambios = WorkflowCambiosService.obtener_historial(db, workflow_id, limit, offset)
+    
+    # Convertir a response con detalles estructurados
+    return [schemas.WorkflowCambiosResponse.from_orm_with_detalles(c) for c in cambios]
+
+
+@router.post("/workflows/{workflow_id}/historial-cambios", response_model=schemas.WorkflowCambiosResponse, status_code=status.HTTP_201_CREATED)
+def registrar_cambio_workflow(
+    workflow_id: int,
+    cambio: schemas.WorkflowCambiosCreate,
+    db: Session = Depends(get_db),
+    current_user: str = "ADMIN"
+):
+    """
+    Registra un cambio en el historial del workflow.
+    
+    Tipos de cambio válidos:
+    - CREACION: Workflow creado
+    - EDICION_ETAPA: Etapa modificada
+    - NUEVA_ETAPA: Nueva etapa agregada
+    - ELIMINAR_ETAPA: Etapa eliminada
+    - CAMBIO_CONEXION: Conexión modificada
+    - PUBLICACION: Workflow publicado
+    - CONFIGURACION: Configuración actualizada
+    - CAMBIO_ESTADO: Estado del workflow cambiado
+    """
+    # Verificar que el workflow existe
+    WorkflowService.obtener_workflow(db, workflow_id)
+    
+    db_cambio = WorkflowCambiosService.registrar_cambio(
+        db=db,
+        workflow_id=workflow_id,
+        tipo_cambio=cambio.tipo_cambio,
+        accion=cambio.accion,
+        descripcion=cambio.descripcion,
+        etapa_id=cambio.etapa_id,
+        etapa_codigo=cambio.etapa_codigo,
+        etapa_nombre=cambio.etapa_nombre,
+        campo_modificado=cambio.campo_modificado,
+        valor_anterior=cambio.valor_anterior,
+        valor_nuevo=cambio.valor_nuevo,
+        datos_adicionales=cambio.datos_adicionales,
+        created_by=current_user,
+        created_by_nombre=current_user  # TODO: Obtener nombre real del usuario
+    )
+    db.commit()
+    db.refresh(db_cambio)
+    
+    return schemas.WorkflowCambiosResponse.from_orm_with_detalles(db_cambio)
 
 
 # ==========================================
@@ -640,6 +710,192 @@ def listar_comentarios(
 def obtener_historial(instancia_id: int, db: Session = Depends(get_db)):
     """Obtiene el historial completo de cambios de una instancia"""
     return HistorialService.obtener_historial(db, instancia_id)
+
+
+# ==========================================
+# ENDPOINTS DE DOCUMENTOS POR ETAPA
+# ==========================================
+
+@router.get("/instancias/{instancia_id}/etapas/{etapa_id}/documentos")
+def obtener_documentos_etapa(
+    instancia_id: int,
+    etapa_id: int,
+    db: Session = Depends(get_db),
+    current_user: str = "USER001"
+):
+    """
+    Obtiene los documentos (archivos) subidos en una etapa específica.
+    
+    Útil para el tipo de pregunta REVISION_MANUAL_DOCUMENTOS donde se necesita
+    mostrar los documentos cargados en una etapa anterior.
+    
+    Returns:
+        Lista de documentos con:
+        - id: ID del documento
+        - pregunta_id: ID de la pregunta de carga de archivos
+        - pregunta_codigo: Código de la pregunta
+        - pregunta_texto: Texto de la pregunta
+        - nombre: Nombre del archivo
+        - url: URL del archivo
+        - tipo: Tipo/extensión del archivo
+        - es_obligatoria: Si la pregunta era obligatoria
+        - requiere_ocr: Si la pregunta requería OCR
+    """
+    from app.models import models_workflow as models
+    from sqlalchemy.orm import joinedload
+    
+    # Verificar que la instancia existe
+    instancia = db.query(models.WorkflowInstancia).filter(
+        models.WorkflowInstancia.id == instancia_id
+    ).first()
+    
+    if not instancia:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Instancia {instancia_id} no encontrada"
+        )
+    
+    # Verificar que la etapa existe y pertenece al workflow de la instancia
+    etapa = db.query(models.WorkflowEtapa).filter(
+        models.WorkflowEtapa.id == etapa_id,
+        models.WorkflowEtapa.workflow_id == instancia.workflow_id
+    ).first()
+    
+    if not etapa:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Etapa {etapa_id} no encontrada en el workflow"
+        )
+    
+    # Obtener las respuestas de la etapa
+    respuesta_etapa = db.query(models.WorkflowRespuestaEtapa).options(
+        joinedload(models.WorkflowRespuestaEtapa.respuestas).joinedload(models.WorkflowRespuesta.pregunta)
+    ).filter(
+        models.WorkflowRespuestaEtapa.instancia_id == instancia_id,
+        models.WorkflowRespuestaEtapa.etapa_id == etapa_id
+    ).first()
+    
+    documentos = []
+    
+    # 1. Buscar en WorkflowRespuesta.archivos (respuestas del workflow)
+    if respuesta_etapa:
+        for respuesta in respuesta_etapa.respuestas:
+            pregunta = respuesta.pregunta
+            # Solo procesar preguntas de tipo CARGA_ARCHIVO
+            if pregunta and pregunta.tipo_pregunta and pregunta.tipo_pregunta.value == 'CARGA_ARCHIVO':
+                archivos = respuesta.archivos or []
+                if not isinstance(archivos, list):
+                    archivos = [archivos]
+                
+                for archivo in archivos:
+                    if isinstance(archivo, dict):
+                        documentos.append({
+                            "id": archivo.get("id", str(respuesta.id)),
+                            "pregunta_id": pregunta.id,
+                            "pregunta_codigo": pregunta.codigo,
+                            "pregunta_texto": pregunta.pregunta,
+                            "nombre": archivo.get("nombre", archivo.get("name", "Documento")),
+                            "url": archivo.get("url", archivo.get("file_url", "")),
+                            "tipo": archivo.get("tipo", archivo.get("type", "")),
+                            "es_obligatoria": pregunta.es_obligatoria,
+                            "requiere_ocr": pregunta.requiere_ocr,
+                            "ocr_exitoso": None
+                        })
+                    elif isinstance(archivo, str):
+                        # Si es solo un string (probablemente un ID o URL)
+                        documentos.append({
+                            "id": str(respuesta.id),
+                            "pregunta_id": pregunta.id,
+                            "pregunta_codigo": pregunta.codigo,
+                            "pregunta_texto": pregunta.pregunta,
+                            "nombre": pregunta.pregunta,
+                            "url": archivo,
+                            "tipo": "",
+                            "es_obligatoria": pregunta.es_obligatoria,
+                            "requiere_ocr": pregunta.requiere_ocr,
+                            "ocr_exitoso": None
+                        })
+    
+    # 2. Si no hay documentos en workflow, buscar en PPSH_DOCUMENTO
+    if len(documentos) == 0:
+        # Obtener id_solicitud de metadata_adicional de la instancia
+        id_solicitud = None
+        if instancia.metadata_adicional and isinstance(instancia.metadata_adicional, dict):
+            id_solicitud = instancia.metadata_adicional.get('id_solicitud')
+        
+        if id_solicitud:
+            from app.models import models_ppsh
+            
+            # Obtener preguntas de tipo CARGA_ARCHIVO de la etapa
+            preguntas_carga = db.query(models.WorkflowPregunta).filter(
+                models.WorkflowPregunta.etapa_id == etapa_id,
+                models.WorkflowPregunta.tipo_pregunta == models.TipoPregunta.CARGA_ARCHIVO,
+                models.WorkflowPregunta.activo == True
+            ).order_by(models.WorkflowPregunta.orden).all()
+            
+            # Crear mapa de código de pregunta a pregunta y lista ordenada de códigos
+            preguntas_map = {p.codigo: p for p in preguntas_carga}
+            orden_preguntas = [p.codigo for p in preguntas_carga]
+            
+            # Buscar documentos PPSH vinculados a esta solicitud, ordenados por fecha desc
+            docs_ppsh = db.query(models_ppsh.PPSHDocumento).filter(
+                models_ppsh.PPSHDocumento.id_solicitud == id_solicitud
+            ).order_by(models_ppsh.PPSHDocumento.uploaded_at.desc()).all()
+            
+            # Mapa para guardar solo el último documento por pregunta
+            docs_por_pregunta: dict = {}
+            
+            for doc in docs_ppsh:
+                # Extraer código de pregunta de observaciones (formato: "Documento: PREGUNTA_X")
+                pregunta_codigo = None
+                if doc.observaciones:
+                    import re
+                    match = re.search(r'Documento:\s*(\w+)', doc.observaciones)
+                    if match:
+                        pregunta_codigo = match.group(1)
+                
+                # Buscar la pregunta correspondiente
+                pregunta = preguntas_map.get(pregunta_codigo) if pregunta_codigo else None
+                
+                # Solo incluir si la pregunta existe en esta etapa
+                if pregunta or not pregunta_codigo:
+                    # Si ya hay un documento para esta pregunta, saltar (ya tenemos el más reciente)
+                    doc_key = pregunta_codigo or f"doc_{doc.id_documento}"
+                    if doc_key in docs_por_pregunta:
+                        continue
+                    
+                    # Verificar OCR
+                    ocr_exitoso = None
+                    if doc.ocr_results:
+                        ultimo_ocr = max(doc.ocr_results, key=lambda x: x.fecha_fin_proceso or x.fecha_inicio_proceso, default=None)
+                        if ultimo_ocr:
+                            ocr_exitoso = ultimo_ocr.estado_ocr == 'COMPLETADO'
+                    
+                    docs_por_pregunta[doc_key] = {
+                        "id": str(doc.id_documento),
+                        "pregunta_id": pregunta.id if pregunta else None,
+                        "pregunta_codigo": pregunta_codigo or doc.tipo_documento_texto,
+                        "pregunta_texto": pregunta.pregunta if pregunta else (doc.tipo_documento_texto or doc.nombre_archivo),
+                        "nombre": doc.nombre_archivo,
+                        "url": f"/api/v1/ppsh/documentos/{doc.id_documento}/descargar",
+                        "tipo": doc.extension or "",
+                        "es_obligatoria": pregunta.es_obligatoria if pregunta else doc.es_obligatorio,
+                        "requiere_ocr": pregunta.requiere_ocr if pregunta else True,
+                        "ocr_exitoso": ocr_exitoso,
+                        "estado_verificacion": doc.estado_verificacion,
+                        "orden": pregunta.orden if pregunta else 999
+                    }
+            
+            # Ordenar documentos por el orden de las preguntas
+            documentos = sorted(docs_por_pregunta.values(), key=lambda x: x.get('orden', 999))
+    
+    return {
+        "instancia_id": instancia_id,
+        "etapa_id": etapa_id,
+        "etapa_nombre": etapa.nombre,
+        "documentos": documentos,
+        "total": len(documentos)
+    }
 
 
 # ==========================================

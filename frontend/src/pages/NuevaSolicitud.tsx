@@ -21,6 +21,11 @@ import {
   IconButton,
   Tooltip,
 } from '@mui/material';
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
+import dayjs, { Dayjs } from 'dayjs';
+import 'dayjs/locale/es';
 import {
   ContentCopy as ContentCopyIcon,
   CheckCircle as CheckCircleIcon,
@@ -34,6 +39,7 @@ interface FormData {
   email: string;
   nacionalidad: string;
   sexo: string;
+  fechaNacimiento: Dayjs | null;
 }
 
 interface SolicitudResponse {
@@ -66,6 +72,7 @@ export const NuevaSolicitud: React.FC = () => {
     email: '',
     nacionalidad: 'PAN',
     sexo: 'M',
+    fechaNacimiento: null,
   });
   
   const [loading, setLoading] = useState(false);
@@ -81,6 +88,14 @@ export const NuevaSolicitud: React.FC = () => {
     setFormData({
       ...formData,
       [field]: event.target.value,
+    });
+    setError(null);
+  };
+
+  const handleDateChange = (date: any) => {
+    setFormData({
+      ...formData,
+      fechaNacimiento: date,
     });
     setError(null);
   };
@@ -101,6 +116,10 @@ export const NuevaSolicitud: React.FC = () => {
       setError('Los apellidos son requeridos');
       return;
     }
+    if (!formData.fechaNacimiento) {
+      setError('La fecha de nacimiento es requerida');
+      return;
+    }
 
     setLoading(true);
     setError(null);
@@ -113,6 +132,7 @@ export const NuevaSolicitud: React.FC = () => {
         email: formData.email.trim() || undefined,
         nacionalidad: formData.nacionalidad,
         sexo: formData.sexo,
+        fecha_nacimiento: formData.fechaNacimiento!.format('YYYY-MM-DD'),
       });
 
       setSuccess(response);
@@ -150,23 +170,32 @@ export const NuevaSolicitud: React.FC = () => {
   };
 
   return (
-    <Container maxWidth="md" sx={{ py: 4 }}>
-      <Paper
-        elevation={3}
-        sx={{
-          p: 4,
-          borderRadius: 2,
-        }}
-      >
-        {/* Header */}
-        <Box sx={{ mb: 4 }}>
-          <Typography variant="h4" gutterBottom fontWeight="bold" color="primary">
-            Solicitud de Permiso Por Razones Humanitarias
-          </Typography>
-          <Typography variant="body1" color="text.secondary">
-            Complete el formulario para iniciar su solicitud PPSH
-          </Typography>
-        </Box>
+    <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale="es">
+      <Container maxWidth="md" sx={{ py: 4 }}>
+        <Paper
+          elevation={3}
+          sx={{
+            p: 4,
+            borderRadius: 2,
+          }}
+        >
+          {/* Header */}
+          <Box sx={{ mb: 4 }}>
+            <Typography variant="h4" gutterBottom fontWeight="bold" color="primary">
+              Solicitud de Permiso Por Razones Humanitarias
+            </Typography>
+            <Typography variant="body1" color="text.secondary">
+              Complete el formulario para iniciar su solicitud PPSH
+            </Typography>
+          </Box>
+
+          {/* Mensaje indicativo sobre nombres */}
+          <Alert severity="warning" sx={{ mb: 3 }}>
+            <Typography variant="body2">
+              <strong>Importante:</strong> Por favor, ingrese sus nombres y apellidos <strong>exactamente como aparecen en su pasaporte</strong>. 
+              Esto es necesario para la verificación automática de sus documentos.
+            </Typography>
+          </Alert>
 
           {/* Error Alert */}
           {error && (
@@ -227,6 +256,7 @@ export const NuevaSolicitud: React.FC = () => {
                   value={formData.nombres}
                   onChange={handleChange('nombres')}
                   disabled={loading}
+                  helperText="Tal como aparece en su pasaporte"
                 />
               </Grid>
 
@@ -240,6 +270,45 @@ export const NuevaSolicitud: React.FC = () => {
                   value={formData.apellidos}
                   onChange={handleChange('apellidos')}
                   disabled={loading}
+                  helperText="Tal como aparece en su pasaporte"
+                />
+              </Grid>
+
+              {/* Fecha de Nacimiento */}
+              <Grid item xs={12} md={6}>
+                <DatePicker
+                  label="Fecha de Nacimiento"
+                  value={formData.fechaNacimiento}
+                  onChange={handleDateChange}
+                  disabled={loading}
+                  maxDate={dayjs().subtract(18, 'year')}
+                  minDate={dayjs().subtract(120, 'year')}
+                  slotProps={{
+                    textField: {
+                      fullWidth: true,
+                      required: true,
+                      helperText: 'Debe ser mayor de 18 años',
+                    },
+                    popper: {
+                      placement: 'bottom-start',
+                      modifiers: [
+                        {
+                          name: 'flip',
+                          enabled: true,
+                          options: {
+                            fallbackPlacements: ['top-start', 'bottom-end'],
+                          },
+                        },
+                        {
+                          name: 'preventOverflow',
+                          enabled: true,
+                          options: {
+                            boundary: 'viewport',
+                          },
+                        },
+                      ],
+                    },
+                  }}
                 />
               </Grid>
 
@@ -269,7 +338,6 @@ export const NuevaSolicitud: React.FC = () => {
                   >
                     <MenuItem value="M">Masculino</MenuItem>
                     <MenuItem value="F">Femenino</MenuItem>
-                    <MenuItem value="O">Otro</MenuItem>
                   </Select>
                 </FormControl>
               </Grid>
@@ -438,8 +506,9 @@ export const NuevaSolicitud: React.FC = () => {
             </Button>
           </DialogActions>
         </Dialog>
-      </Paper>
-    </Container>
+        </Paper>
+      </Container>
+    </LocalizationProvider>
   );
 };
 

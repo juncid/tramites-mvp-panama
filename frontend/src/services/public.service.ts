@@ -9,6 +9,7 @@ export interface IniciarSolicitudRequest {
   email?: string;
   nacionalidad?: string;
   sexo?: string;
+  fecha_nacimiento?: string;  // formato YYYY-MM-DD
 }
 
 export interface IniciarSolicitudResponse {
@@ -65,6 +66,20 @@ class PublicService {
   async getInstanciaPorToken(token: string): Promise<InstanciaPublicaResponse> {
     const response = await axios.get(`${API_URL}/public/solicitudes/${token}/instancia`);
     return response.data;
+  }
+
+  /**
+   * Obtiene datos básicos de la instancia (sin validar permisos de etapa)
+   * Es el mismo endpoint pero usado en contexto de modo seguimiento
+   */
+  async getInstanciaBasica(token: string): Promise<InstanciaPublicaResponse | null> {
+    try {
+      const response = await axios.get(`${API_URL}/public/solicitudes/${token}/instancia`);
+      return response.data;
+    } catch (error) {
+      console.error('Error getting instancia basica:', error);
+      return null;
+    }
   }
 }
 

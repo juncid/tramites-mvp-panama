@@ -15,6 +15,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from typing import List, Optional
+from pydantic import BaseModel
 import logging
 from datetime import date
 
@@ -46,7 +47,7 @@ from app.schemas import (
     # Enums
     PrioridadEnum, EstadoVerificacionEnum
 )
-from app.models.models_ppsh import PPSHDocumento
+from app.models.models_ppsh import PPSHDocumento, PPSHSolicitud, PPSHSolicitante
 
 logger = logging.getLogger(__name__)
 
@@ -1185,4 +1186,255 @@ async def actualizar_estado_etapa(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error actualizando etapa: {str(e)}"
+        )
+
+
+# ==========================================
+# VALIDACIÓN OCR
+# ==========================================
+
+class ValidarOCRRequest(BaseModel):
+    """Request para validar OCR contra datos del solicitante"""
+    id_documento: int
+
+
+class ValidarOCRResponse(BaseModel):
+    """Response de validación OCR"""
+    validacion_exitosa: bool
+    campos_validados: dict
+    campos_no_encontrados: List[str]
+    campos_con_discrepancia: List[dict]
+    mensaje: str
+    puede_continuar: bool
+    datos_ocr_raw: Optional[dict] = None  # Datos estructurados del JSON OCR
+    texto_ocr_completo: Optional[str] = None  # Texto completo extraído por OCR
+
+
+@router.post(
+    "/solicitudes/{id_solicitud}/validar-ocr",
+    response_model=ValidarOCRResponse,
+    summary="Validar OCR contra datos del solicitante",
+    description="Compara los datos extraídos por OCR del documento con los datos ingresados por el solicitante"
+)
+async def validar_ocr_documento(
+    id_solicitud: int,
+    request: ValidarOCRRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    Valida que los datos extraídos por OCR coincidan con los datos del solicitante.
+    
+    Campos a validar:
+    - Número de pasaporte
+    - Nacionalidad
+    - Nombres
+    - Apellidos
+    - Fecha de nacimiento
+    
+    Returns:
+        - validacion_exitosa: True si todos los campos coinciden
+        - campos_validados: Campos que coincidieron
+        - campos_no_encontrados: Campos que OCR no pudo extraer
+        - campos_con_discrepancia: Campos que no coinciden (incluye valor esperado y valor OCR)
+        - puede_continuar: True si puede continuar (aunque haya discrepancias)
+    """
+    from app.models.models_ocr import PPSHDocumentoOCR
+    import json
+    
+    try:
+        # 1. Obtener solicitud y solicitante titular
+        solicitud = db.query(PPSHSolicitud).filter(
+            PPSHSolicitud.id_solicitud == id_solicitud
+        ).first()
+        
+        if not solicitud:
+            raise PPSHNotFoundException(detail=f"Solicitud {id_solicitud} no encontrada")
+        
+        # Obtener solicitante titular
+        solicitante = db.query(PPSHSolicitante).filter(
+            PPSHSolicitante.id_solicitud == id_solicitud,
+            PPSHSolicitante.es_titular == True
+        ).first()
+        
+        if not solicitante:
+            raise PPSHNotFoundException(detail="No se encontró el solicitante titular")
+        
+        # 2. Obtener resultado OCR del documento
+        ocr_result = db.query(PPSHDocumentoOCR).filter(
+            PPSHDocumentoOCR.id_documento == request.id_documento,
+            PPSHDocumentoOCR.estado_ocr == 'COMPLETADO'
+        ).first()
+        
+        if not ocr_result:
+            # OCR no completado o no existe
+            return ValidarOCRResponse(
+                validacion_exitosa=False,
+                campos_validados={},
+                campos_no_encontrados=["pasaporte", "nacionalidad", "nombres", "apellidos", "fecha_nacimiento"],
+                campos_con_discrepancia=[],
+                mensaje="El OCR aún no ha procesado el documento o falló",
+                puede_continuar=True,  # Permitir continuar aunque OCR falle
+                datos_ocr_raw=None,
+                texto_ocr_completo=None
+            )
+        
+        # 3. Parsear datos estructurados del OCR
+        datos_ocr = {}
+        if ocr_result.datos_estructurados:
+            try:
+                datos_ocr = json.loads(ocr_result.datos_estructurados)
+            except json.JSONDecodeError:
+                pass
+        
+        # También buscar en el texto extraído si no hay datos estructurados
+        texto_ocr = (ocr_result.texto_extraido or "").upper()
+        
+        # 4. Preparar datos del solicitante para comparación
+        datos_solicitante = {
+            "pasaporte": (solicitante.num_documento or "").upper().strip(),
+            "nacionalidad": (solicitante.cod_nacionalidad or "").upper().strip(),
+            "nombres": f"{solicitante.primer_nombre or ''} {solicitante.segundo_nombre or ''}".upper().strip(),
+            "apellidos": f"{solicitante.primer_apellido or ''} {solicitante.segundo_apellido or ''}".upper().strip(),
+            "fecha_nacimiento": solicitante.fecha_nacimiento.strftime("%d/%m/%Y") if solicitante.fecha_nacimiento else ""
+        }
+        
+        # 5. Extraer datos del OCR para comparación
+        datos_extraidos = {
+            "pasaporte": (
+                datos_ocr.get("numero_pasaporte") or 
+                datos_ocr.get("pasaporte_detectado") or 
+                ""
+            ).upper().strip(),
+            "nacionalidad": (
+                datos_ocr.get("nacionalidad") or 
+                datos_ocr.get("nacionalidad_detectada") or 
+                ""
+            ).upper().strip(),
+            "nombres": "",  # Difícil extraer sin MRZ
+            "apellidos": "",  # Difícil extraer sin MRZ
+            "fecha_nacimiento": ""
+        }
+        
+        # Intentar extraer fecha de nacimiento
+        fechas = datos_ocr.get("fechas_encontradas", [])
+        if fechas:
+            datos_extraidos["fecha_nacimiento"] = fechas[0] if fechas else ""
+        if datos_ocr.get("posible_fecha_nacimiento"):
+            datos_extraidos["fecha_nacimiento"] = datos_ocr["posible_fecha_nacimiento"]
+        if datos_ocr.get("fecha_nacimiento"):
+            datos_extraidos["fecha_nacimiento"] = datos_ocr["fecha_nacimiento"]
+        
+        # 6. Comparar campos
+        campos_validados = {}
+        campos_no_encontrados = []
+        campos_con_discrepancia = []
+        
+        def normalizar_texto(texto):
+            """Normaliza texto para comparación"""
+            import unicodedata
+            if not texto:
+                return ""
+            # Remover acentos y convertir a mayúsculas
+            texto = unicodedata.normalize('NFD', texto)
+            texto = ''.join(c for c in texto if unicodedata.category(c) != 'Mn')
+            return texto.upper().strip()
+        
+        def comparar_fechas(fecha1, fecha2):
+            """Compara dos fechas en diferentes formatos"""
+            import re
+            # Extraer solo números
+            nums1 = re.findall(r'\d+', fecha1)
+            nums2 = re.findall(r'\d+', fecha2)
+            if len(nums1) >= 3 and len(nums2) >= 3:
+                # Comparar día, mes, año
+                return nums1[:3] == nums2[:3]
+            return False
+        
+        for campo in ["pasaporte", "nacionalidad", "nombres", "apellidos", "fecha_nacimiento"]:
+            valor_solicitante = datos_solicitante.get(campo, "")
+            valor_ocr = datos_extraidos.get(campo, "")
+            
+            if not valor_ocr:
+                campos_no_encontrados.append(campo)
+            elif campo == "fecha_nacimiento":
+                if comparar_fechas(valor_solicitante, valor_ocr):
+                    campos_validados[campo] = valor_ocr
+                else:
+                    campos_con_discrepancia.append({
+                        "campo": campo,
+                        "valor_ingresado": valor_solicitante,
+                        "valor_ocr": valor_ocr
+                    })
+            elif campo == "pasaporte":
+                # Comparación exacta para pasaporte
+                if normalizar_texto(valor_solicitante) == normalizar_texto(valor_ocr):
+                    campos_validados[campo] = valor_ocr
+                elif normalizar_texto(valor_solicitante) in normalizar_texto(texto_ocr):
+                    # El número de pasaporte está en algún lugar del texto
+                    campos_validados[campo] = valor_solicitante
+                else:
+                    campos_con_discrepancia.append({
+                        "campo": campo,
+                        "valor_ingresado": valor_solicitante,
+                        "valor_ocr": valor_ocr
+                    })
+            elif campo == "nacionalidad":
+                # Comparación flexible para nacionalidad (puede ser código de 3 letras o nombre completo)
+                if normalizar_texto(valor_solicitante) == normalizar_texto(valor_ocr):
+                    campos_validados[campo] = valor_ocr
+                elif valor_solicitante in texto_ocr:
+                    campos_validados[campo] = valor_solicitante
+                else:
+                    campos_con_discrepancia.append({
+                        "campo": campo,
+                        "valor_ingresado": valor_solicitante,
+                        "valor_ocr": valor_ocr
+                    })
+            else:
+                # Para nombres y apellidos, verificar si están contenidos en el texto
+                if normalizar_texto(valor_solicitante) in normalizar_texto(texto_ocr):
+                    campos_validados[campo] = valor_solicitante
+                elif valor_ocr and normalizar_texto(valor_ocr) == normalizar_texto(valor_solicitante):
+                    campos_validados[campo] = valor_ocr
+                else:
+                    # Si no encontramos los nombres/apellidos, marcar como no encontrado
+                    campos_no_encontrados.append(campo)
+        
+        # 7. Determinar resultado
+        validacion_exitosa = len(campos_con_discrepancia) == 0 and len(campos_no_encontrados) <= 2
+        
+        # Generar mensaje
+        if validacion_exitosa:
+            mensaje = "Validación exitosa. Los datos del documento coinciden con los datos ingresados."
+        elif campos_con_discrepancia:
+            campos_str = ", ".join([d["campo"] for d in campos_con_discrepancia])
+            mensaje = f"Se encontraron discrepancias en: {campos_str}. Verifique que el documento sea correcto."
+        else:
+            mensaje = "No se pudieron extraer suficientes datos del documento para validar."
+        
+        return ValidarOCRResponse(
+            validacion_exitosa=validacion_exitosa,
+            campos_validados=campos_validados,
+            campos_no_encontrados=campos_no_encontrados,
+            campos_con_discrepancia=campos_con_discrepancia,
+            mensaje=mensaje,
+            puede_continuar=True,  # Siempre permitir continuar, el usuario decide
+            datos_ocr_raw=datos_ocr,  # Datos estructurados del JSON OCR
+            texto_ocr_completo=ocr_result.texto_extraido  # Texto completo sin filtrar
+        )
+        
+    except PPSHNotFoundException as e:
+        raise e
+    except Exception as e:
+        logger.error(f"Error validando OCR para solicitud {id_solicitud}: {str(e)}")
+        # En caso de error, permitir continuar
+        return ValidarOCRResponse(
+            validacion_exitosa=False,
+            campos_validados={},
+            campos_no_encontrados=["pasaporte", "nacionalidad", "nombres", "apellidos", "fecha_nacimiento"],
+            campos_con_discrepancia=[],
+            mensaje=f"Error durante la validación OCR: {str(e)}",
+            puede_continuar=True,
+            datos_ocr_raw=None,
+            texto_ocr_completo=None
         )
