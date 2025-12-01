@@ -24,7 +24,6 @@ import pytesseract
 import cv2
 import numpy as np
 import re
-from io import BytesIO
 
 try:
     from pdf2image import convert_from_path, convert_from_bytes
@@ -923,8 +922,6 @@ def extract_structured_data(
         JSON string con campos extraídos o None
     """
     try:
-        import re
-
         datos = {}
         texto_upper = texto.upper()
 
