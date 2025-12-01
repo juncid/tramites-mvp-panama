@@ -1419,8 +1419,6 @@ def process_pending_documents(self, limit: int = 50):
     Returns:
         Dict con estadísticas del procesamiento
     """
-    from app.models.models_workflow import WorkflowPregunta
-    
     db: Session = SessionLocal()
     
     try:
