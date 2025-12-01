@@ -17,6 +17,7 @@ from fastapi import HTTPException, status
 import logging
 
 from app.models import models_workflow as models
+from app.models import models_ppsh
 from app.schemas import schemas_workflow as schemas
 
 # Configurar logger
@@ -756,6 +757,66 @@ class InstanciaService:
         return instancia
 
     @staticmethod
+    def _obtener_datos_solicitante_por_expediente(db: Session, num_expediente: str) -> Optional[Dict[str, Any]]:
+        """
+        Obtiene los datos del solicitante titular de una solicitud PPSH
+        usando el número de expediente para relacionar la instancia con la solicitud.
+        
+        Args:
+            db: Sesión de base de datos
+            num_expediente: Número de expediente de la instancia
+            
+        Returns:
+            Diccionario con datos del solicitante o None si no se encuentra
+        """
+        try:
+            # Buscar la solicitud PPSH por num_expediente
+            solicitud = db.query(models_ppsh.PPSHSolicitud).filter(
+                models_ppsh.PPSHSolicitud.num_expediente == num_expediente
+            ).first()
+            
+            if not solicitud:
+                logger.debug(f"No se encontró solicitud PPSH con expediente {num_expediente}")
+                return None
+            
+            # Buscar el solicitante titular
+            solicitante = db.query(models_ppsh.PPSHSolicitante).filter(
+                models_ppsh.PPSHSolicitante.id_solicitud == solicitud.id_solicitud,
+                models_ppsh.PPSHSolicitante.es_titular == True
+            ).first()
+            
+            if not solicitante:
+                logger.debug(f"No se encontró solicitante titular para solicitud {solicitud.id_solicitud}")
+                return None
+            
+            # Construir nombre completo
+            nombres = solicitante.primer_nombre
+            if solicitante.segundo_nombre:
+                nombres += f" {solicitante.segundo_nombre}"
+            
+            apellidos = solicitante.primer_apellido
+            if solicitante.segundo_apellido:
+                apellidos += f" {solicitante.segundo_apellido}"
+            
+            # Formatear fecha de nacimiento
+            fecha_nacimiento_str = None
+            if solicitante.fecha_nacimiento:
+                fecha_nacimiento_str = solicitante.fecha_nacimiento.strftime("%Y-%m-%d")
+            
+            return {
+                "pasaporte": solicitante.num_documento,
+                "nacionalidad": solicitante.cod_nacionalidad,
+                "nombres": nombres,
+                "apellidos": apellidos,
+                "fecha_nacimiento": fecha_nacimiento_str,
+                "id_solicitud": solicitud.id_solicitud
+            }
+            
+        except Exception as e:
+            logger.error(f"Error al obtener datos de solicitante: {str(e)}")
+            return None
+
+    @staticmethod
     def listar_instancias(
         db: Session,
         skip: int = 0,
@@ -1176,7 +1237,8 @@ class InstanciaService:
             "puede_ver": puede_ver,
             "puede_editar": puede_editar,
             "campos": campos,
-            "metadata_instancia": instancia.metadata_adicional
+            "metadata_instancia": instancia.metadata_adicional,
+            "datos_solicitante": InstanciaService._obtener_datos_solicitante_por_expediente(db, instancia.num_expediente)
         }
 
     @staticmethod

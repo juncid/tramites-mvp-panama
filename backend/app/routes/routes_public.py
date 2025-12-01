@@ -30,6 +30,7 @@ class IniciarSolicitudRequest(BaseModel):
     email: Optional[EmailStr] = Field(None, description="Email del solicitante (opcional)")
     nacionalidad: Optional[str] = Field(None, max_length=50, description="Nacionalidad del solicitante")
     sexo: Optional[str] = Field(None, pattern="^(M|F|OTRO)$", description="Sexo del solicitante (M/F/OTRO)")
+    fecha_nacimiento: Optional[str] = Field(None, description="Fecha de nacimiento en formato YYYY-MM-DD")
 
     class Config:
         json_schema_extra = {
@@ -39,7 +40,8 @@ class IniciarSolicitudRequest(BaseModel):
                 "apellidos": "González Pérez",
                 "email": "maria.gonzalez@example.com",
                 "nacionalidad": "VENEZUELA",
-                "sexo": "F"
+                "sexo": "F",
+                "fecha_nacimiento": "1990-05-15"
             }
         }
 
@@ -135,7 +137,8 @@ def iniciar_solicitud(
             apellidos=request.apellidos,
             email=request.email,
             nacionalidad=request.nacionalidad,
-            sexo=request.sexo
+            sexo=request.sexo,
+            fecha_nacimiento=request.fecha_nacimiento
         )
 
         return IniciarSolicitudResponse(
@@ -220,6 +223,11 @@ def obtener_instancia_por_token(
     if instancia.workflow and instancia.workflow.etapas:
         for etapa in sorted(instancia.workflow.etapas, key=lambda x: x.orden or 0):
             if etapa.activo:
+                # Obtener perfiles permitidos de la etapa
+                perfiles_permitidos = []
+                if hasattr(etapa, 'perfiles_permitidos') and etapa.perfiles_permitidos:
+                    perfiles_permitidos = etapa.perfiles_permitidos
+                
                 etapas_data.append({
                     "id": etapa.id,
                     "codigo": etapa.codigo,
@@ -228,7 +236,25 @@ def obtener_instancia_por_token(
                     "descripcion": etapa.descripcion,
                     "es_etapa_inicial": etapa.es_etapa_inicial,
                     "es_etapa_final": etapa.es_etapa_final,
+                    "perfiles_permitidos": perfiles_permitidos,
                 })
+
+    # Construir datos de etapa_actual con perfiles
+    etapa_actual_data = None
+    if instancia.etapa_actual:
+        perfiles_etapa_actual = []
+        if hasattr(instancia.etapa_actual, 'perfiles_permitidos') and instancia.etapa_actual.perfiles_permitidos:
+            perfiles_etapa_actual = instancia.etapa_actual.perfiles_permitidos
+        
+        etapa_actual_data = {
+            "id": instancia.etapa_actual.id,
+            "nombre": instancia.etapa_actual.nombre,
+            "codigo": instancia.etapa_actual.codigo,
+            "orden": instancia.etapa_actual.orden,
+            "perfiles_permitidos": perfiles_etapa_actual,
+            "titulo_formulario": getattr(instancia.etapa_actual, 'titulo_formulario', None),
+            "bajada_formulario": getattr(instancia.etapa_actual, 'bajada_formulario', None),
+        }
 
     return {
         "id": instancia.id,
@@ -245,11 +271,7 @@ def obtener_instancia_por_token(
             "nombre": instancia.workflow.nombre,
             "etapas": etapas_data
         } if instancia.workflow else None,
-        "etapa_actual": {
-            "id": instancia.etapa_actual.id,
-            "nombre": instancia.etapa_actual.nombre,
-            "orden": instancia.etapa_actual.orden
-        } if instancia.etapa_actual else None
+        "etapa_actual": etapa_actual_data
     }
 
 

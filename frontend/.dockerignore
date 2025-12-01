@@ -12,7 +12,7 @@ yarn-error.log*
 pnpm-debug.log*
 
 # Lock files (regenerar en build para evitar incompatibilidades)
-package-lock.json
+# package-lock.json  # Comentado para asegurar instalación de dependencias correcta
 yarn.lock
 pnpm-lock.yaml
 

@@ -25,6 +25,7 @@ import { DatosCasoView } from '../components/Workflow/QuestionViews/DatosCasoVie
 import { SeleccionFechaView } from '../components/Workflow/QuestionViews/SeleccionFechaView';
 import { DescargaArchivoView } from '../components/Workflow/QuestionViews/DescargaArchivoView';
 import { ImpresionView } from '../components/Workflow/QuestionViews/ImpresionView';
+import { ImpresionListaCasosView } from '../components/Workflow/QuestionViews/ImpresionListaCasosView';
 
 interface CampoVista {
   id: number;
@@ -105,6 +106,7 @@ export const GenericEtapaPage: React.FC = () => {
   const [instancia, setInstancia] = useState<any>(null);
   const [respuestas, setRespuestas] = useState<Record<string, any>>({});
   const [workflowInstanciaId, setWorkflowInstanciaId] = useState<number | null>(null);
+  const [ppshSolicitudId, setPpshSolicitudId] = useState<number | null>(null);
 
   useEffect(() => {
     loadVistaActual();
@@ -136,6 +138,14 @@ export const GenericEtapaPage: React.FC = () => {
       // Cargar instancia completa
       const instanciaData = await workflowService.getInstancia(numericId);
       setInstancia(instanciaData);
+
+      // Extraer ppshSolicitudId de la metadata o del parámetro URL
+      const metadata = (instanciaData as any)?.metadata_adicional || {};
+      const metadataSolicitudId = metadata.id_solicitud || metadata.ppsh_solicitud_id;
+      const finalSolicitudId = solicitudId ? parseInt(solicitudId) : metadataSolicitudId;
+      if (finalSolicitudId) {
+        setPpshSolicitudId(finalSolicitudId);
+      }
 
       // Cargar vista: si hay etapaId específico, usar getVistaEtapa, sino getVistaActual
       let vista;
@@ -259,10 +269,14 @@ export const GenericEtapaPage: React.FC = () => {
       valor_por_defecto: campo.valor_predeterminado,
       activo: true,
       es_visible: true,
-      opciones: opcionesString,
+      // Para REVISION_MANUAL_DOCUMENTOS, REVISION_OCR e IMPRESION, mantener opciones como objeto
+      opciones: (campo.tipo_pregunta === 'REVISION_MANUAL_DOCUMENTOS' || campo.tipo_pregunta === 'REVISION_OCR' || campo.tipo_pregunta === 'IMPRESION') 
+        ? campo.opciones as any
+        : opcionesString,
       lista_elementos: opcionesArray,
       permite_multiple: campo.permite_multiple,
       max_size_mb: campo.tamano_maximo_mb,
+      campos_caso: campo.opciones_datos_caso,
     };
 
     const commonProps = {
@@ -285,16 +299,22 @@ export const GenericEtapaPage: React.FC = () => {
           return <OpcionesView key={campo.id} {...commonProps} />;
         
         case 'CARGA_ARCHIVO':
-          return <CargaArchivoView key={campo.id} {...commonProps} />;
+          return <CargaArchivoView key={campo.id} {...commonProps} solicitudId={ppshSolicitudId ?? undefined} />;
         
         case 'REVISION_MANUAL_DOCUMENTOS':
-          return <RevisionManualDocumentosView key={campo.id} {...commonProps} instanciaId={workflowInstanciaId ?? undefined} />;
+          return (
+            <RevisionManualDocumentosView 
+              key={campo.id} 
+              {...commonProps} 
+              instanciaId={workflowInstanciaId ?? undefined}
+            />
+          );
         
         case 'REVISION_OCR':
           return <RevisionOCRView key={campo.id} {...commonProps} instanciaId={workflowInstanciaId ?? undefined} />;
         
         case 'DATOS_CASO':
-          return <DatosCasoView key={campo.id} {...commonProps} instanciaId={workflowInstanciaId ?? undefined} />;
+          return <DatosCasoView key={campo.id} {...commonProps} instanciaId={workflowInstanciaId ?? undefined} metadataInstancia={vistaActual?.metadata_instancia} />;
         
         case 'SELECCION_FECHA':
           return <SeleccionFechaView key={campo.id} {...commonProps} />;
@@ -304,6 +324,9 @@ export const GenericEtapaPage: React.FC = () => {
         
         case 'IMPRESION':
           return <ImpresionView key={campo.id} {...commonProps} />;
+        
+        case 'IMPRESION_LISTA_CASOS':
+          return <ImpresionListaCasosView key={campo.id} {...commonProps} instanciaId={workflowInstanciaId ?? undefined} />;
         
         default:
           return (
@@ -491,10 +514,17 @@ export const GenericEtapaPage: React.FC = () => {
           </Alert>
         )}
 
-        {/* Renderizar campos dinámicamente desde configuración del nodo */}
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4, mb: 4, maxWidth: '1194px' }}>
+        {/* Renderizar campos dinámicamente - layout simple según Figma */}
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0, mb: 4, maxWidth: '1194px' }}>
           {vistaActual.campos
             .sort((a, b) => a.orden - b.orden)
+            // Filtrar pregunta de opciones OCR si existe REVISION_MANUAL_DOCUMENTOS
+            .filter(campo => {
+              const hayRevisionManualDocs = vistaActual.campos.some(c => c.tipo_pregunta === 'REVISION_MANUAL_DOCUMENTOS');
+              const esOpcionesOcr = campo.tipo_pregunta === 'OPCIONES' && 
+                campo.pregunta.toLowerCase().includes('revisión ocr');
+              return !(hayRevisionManualDocs && esOpcionesOcr);
+            })
             .map(campo => renderCampo(campo))}
         </Box>
 

@@ -40,6 +40,7 @@ class TipoPreguntaEnum(str, Enum):
     REVISION_MANUAL_DOCUMENTOS = "REVISION_MANUAL_DOCUMENTOS"
     REVISION_OCR = "REVISION_OCR"
     IMPRESION = "IMPRESION"
+    IMPRESION_LISTA_CASOS = "IMPRESION_LISTA_CASOS"
     SELECCION_FECHA = "SELECCION_FECHA"
 
 
@@ -110,6 +111,7 @@ class WorkflowPreguntaCreateNested(WorkflowPreguntaBase):
 class WorkflowPreguntaUpdate(BaseModel):
     """Schema para actualizar pregunta"""
     pregunta: Optional[str] = None
+    tipo_pregunta: Optional[TipoPreguntaEnum] = None
     orden: Optional[int] = Field(None, ge=0)
     es_obligatoria: Optional[bool] = None
     validacion_regex: Optional[str] = Field(None, max_length=500)

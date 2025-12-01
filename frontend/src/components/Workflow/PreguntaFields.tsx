@@ -247,7 +247,6 @@ export const CargaArchivoConPreguntaFields: React.FC<PreguntaFieldsProps> = ({
         <MenuItem value={25}>25MB</MenuItem>
         <MenuItem value={50}>50MB</MenuItem>
         <MenuItem value={100}>100MB</MenuItem>
-        <MenuItem value={200}>200MB</MenuItem>
       </Select>
     </FormControl>
 

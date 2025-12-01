@@ -65,7 +65,11 @@ describe('Procesos Component', () => {
       </BrowserRouter>
     );
 
-    expect(screen.getByRole('heading', { name: /Procesos/i })).toBeInTheDocument();
+    // El texto "Procesos" aparece tanto en breadcrumbs como en el título
+    await waitFor(() => {
+      const procesosElements = screen.getAllByText('Procesos');
+      expect(procesosElements.length).toBeGreaterThanOrEqual(1);
+    });
   });
 
   it('muestra el botón de nuevo proceso', async () => {

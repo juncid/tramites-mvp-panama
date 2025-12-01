@@ -1,304 +1,248 @@
-# Documentación del Sistema de Workflows Dinámicos
+# 📚 Documentación del Sistema de Trámites MVP Panamá
 
-Esta carpeta contiene la documentación técnica del sistema de workflows dinámicos de Trámites MVP Panamá.
-
-## 📚 Índice de Documentación
-
-### Mejoras y Cambios Recientes
-
-- **[MEJORAS_LOGGING_Y_WORKFLOWS_2025-10-20.md](./MEJORAS_LOGGING_Y_WORKFLOWS_2025-10-20.md)**  
-  Documentación completa y detallada de las mejoras implementadas el 20 de octubre de 2025.  
-  **Contenido:**
-  - Sistema de logging con UUID
-  - Schemas anidados para workflows
-  - Mapeo de códigos a IDs
-  - Ejemplos completos de uso
-  - Arquitectura técnica detallada
-
-- **[RESUMEN_MEJORAS_2025-10-20.md](./RESUMEN_MEJORAS_2025-10-20.md)**  
-  Resumen ejecutivo de las mejoras (versión corta para referencia rápida).  
-  **Contenido:**
-  - Resumen de cambios principales
-  - Ejemplos básicos
-  - Comandos útiles
-  - Métricas de impacto
-
-### Ejemplos de Workflows
-
-- **[ejemplos/workflow_residencia_temporal.json](./ejemplos/workflow_residencia_temporal.json)**  
-  Ejemplo completo de workflow para solicitud de residencia temporal.  
-  **Incluye:**
-  - 7 etapas (inicio, carga documentos, revisiones, correcciones, aprobación/rechazo)
-  - 15 preguntas de diferentes tipos
-  - 8 conexiones con condiciones
-  - Validaciones y campos condicionales
-
-## 🚀 Inicio Rápido
-
-### Crear un Workflow Completo
-
-```bash
-# Usar el ejemplo de residencia temporal
-curl -X POST http://localhost:8000/api/v1/workflow/workflows \
-  -H "Content-Type: application/json" \
-  -d @docs/ejemplos/workflow_residencia_temporal.json
-```
-
-### Ver Logs en Tiempo Real
-
-```bash
-# Logs del backend
-docker-compose logs -f backend
-
-# Logs en Dozzle (navegador)
-# Abrir: http://localhost:9999
-```
-
-### Buscar Logs por UUID
-
-```bash
-# Buscar todos los logs de una petición específica
-docker-compose logs backend | grep "[UUID-AQUI]"
-
-# Ejemplo:
-docker-compose logs backend | grep "[f0658942-a411-43fd-8083-c030f7308205]"
-```
-
-## 📖 Documentación de API
-
-### Swagger/OpenAPI
-```
-http://localhost:8000/api/docs
-```
-
-### ReDoc
-```
-http://localhost:8000/api/redoc
-```
-
-## 🔑 Conceptos Clave
-
-### Schemas Anidados
-
-El sistema permite crear workflows completos con toda su estructura en una sola petición:
-
-```
-Workflow
-  ├── Etapas (usa WorkflowEtapaCreateNested - sin workflow_id)
-  │   └── Preguntas (usa WorkflowPreguntaCreateNested - sin etapa_id)
-  └── Conexiones (usa WorkflowConexionCreateByCodigo - usa códigos en lugar de IDs)
-```
-
-### Mapeo de Códigos a IDs
-
-Las conexiones usan **códigos de etapa** en lugar de IDs:
-
-```json
-{
-  "conexiones": [
-    {
-      "etapa_origen_codigo": "INICIO",
-      "etapa_destino_codigo": "DOCUMENTOS"
-    }
-  ]
-}
-```
-
-El sistema automáticamente:
-1. Crea las etapas y les asigna IDs
-2. Mapea los códigos a los IDs generados
-3. Crea las conexiones con los IDs correctos
-
-### UUID para Trazabilidad
-
-Cada petición HTTP tiene un UUID único:
-```
-[f0658942-a411-43fd-8083-c030f7308205]
-```
-
-Útil para:
-- Buscar todos los logs de una petición
-- Debugging distribuido
-- Análisis de performance
-- Correlación de eventos
-
-## 🎯 Casos de Uso
-
-### 1. Crear Workflow Simple
-
-```json
-POST /api/v1/workflow/workflows
-{
-  "codigo": "WORKFLOW_SIMPLE",
-  "nombre": "Workflow Simple",
-  "estado": "ACTIVO",
-  "perfiles_creadores": ["ADMIN"],
-  "etapas": [
-    {
-      "codigo": "INICIO",
-      "nombre": "Inicio",
-      "tipo_etapa": "ETAPA",
-      "orden": 1,
-      "es_etapa_inicial": true
-    },
-    {
-      "codigo": "FIN",
-      "nombre": "Fin",
-      "tipo_etapa": "ETAPA",
-      "orden": 2,
-      "es_etapa_final": true
-    }
-  ],
-  "conexiones": [
-    {
-      "etapa_origen_codigo": "INICIO",
-      "etapa_destino_codigo": "FIN",
-      "es_predeterminada": true
-    }
-  ]
-}
-```
-
-### 2. Workflow con Preguntas y Validaciones
-
-Ver: [ejemplos/workflow_residencia_temporal.json](./ejemplos/workflow_residencia_temporal.json)
-
-### 3. Workflow con Condiciones
-
-```json
-{
-  "conexiones": [
-    {
-      "etapa_origen_codigo": "REVISION",
-      "etapa_destino_codigo": "APROBADO",
-      "nombre": "Aprobar",
-      "condicion": {
-        "pregunta": "DECISION",
-        "valor": "APROBAR"
-      }
-    },
-    {
-      "etapa_origen_codigo": "REVISION",
-      "etapa_destino_codigo": "RECHAZADO",
-      "nombre": "Rechazar",
-      "condicion": {
-        "pregunta": "DECISION",
-        "valor": "RECHAZAR"
-      }
-    }
-  ]
-}
-```
-
-## 🔧 Tipos de Preguntas Soportados
-
-| Tipo | Descripción | Ejemplo |
-|------|-------------|---------|
-| `RESPUESTA_TEXTO` | Campo de texto corto | Nombre, Email |
-| `RESPUESTA_PARRAFO` | Campo de texto largo | Comentarios, Observaciones |
-| `LISTA` | Lista desplegable | Nacionalidad, País |
-| `OPCIONES` | Radio buttons o checkboxes | SI/NO, Múltiple selección |
-| `CARGA_ARCHIVO` | Upload de archivos | Pasaporte, Documentos |
-
-## 🛠️ Herramientas
-
-### Dozzle (Logs en Tiempo Real)
-```
-URL: http://localhost:9999
-Características:
-- Búsqueda en tiempo real
-- Filtros por contenedor
-- Búsqueda por texto/regex
-- Export de logs
-```
-
-### Docker Commands
-
-```bash
-# Reiniciar backend
-docker-compose restart backend
-
-# Ver logs
-docker-compose logs backend
-docker-compose logs -f backend  # En tiempo real
-docker-compose logs --tail=100 backend  # Últimas 100 líneas
-
-# Ejecutar comando en contenedor
-docker exec tramites-backend bash -c "comando"
-
-# Copiar archivo al contenedor
-docker cp archivo.json tramites-backend:/tmp/
-```
-
-## 📊 Métricas y Monitoreo
-
-### Endpoints de Métricas
-
-```bash
-# Health check
-curl http://localhost:8000/health
-
-# Métricas (si están habilitadas)
-curl http://localhost:8000/metrics
-```
-
-### Logs Estructurados
-
-Los logs incluyen:
-- ✅ UUID de request
-- ✅ Método HTTP
-- ✅ Path
-- ✅ Status code
-- ✅ Tiempo de procesamiento
-- ✅ Request body (en errores)
-- ✅ Response body (en errores)
-- ✅ IP del cliente
-
-## ⚠️ Troubleshooting
-
-### Error: "Etapa origen con código 'XXX' no encontrada"
-
-**Causa:** El código de etapa en las conexiones no coincide con los códigos de las etapas definidas.
-
-**Solución:** Verificar que los códigos en `etapa_origen_codigo` y `etapa_destino_codigo` existan en el array de `etapas`.
-
-### Error: "Field required" en etapa o pregunta
-
-**Causa:** Estás usando el schema antiguo que requiere `workflow_id` o `etapa_id`.
-
-**Solución:** Usar el endpoint correcto:
-- Para workflow completo: `POST /api/v1/workflow/workflows` (sin IDs)
-- Para etapa individual: `POST /api/v1/workflow/workflows/{workflow_id}/etapas` (con workflow_id)
-
-### No veo el body en los logs de error
-
-**Causa:** El middleware solo captura body en errores 4xx/5xx.
-
-**Solución:** Verificar que el error sea realmente 400+ y que el método sea POST/PUT/PATCH.
-
-## 📝 Changelog
-
-### [2025-10-20]
-- ✨ UUID único para peticiones
-- ✨ Schemas anidados para workflows completos
-- ✨ Uso de códigos en conexiones
-- ✨ Logging mejorado con captura de body
-- 🐛 Fix MSSQL ORDER BY
-- 🐛 Fix FK length en PPSH
-
-## 🔗 Enlaces Útiles
-
-- [Repositorio GitHub](https://github.com/juncid/tramites-mvp-panama)
-- [Documentación API](http://localhost:8000/api/docs)
-- [Dozzle](http://localhost:9999)
-
-## 📞 Soporte
-
-Para preguntas técnicas:
-1. Revisar la documentación completa en `MEJORAS_LOGGING_Y_WORKFLOWS_2025-10-20.md`
-2. Revisar los ejemplos en `ejemplos/`
-3. Consultar los logs en Dozzle
+> **Sistema de Gestión de Trámites Migratorios**  
+> FastAPI (Backend) + React (Frontend) + SQL Server
 
 ---
 
-**Última actualización:** 20 de Octubre de 2025
+## 🗂️ Estructura de Documentación
+
+```
+docs/
+├── README.md              ← Estás aquí
+│
+├── 📚 MANUALES Y GUÍAS
+│   ├── Manuales/          # Manuales de usuario y técnico
+│   └── Development/       # Guías de desarrollo
+│
+├── 🏗️ ARQUITECTURA
+│   ├── Architecture/      # Arquitectura del sistema
+│   ├── BBDD/              # Base de datos y modelos
+│   └── Migrations/        # Migraciones de BD
+│
+├── 🔧 MÓDULOS
+│   ├── OCR/               # Reconocimiento óptico
+│   ├── Workflow/          # Sistema de workflows
+│   ├── Vistas/            # Vistas dinámicas
+│   ├── PPSH/              # Módulo PPSH
+│   └── Seguridad/         # Autenticación y permisos
+│
+├── 🧪 CALIDAD
+│   ├── Testing/           # Pruebas y QA
+│   └── Monitoring/        # Monitoreo
+│
+├── 📦 DESPLIEGUE
+│   └── Deployment/        # Guías de despliegue
+│
+├── 📊 ENTREGABLES
+│   ├── Entregables/       # Verificación de productos
+│   ├── Reports/           # Reportes
+│   └── General/           # Resúmenes generales
+│
+└── 📔 HISTÓRICO
+    ├── bitacora/          # Notas de sesión
+    └── frontend/          # Docs del frontend
+```
+
+---
+
+## 🚀 Inicio Rápido
+
+### Para Desarrolladores
+
+| Documento | Descripción |
+|-----------|-------------|
+| [Development/DEVELOPMENT.md](Development/DEVELOPMENT.md) | Configuración del entorno de desarrollo |
+| [Development/DEVELOPMENT_LOCAL.md](Development/DEVELOPMENT_LOCAL.md) | Ejecución local paso a paso |
+| [Architecture/ARCHITECTURE.md](Architecture/ARCHITECTURE.md) | Visión general de la arquitectura |
+
+### Para QA / Testing
+
+| Documento | Descripción |
+|-----------|-------------|
+| [Testing/README.md](Testing/README.md) | Índice de pruebas |
+| [Testing/API_TESTING_README.md](Testing/API_TESTING_README.md) | Pruebas de API |
+| [Testing/LOAD_TEST_DATA_GUIDE.md](Testing/LOAD_TEST_DATA_GUIDE.md) | Datos de prueba |
+
+### Para Usuarios Finales
+
+| Documento | Descripción |
+|-----------|-------------|
+| [Manuales/MANUAL_DE_USUARIO.md](Manuales/MANUAL_DE_USUARIO.md) | Guía completa de uso |
+| [Manuales/GUIA_CAPACITACION.md](Manuales/GUIA_CAPACITACION.md) | Material de capacitación |
+
+### Para Administradores
+
+| Documento | Descripción |
+|-----------|-------------|
+| [Deployment/DEPLOYMENT.md](Deployment/DEPLOYMENT.md) | Guías de despliegue |
+| [Seguridad/USUARIOS_PRUEBA.md](Seguridad/USUARIOS_PRUEBA.md) | Credenciales de prueba |
+
+---
+
+## 📖 Módulos del Sistema
+
+### 🔄 Sistema de Workflows
+
+Sistema de flujos de trabajo dinámicos con editor visual drag & drop.
+
+| Documento | Tipo | Descripción |
+|-----------|------|-------------|
+| [Workflow/SISTEMA_WORKFLOWS_IMPLEMENTADO.md](Workflow/SISTEMA_WORKFLOWS_IMPLEMENTADO.md) | 📋 Referencia | Implementación completa del sistema |
+| [Workflow/WORKFLOW_DINAMICO_DESIGN.md](Workflow/WORKFLOW_DINAMICO_DESIGN.md) | 📐 Diseño | Especificaciones de diseño |
+| [Workflow/WORKFLOW_INTEGRATION_GUIDE.md](Workflow/WORKFLOW_INTEGRATION_GUIDE.md) | 📖 Guía | Cómo integrar workflows |
+| [Workflow/NODO_TERMINO_IMPLEMENTADO.md](Workflow/NODO_TERMINO_IMPLEMENTADO.md) | ✅ Implementación | Nodo de término de proceso |
+| [Workflow/REVISION_FIGMA_WORKFLOW.md](Workflow/REVISION_FIGMA_WORKFLOW.md) | 🎨 UI | Comparativa con diseño Figma |
+| [Workflow/TODO_INTEGRACION_WORKFLOW_SOLICITUDES.md](Workflow/TODO_INTEGRACION_WORKFLOW_SOLICITUDES.md) | 📌 Pendiente | Tareas pendientes |
+
+### 👁️ Vistas Dinámicas por Permisos
+
+Sistema de renderizado de formularios según perfil de usuario y etapa.
+
+| Documento | Tipo | Descripción |
+|-----------|------|-------------|
+| [Vistas/GUIA_IMPLEMENTACION_VISTAS.md](Vistas/GUIA_IMPLEMENTACION_VISTAS.md) | 📖 Guía | Cómo crear nuevas vistas |
+| [Vistas/SISTEMA_VISTAS_DINAMICAS_IMPLEMENTADO.md](Vistas/SISTEMA_VISTAS_DINAMICAS_IMPLEMENTADO.md) | 📋 Referencia | Sistema completo implementado |
+| [Vistas/IMPLEMENTACION_VISTAS_DINAMICAS.md](Vistas/IMPLEMENTACION_VISTAS_DINAMICAS.md) | ✅ Implementación | Detalles técnicos |
+| [Vistas/PLAN_VISTAS_POR_PERFIL.md](Vistas/PLAN_VISTAS_POR_PERFIL.md) | 📐 Plan | Planificación por perfil |
+| [Vistas/PLAN_INTEGRACION_VISTAS_DINAMICAS.md](Vistas/PLAN_INTEGRACION_VISTAS_DINAMICAS.md) | 📐 Plan | Plan de integración |
+| [Vistas/PLAN_VERIFICACION_VISTAS_RESPUESTAS.md](Vistas/PLAN_VERIFICACION_VISTAS_RESPUESTAS.md) | ✅ Verificación | Plan de verificación |
+
+### 🔍 Sistema OCR
+
+Reconocimiento óptico de caracteres para documentos de identidad.
+
+| Documento | Tipo | Descripción |
+|-----------|------|-------------|
+| [OCR/SISTEMA_UPLOAD_OCR_IMPLEMENTADO.md](OCR/SISTEMA_UPLOAD_OCR_IMPLEMENTADO.md) | 📋 Referencia | Sistema completo de upload + OCR |
+| [OCR/OCR_ENDPOINT_IMPLEMENTATION.md](OCR/OCR_ENDPOINT_IMPLEMENTATION.md) | ✅ Implementación | Endpoint de documentos con OCR |
+| [OCR/PRUEBA_OCR_E2E.md](OCR/PRUEBA_OCR_E2E.md) | 🧪 Testing | Guía de prueba end-to-end |
+| [OCR/SISTEMA_OCR_LISTO.md](OCR/SISTEMA_OCR_LISTO.md) | ✅ Estado | Estado actual del sistema |
+| [OCR/OCR_SISTEMA_FUNCIONANDO.md](OCR/OCR_SISTEMA_FUNCIONANDO.md) | 🔧 Troubleshooting | Correcciones aplicadas |
+
+### 🔐 Seguridad y Acceso
+
+Autenticación, autorización y permisos.
+
+| Documento | Tipo | Descripción |
+|-----------|------|-------------|
+| [Seguridad/USUARIOS_PRUEBA.md](Seguridad/USUARIOS_PRUEBA.md) | 🔑 Credenciales | Usuarios de prueba |
+| [Seguridad/IMPLEMENTACION_ACCESO_PUBLICO.md](Seguridad/IMPLEMENTACION_ACCESO_PUBLICO.md) | ✅ Implementación | Acceso público sin contraseña |
+| [Seguridad/IMPLEMENTACION_CODIGO_ACCESO.md](Seguridad/IMPLEMENTACION_CODIGO_ACCESO.md) | ✅ Implementación | Código de acceso corto |
+| [Seguridad/IMPLEMENTACION_PERMISOS_ESTADO.md](Seguridad/IMPLEMENTACION_PERMISOS_ESTADO.md) | ✅ Implementación | Permisos por estado PPSH |
+| [Seguridad/SOLUCION_PERMISOS_ETAPA_4.md](Seguridad/SOLUCION_PERMISOS_ETAPA_4.md) | 🔧 Solución | Fix de permisos etapa 4 |
+
+### 🧪 Testing y QA
+
+Pruebas automatizadas y manuales.
+
+| Documento | Tipo | Descripción |
+|-----------|------|-------------|
+| [Testing/README.md](Testing/README.md) | 📖 Índice | Índice de testing |
+| [Testing/API_TESTING_README.md](Testing/API_TESTING_README.md) | 📖 Guía | Testing de API |
+| [Testing/E2E_TEST_VISTAS_DINAMICAS_SUCCESS.md](Testing/E2E_TEST_VISTAS_DINAMICAS_SUCCESS.md) | ✅ Resultado | Test E2E exitoso |
+| [Testing/PRUEBAS_FASE_1_VISTAS_DINAMICAS.md](Testing/PRUEBAS_FASE_1_VISTAS_DINAMICAS.md) | 🧪 Plan | Plan de pruebas Fase 1 |
+| [Testing/TESTING_CONTINUACION_PERMISOS.md](Testing/TESTING_CONTINUACION_PERMISOS.md) | ✅ Resultado | Permisos validados |
+| [Testing/LOAD_TEST_DATA_GUIDE.md](Testing/LOAD_TEST_DATA_GUIDE.md) | 📖 Guía | Cargar datos de prueba |
+
+---
+
+## 📝 Manuales
+
+| Manual | Audiencia | Descripción |
+|--------|-----------|-------------|
+| [Manuales/MANUAL_DE_USUARIO.md](Manuales/MANUAL_DE_USUARIO.md) | 👤 Usuario final | Guía de uso del sistema |
+| [Manuales/MANUAL_TECNICO.md](Manuales/MANUAL_TECNICO.md) | 🔧 Técnico | Documentación técnica Parte 1 |
+| [Manuales/MANUAL_TECNICO_PARTE2.md](Manuales/MANUAL_TECNICO_PARTE2.md) | 🔧 Técnico | Documentación técnica Parte 2 |
+| [Manuales/GUIA_CAPACITACION.md](Manuales/GUIA_CAPACITACION.md) | 📚 Capacitación | Material de capacitación |
+
+---
+
+## 📊 Entregables y Reportes
+
+| Documento | Descripción |
+|-----------|-------------|
+| [Entregables/RESUMEN_EJECUTIVO_FINAL.md](Entregables/RESUMEN_EJECUTIVO_FINAL.md) | Resumen ejecutivo del proyecto |
+| [Entregables/VERIFICACION_PRODUCTO_1.md](Entregables/VERIFICACION_PRODUCTO_1.md) | Verificación de entregable 1 |
+| [Entregables/ANALISIS_CUMPLIMIENTO_PRODUCTO_1_FINAL.md](Entregables/ANALISIS_CUMPLIMIENTO_PRODUCTO_1_FINAL.md) | Análisis de cumplimiento |
+| [BBDD/DICCIONARIO_DATOS_COMPLETO.md](BBDD/DICCIONARIO_DATOS_COMPLETO.md) | Diccionario de datos |
+
+---
+
+## 📔 Bitácora de Desarrollo
+
+Registro histórico de cambios y sesiones de desarrollo.
+
+| Fecha | Documento | Resumen |
+|-------|-----------|---------|
+| 2025-11-21 | [bitacora/SESION_21_NOV_2024.md](bitacora/SESION_21_NOV_2024.md) | Corrección de bugs y mejoras UI |
+| 2025-11-17 | [bitacora/ALEMBIC_REPARADO.md](bitacora/ALEMBIC_REPARADO.md) | Reparación sistema migraciones |
+| 2025-10-20 | [bitacora/MEJORAS_LOGGING_Y_WORKFLOWS_2025-10-20.md](bitacora/MEJORAS_LOGGING_Y_WORKFLOWS_2025-10-20.md) | Mejoras de logging |
+| 2025-10-15 | [bitacora/2025-10-15_avances-y-analisis.md](bitacora/2025-10-15_avances-y-analisis.md) | Avances y análisis |
+| 2025-10-13 | [bitacora/2025-10-13_optimizacion-frontend-docker.md](bitacora/2025-10-13_optimizacion-frontend-docker.md) | Optimización frontend Docker |
+
+---
+
+## 🔧 Convenciones
+
+### Iconos de Tipo de Documento
+
+| Icono | Significado |
+|-------|-------------|
+| 📖 | Guía / Tutorial |
+| 📋 | Referencia |
+| 📐 | Diseño / Plan |
+| ✅ | Implementación completada |
+| 🧪 | Testing / Pruebas |
+| 🔧 | Troubleshooting / Fix |
+| 🎨 | UI / Diseño visual |
+| 📌 | Pendiente / TODO |
+| 🔑 | Credenciales / Seguridad |
+
+### Estructura de Documentos
+
+Cada documento debe seguir esta estructura:
+
+```markdown
+# Título del Documento
+
+**Fecha**: DD de Mes YYYY  
+**Estado**: ✅ Completado | ⏳ En progreso | 📌 Pendiente  
+**Módulo**: Workflow | OCR | Vistas | etc.
+
+---
+
+## 📋 Resumen Ejecutivo
+
+Breve descripción de 2-3 líneas.
+
+---
+
+## 🎯 Objetivo
+
+Qué problema resuelve o qué funcionalidad implementa.
+
+---
+
+## 📖 Contenido Principal
+
+...
+
+---
+
+## ✅ Resultado / Estado Actual
+
+...
+```
+
+---
+
+## 🆘 Soporte
+
+- **Issues**: Reportar en el repositorio GitHub
+- **Documentación adicional**: Ver carpeta `informe-ejecutivo/`
+- **Colecciones Postman**: Ver `postman-collections/`
+
+---
+
+**Última actualización:** Noviembre 2025

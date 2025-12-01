@@ -86,6 +86,7 @@ export const WorkflowEtapasUnificado: React.FC<WorkflowEtapasProps> = ({ perfil:
   const [searchTerm, setSearchTerm] = useState('');
   const [workflowInstanciaId, setWorkflowInstanciaId] = useState<number | null>(null);
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [ciudadanoPuedeEditarActual, setCiudadanoPuedeEditarActual] = useState(false);
 
   // ============================================================================
   // RELOJ EN TIEMPO REAL
@@ -144,6 +145,12 @@ export const WorkflowEtapasUnificado: React.FC<WorkflowEtapasProps> = ({ perfil:
       const instanciaData = await publicService.getInstanciaPorToken(realToken);
       setWorkflowInstanciaId(instanciaData.id);
 
+      // Verificar si el ciudadano puede editar la etapa actual
+      const etapaActual = instanciaData.etapa_actual;
+      const perfilesPermitidos = etapaActual?.perfiles_permitidos || [];
+      const puedeEditar = perfilesPermitidos.includes('CIUDADANO') || perfilesPermitidos.includes('ABOGADO');
+      setCiudadanoPuedeEditarActual(puedeEditar);
+
       // Obtener historial
       const historial = await workflowService.getHistorial(instanciaData.id);
       
@@ -156,7 +163,7 @@ export const WorkflowEtapasUnificado: React.FC<WorkflowEtapasProps> = ({ perfil:
         return;
       }
 
-      const etapasConEstado = buildEtapasConEstado(workflow.etapas, historial, etapaActualId);
+      const etapasConEstado = buildEtapasConEstado(workflow.etapas, historial, etapaActualId, puedeEditar);
       setEtapas(etapasConEstado);
     } catch (err: any) {
       console.error('Error cargando datos:', err);
@@ -229,11 +236,13 @@ export const WorkflowEtapasUnificado: React.FC<WorkflowEtapasProps> = ({ perfil:
 
   /**
    * Construye la lista de etapas con estado (compartido entre ciudadano y funcionario)
+   * @param puedeEditarActual - Si el usuario puede editar la etapa actual (para ciudadanos, depende de perfiles_permitidos)
    */
   const buildEtapasConEstado = (
     etapasWorkflow: any[],
     historial: any[],
-    etapaActualId: number | null
+    etapaActualId: number | null,
+    puedeEditarActual: boolean = true
   ): EtapaInfo[] => {
     const etapasConEstado: EtapaInfo[] = etapasWorkflow.map((etapa: any) => {
       const completada = historial.some((h: any) => 
@@ -248,7 +257,8 @@ export const WorkflowEtapasUnificado: React.FC<WorkflowEtapasProps> = ({ perfil:
         orden: etapa.orden || 0,
         estado: completada ? 'COMPLETADO' : esActual ? 'EN_PROCESO' : 'PENDIENTE',
         puede_ver: true,
-        puede_editar: esActual,
+        // Solo puede editar si es la etapa actual Y tiene permisos
+        puede_editar: esActual && puedeEditarActual,
         fecha_completado: completada 
           ? historial.find((h: any) => h.tipo_cambio === 'TRANSICION' && h.etapa_origen_id === etapa.id)?.created_at 
           : undefined,
@@ -404,7 +414,7 @@ export const WorkflowEtapasUnificado: React.FC<WorkflowEtapasProps> = ({ perfil:
           >
             Ver y editar
           </Button>
-        ) : etapa.puede_ver && etapa.estado === 'COMPLETADO' ? (
+        ) : (etapa.puede_ver && etapa.estado === 'COMPLETADO') || (!esCiudadano && etapa.estado === 'EN_PROCESO') ? (
           <Button
             size="small"
             startIcon={<VisibilityIcon sx={{ fontSize: 16 }} />}

@@ -16,6 +16,7 @@ export type TipoPregunta =
   | 'REVISION_MANUAL_DOCUMENTOS'  // Revisión manual de documentos
   | 'REVISION_OCR'         // Revisión OCR
   | 'IMPRESION'            // Impresión
+  | 'IMPRESION_LISTA_CASOS' // Impresión lista de casos (selección de solicitudes)
   | 'SELECCION_FECHA'      // Selección de fecha
   // Additional types used in editor
   | 'NUMERO'               // Número
@@ -105,8 +106,10 @@ export interface WorkflowPregunta {
   // Campos específicos para CARGA_ARCHIVO
   max_archivos?: number;
   max_size_mb?: number;
+  requiere_ocr?: boolean;  // Si requiere procesamiento OCR automático
   // Campos específicos para DATOS_CASO
   campos_caso?: string[];
+  opciones_datos_caso?: string[];  // Opciones de datos del caso para mostrar
   // Campos específicos para REVISION_OCR y REVISION_MANUAL_DOCUMENTOS
   etapa_origen_id?: string;
   // Campos específicos para FECHA

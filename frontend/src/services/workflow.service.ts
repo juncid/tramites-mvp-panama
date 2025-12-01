@@ -459,4 +459,31 @@ export const workflowService = {
       'archivo'
     );
   },
+
+  /**
+   * Validar datos OCR contra los datos del solicitante
+   * Compara los datos extraídos del documento con los datos ingresados en el formulario
+   */
+  async validarOCR(
+    solicitudId: number,
+    idDocumento: number
+  ): Promise<{
+    validacion_exitosa: boolean;
+    campos_validados: Record<string, string>;
+    campos_no_encontrados: string[];
+    campos_con_discrepancia: Array<{
+      campo: string;
+      valor_ingresado: string;
+      valor_ocr: string;
+    }>;
+    mensaje: string;
+    puede_continuar: boolean;
+    datos_ocr_raw?: Record<string, any>;
+    texto_ocr_completo?: string;
+  }> {
+    return apiClient.post<any>(
+      `/ppsh/solicitudes/${solicitudId}/validar-ocr`,
+      { id_documento: idDocumento }
+    );
+  },
 };

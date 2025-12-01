@@ -84,6 +84,14 @@ interface VistaActual {
   puede_editar: boolean;
   campos: CampoVista[];
   metadata_instancia?: any;
+  datos_solicitante?: {
+    pasaporte: string;
+    nacionalidad: string;
+    nombres: string;
+    apellidos: string;
+    fecha_nacimiento?: string;
+    id_solicitud?: number;
+  };
 }
 
 /**
@@ -132,6 +140,7 @@ export const DynamicEtapaView: React.FC<DynamicEtapaViewProps> = ({
       console.log('📋 Vista cargada:', vista);
       console.log('📋 metadata_instancia:', vista.metadata_instancia);
       console.log('📋 solicitud_id:', vista.metadata_instancia?.id_solicitud);
+      console.log('📋 datos_solicitante:', vista.datos_solicitante);
       setVistaActual(vista);
 
       // Cargar valores actuales en el estado de respuestas
@@ -440,6 +449,7 @@ export const DynamicEtapaView: React.FC<DynamicEtapaViewProps> = ({
                   buttonLabels={buttonLabels}
                   titulo={vistaActual.etapa_actual.titulo_formulario}
                   descripcion={vistaActual.etapa_actual.bajada_formulario}
+                  datosSolicitante={vistaActual.datos_solicitante}
                 />
               ) : (
                 // Si solo hay uno o ningún archivo, renderizar normal

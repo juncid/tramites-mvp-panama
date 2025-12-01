@@ -4,9 +4,26 @@ import { apiClient as api } from '../../services/api';
 // Mock global fetch
 global.fetch = vi.fn();
 
+// Mock localStorage
+const localStorageMock = {
+  getItem: vi.fn(),
+  setItem: vi.fn(),
+  removeItem: vi.fn(),
+  clear: vi.fn(),
+};
+Object.defineProperty(global, 'localStorage', { value: localStorageMock });
+
+// Mock performance
+Object.defineProperty(global, 'performance', {
+  value: {
+    now: vi.fn(() => 0),
+  },
+});
+
 describe('API Service', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    localStorageMock.getItem.mockReturnValue(null);
   });
 
   describe('GET requests', () => {
@@ -15,6 +32,7 @@ describe('API Service', () => {
       
       (global.fetch as any).mockResolvedValueOnce({
         ok: true,
+        status: 200,
         json: async () => mockData,
       });
 
@@ -32,6 +50,7 @@ describe('API Service', () => {
     it('agrega parámetros a la URL', async () => {
       (global.fetch as any).mockResolvedValueOnce({
         ok: true,
+        status: 200,
         json: async () => ({}),
       });
 
@@ -55,6 +74,7 @@ describe('API Service', () => {
 
       (global.fetch as any).mockResolvedValueOnce({
         ok: true,
+        status: 200,
         json: async () => mockData,
       });
 
@@ -78,6 +98,7 @@ describe('API Service', () => {
 
       (global.fetch as any).mockResolvedValueOnce({
         ok: true,
+        status: 200,
         json: async () => mockData,
       });
 
@@ -98,6 +119,7 @@ describe('API Service', () => {
     it('realiza una petición DELETE exitosa', async () => {
       (global.fetch as any).mockResolvedValueOnce({
         ok: true,
+        status: 200,
         json: async () => ({ success: true }),
       });
 
@@ -110,6 +132,17 @@ describe('API Service', () => {
         })
       );
       expect(result).toEqual({ success: true });
+    });
+
+    it('maneja respuestas 204 No Content', async () => {
+      (global.fetch as any).mockResolvedValueOnce({
+        ok: true,
+        status: 204,
+      });
+
+      const result = await api.delete('/test/1');
+
+      expect(result).toBeUndefined();
     });
   });
 
@@ -136,20 +169,21 @@ describe('API Service', () => {
   });
 
   describe('Headers', () => {
-    it('incluye Content-Type por defecto', async () => {
+    it('usa Headers object para las peticiones', async () => {
       (global.fetch as any).mockResolvedValueOnce({
         ok: true,
+        status: 200,
         json: async () => ({}),
       });
 
       await api.get('/test');
 
+      // El servicio ahora usa new Headers() que establece Content-Type internamente
       expect(global.fetch).toHaveBeenCalledWith(
         expect.any(String),
         expect.objectContaining({
-          headers: expect.objectContaining({
-            'Content-Type': 'application/json',
-          }),
+          method: 'GET',
+          headers: expect.any(Headers),
         })
       );
     });

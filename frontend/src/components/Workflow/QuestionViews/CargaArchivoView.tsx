@@ -3,19 +3,13 @@ import {
   Box,
   Typography,
   Button,
-  List,
-  ListItem,
-  ListItemText,
-  ListItemSecondaryAction,
-  IconButton,
   Alert,
   LinearProgress,
   TextField,
+  CircularProgress,
 } from '@mui/material';
 import {
   AttachFile as AttachFileIcon,
-  Delete as DeleteIcon,
-  InsertDriveFile as FileIcon,
   CloudDownload as DownloadIcon,
 } from '@mui/icons-material';
 import type { WorkflowPregunta } from '../../../types/workflow';
@@ -50,6 +44,14 @@ interface UploadedFile {
   ruta_archivo?: string;
 }
 
+interface DocumentoInfo {
+  id_documento: number;
+  nombre_archivo: string;
+  extension: string;
+  tipo_documento_texto: string;
+  ruta_archivo?: string | null;
+}
+
 interface CargaArchivoViewProps {
   pregunta: WorkflowPregunta;
   readonly?: boolean;
@@ -76,6 +78,8 @@ export const CargaArchivoView: React.FC<CargaArchivoViewProps> = ({
   const [ocrProgress, setOcrProgress] = useState<OCRProgress | null>(null);
   const [ocrErrorMessage, setOcrErrorMessage] = useState<string>('');
   const [uploadError, setUploadError] = useState<string>('');
+  const [documentoSubido, setDocumentoSubido] = useState<DocumentoInfo | null>(null);
+  const [loadingDocumento, setLoadingDocumento] = useState(false);
   
   const wsRef = useRef<WebSocket | null>(null);
   const currentTaskRef = useRef<string | null>(null);
@@ -83,6 +87,34 @@ export const CargaArchivoView: React.FC<CargaArchivoViewProps> = ({
   const maxArchivos = pregunta.max_archivos || 1;  // Default: 1 archivo (más conservador)
   const maxSizeMb = pregunta.max_size_mb || 10;  // Default: 10MB (más razonable para documentos individuales)
   const requiereOCR = (pregunta as any).requiere_ocr || false;
+
+  // Buscar documento ya subido cuando estamos en modo readonly
+  useEffect(() => {
+    const fetchDocumentoSubido = async () => {
+      if (!readonly || !solicitudId) return;
+      
+      setLoadingDocumento(true);
+      try {
+        const response = await fetch(`${API_BASE_URL}/ppsh/solicitudes/${solicitudId}/documentos`);
+        if (response.ok) {
+          const documentos: DocumentoInfo[] = await response.json();
+          // Buscar el documento que coincida con el nombre de la pregunta (tipo_documento_texto)
+          const docEncontrado = documentos.find(
+            doc => doc.tipo_documento_texto?.toLowerCase() === pregunta.pregunta?.toLowerCase()
+          );
+          if (docEncontrado) {
+            setDocumentoSubido(docEncontrado);
+          }
+        }
+      } catch (error) {
+        console.error('Error buscando documento:', error);
+      } finally {
+        setLoadingDocumento(false);
+      }
+    };
+
+    fetchDocumentoSubido();
+  }, [readonly, solicitudId, pregunta.pregunta]);
 
   // Cerrar WebSocket al desmontar
   useEffect(() => {
@@ -374,7 +406,90 @@ export const CargaArchivoView: React.FC<CargaArchivoViewProps> = ({
     }
   };
 
-  // Si está en modo readonly y hay un archivo subido, mostrar como botón de descarga
+  const handleDescargarDocumento = () => {
+    if (documentoSubido) {
+      // Construir URL de descarga del documento
+      const urlDescarga = `${API_URL}/api/v1/ppsh/documentos/${documentoSubido.id_documento}/descargar`;
+      window.open(urlDescarga, '_blank');
+    }
+  };
+
+  // Si está cargando el documento en modo readonly
+  if (readonly && loadingDocumento) {
+    return (
+      <Box sx={{ mb: 3 }}>
+        <Typography 
+          sx={{ 
+            fontWeight: 500, 
+            fontSize: '16px',
+            mb: 1, 
+            color: '#333333',
+            fontFamily: 'Roboto, sans-serif',
+          }}
+        >
+          {pregunta.pregunta}
+        </Typography>
+        <CircularProgress size={24} />
+      </Box>
+    );
+  }
+
+  // Si está en modo readonly y hay un documento subido (desde la API de documentos)
+  if (readonly && documentoSubido) {
+    return (
+      <Box sx={{ mb: 3 }}>
+        {/* Label */}
+        <Typography 
+          sx={{ 
+            fontWeight: 500, 
+            fontSize: '16px',
+            mb: 1, 
+            color: '#333333',
+            fontFamily: 'Roboto, sans-serif',
+          }}
+        >
+          {pregunta.pregunta}
+          {pregunta.es_obligatoria && (
+            <Typography component="span" sx={{ color: '#DC2626', ml: 0.5 }}>
+              *
+            </Typography>
+          )}
+        </Typography>
+
+        {/* Campo de texto mostrando el nombre del archivo - readonly */}
+        <Box sx={{ display: 'block', mb: 0.5 }}>
+          <TextField
+            fullWidth
+            value={documentoSubido.nombre_archivo}
+            disabled
+            sx={{
+              maxWidth: '520px',
+              '& .MuiOutlinedInput-root': {
+                height: '56px',
+                borderRadius: '4px',
+                backgroundColor: '#f5f5f5',
+                '& fieldset': {
+                  borderColor: '#333333',
+                  borderWidth: '1px',
+                },
+                '&.Mui-disabled fieldset': {
+                  borderColor: '#333333',
+                },
+                '& input': {
+                  color: '#4d4d4d',
+                  fontSize: '16px',
+                  fontFamily: 'Roboto, sans-serif',
+                  WebkitTextFillColor: '#4d4d4d',
+                },
+              },
+            }}
+          />
+        </Box>
+      </Box>
+    );
+  }
+
+  // Si está en modo readonly y hay un archivo subido (desde value prop), mostrar como botón de descarga
   if (readonly && archivoSubido) {
     return (
       <Box sx={{ mb: 3 }}>
@@ -469,34 +584,35 @@ export const CargaArchivoView: React.FC<CargaArchivoViewProps> = ({
         </Alert>
       )}
 
-      {/* Input de texto con nombre de archivo - Según Figma: borde #333333, altura 56px, width 520px, border-radius 4px */}
-      <TextField
-        fullWidth
-        value={archivos.length > 0 ? archivos.map(a => a.file.name).join(', ') : ''}
-        placeholder=""
-        disabled
-        sx={{
-          maxWidth: '520px',
-          mb: 0.5,
-          '& .MuiOutlinedInput-root': {
-            height: '56px',
-            borderRadius: '4px',
-            '& fieldset': {
-              borderColor: '#333333',
-              borderWidth: '1px',
+      {/* Input de texto - Según Figma: borde #333333, altura 56px, width 520px, border-radius 4px */}
+      <Box sx={{ display: 'block', mb: 0.5 }}>
+        <TextField
+          fullWidth
+          value={archivos.length > 0 ? archivos.map(a => a.file.name).join(', ') : ''}
+          placeholder=""
+          disabled
+          sx={{
+            maxWidth: '520px',
+            '& .MuiOutlinedInput-root': {
+              height: '56px',
+              borderRadius: '4px',
+              '& fieldset': {
+                borderColor: '#333333',
+                borderWidth: '1px',
+              },
+              '&.Mui-disabled fieldset': {
+                borderColor: '#333333',
+              },
+              '& input': {
+                color: '#4d4d4d',
+                fontSize: '16px',
+                fontFamily: 'Roboto, sans-serif',
+                WebkitTextFillColor: '#4d4d4d',
+              },
             },
-            '&.Mui-disabled fieldset': {
-              borderColor: '#333333',
-            },
-            '& input': {
-              color: '#4d4d4d',
-              fontSize: '16px',
-              fontFamily: 'Roboto, sans-serif',
-              '-webkit-text-fill-color': '#4d4d4d',
-            },
-          },
-        }}
-      />
+          }}
+        />
+      </Box>
 
       {/* Botón Cargar archivo - Según Figma: fondo #0e5fa6, altura 32px, border-radius 2px, ícono attach-file */}
       {!readonly && archivos.length < maxArchivos && (
@@ -541,21 +657,18 @@ export const CargaArchivoView: React.FC<CargaArchivoViewProps> = ({
         </Box>
       )}
 
-      {/* Texto de ayuda / Indicaciones - Según Figma: font-light, 14px, color #333333 */}
-      {pregunta.texto_ayuda && (
-        <Typography 
-          sx={{ 
-            fontWeight: 300, 
-            fontSize: '14px',
-            color: '#333333',
-            mt: 1,
-            ml: 2,
-            fontFamily: 'Roboto, sans-serif',
-          }}
-        >
-          {pregunta.texto_ayuda}
-        </Typography>
-      )}
+      {/* Texto de ayuda / Indicaciones extra - Según Figma: font-light, 14px, color #333333 */}
+      <Typography 
+        sx={{ 
+          fontWeight: 300, 
+          fontSize: '14px',
+          color: '#333333',
+          ml: 2,
+          fontFamily: 'Roboto, sans-serif',
+        }}
+      >
+        {pregunta.texto_ayuda || 'Indicaciones extra'}
+      </Typography>
 
       {/* Progress bar durante upload/OCR */}
       {isLoadingOCR && ocrProgress && (
@@ -569,46 +682,6 @@ export const CargaArchivoView: React.FC<CargaArchivoViewProps> = ({
             sx={{ mt: 1 }}
           />
         </Box>
-      )}
-
-      {/* Lista de archivos subidos */}
-      {archivos.length > 0 && (
-        <List sx={{ maxWidth: '520px', mt: 1 }}>
-          {archivos.map((archivo, index) => (
-            <ListItem key={index} sx={{ px: 0 }}>
-              <FileIcon sx={{ mr: 2, color: '#6B7280' }} />
-              <ListItemText
-                primary={archivo.file.name}
-                secondary={
-                  <>
-                    {`${(archivo.file.size / 1024).toFixed(2)} KB`}
-                    {archivo.ocr_status === 'complete' && ' · ✅ OCR completado'}
-                    {archivo.ocr_status === 'error' && ' · ❌ Error OCR'}
-                    {archivo.ocr_status === 'processing' && ' · 🔄 Procesando OCR...'}
-                  </>
-                }
-                primaryTypographyProps={{ 
-                  sx: { fontSize: '14px', color: '#333333' } 
-                }}
-                secondaryTypographyProps={{ 
-                  sx: { fontSize: '12px' } 
-                }}
-              />
-              {!readonly && (
-                <ListItemSecondaryAction>
-                  <IconButton 
-                    edge="end" 
-                    onClick={() => handleRemove(index)}
-                    disabled={isLoadingOCR}
-                    size="small"
-                  >
-                    <DeleteIcon fontSize="small" />
-                  </IconButton>
-                </ListItemSecondaryAction>
-              )}
-            </ListItem>
-          ))}
-        </List>
       )}
 
       {/* Info de límites (solo si permite múltiples archivos o requiere OCR) */}

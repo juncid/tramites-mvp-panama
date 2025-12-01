@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Typography,
@@ -13,21 +13,42 @@ interface ListaViewProps {
   pregunta: WorkflowPregunta;
   readonly?: boolean;
   onAnswerChange?: (valor: string[]) => void;
+  value?: string[] | string; // Puede venir como array o string JSON
 }
 
 export const ListaView: React.FC<ListaViewProps> = ({
   pregunta,
   readonly = false,
   onAnswerChange,
+  value,
 }) => {
-  const [seleccionados, setSeleccionados] = useState<string[]>([]);
+  // Parsear el valor inicial
+  const parseInitialValue = (): string[] => {
+    if (!value) return [];
+    if (Array.isArray(value)) return value;
+    if (typeof value === 'string') {
+      try {
+        const parsed = JSON.parse(value);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch {
+        return [];
+      }
+    }
+    return [];
+  };
+
+  const [seleccionados, setSeleccionados] = useState<string[]>(parseInitialValue);
+
+  // Sincronizar con value externo
+  useEffect(() => {
+    setSeleccionados(parseInitialValue());
+  }, [value]);
 
   // Soporte para lista_elementos o opciones (de la BD)
   let opciones: string[] = [];
   if (pregunta.lista_elementos && pregunta.lista_elementos.length > 0) {
     opciones = pregunta.lista_elementos;
   } else if (pregunta.opciones) {
-    // Si opciones es un string JSON, parsearlo
     if (typeof pregunta.opciones === 'string') {
       try {
         opciones = JSON.parse(pregunta.opciones);
@@ -39,26 +60,22 @@ export const ListaView: React.FC<ListaViewProps> = ({
     }
   }
 
-  // Si no hay opciones, mostrar mensaje
   if (opciones.length === 0) {
     return (
-      <Box>
+      <Box sx={{ mb: 3 }}>
         <Typography 
-          variant="subtitle2" 
           sx={{ 
-            fontWeight: 500, 
-            mb: 1, 
-            color: '#333',
+            fontWeight: 500,
+            fontFamily: 'Roboto, sans-serif',
+            fontSize: '16px',
+            lineHeight: 1.5,
+            color: '#333333',
+            mb: 2,
           }}
         >
           {pregunta.pregunta}
-          {pregunta.es_obligatoria && (
-            <Typography component="span" sx={{ color: '#DC2626', ml: 0.5 }}>
-              *
-            </Typography>
-          )}
         </Typography>
-        <Typography variant="body2" sx={{ color: '#F59E0B', fontStyle: 'italic' }}>
+        <Typography sx={{ color: '#F59E0B', fontStyle: 'italic', fontSize: '14px' }}>
           No hay opciones configuradas para esta pregunta
         </Typography>
       </Box>
@@ -75,38 +92,27 @@ export const ListaView: React.FC<ListaViewProps> = ({
   };
 
   return (
-    <Box>
+    <Box sx={{ mb: 3 }}>
+      {/* Título "Cotización" según Figma */}
       <Typography 
-        variant="subtitle2" 
         sx={{ 
-          fontWeight: 500, 
-          mb: 1, 
-          color: '#333',
+          fontWeight: 500,
+          fontFamily: 'Roboto, sans-serif',
+          fontSize: '16px',
+          lineHeight: 1.5,
+          color: '#333333',
+          mb: 2,
         }}
       >
         {pregunta.pregunta}
         {pregunta.es_obligatoria && (
-          <Typography component="span" sx={{ color: '#DC2626', ml: 0.5 }}>
-            *
-          </Typography>
+          <Box component="span" sx={{ color: '#DC2626', ml: 0.5 }}>*</Box>
         )}
       </Typography>
 
-      {pregunta.texto_ayuda && (
-        <Typography 
-          variant="caption" 
-          sx={{ 
-            color: '#6B7280', 
-            display: 'block',
-            mb: 1,
-          }}
-        >
-          {pregunta.texto_ayuda}
-        </Typography>
-      )}
-
+      {/* Checkboxes sin contenedor según Figma */}
       <FormControl component="fieldset">
-        <FormGroup>
+        <FormGroup sx={{ gap: 2 }}>
           {opciones.map((opcion, index) => (
             <FormControlLabel
               key={index}
@@ -115,9 +121,29 @@ export const ListaView: React.FC<ListaViewProps> = ({
                   checked={seleccionados.includes(opcion)}
                   onChange={() => handleChange(opcion)}
                   disabled={readonly}
+                  sx={{
+                    color: '#333333',
+                    p: 0,
+                    mr: 0.75,
+                    '&.Mui-checked': {
+                      color: '#0E5FA6',
+                    },
+                  }}
                 />
               }
-              label={opcion}
+              label={
+                <Typography 
+                  sx={{ 
+                    fontFamily: 'Roboto, sans-serif',
+                    fontSize: '16px',
+                    lineHeight: 1.5,
+                    color: '#4d4d4d',
+                  }}
+                >
+                  {opcion}
+                </Typography>
+              }
+              sx={{ m: 0, alignItems: 'center' }}
             />
           ))}
         </FormGroup>

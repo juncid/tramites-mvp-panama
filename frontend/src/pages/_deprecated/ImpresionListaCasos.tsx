@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import { Print as PrintIcon } from '@mui/icons-material';
 import { Box, Checkbox, FormControlLabel, Typography, Paper } from '@mui/material';
-import { EtapaInformativa } from '../components/workflow/EtapaInformativa';
-import { workflowService } from '../services/workflow.service';
-import { useAuth } from '../context/AuthContext';
-import { useWorkflowEtapa } from '../hooks';
+import { EtapaInformativa } from '../../components/workflow/EtapaInformativa';
+import { workflowService } from '../../services/workflow.service';
+import { useAuth } from '../../context/AuthContext';
+import { useWorkflowEtapa } from '../../hooks';
 
 interface CasoImpresion {
   instancia_id: number;

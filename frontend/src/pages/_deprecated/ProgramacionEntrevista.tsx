@@ -1,19 +1,18 @@
 import { useState } from 'react';
 import { Box } from '@mui/material';
-import { EtapaInformativa } from '../components/workflow/EtapaInformativa';
-import { WorkflowTextArea } from '../components/workflow/fields';
-import { useWorkflowEtapa } from '../hooks/useWorkflowEtapa';
-import { getEtapaBreadcrumbs } from '../config/workflowViews';
+import { EtapaInformativa } from '../../components/workflow/EtapaInformativa';
+import { WorkflowDateTimePicker } from '../../components/workflow/fields';
+import { useWorkflowEtapa } from '../../hooks/useWorkflowEtapa';
 
 /**
- * Vista 10: Notas de Entrevista (orden 10 en el flujo alternativo)
+ * Vista 9: Programación de Entrevista (flujo alternativo)
  * 
- * Permite ingresar notas detalladas de la entrevista realizada
+ * Permite seleccionar fecha y hora para la entrevista
  * 
  * REFACTORIZADO: Usa useWorkflowEtapa hook y componentes reutilizables
  */
-export const NotasEntrevista = () => {
-  const [notas, setNotas] = useState('');
+export const ProgramacionEntrevista = () => {
+  const [fechaEntrevista, setFechaEntrevista] = useState('');
 
   const { 
     loading, 
@@ -24,8 +23,8 @@ export const NotasEntrevista = () => {
     handleGuardar 
   } = useWorkflowEtapa({
     validationFn: (respuestas) => {
-      if (!respuestas.NOTAS_ENTREVISTA?.trim()) {
-        return 'Por favor ingrese las notas de la entrevista';
+      if (!respuestas.FECHA_ENTREVISTA) {
+        return 'Por favor seleccione una fecha y hora para la entrevista';
       }
       return null;
     }
@@ -33,7 +32,7 @@ export const NotasEntrevista = () => {
 
   const onGuardar = () => {
     handleGuardar({
-      NOTAS_ENTREVISTA: notas
+      FECHA_ENTREVISTA: fechaEntrevista
     });
   };
 
@@ -44,7 +43,7 @@ export const NotasEntrevista = () => {
         { label: 'Inicio', path: '/' },
         { label: 'Solicitudes' },
         { label: 'Etapas' },
-        { label: 'Notas de Entrevista' },
+        { label: 'Entrevista' },
       ]}
       contentTitle="Entrevista"
       contentDescription="Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua."
@@ -58,14 +57,11 @@ export const NotasEntrevista = () => {
       error={error}
       customContent={
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-          <WorkflowTextArea
-            label="Notas de entrevista"
-            value={notas}
-            onChange={(e) => setNotas(e.target.value)}
+          <WorkflowDateTimePicker
+            label="Seleccione fecha de entrevista"
+            value={fechaEntrevista}
+            onChange={setFechaEntrevista}
             disabled={readonly}
-            rows={10}
-            showCharCount
-            placeholder="Ingrese las notas y observaciones de la entrevista..."
           />
         </Box>
       }

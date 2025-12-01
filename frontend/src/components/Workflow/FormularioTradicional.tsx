@@ -154,7 +154,7 @@ export const FormularioTradicional: React.FC<FormularioTradicionalProps> = ({
               key={pregunta.id}
               label={pregunta.pregunta || pregunta.texto}
               value={value ? new Date(value) : null}
-              onChange={(newValue: Date | null) => handleChange(pregunta.id, newValue?.toISOString())}
+              onChange={(newValue) => handleChange(pregunta.id, newValue ? new Date(newValue as any).toISOString() : null)}
               slotProps={{
                 textField: {
                   fullWidth: true,

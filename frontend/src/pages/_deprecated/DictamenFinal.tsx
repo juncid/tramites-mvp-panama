@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { Box, Typography } from '@mui/material';
-import { EtapaInformativa } from '../components/workflow/EtapaInformativa';
-import { WorkflowTextArea, WorkflowRadioGroup } from '../components/workflow/fields';
-import { useWorkflowEtapa } from '../hooks/useWorkflowEtapa';
-import { successBoxStyles, errorBoxStyles } from '../theme/workflowTheme';
+import { EtapaInformativa } from '../../components/workflow/EtapaInformativa';
+import { WorkflowTextArea, WorkflowRadioGroup } from '../../components/workflow/fields';
+import { useWorkflowEtapa } from '../../hooks/useWorkflowEtapa';
+import { successBoxStyles, errorBoxStyles } from '../../theme/workflowTheme';
 
 /**
  * Vista 11: Dictamen Final

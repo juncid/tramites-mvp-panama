@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { Box } from '@mui/material';
-import { EtapaInformativa } from '../components/workflow/EtapaInformativa';
-import { WorkflowTextField, WorkflowFileUpload } from '../components/workflow/fields';
-import { useWorkflowEtapa } from '../hooks/useWorkflowEtapa';
-import { getEtapaBreadcrumbs, getViewConfig } from '../config/workflowViews';
+import { EtapaInformativa } from '../../components/workflow/EtapaInformativa';
+import { WorkflowTextField, WorkflowFileUpload } from '../../components/workflow/fields';
+import { useWorkflowEtapa } from '../../hooks/useWorkflowEtapa';
+import { getEtapaBreadcrumbs, getViewConfig } from '../../config/workflowViews';
 
 const ETAPA_ORDEN = 9;
 const config = getViewConfig(ETAPA_ORDEN)!;

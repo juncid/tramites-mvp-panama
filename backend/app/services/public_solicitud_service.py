@@ -124,7 +124,8 @@ class PublicSolicitudService:
         apellidos: str,
         email: Optional[str] = None,
         nacionalidad: Optional[str] = None,
-        sexo: Optional[str] = None
+        sexo: Optional[str] = None,
+        fecha_nacimiento: Optional[str] = None
     ) -> Dict:
         """
         Inicia una nueva solicitud PPSH para un ciudadano usando el servicio existente
@@ -137,6 +138,7 @@ class PublicSolicitudService:
             email: Email del solicitante
             nacionalidad: Nacionalidad (código de 3 letras, ej: PAN, VEN, COL)
             sexo: Sexo (M/F)
+            fecha_nacimiento: Fecha de nacimiento en formato YYYY-MM-DD
             
         Returns:
             Dict con: instancia_id, token, num_expediente, link_seguimiento
@@ -151,6 +153,14 @@ class PublicSolicitudService:
         primer_apellido = apellidos_split[0] if len(apellidos_split) > 0 else apellidos
         segundo_apellido = apellidos_split[1] if len(apellidos_split) > 1 else None
 
+        # Parsear fecha de nacimiento si se proporcionó
+        fecha_nac = date(1990, 1, 1)  # Fecha por defecto
+        if fecha_nacimiento:
+            try:
+                fecha_nac = datetime.strptime(fecha_nacimiento, '%Y-%m-%d').date()
+            except ValueError:
+                pass  # Usar fecha por defecto si el formato es inválido
+
         solicitante_data = SolicitanteCreate(
             es_titular=True,
             tipo_documento=TipoDocumentoEnum.PASAPORTE,
@@ -160,7 +170,7 @@ class PublicSolicitudService:
             segundo_nombre=segundo_nombre,
             primer_apellido=primer_apellido,
             segundo_apellido=segundo_apellido,
-            fecha_nacimiento=date(1990, 1, 1),  # Fecha por defecto, se actualizará en vistas
+            fecha_nacimiento=fecha_nac,
             cod_sexo=sexo or 'M',
             cod_nacionalidad=nacionalidad or 'PAN',
             email=email

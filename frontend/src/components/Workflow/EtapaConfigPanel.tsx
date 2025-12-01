@@ -56,6 +56,7 @@ interface EtapaConfigPanelProps {
   onDelete?: () => void;
   hideCloseButton?: boolean; // Nueva prop para ocultar el botón de cerrar
   isReadOnly?: boolean; // Nueva prop para modo lectura
+  allEtapas?: Partial<WorkflowEtapa>[]; // Todas las etapas del workflow para filtrar origen de documentos
 }
 
 const PERFILES_DISPONIBLES = [
@@ -81,6 +82,7 @@ const TIPOS_PREGUNTA: { value: TipoPregunta; label: string }[] = [
   { value: 'REVISION_OCR', label: 'Revisión OCR por parte del sistema' },
   { value: 'SELECCION_FECHA', label: 'Selección de fecha' },
   { value: 'IMPRESION', label: 'Impresión' },
+  { value: 'IMPRESION_LISTA_CASOS', label: 'Impresión lista de casos' },
 ];
 
 const getTipoPreguntaIcon = (tipo: TipoPregunta) => {
@@ -106,6 +108,8 @@ const getTipoPreguntaIcon = (tipo: TipoPregunta) => {
       return <DateIcon />;
     case 'IMPRESION':
       return <PrintIcon />;
+    case 'IMPRESION_LISTA_CASOS':
+      return <PrintIcon />;
     // Tipos legacy que pueden estar en BD
     case 'NUMERO':
       return <NumberIcon />;
@@ -129,7 +133,13 @@ export const EtapaConfigPanel: React.FC<EtapaConfigPanelProps> = ({
   onDelete,
   hideCloseButton = false, // Por defecto se muestra el botón
   isReadOnly = false, // Por defecto no es modo lectura
+  allEtapas = [], // Todas las etapas del workflow
 }) => {
+  // Filtrar etapas que tienen preguntas de tipo CARGA_ARCHIVO (excluyendo la etapa actual)
+  const etapasConCargaArchivo = allEtapas.filter(e => 
+    e.id !== etapa.id && 
+    e.preguntas?.some(p => p.tipo === 'CARGA_ARCHIVO' || p.tipo_pregunta === 'CARGA_ARCHIVO')
+  );
   const [formData, setFormData] = useState<Partial<WorkflowEtapa>>(etapa);
   const [preguntas, setPreguntas] = useState<WorkflowPregunta[]>(etapa.preguntas || []);
   const [editingIndex, setEditingIndex] = useState<number | null>(null); // null = no editing, -1 = new question, >= 0 = editing existing
@@ -189,6 +199,19 @@ export const EtapaConfigPanel: React.FC<EtapaConfigPanelProps> = ({
     const pregunta = preguntas[index];
     // Normalizar para asegurar que tipo, tipo_pregunta, texto y pregunta estén sincronizados
     // También mapear tamano_maximo_mb del backend a max_size_mb del frontend
+    // Extraer etapa_origen_id de opciones si existe (para REVISION_MANUAL_DOCUMENTOS y REVISION_OCR)
+    let etapaOrigenId = pregunta.etapa_origen_id;
+    if (!etapaOrigenId && pregunta.opciones && typeof pregunta.opciones === 'object') {
+      etapaOrigenId = (pregunta.opciones as any).etapa_origen_id?.toString();
+    }
+    
+    // Inicializar lista_elementos desde opciones para LISTA y OPCIONES
+    const tipoActual = pregunta.tipo_pregunta || pregunta.tipo;
+    let listaElementos = pregunta.lista_elementos || [];
+    if ((tipoActual === 'LISTA' || tipoActual === 'OPCIONES') && Array.isArray(pregunta.opciones)) {
+      listaElementos = pregunta.opciones;
+    }
+    
     const preguntaNormalizada = {
       ...pregunta,
       tipo: pregunta.tipo_pregunta || pregunta.tipo,
@@ -196,6 +219,11 @@ export const EtapaConfigPanel: React.FC<EtapaConfigPanelProps> = ({
       texto: pregunta.pregunta || pregunta.texto || '',
       pregunta: pregunta.pregunta || pregunta.texto || '',
       max_size_mb: pregunta.max_size_mb || pregunta.tamano_maximo_mb || 10,
+      etapa_origen_id: etapaOrigenId,
+      // Inicializar campos_caso desde opciones_datos_caso para DATOS_CASO
+      campos_caso: pregunta.campos_caso || pregunta.opciones_datos_caso || [],
+      // Inicializar lista_elementos desde opciones para LISTA y OPCIONES
+      lista_elementos: listaElementos,
     };
     setTempPregunta(preguntaNormalizada);
     setEditingIndex(index);
@@ -219,13 +247,47 @@ export const EtapaConfigPanel: React.FC<EtapaConfigPanelProps> = ({
 
     setPreguntaError('');
 
+    // Determinar si requiere OCR: CARGA_ARCHIVO obligatorio = requiere_ocr true
+    const tipoPregunta = tempPregunta.tipo_pregunta || tempPregunta.tipo;
+    const esObligatoria = tempPregunta.es_obligatoria ?? false;
+    const requiereOcr = (tipoPregunta === 'CARGA_ARCHIVO' && esObligatoria) ? true : (tempPregunta.requiere_ocr ?? false);
+
+    // Preparar opciones: para REVISION_MANUAL_DOCUMENTOS y REVISION_OCR, guardar etapa_origen_id en opciones
+    // Para LISTA y OPCIONES, guardar lista_elementos en opciones
+    let opcionesFinales: any = tempPregunta.opciones;
+    if ((tipoPregunta === 'REVISION_MANUAL_DOCUMENTOS' || tipoPregunta === 'REVISION_OCR') && tempPregunta.etapa_origen_id) {
+      const opcionesBase = typeof tempPregunta.opciones === 'object' && tempPregunta.opciones !== null 
+        ? tempPregunta.opciones 
+        : {};
+      opcionesFinales = {
+        ...opcionesBase,
+        etapa_origen_id: parseInt(tempPregunta.etapa_origen_id as string, 10)
+      };
+    } else if (tipoPregunta === 'LISTA' || tipoPregunta === 'OPCIONES') {
+      // Para LISTA y OPCIONES, las opciones son el array de lista_elementos
+      opcionesFinales = tempPregunta.lista_elementos || [];
+    }
+
+    // Sincronizar campos del frontend con campos del backend
+    const preguntaParaGuardar = {
+      ...tempPregunta,
+      // Sincronizar tamano_maximo_mb con max_size_mb para el backend
+      tamano_maximo_mb: tempPregunta.max_size_mb || tempPregunta.tamano_maximo_mb,
+      // Si es CARGA_ARCHIVO obligatorio, activar requiere_ocr
+      requiere_ocr: requiereOcr,
+      // Guardar etapa_origen_id en opciones para el backend
+      opciones: opcionesFinales,
+      // Para DATOS_CASO: mapear campos_caso a opciones_datos_caso para el backend
+      opciones_datos_caso: tipoPregunta === 'DATOS_CASO' ? (tempPregunta.campos_caso || []) : tempPregunta.opciones_datos_caso,
+    };
+
     if (editingIndex === -1) {
       // Adding new question
-      setPreguntas([...preguntas, tempPregunta]);
+      setPreguntas([...preguntas, preguntaParaGuardar]);
     } else if (editingIndex !== null) {
       // Editing existing question
       const updated = [...preguntas];
-      updated[editingIndex] = tempPregunta;
+      updated[editingIndex] = preguntaParaGuardar;
       setPreguntas(updated);
     }
 
@@ -1097,7 +1159,6 @@ export const EtapaConfigPanel: React.FC<EtapaConfigPanelProps> = ({
                             <MenuItem value={25}>25MB</MenuItem>
                             <MenuItem value={50}>50MB</MenuItem>
                             <MenuItem value={100}>100MB</MenuItem>
-                            <MenuItem value={200}>200MB</MenuItem>
                           </Select>
                         </FormControl>
 
@@ -1272,14 +1333,14 @@ export const EtapaConfigPanel: React.FC<EtapaConfigPanelProps> = ({
 
                         <Stack spacing={1}>
                           {[
-                            { value: 'REUEX', label: 'REUEX' },
-                            { value: 'NOMBRE', label: 'Nombre' },
-                            { value: 'NACIONALIDAD', label: 'Nacionalidad' },
-                            { value: 'TRAMITE', label: 'Tramite' },
-                            { value: 'PASAPORTE', label: 'Pasaporte' },
-                            { value: 'SEXO', label: 'Sexo' },
-                            { value: 'EXPEDIENTE', label: 'Nº de Expediente' },
-                            { value: 'FECHA_NACIMIENTO', label: 'Fecha de nacimiento' },
+                            { value: 'reuex', label: 'REUEX' },
+                            { value: 'nombres_completos', label: 'Nombre' },
+                            { value: 'nacionalidad', label: 'Nacionalidad' },
+                            { value: 'tramite', label: 'Tramite' },
+                            { value: 'pasaporte', label: 'Pasaporte' },
+                            { value: 'sexo', label: 'Sexo' },
+                            { value: 'expediente', label: 'Nº de Expediente' },
+                            { value: 'fecha_nacimiento', label: 'Fecha de nacimiento' },
                           ].map((campo) => (
                             <FormControlLabel
                               key={campo.value}
@@ -1317,24 +1378,23 @@ export const EtapaConfigPanel: React.FC<EtapaConfigPanelProps> = ({
                               if (!selected) {
                                 return (
                                   <Typography sx={{ color: '#4d4d4d', fontSize: '16px' }}>
-                                    Recolectar requisitos del trámite PPSH y los anexo en el sistema
+                                    Seleccione una etapa con carga de archivos
                                   </Typography>
                                 );
                               }
-                              const pregunta = preguntas.find(p => p.codigo === selected);
-                              return pregunta?.texto || selected;
+                              const etapaOrigen = etapasConCargaArchivo.find(e => String(e.id) === selected);
+                              return etapaOrigen ? `${etapaOrigen.nombre} (Etapa ${etapaOrigen.orden})` : selected;
                             }}
                           >
-                            {preguntas
-                              .filter(p => p.tipo === 'CARGA_ARCHIVO')
-                              .map((p, idx) => (
-                                <MenuItem key={idx} value={p.codigo}>
-                                  {p.texto}
+                            {etapasConCargaArchivo.length > 0 ? (
+                              etapasConCargaArchivo.map((e) => (
+                                <MenuItem key={e.id} value={String(e.id)}>
+                                  {e.nombre} (Etapa {e.orden})
                                 </MenuItem>
-                              ))}
-                            {preguntas.filter(p => p.tipo === 'CARGA_ARCHIVO').length === 0 && (
+                              ))
+                            ) : (
                               <MenuItem value="" disabled>
-                                <em>No hay etapas de carga de archivos disponibles</em>
+                                <em>No hay etapas con carga de archivos disponibles</em>
                               </MenuItem>
                             )}
                           </Select>
@@ -1352,13 +1412,17 @@ export const EtapaConfigPanel: React.FC<EtapaConfigPanelProps> = ({
                             label="Etapa origen de documentos"
                             onChange={(e) => handlePreguntaChange('etapa_origen_id', e.target.value)}
                           >
-                            {preguntas
-                              .filter(p => p.tipo === 'CARGA_ARCHIVO' || p.tipo === 'REVISION_OCR')
-                              .map((p, idx) => (
-                                <MenuItem key={idx} value={p.codigo}>
-                                  {p.texto}
+                            {etapasConCargaArchivo.length > 0 ? (
+                              etapasConCargaArchivo.map((e) => (
+                                <MenuItem key={e.id} value={String(e.id)}>
+                                  {e.nombre} (Etapa {e.orden})
                                 </MenuItem>
-                              ))}
+                              ))
+                            ) : (
+                              <MenuItem value="" disabled>
+                                <em>No hay etapas con carga de archivos disponibles</em>
+                              </MenuItem>
+                            )}
                           </Select>
                         </FormControl>
                       </Box>

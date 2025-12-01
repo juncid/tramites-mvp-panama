@@ -13,7 +13,6 @@ import {
   Download as DownloadIcon,
   CheckCircle as CheckIcon,
   Cancel as CancelIcon,
-  HelpOutline as HelpIcon,
 } from '@mui/icons-material';
 
 interface Document {
@@ -23,27 +22,34 @@ interface Document {
   isValid: boolean | null;
   ocrUrl?: string;
   documentUrl?: string;
+  url?: string;
 }
 
 interface DocumentChecklistTableProps {
   documents: Document[];
   selectedDocumentId?: string | null;
   onDocumentSelect?: (id: string) => void;
+  showOcrColumn?: boolean; // Si es false, no muestra la columna OCR
+  showOcrStatus?: boolean; // Si es false, la columna OCR se muestra vacía (sin iconos)
 }
 
 export const DocumentChecklistTable = ({
   documents,
   selectedDocumentId,
   onDocumentSelect,
+  showOcrColumn = true,
+  showOcrStatus = true,
 }: DocumentChecklistTableProps) => {
   return (
     <TableContainer>
       <Table size="small">
         <TableHead sx={{ backgroundColor: '#F9FAFB' }}>
           <TableRow>
-            <TableCell sx={{ fontWeight: 600, color: '#374151', width: 80 }}>
-              OCR
-            </TableCell>
+            {showOcrColumn && (
+              <TableCell sx={{ fontWeight: 600, color: '#374151', width: 80 }}>
+                OCR
+              </TableCell>
+            )}
             <TableCell sx={{ fontWeight: 600, color: '#374151' }}>
               Documento
             </TableCell>
@@ -52,7 +58,7 @@ export const DocumentChecklistTable = ({
           <TableBody>
             {documents.map((doc) => {
               const isSelected = selectedDocumentId === doc.id;
-              const hasError = !doc.hasOcr; // Documento con OCR fallido
+              const hasError = showOcrColumn && showOcrStatus && !doc.hasOcr; // Solo considerar error si se muestra estado OCR
               
               return (
                 <TableRow
@@ -74,17 +80,32 @@ export const DocumentChecklistTable = ({
                     },
                   }}
                 >
-                  <TableCell>
-                    {doc.hasOcr ? (
-                      <CheckIcon sx={{ color: '#22C55E', fontSize: 20 }} />
-                    ) : (
-                      <CancelIcon sx={{ color: '#EF4444', fontSize: 20 }} />
-                    )}
-                  </TableCell>
+                  {showOcrColumn && (
+                    <TableCell>
+                      {showOcrStatus && (
+                        doc.hasOcr ? (
+                          <CheckIcon sx={{ color: '#22C55E', fontSize: 20 }} />
+                        ) : (
+                          <CancelIcon sx={{ color: '#EF4444', fontSize: 20 }} />
+                        )
+                      )}
+                    </TableCell>
+                  )}
                   <TableCell>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <IconButton size="small" sx={{ p: 0.5 }}>
-                        <DownloadIcon sx={{ fontSize: 16, color: '#3B82F6' }} />
+                      <IconButton 
+                        size="small" 
+                        sx={{ p: 0.5 }}
+                        onClick={(e) => {
+                          e.stopPropagation(); // Evitar que se dispare el onClick de la fila
+                          const downloadUrl = doc.url || doc.documentUrl;
+                          if (downloadUrl) {
+                            window.open(downloadUrl, '_blank');
+                          }
+                        }}
+                        disabled={!doc.url && !doc.documentUrl}
+                      >
+                        <DownloadIcon sx={{ fontSize: 16, color: (doc.url || doc.documentUrl) ? '#3B82F6' : '#9CA3AF' }} />
                       </IconButton>
 
                       <Typography
@@ -93,12 +114,6 @@ export const DocumentChecklistTable = ({
                       >
                         {doc.name}
                       </Typography>
-
-                      {doc.name.includes('domicilio') && (
-                        <IconButton size="small" sx={{ p: 0.5 }}>
-                          <HelpIcon sx={{ fontSize: 16, color: '#6B7280' }} />
-                        </IconButton>
-                      )}
                     </Box>
                   </TableCell>
                 </TableRow>

@@ -35,6 +35,7 @@ import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { es } from 'date-fns/locale';
 import type { WorkflowEtapa, WorkflowPregunta } from '../../types/workflow';
 import { useEtapaExecution } from '../../hooks/useEtapaExecution';
+import { RevisionManualDocumentosView } from './QuestionViews/RevisionManualDocumentosView';
 
 interface EtapaExecutionFormProps {
   instanciaId: number;
@@ -52,7 +53,8 @@ const RenderPregunta: React.FC<{
   value: any;
   onChange: (value: any) => void;
   error?: string;
-}> = ({ pregunta, value, onChange, error }) => {
+  instanciaId?: number;
+}> = ({ pregunta, value, onChange, error, instanciaId }) => {
   const tipo = pregunta.tipo_pregunta || pregunta.tipo;
 
   switch (tipo) {
@@ -239,6 +241,14 @@ const RenderPregunta: React.FC<{
       );
 
     case 'REVISION_MANUAL_DOCUMENTOS':
+      return (
+        <RevisionManualDocumentosView
+          pregunta={pregunta}
+          instanciaId={instanciaId}
+          onAnswerChange={onChange}
+        />
+      );
+
     case 'REVISION_OCR':
       return (
         <Alert severity="warning">
@@ -246,7 +256,7 @@ const RenderPregunta: React.FC<{
             {pregunta.pregunta || pregunta.texto}
           </Typography>
           <Typography variant="caption">
-            Esta sección requiere revisión {tipo === 'REVISION_OCR' ? 'automática' : 'manual'} de documentos.
+            Esta sección requiere revisión automática de documentos (OCR).
           </Typography>
         </Alert>
       );
@@ -394,6 +404,7 @@ export const EtapaExecutionForm: React.FC<EtapaExecutionFormProps> = ({
                 value={respuestas[pregunta.codigo]}
                 onChange={(valor) => handleRespuestaChange(pregunta.codigo, valor)}
                 error={errores[pregunta.codigo]}
+                instanciaId={instanciaId}
               />
             </Box>
           ))}

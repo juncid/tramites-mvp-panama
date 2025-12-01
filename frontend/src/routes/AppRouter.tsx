@@ -25,22 +25,18 @@ import { WorkflowExecution } from '../pages/WorkflowExecution';
 import NuevaSolicitud from '../pages/NuevaSolicitud';
 import SolicitudPublicaWorkflow from '../pages/SolicitudPublicaWorkflow';
 import { WorkflowEtapas } from '../pages/WorkflowEtapas';
-import { DescargaRequisitos } from '../pages/DescargaRequisitos';
-import { CargaPoderGeneral } from '../pages/CargaPoderGeneral';
-import { CargaSolicitudFirmada } from '../pages/CargaSolicitudFirmada';
-import { Cotizacion } from '../pages/Cotizacion';
-import { RecepcionRecibosPagos } from '../pages/RecepcionRecibosPagos';
-import { ImpresionListaCasos } from '../pages/ImpresionListaCasos';
-import { ReasignacionCaso } from '../pages/ReasignacionCaso';
-import { ProgramacionEntrevista } from '../pages/ProgramacionEntrevista';
-import { RecepcionRex } from '../pages/RecepcionRex';
-import { RecepcionReciboTesoreria } from '../pages/RecepcionReciboTesoreria';
-import { NotasEntrevista } from '../pages/NotasEntrevista';
-import { DictamenFinal } from '../pages/DictamenFinal';
-import { EntregaResolucion } from '../pages/EntregaResolucion';
 import { InicioTramite } from '../pages/InicioTramite';
 import WorkflowEtapasPublico from '../pages/WorkflowEtapasPublico';
 import { GenericEtapaPage } from '../pages/GenericEtapaPage';
+
+// =============================================================================
+// PÁGINAS ESPECÍFICAS DE ETAPA (mantener solo las que tienen lógica especial)
+// Las demás etapas simples usan GenericEtapaPage
+// =============================================================================
+import { DescargaRequisitos } from '../pages/DescargaRequisitos';     // Lógica especial: auto-completar 3 etapas
+import { CargaPoderGeneral } from '../pages/CargaPoderGeneral';       // Lógica especial: OCR upload
+import { CargaSolicitudFirmada } from '../pages/CargaSolicitudFirmada'; // Lógica especial: OCR upload
+import { Cotizacion } from '../pages/Cotizacion';                     // Lógica especial: items dinámicos
 
 export const AppRouter = () => {
   return (
@@ -101,6 +97,10 @@ export const AppRouter = () => {
           </MainLayout>
         }
       />
+      {/* 
+        ETAPAS CON LÓGICA ESPECIAL - mantener rutas específicas
+        Las demás etapas usan /solicitudes/:id/etapa con ?etapaId=X
+      */}
       <Route
         path="/solicitudes/:id/descarga-requisitos"
         element={
@@ -141,77 +141,45 @@ export const AppRouter = () => {
           </MainLayout>
         }
       />
+      {/* 
+        ETAPAS SIMPLES - Redirigir a GenericEtapaPage
+        Estas rutas legacy redirigen a la página genérica para mantener compatibilidad
+      */}
       <Route
         path="/solicitudes/:id/ingreso-datos"
-        element={
-          <MainLayout>
-            <RecepcionRecibosPagos />
-          </MainLayout>
-        }
+        element={<Navigate to="../etapa?etapaCode=RECEPCION_RECIBOS" replace />}
       />
       <Route
         path="/solicitudes/:id/impresion-lista"
-        element={
-          <MainLayout>
-            <ImpresionListaCasos />
-          </MainLayout>
-        }
+        element={<Navigate to="../etapa?etapaCode=IMPRESION_LISTA" replace />}
       />
       <Route
         path="/solicitudes/:id/reasignacion"
-        element={
-          <MainLayout>
-            <ReasignacionCaso />
-          </MainLayout>
-        }
+        element={<Navigate to="../etapa?etapaCode=REASIGNACION" replace />}
       />
       <Route
         path="/solicitudes/:id/recepcion-rex"
-        element={
-          <MainLayout>
-            <RecepcionRex />
-          </MainLayout>
-        }
+        element={<Navigate to="../etapa?etapaCode=RECEPCION_REX" replace />}
       />
       <Route
         path="/solicitudes/:id/recepcion-recibo-tesoreria"
-        element={
-          <MainLayout>
-            <RecepcionReciboTesoreria />
-          </MainLayout>
-        }
+        element={<Navigate to="../etapa?etapaCode=RECEPCION_TESORERIA" replace />}
       />
       <Route
         path="/solicitudes/:id/entrega-resolucion"
-        element={
-          <MainLayout>
-            <EntregaResolucion />
-          </MainLayout>
-        }
+        element={<Navigate to="../etapa?etapaCode=ENTREGA_RESOLUCION" replace />}
       />
       <Route
         path="/solicitudes/:id/programacion-entrevista"
-        element={
-          <MainLayout>
-            <ProgramacionEntrevista />
-          </MainLayout>
-        }
+        element={<Navigate to="../etapa?etapaCode=PROGRAMACION_ENTREVISTA" replace />}
       />
       <Route
         path="/solicitudes/:id/notas-entrevista"
-        element={
-          <MainLayout>
-            <NotasEntrevista />
-          </MainLayout>
-        }
+        element={<Navigate to="../etapa?etapaCode=NOTAS_ENTREVISTA" replace />}
       />
       <Route
         path="/solicitudes/:id/dictamen-final"
-        element={
-          <MainLayout>
-            <DictamenFinal />
-          </MainLayout>
-        }
+        element={<Navigate to="../etapa?etapaCode=DICTAMEN_FINAL" replace />}
       />
       <Route
         path="/procesos"
@@ -379,7 +347,7 @@ export const AppRouter = () => {
       />
       {/* 
         Ruta GENÉRICA para cualquier etapa - usa configuración del nodo dinámicamente
-        Esta ruta debería reemplazar las rutas específicas por etapa
+        Esta ruta reemplaza las rutas específicas por etapa para etapas simples
       */}
       <Route
         path="/workflows/:instanciaId/etapa"
@@ -389,6 +357,9 @@ export const AppRouter = () => {
           </MainLayout>
         }
       />
+      {/* 
+        ETAPAS CON LÓGICA ESPECIAL - mantener rutas específicas
+      */}
       <Route
         path="/workflows/:instanciaId/descarga-requisitos"
         element={
@@ -413,77 +384,44 @@ export const AppRouter = () => {
           </MainLayout>
         }
       />
+      {/* 
+        ETAPAS SIMPLES - Redirigir a GenericEtapaPage (mantener compatibilidad con URLs antiguas)
+      */}
       <Route
         path="/workflows/:instanciaId/ingreso-datos"
-        element={
-          <MainLayout>
-            <RecepcionRecibosPagos />
-          </MainLayout>
-        }
+        element={<Navigate to="../etapa?etapaCode=RECEPCION_RECIBOS" replace />}
       />
       <Route
         path="/workflows/:instanciaId/impresion-lista"
-        element={
-          <MainLayout>
-            <ImpresionListaCasos />
-          </MainLayout>
-        }
+        element={<Navigate to="../etapa?etapaCode=IMPRESION_LISTA" replace />}
       />
       <Route
         path="/workflows/:instanciaId/reasignacion"
-        element={
-          <MainLayout>
-            <ReasignacionCaso />
-          </MainLayout>
-        }
+        element={<Navigate to="../etapa?etapaCode=REASIGNACION" replace />}
       />
       <Route
         path="/workflows/:instanciaId/recepcion-rex"
-        element={
-          <MainLayout>
-            <RecepcionRex />
-          </MainLayout>
-        }
+        element={<Navigate to="../etapa?etapaCode=RECEPCION_REX" replace />}
       />
       <Route
         path="/workflows/:instanciaId/recepcion-recibo-tesoreria"
-        element={
-          <MainLayout>
-            <RecepcionReciboTesoreria />
-          </MainLayout>
-        }
+        element={<Navigate to="../etapa?etapaCode=RECEPCION_TESORERIA" replace />}
       />
       <Route
         path="/workflows/:instanciaId/entrega-resolucion"
-        element={
-          <MainLayout>
-            <EntregaResolucion />
-          </MainLayout>
-        }
+        element={<Navigate to="../etapa?etapaCode=ENTREGA_RESOLUCION" replace />}
       />
       <Route
         path="/workflows/:instanciaId/programacion-entrevista"
-        element={
-          <MainLayout>
-            <ProgramacionEntrevista />
-          </MainLayout>
-        }
+        element={<Navigate to="../etapa?etapaCode=PROGRAMACION_ENTREVISTA" replace />}
       />
       <Route
         path="/workflows/:instanciaId/notas-entrevista"
-        element={
-          <MainLayout>
-            <NotasEntrevista />
-          </MainLayout>
-        }
+        element={<Navigate to="../etapa?etapaCode=NOTAS_ENTREVISTA" replace />}
       />
       <Route
         path="/workflows/:instanciaId/dictamen-final"
-        element={
-          <MainLayout>
-            <DictamenFinal />
-          </MainLayout>
-        }
+        element={<Navigate to="../etapa?etapaCode=DICTAMEN_FINAL" replace />}
       />
       <Route
         path="/workflows/:instanciaId/revision"

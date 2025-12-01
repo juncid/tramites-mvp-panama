@@ -18,16 +18,25 @@ from typing import Dict, Any, Optional
 from celery import Task
 from celery.utils.log import get_task_logger
 from sqlalchemy.orm import Session
-from sqlalchemy import func
+from sqlalchemy import func, text
 
 import pytesseract
 import cv2
 import numpy as np
 import re
+from io import BytesIO
+
+try:
+    from pdf2image import convert_from_path, convert_from_bytes
+    PDF_SUPPORT = True
+except ImportError:
+    PDF_SUPPORT = False
+    convert_from_path = None
+    convert_from_bytes = None
 
 from celery_app import celery_app
 from app.infrastructure.database import SessionLocal
-from app.models.models_ppsh import PPSHDocumento
+from app.models.models_ppsh import PPSHDocumento, PPSHSolicitante
 from app.models.models_ocr import PPSHDocumentoOCR
 
 # Logger de Celery
@@ -183,20 +192,37 @@ def _process_document_ocr_internal(
 
         logger.info(f"OCR completado en {tiempo_ocr}ms. Confianza: {resultado_ocr['confianza']}%")
 
-        # 6. Extraer datos estructurados (si aplica)
+        # 6. Validar OCR contra datos de la solicitud y extraer datos estructurados
         task_instance.update_state(
             state='PROGRESS',
-            meta={'current': 5, 'total': 6, 'status': 'Extrayendo datos estructurados...', 'porcentaje': 83}
+            meta={'current': 5, 'total': 6, 'status': 'Validando datos contra solicitud...', 'porcentaje': 83}
         )
 
         datos_estructurados = None
-        if opciones and opciones.get('extraer_datos_estructurados', True):
-            datos_estructurados = extract_structured_data(
-                resultado_ocr['texto'],
-                documento.cod_tipo_documento
+        
+        # NUEVO ENFOQUE: Validar contra datos de la solicitud
+        if documento.id_solicitud:
+            datos_validacion = validate_ocr_against_solicitud(
+                db=db,
+                texto_ocr=resultado_ocr['texto'],
+                id_solicitud=documento.id_solicitud
             )
-            if datos_estructurados:
-                logger.info(f"Datos estructurados extraídos: {len(json.loads(datos_estructurados))} campos")
+            if datos_validacion:
+                datos_estructurados = json.dumps(datos_validacion, ensure_ascii=False)
+                logger.info(f"Validación contra solicitud: {datos_validacion.get('resumen_validacion', {})}")
+        else:
+            # Fallback: extracción genérica si no hay solicitud asociada
+            extraer_datos = True
+            if opciones:
+                extraer_datos = opciones.get('extraer_datos_estructurados', True)
+            
+            if extraer_datos:
+                datos_estructurados = extract_structured_data(
+                    resultado_ocr['texto'],
+                    documento.cod_tipo_documento
+                )
+                if datos_estructurados:
+                    logger.info(f"Datos estructurados extraídos (genérico): {len(json.loads(datos_estructurados))} campos")
 
         # 7. Guardar resultados
         task_instance.update_state(
@@ -269,7 +295,8 @@ def process_urgent_document(
 
 def load_image_from_document(documento: PPSHDocumento) -> Optional[np.ndarray]:
     """
-    Carga imagen desde contenido binario o archivo
+    Carga imagen desde contenido binario o archivo.
+    Soporta imágenes (jpg, png, etc.) y PDFs.
     
     Args:
         documento: Instancia de PPSHDocumento
@@ -278,11 +305,22 @@ def load_image_from_document(documento: PPSHDocumento) -> Optional[np.ndarray]:
         Array numpy con la imagen o None si falla
     """
     try:
+        # Detectar extensión del archivo
+        extension = (documento.extension or '').lower().strip('.')
+        if not extension and documento.nombre_archivo:
+            extension = documento.nombre_archivo.rsplit('.', 1)[-1].lower() if '.' in documento.nombre_archivo else ''
+        
+        is_pdf = extension == 'pdf'
+        logger.debug(f"Cargando documento: {documento.nombre_archivo}, extension: {extension}, is_pdf: {is_pdf}")
+        
         if documento.contenido_binario:
             # Cargar desde contenido binario
-            logger.debug("Cargando imagen desde contenido binario")
-            nparr = np.frombuffer(documento.contenido_binario, np.uint8)
-            imagen = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+            if is_pdf:
+                imagen = _load_pdf_from_bytes(documento.contenido_binario)
+            else:
+                logger.debug("Cargando imagen desde contenido binario")
+                nparr = np.frombuffer(documento.contenido_binario, np.uint8)
+                imagen = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
 
         elif documento.ruta_archivo:
             # Construir ruta completa desde UPLOADS_DIR
@@ -294,25 +332,158 @@ def load_image_from_document(documento: PPSHDocumento) -> Optional[np.ndarray]:
             else:
                 full_path = os.path.join(uploads_dir, documento.ruta_archivo)
 
-            if os.path.exists(full_path):
-                logger.debug(f"Cargando imagen desde archivo: {full_path}")
-                imagen = cv2.imread(full_path)
-            else:
+            if not os.path.exists(full_path):
                 logger.error(f"Archivo no encontrado: {full_path}")
                 return None
+            
+            if is_pdf:
+                imagen = _load_pdf_from_file(full_path)
+            else:
+                logger.debug(f"Cargando imagen desde archivo: {full_path}")
+                imagen = cv2.imread(full_path)
 
         else:
             logger.error("Documento sin contenido de imagen válido")
             return None
 
         if imagen is None:
-            logger.error("cv2 no pudo decodificar la imagen")
+            logger.error("No se pudo decodificar el documento (imagen o PDF)")
             return None
 
         return imagen
 
     except Exception as e:
         logger.error(f"Error cargando imagen: {str(e)}", exc_info=True)
+        return None
+
+
+def _load_pdf_from_file(pdf_path: str) -> Optional[np.ndarray]:
+    """
+    Convierte un archivo PDF a imagen numpy array.
+    Combina todas las páginas en una sola imagen vertical.
+    
+    Args:
+        pdf_path: Ruta al archivo PDF
+    
+    Returns:
+        Array numpy con la imagen combinada o None si falla
+    """
+    if not PDF_SUPPORT:
+        logger.error("pdf2image no está instalado. No se pueden procesar PDFs.")
+        return None
+    
+    try:
+        logger.info(f"📄 Convirtiendo PDF a imagen: {pdf_path}")
+        
+        # Convertir PDF a lista de imágenes PIL (300 DPI para buena calidad OCR)
+        pages = convert_from_path(pdf_path, dpi=300, fmt='png')
+        
+        if not pages:
+            logger.error("El PDF no tiene páginas")
+            return None
+        
+        logger.info(f"📄 PDF tiene {len(pages)} página(s)")
+        
+        # Convertir páginas PIL a arrays numpy
+        page_arrays = []
+        for i, page in enumerate(pages):
+            # Convertir PIL Image a numpy array (RGB)
+            page_np = np.array(page)
+            # Convertir RGB a BGR para OpenCV
+            page_bgr = cv2.cvtColor(page_np, cv2.COLOR_RGB2BGR)
+            page_arrays.append(page_bgr)
+            logger.debug(f"  Página {i+1}: {page_bgr.shape}")
+        
+        # Si solo hay una página, devolverla directamente
+        if len(page_arrays) == 1:
+            return page_arrays[0]
+        
+        # Combinar todas las páginas verticalmente
+        # Ajustar anchos para que coincidan
+        max_width = max(p.shape[1] for p in page_arrays)
+        padded_pages = []
+        
+        for page in page_arrays:
+            if page.shape[1] < max_width:
+                # Agregar padding blanco a la derecha
+                padding = np.ones((page.shape[0], max_width - page.shape[1], 3), dtype=np.uint8) * 255
+                page = np.hstack([page, padding])
+            padded_pages.append(page)
+        
+        # Concatenar verticalmente con separador
+        separator_height = 20
+        separator = np.ones((separator_height, max_width, 3), dtype=np.uint8) * 200  # Gris claro
+        
+        combined = padded_pages[0]
+        for page in padded_pages[1:]:
+            combined = np.vstack([combined, separator, page])
+        
+        logger.info(f"📄 Imagen combinada: {combined.shape}")
+        return combined
+        
+    except Exception as e:
+        logger.error(f"Error convirtiendo PDF a imagen: {str(e)}", exc_info=True)
+        return None
+
+
+def _load_pdf_from_bytes(pdf_bytes: bytes) -> Optional[np.ndarray]:
+    """
+    Convierte bytes de un PDF a imagen numpy array.
+    
+    Args:
+        pdf_bytes: Contenido binario del PDF
+    
+    Returns:
+        Array numpy con la imagen combinada o None si falla
+    """
+    if not PDF_SUPPORT:
+        logger.error("pdf2image no está instalado. No se pueden procesar PDFs.")
+        return None
+    
+    try:
+        logger.info(f"📄 Convirtiendo PDF desde bytes ({len(pdf_bytes)} bytes)")
+        
+        # Convertir PDF bytes a lista de imágenes PIL
+        pages = convert_from_bytes(pdf_bytes, dpi=300, fmt='png')
+        
+        if not pages:
+            logger.error("El PDF no tiene páginas")
+            return None
+        
+        logger.info(f"📄 PDF tiene {len(pages)} página(s)")
+        
+        # Reutilizar lógica de combinación
+        page_arrays = []
+        for i, page in enumerate(pages):
+            page_np = np.array(page)
+            page_bgr = cv2.cvtColor(page_np, cv2.COLOR_RGB2BGR)
+            page_arrays.append(page_bgr)
+        
+        if len(page_arrays) == 1:
+            return page_arrays[0]
+        
+        # Combinar páginas
+        max_width = max(p.shape[1] for p in page_arrays)
+        padded_pages = []
+        
+        for page in page_arrays:
+            if page.shape[1] < max_width:
+                padding = np.ones((page.shape[0], max_width - page.shape[1], 3), dtype=np.uint8) * 255
+                page = np.hstack([page, padding])
+            padded_pages.append(page)
+        
+        separator_height = 20
+        separator = np.ones((separator_height, max_width, 3), dtype=np.uint8) * 200
+        
+        combined = padded_pages[0]
+        for page in padded_pages[1:]:
+            combined = np.vstack([combined, separator, page])
+        
+        logger.info(f"📄 Imagen combinada: {combined.shape}")
+        return combined
+        
+    except Exception as e:
+        logger.error(f"Error convirtiendo PDF bytes a imagen: {str(e)}", exc_info=True)
         return None
 
 
@@ -587,16 +758,166 @@ def post_process_spanish_text(texto: str) -> str:
         return texto
 
 
+def validate_ocr_against_solicitud(
+    db: Session,
+    texto_ocr: str,
+    id_solicitud: int
+) -> Optional[Dict[str, Any]]:
+    """
+    Valida el texto OCR contra los datos de la solicitud asociada.
+    
+    En lugar de usar regex genéricos para detectar pasaportes/nombres,
+    busca los VALORES EXACTOS de la solicitud en el texto OCR.
+    
+    Args:
+        db: Sesión de base de datos
+        texto_ocr: Texto extraído por OCR
+        id_solicitud: ID de la solicitud asociada al documento
+    
+    Returns:
+        Dict con resultados de validación o None si no hay datos
+    """
+    try:
+        # Obtener el solicitante titular de la solicitud
+        solicitante = db.query(PPSHSolicitante).filter(
+            PPSHSolicitante.id_solicitud == id_solicitud,
+            PPSHSolicitante.es_titular == True
+        ).first()
+        
+        if not solicitante:
+            # Si no hay titular, buscar cualquier solicitante
+            solicitante = db.query(PPSHSolicitante).filter(
+                PPSHSolicitante.id_solicitud == id_solicitud
+            ).first()
+        
+        if not solicitante:
+            logger.warning(f"No se encontró solicitante para solicitud {id_solicitud}")
+            return None
+        
+        # Preparar texto OCR para búsqueda (normalizar)
+        texto_normalizado = texto_ocr.upper().strip()
+        # Eliminar caracteres especiales que pueden interferir
+        texto_busqueda = re.sub(r'[^\w\s]', ' ', texto_normalizado)
+        texto_busqueda = re.sub(r'\s+', ' ', texto_busqueda)
+        
+        # Datos a buscar de la solicitud
+        datos_solicitud = {
+            'num_documento': solicitante.num_documento,
+            'primer_nombre': solicitante.primer_nombre,
+            'segundo_nombre': solicitante.segundo_nombre,
+            'primer_apellido': solicitante.primer_apellido,
+            'segundo_apellido': solicitante.segundo_apellido,
+            'fecha_nacimiento': solicitante.fecha_nacimiento.strftime('%d/%m/%Y') if solicitante.fecha_nacimiento else None,
+            'pais_emisor': solicitante.pais_emisor,
+        }
+        
+        # Validar cada campo
+        validaciones = {}
+        campos_encontrados = 0
+        campos_totales = 0
+        
+        for campo, valor in datos_solicitud.items():
+            if valor:
+                campos_totales += 1
+                valor_str = str(valor).upper().strip()
+                
+                # Búsqueda flexible: valor exacto o sin espacios/guiones
+                valor_limpio = re.sub(r'[^\w]', '', valor_str)
+                
+                encontrado = False
+                coincidencia_tipo = None
+                
+                # 1. Búsqueda exacta
+                if valor_str in texto_normalizado:
+                    encontrado = True
+                    coincidencia_tipo = 'exacta'
+                
+                # 2. Búsqueda sin caracteres especiales
+                elif valor_limpio and valor_limpio in texto_busqueda.replace(' ', ''):
+                    encontrado = True
+                    coincidencia_tipo = 'parcial'
+                
+                # 3. Para nombres, buscar cada parte por separado
+                elif campo in ['primer_nombre', 'segundo_nombre', 'primer_apellido', 'segundo_apellido']:
+                    partes = valor_str.split()
+                    partes_encontradas = sum(1 for p in partes if p in texto_normalizado)
+                    if partes_encontradas > 0:
+                        encontrado = True
+                        coincidencia_tipo = f'parcial ({partes_encontradas}/{len(partes)} partes)'
+                
+                # 4. Para fechas, probar varios formatos
+                elif campo == 'fecha_nacimiento' and solicitante.fecha_nacimiento:
+                    fecha = solicitante.fecha_nacimiento
+                    formatos_fecha = [
+                        fecha.strftime('%d/%m/%Y'),      # 25/12/1990
+                        fecha.strftime('%d-%m-%Y'),      # 25-12-1990
+                        fecha.strftime('%Y-%m-%d'),      # 1990-12-25
+                        fecha.strftime('%d %b %Y'),      # 25 Dec 1990
+                        fecha.strftime('%d%m%Y'),        # 25121990 (sin separadores)
+                        f"{fecha.day}/{fecha.month}/{fecha.year}",  # Sin ceros: 5/3/1990
+                    ]
+                    for fmt in formatos_fecha:
+                        if fmt.upper() in texto_normalizado:
+                            encontrado = True
+                            coincidencia_tipo = f'formato: {fmt}'
+                            break
+                
+                if encontrado:
+                    campos_encontrados += 1
+                
+                validaciones[campo] = {
+                    'valor_esperado': valor,
+                    'encontrado': encontrado,
+                    'tipo_coincidencia': coincidencia_tipo
+                }
+        
+        # Calcular porcentaje de validación
+        porcentaje_validacion = (campos_encontrados / campos_totales * 100) if campos_totales > 0 else 0
+        
+        resultado = {
+            'id_solicitud': id_solicitud,
+            'id_solicitante': solicitante.id_solicitante,
+            'es_titular': solicitante.es_titular,
+            'datos_solicitante': {
+                'nombre_completo': f"{solicitante.primer_nombre or ''} {solicitante.segundo_nombre or ''} {solicitante.primer_apellido or ''} {solicitante.segundo_apellido or ''}".strip(),
+                'num_documento': solicitante.num_documento,
+                'tipo_documento': solicitante.tipo_documento,
+                'pais_emisor': solicitante.pais_emisor,
+                'fecha_nacimiento': solicitante.fecha_nacimiento.isoformat() if solicitante.fecha_nacimiento else None,
+            },
+            'validaciones': validaciones,
+            'resumen_validacion': {
+                'campos_encontrados': campos_encontrados,
+                'campos_totales': campos_totales,
+                'porcentaje': round(porcentaje_validacion, 2),
+                'validacion_exitosa': porcentaje_validacion >= 50  # Al menos 50% de campos deben coincidir
+            }
+        }
+        
+        logger.info(f"✅ Validación OCR contra solicitud {id_solicitud}: {campos_encontrados}/{campos_totales} campos ({porcentaje_validacion:.1f}%)")
+        
+        return resultado
+        
+    except Exception as e:
+        logger.error(f"Error validando OCR contra solicitud: {str(e)}", exc_info=True)
+        return None
+
+
 def extract_structured_data(
     texto: str,
     tipo_documento: Optional[int]
 ) -> Optional[str]:
     """
-    Extrae datos estructurados según el tipo de documento
+    Extrae datos estructurados del texto OCR.
+    Primero intenta extracción específica por tipo de documento,
+    luego aplica extracción genérica para detectar patrones comunes.
+    
+    NOTA: Esta función es un fallback cuando no hay solicitud asociada.
+    El método preferido es validate_ocr_against_solicitud().
     
     Args:
         texto: Texto extraído por OCR
-        tipo_documento: Código del tipo de documento
+        tipo_documento: Código del tipo de documento (opcional)
     
     Returns:
         JSON string con campos extraídos o None
@@ -605,47 +926,26 @@ def extract_structured_data(
         import re
 
         datos = {}
+        texto_upper = texto.upper()
 
+        # ============================================================
+        # EXTRACCIÓN ESPECÍFICA POR TIPO DE DOCUMENTO
+        # ============================================================
+        
         # Pasaporte (tipo_documento == 1 o similar)
         if tipo_documento in [1, 'PASAPORTE']:
             logger.debug("Extrayendo datos de pasaporte")
-
-            # Número de pasaporte (formato común: 2 letras + 7-9 dígitos)
-            match_pasaporte = re.search(r'\b[A-Z]{1,2}\d{7,9}\b', texto)
-            if match_pasaporte:
-                datos['numero_pasaporte'] = match_pasaporte.group()
-
-            # Fechas (DD/MM/YYYY o DD-MM-YYYY)
-            fechas = re.findall(r'\b\d{2}[/-]\d{2}[/-]\d{4}\b', texto)
-            if fechas:
-                datos['fechas_encontradas'] = fechas
-                if len(fechas) >= 1:
-                    datos['posible_fecha_nacimiento'] = fechas[0]
-                if len(fechas) >= 2:
-                    datos['posible_fecha_emision'] = fechas[1]
-                if len(fechas) >= 3:
-                    datos['posible_fecha_vencimiento'] = fechas[2]
-
-            # Nacionalidad (códigos de 3 letras comunes)
-            nacionalidades_comunes = ['PAN', 'USA', 'COL', 'VEN', 'NIC', 'CRI', 'MEX']
-            for nac in nacionalidades_comunes:
-                if nac in texto:
-                    datos['nacionalidad'] = nac
-                    break
+            _extract_passport_data(texto, texto_upper, datos)
 
         # Cédula (tipo_documento == 2 o similar)
         elif tipo_documento in [2, 'CEDULA']:
             logger.debug("Extrayendo datos de cédula")
+            _extract_cedula_data(texto, texto_upper, datos)
 
-            # Número de cédula panameña (formato: X-XXX-XXXX)
-            match_cedula = re.search(r'\b\d{1,2}-\d{1,4}-\d{1,5}\b', texto)
-            if match_cedula:
-                datos['numero_cedula'] = match_cedula.group()
-
-            # Fecha de nacimiento
-            match_fecha = re.search(r'\b\d{2}[/-]\d{2}[/-]\d{4}\b', texto)
-            if match_fecha:
-                datos['fecha_nacimiento'] = match_fecha.group()
+        # ============================================================
+        # EXTRACCIÓN GENÉRICA (para cualquier documento)
+        # ============================================================
+        _extract_generic_data(texto, texto_upper, datos)
 
         # Si se encontraron datos, retornar como JSON
         if datos:
@@ -657,6 +957,365 @@ def extract_structured_data(
     except Exception as e:
         logger.error(f"Error extrayendo datos estructurados: {str(e)}", exc_info=True)
         return None
+
+
+def _extract_passport_data(texto: str, texto_upper: str, datos: dict):
+    """Extrae datos específicos de pasaportes"""
+    import re
+    
+    # Buscar primero con etiqueta "Pasaporte:" (más confiable)
+    match_etiqueta = re.search(r'PASAPORTE\s*[:/]?\s*([A-Z]{0,2}\d{6,12})', texto_upper)
+    if match_etiqueta:
+        datos['numero_pasaporte'] = match_etiqueta.group(1)
+    
+    # Número de pasaporte (formato común: 0-2 letras + 6-12 dígitos)
+    if 'numero_pasaporte' not in datos:
+        match_pasaporte = re.search(r'\b[A-Z]{0,2}\d{6,12}\b', texto_upper)
+        if match_pasaporte:
+            datos['numero_pasaporte'] = match_pasaporte.group()
+
+    # También buscar patrones más flexibles para pasaportes
+    if 'numero_pasaporte' not in datos:
+        # Patrón alternativo: letra + números (ej: N1234567, P1234567890)
+        match_alt = re.search(r'\b([A-Z]\d{6,10})\b', texto_upper)
+        if match_alt:
+            datos['numero_pasaporte'] = match_alt.group()
+
+    # Fechas (DD/MM/YYYY o DD-MM-YYYY o YYYY-MM-DD)
+    fechas = re.findall(r'\b\d{2}[/-]\d{2}[/-]\d{4}\b', texto)
+    fechas_iso = re.findall(r'\b\d{4}[/-]\d{2}[/-]\d{2}\b', texto)
+    todas_fechas = fechas + fechas_iso
+    
+    if todas_fechas:
+        datos['fechas_encontradas'] = todas_fechas
+        if len(todas_fechas) >= 1:
+            datos['posible_fecha_nacimiento'] = todas_fechas[0]
+            datos['fecha_nacimiento'] = todas_fechas[0]  # Guardar también con este nombre
+        if len(todas_fechas) >= 2:
+            datos['posible_fecha_emision'] = todas_fechas[1]
+        if len(todas_fechas) >= 3:
+            datos['posible_fecha_vencimiento'] = todas_fechas[2]
+
+    # Nacionalidad (códigos de 3 letras comunes)
+    nacionalidades_comunes = [
+        'PAN', 'USA', 'COL', 'VEN', 'NIC', 'CRI', 'MEX', 'GTM', 'HND', 'SLV', 
+        'DOM', 'ECU', 'PER', 'ARG', 'BRA', 'CHL', 'CUB', 'HAI', 'URY', 'PRY',
+        'BOL', 'ESP', 'FRA', 'ITA', 'DEU', 'GBR', 'CHN', 'JPN', 'KOR', 'IND',
+        'RUS', 'UKR', 'CAN', 'AUS', 'NZL'
+    ]
+    for nac in nacionalidades_comunes:
+        if nac in texto_upper:
+            datos['nacionalidad'] = nac
+            break
+    
+    # Intentar extraer nombres/apellidos de la línea MRZ si existe
+    # La MRZ tiene formato: P<CODIGO<APELLIDO<<NOMBRES<<<...
+    mrz_pattern = r'P<([A-Z]{3})<([A-Z]+)<<([A-Z]+)'
+    mrz_match = re.search(mrz_pattern, texto_upper)
+    if mrz_match:
+        datos['nacionalidad_mrz'] = mrz_match.group(1)
+        datos['apellidos_mrz'] = mrz_match.group(2).replace('<', ' ').strip()
+        datos['nombres_mrz'] = mrz_match.group(3).replace('<', ' ').strip()
+        # Si encontramos MRZ, usar esos datos como principales
+        if not datos.get('nacionalidad'):
+            datos['nacionalidad'] = mrz_match.group(1)
+        datos['apellidos'] = datos['apellidos_mrz']
+        datos['nombres'] = datos['nombres_mrz']
+    
+    # Si no hay MRZ, intentar extraer nombres de patrones comunes
+    if 'nombres' not in datos:
+        # Buscar después de etiquetas comunes en pasaportes
+        patterns_nombres = [
+            r'(?:GIVEN\s*NAME[S]?|NOMBRES?|PRENOM[S]?|NAME)\s*[:/]?\s*([A-Z][A-Z\s]{2,30})',
+            r'(?:FIRST\s*NAME|PRIMER\s*NOMBRE)\s*[:/]?\s*([A-Z][A-Z\s]{2,30})',
+        ]
+        for pattern in patterns_nombres:
+            match = re.search(pattern, texto_upper)
+            if match:
+                nombres_raw = match.group(1).strip()
+                # Limpiar y validar que parece un nombre
+                if len(nombres_raw) >= 2 and not nombres_raw.isdigit():
+                    datos['nombres'] = nombres_raw
+                    break
+    
+    if 'apellidos' not in datos:
+        # Buscar después de etiquetas comunes en pasaportes
+        patterns_apellidos = [
+            r'(?:SURNAME|APELLIDOS?|NOM|FAMILY\s*NAME)\s*[:/]?\s*([A-Z][A-Z\s]{2,30})',
+            r'(?:LAST\s*NAME|PRIMER\s*APELLIDO)\s*[:/]?\s*([A-Z][A-Z\s]{2,30})',
+        ]
+        for pattern in patterns_apellidos:
+            match = re.search(pattern, texto_upper)
+            if match:
+                apellidos_raw = match.group(1).strip()
+                # Limpiar y validar que parece un apellido
+                if len(apellidos_raw) >= 2 and not apellidos_raw.isdigit():
+                    datos['apellidos'] = apellidos_raw
+                    break
+    
+    # Buscar fecha de nacimiento específica
+    if 'fecha_nacimiento' not in datos:
+        patterns_fecha_nac = [
+            r'(?:DATE\s*OF\s*BIRTH|FECHA\s*(?:DE\s*)?NAC(?:IMIENTO)?|DOB|BORN)\s*[:/]?\s*(\d{1,2}[/-]\d{1,2}[/-]\d{2,4})',
+            r'(?:BIRTH\s*DATE|NACIMIENTO)\s*[:/]?\s*(\d{1,2}[/-]\d{1,2}[/-]\d{2,4})',
+        ]
+        for pattern in patterns_fecha_nac:
+            match = re.search(pattern, texto_upper)
+            if match:
+                datos['fecha_nacimiento'] = match.group(1)
+                break
+
+
+def _extract_cedula_data(texto: str, texto_upper: str, datos: dict):
+    """Extrae datos específicos de cédulas panameñas"""
+    import re
+    
+    # Número de cédula panameña (formato: X-XXX-XXXX o variantes)
+    match_cedula = re.search(r'\b\d{1,2}-\d{1,4}-\d{1,6}\b', texto)
+    if match_cedula:
+        datos['numero_cedula'] = match_cedula.group()
+
+    # Fecha de nacimiento
+    match_fecha = re.search(r'\b\d{2}[/-]\d{2}[/-]\d{4}\b', texto)
+    if match_fecha:
+        datos['fecha_nacimiento'] = match_fecha.group()
+
+
+def _extract_generic_data(texto: str, texto_upper: str, datos: dict):
+    """
+    Extrae datos genéricos de cualquier documento.
+    Detecta patrones comunes independientemente del tipo de documento.
+    """
+    import re
+    
+    # ============================================================
+    # 1. NÚMEROS DE IDENTIFICACIÓN
+    # ============================================================
+    
+    # Cédula panameña (X-XXX-XXXX) - si no se detectó antes
+    if 'numero_cedula' not in datos:
+        match_cedula = re.search(r'\b(\d{1,2})-(\d{1,4})-(\d{1,6})\b', texto)
+        if match_cedula:
+            datos['cedula_detectada'] = match_cedula.group()
+    
+    # Pasaporte (0-2 letras + 6-12 dígitos) - si no se detectó antes
+    if 'numero_pasaporte' not in datos and 'pasaporte_detectado' not in datos:
+        # Primero buscar con etiqueta
+        match_etiqueta = re.search(r'PASAPORTE\s*[:/]?\s*([A-Z]{0,2}\d{6,12})', texto_upper)
+        if match_etiqueta:
+            datos['pasaporte_detectado'] = match_etiqueta.group(1)
+        else:
+            # Buscar patrón libre
+            match_pasaporte = re.search(r'\b([A-Z]{0,2}\d{7,12})\b', texto_upper)
+            if match_pasaporte:
+                datos['pasaporte_detectado'] = match_pasaporte.group()
+    
+    # RUC (Registro Único de Contribuyente) panameño
+    match_ruc = re.search(r'\b(\d{1,2}-\d{1,4}-\d{1,6}-\d{2})\b', texto)
+    if match_ruc:
+        datos['ruc_detectado'] = match_ruc.group()
+    
+    # ============================================================
+    # 2. FECHAS
+    # ============================================================
+    
+    if 'fechas_encontradas' not in datos:
+        # Formato DD/MM/YYYY o DD-MM-YYYY
+        fechas_dmy = re.findall(r'\b(\d{1,2}[/-]\d{1,2}[/-]\d{4})\b', texto)
+        # Formato YYYY-MM-DD (ISO)
+        fechas_iso = re.findall(r'\b(\d{4}-\d{2}-\d{2})\b', texto)
+        # Formato con mes en texto: "15 de enero de 2025"
+        fechas_texto = re.findall(
+            r'\b(\d{1,2}\s+de\s+(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\s+de\s+\d{4})\b',
+            texto.lower()
+        )
+        
+        todas_fechas = fechas_dmy + fechas_iso + [f.title() for f in fechas_texto]
+        if todas_fechas:
+            datos['fechas_encontradas'] = list(set(todas_fechas))[:5]  # Máximo 5 fechas únicas
+    
+    # ============================================================
+    # 3. DATOS DE CONTACTO
+    # ============================================================
+    
+    # Emails
+    emails = re.findall(r'\b([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})\b', texto)
+    if emails:
+        datos['emails_detectados'] = list(set(emails))[:3]
+    
+    # Teléfonos panameños (6XXX-XXXX o +507 6XXX-XXXX)
+    telefonos = re.findall(r'(?:\+507\s?)?([6-9]\d{3}[-\s]?\d{4})\b', texto)
+    if telefonos:
+        datos['telefonos_detectados'] = list(set(telefonos))[:3]
+    
+    # ============================================================
+    # 4. DIRECCIONES Y UBICACIONES
+    # ============================================================
+    
+    # Provincias de Panamá
+    provincias = ['BOCAS DEL TORO', 'COCLÉ', 'COLÓN', 'CHIRIQUÍ', 'DARIÉN', 
+                  'HERRERA', 'LOS SANTOS', 'PANAMÁ', 'PANAMÁ OESTE', 'VERAGUAS',
+                  'GUNA YALA', 'EMBERÁ', 'NGÄBE-BUGLÉ']
+    provincias_encontradas = [p for p in provincias if p in texto_upper]
+    if provincias_encontradas:
+        datos['provincias_detectadas'] = provincias_encontradas
+    
+    # Distritos comunes
+    distritos = ['DAVID', 'SANTIAGO', 'CHITRÉ', 'AGUADULCE', 'PENONOMÉ', 
+                 'LA CHORRERA', 'ARRAIJÁN', 'SAN MIGUELITO', 'COLÓN']
+    distritos_encontrados = [d for d in distritos if d in texto_upper]
+    if distritos_encontrados:
+        datos['distritos_detectados'] = distritos_encontrados
+    
+    # ============================================================
+    # 5. MONTOS Y VALORES MONETARIOS
+    # ============================================================
+    
+    # Montos en dólares (B/. XXX.XX o $ XXX.XX o USD XXX.XX)
+    montos = re.findall(r'(?:B/\.|USD|\$)\s*(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)', texto)
+    if montos:
+        datos['montos_detectados'] = montos[:5]
+    
+    # ============================================================
+    # 6. DATOS DE NOTARÍA (común en poderes y escrituras)
+    # ============================================================
+    
+    # Número de escritura
+    match_escritura = re.search(r'(?:ESCRITURA|ESCRIT\.?)\s*(?:N[°ºO]?\.?\s*)?(\d+)', texto_upper)
+    if match_escritura:
+        datos['numero_escritura'] = match_escritura.group(1)
+    
+    # Notario
+    match_notario = re.search(r'(?:NOTARIO|NOTARIA|LIC\.?|LICENCIADO)\s*:?\s*([A-ZÁÉÍÓÚÑ][a-záéíóúñ]+(?:\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+){1,3})', texto)
+    if match_notario:
+        datos['notario_detectado'] = match_notario.group(1).strip()
+    
+    # ============================================================
+    # 7. NOMBRES Y PERSONAS
+    # ============================================================
+    
+    # Poderdante / Apoderado (común en poderes legales)
+    # Manejar saltos de línea y múltiples dos puntos (::)
+    match_poderdante = re.search(r'PODERDANTE\s*:+\s*[\n\r]*([A-ZÁÉÍÓÚÑ][A-Za-záéíóúñ]+(?:\s+[A-ZÁÉÍÓÚÑ][A-Za-záéíóúñ]+){0,4})', texto, re.IGNORECASE | re.MULTILINE)
+    if match_poderdante:
+        nombre = match_poderdante.group(1).strip()
+        datos['poderdante'] = nombre
+        # También guardar como nombre si no existe
+        if 'nombres' not in datos:
+            partes = nombre.split()
+            if len(partes) >= 2:
+                datos['nombres'] = ' '.join(partes[:-1])  # Todo menos el último
+                datos['apellidos'] = partes[-1]  # Último como apellido
+            else:
+                datos['nombres'] = nombre
+    
+    match_apoderado = re.search(r'APODERADO\s*:+\s*[\n\r]*([A-ZÁÉÍÓÚÑ][A-Za-záéíóúñ]+(?:\s+[A-ZÁÉÍÓÚÑ][A-Za-záéíóúñ]+){0,4})', texto, re.IGNORECASE | re.MULTILINE)
+    if match_apoderado:
+        datos['apoderado'] = match_apoderado.group(1).strip()
+    
+    # Solicitante
+    match_solicitante = re.search(r'SOLICITANTE\s*:+\s*[\n\r]*([A-ZÁÉÍÓÚÑ][A-Za-záéíóúñ]+(?:\s+[A-ZÁÉÍÓÚÑ][A-Za-záéíóúñ]+){0,4})', texto, re.IGNORECASE | re.MULTILINE)
+    if match_solicitante:
+        datos['solicitante'] = match_solicitante.group(1).strip()
+    
+    # ============================================================
+    # 7.1. EXTRACCIÓN GENÉRICA DE NOMBRES Y APELLIDOS (si no se detectaron antes)
+    # ============================================================
+    
+    if 'nombres' not in datos:
+        # Buscar patrones comunes de nombres en documentos
+        patterns_nombres_generic = [
+            r'(?:NOMBRE[S]?|NAME[S]?|GIVEN\s*NAME|PRENOM)\s*[:/]?\s*([A-ZÁÉÍÓÚÑ][A-ZÁÉÍÓÚÑ\s]{2,30})',
+            r'(?:PRIMER\s*NOMBRE|FIRST\s*NAME)\s*[:/]?\s*([A-ZÁÉÍÓÚÑ][A-ZÁÉÍÓÚÑ\s]{2,30})',
+        ]
+        for pattern in patterns_nombres_generic:
+            match = re.search(pattern, texto_upper)
+            if match:
+                nombres_raw = match.group(1).strip()
+                # Validar que parece un nombre (no solo números o caracteres especiales)
+                if len(nombres_raw) >= 2 and re.search(r'[A-ZÁÉÍÓÚÑ]', nombres_raw):
+                    datos['nombres'] = nombres_raw
+                    break
+    
+    if 'apellidos' not in datos:
+        # Buscar patrones comunes de apellidos en documentos
+        patterns_apellidos_generic = [
+            r'(?:APELLIDO[S]?|SURNAME|NOM|FAMILY\s*NAME|LAST\s*NAME)\s*[:/]?\s*([A-ZÁÉÍÓÚÑ][A-ZÁÉÍÓÚÑ\s]{2,30})',
+            r'(?:PRIMER\s*APELLIDO|PATERNO)\s*[:/]?\s*([A-ZÁÉÍÓÚÑ][A-ZÁÉÍÓÚÑ\s]{2,30})',
+        ]
+        for pattern in patterns_apellidos_generic:
+            match = re.search(pattern, texto_upper)
+            if match:
+                apellidos_raw = match.group(1).strip()
+                # Validar que parece un apellido
+                if len(apellidos_raw) >= 2 and re.search(r'[A-ZÁÉÍÓÚÑ]', apellidos_raw):
+                    datos['apellidos'] = apellidos_raw
+                    break
+    
+    # Buscar fecha de nacimiento si no se detectó
+    if 'fecha_nacimiento' not in datos:
+        patterns_fecha_nac_generic = [
+            r'(?:FECHA\s*(?:DE\s*)?NAC(?:IMIENTO)?|DATE\s*OF\s*BIRTH|DOB|NACIMIENTO|BORN)\s*[:/]?\s*(\d{1,2}[/-]\d{1,2}[/-]\d{2,4})',
+            r'(?:F\.\s*NAC\.?|FEC\.\s*NAC\.?)\s*[:/]?\s*(\d{1,2}[/-]\d{1,2}[/-]\d{2,4})',
+        ]
+        for pattern in patterns_fecha_nac_generic:
+            match = re.search(pattern, texto_upper)
+            if match:
+                datos['fecha_nacimiento'] = match.group(1)
+                break
+    
+    # ============================================================
+    # 8. NACIONALIDADES
+    # ============================================================
+    
+    nacionalidades_texto = {
+        'PANAMEÑO': 'PAN', 'PANAMEÑA': 'PAN', 'PANAMÁ': 'PAN',
+        'COLOMBIANO': 'COL', 'COLOMBIANA': 'COL', 'COLOMBIA': 'COL',
+        'VENEZOLANO': 'VEN', 'VENEZOLANA': 'VEN', 'VENEZUELA': 'VEN',
+        'NICARAGÜENSE': 'NIC', 'NICARAGUA': 'NIC',
+        'COSTARRICENSE': 'CRI', 'COSTA RICA': 'CRI',
+        'MEXICANO': 'MEX', 'MEXICANA': 'MEX', 'MÉXICO': 'MEX',
+        'SALVADOREÑO': 'SLV', 'SALVADOREÑA': 'SLV', 'EL SALVADOR': 'SLV',
+        'GUATEMALTECO': 'GTM', 'GUATEMALTECA': 'GTM', 'GUATEMALA': 'GTM',
+        'HONDUREÑO': 'HND', 'HONDUREÑA': 'HND', 'HONDURAS': 'HND',
+        'DOMINICANO': 'DOM', 'DOMINICANA': 'DOM',
+        'ECUATORIANO': 'ECU', 'ECUATORIANA': 'ECU', 'ECUADOR': 'ECU',
+        'PERUANO': 'PER', 'PERUANA': 'PER', 'PERÚ': 'PER',
+        'ESTADOUNIDENSE': 'USA', 'ESTADOS UNIDOS': 'USA', 'AMERICANO': 'USA',
+        'CHINO': 'CHN', 'CHINA': 'CHN',
+        'ESPAÑOL': 'ESP', 'ESPAÑOLA': 'ESP', 'ESPAÑA': 'ESP',
+    }
+    
+    if 'nacionalidad' not in datos:
+        for texto_nac, codigo in nacionalidades_texto.items():
+            if texto_nac in texto_upper:
+                datos['nacionalidad_detectada'] = codigo
+                break
+    
+    # ============================================================
+    # 9. TIPO DE DOCUMENTO DETECTADO
+    # ============================================================
+    
+    tipos_documento = {
+        'PODER ESPECIAL': 'PODER_ESPECIAL',
+        'PODER GENERAL': 'PODER_GENERAL',
+        'ESCRITURA': 'ESCRITURA',
+        'CONTRATO': 'CONTRATO',
+        'CERTIFICADO': 'CERTIFICADO',
+        'CONSTANCIA': 'CONSTANCIA',
+        'FACTURA': 'FACTURA',
+        'RECIBO': 'RECIBO',
+        'PASAPORTE': 'PASAPORTE',
+        'CÉDULA': 'CEDULA',
+        'LICENCIA': 'LICENCIA',
+        'COMPROBANTE': 'COMPROBANTE',
+        'DECLARACIÓN': 'DECLARACION',
+    }
+    
+    for texto_tipo, codigo in tipos_documento.items():
+        if texto_tipo in texto_upper:
+            datos['tipo_documento_detectado'] = codigo
+            break
 
 
 @celery_app.task(name='ocr.cleanup_old_results')
@@ -744,3 +1403,92 @@ def generate_ocr_statistics():
         raise
     finally:
         db.close()
+
+
+@celery_app.task(name='ocr.process_pending_documents', bind=True)
+def process_pending_documents(self, limit: int = 50):
+    """
+    Procesa documentos que requieren OCR pero no han sido procesados.
+    
+    Esta tarea busca documentos de preguntas CARGA_ARCHIVO con requiere_ocr=True
+    que no tienen un registro en PPSH_DOCUMENTO_OCR o tienen estado PENDIENTE/ERROR.
+    
+    Args:
+        limit: Número máximo de documentos a procesar en esta ejecución
+    
+    Returns:
+        Dict con estadísticas del procesamiento
+    """
+    from app.models.models_workflow import WorkflowPregunta
+    
+    db: Session = SessionLocal()
+    
+    try:
+        logger.info(f"Iniciando procesamiento de documentos pendientes (límite: {limit})")
+        
+        # Buscar documentos que necesitan OCR
+        # 1. Documentos sin registro OCR de solicitudes que tienen preguntas con requiere_ocr=True
+        documentos_sin_ocr = db.execute(text("""
+            SELECT DISTINCT d.id_documento, d.id_solicitud, d.nombre_archivo
+            FROM PPSH_DOCUMENTO d
+            LEFT JOIN PPSH_DOCUMENTO_OCR o ON o.id_documento = d.id_documento
+            WHERE o.id_documento IS NULL
+            AND d.id_solicitud IS NOT NULL
+            ORDER BY d.id_documento
+            OFFSET 0 ROWS FETCH NEXT :limit ROWS ONLY
+        """), {'limit': limit}).fetchall()
+        
+        # 2. Documentos con OCR en estado ERROR (reintentar)
+        documentos_error = db.query(PPSHDocumentoOCR).filter(
+            PPSHDocumentoOCR.estado_ocr == 'ERROR',
+            PPSHDocumentoOCR.intentos_procesamiento < 3  # Máximo 3 intentos
+        ).limit(limit).all()
+        
+        procesados = 0
+        errores = 0
+        omitidos = 0
+        
+        # Procesar documentos sin OCR
+        for doc in documentos_sin_ocr:
+            try:
+                logger.info(f"Encolando documento {doc.id_documento} para OCR")
+                process_document_ocr.delay(
+                    id_documento=doc.id_documento,
+                    user_id='SYSTEM_CRON'
+                )
+                procesados += 1
+            except Exception as e:
+                logger.error(f"Error encolando documento {doc.id_documento}: {e}")
+                errores += 1
+        
+        # Reprocesar documentos con error
+        for ocr_record in documentos_error:
+            try:
+                logger.info(f"Re-encolando documento {ocr_record.id_documento} para OCR (intento {ocr_record.intentos_procesamiento + 1})")
+                process_document_ocr.delay(
+                    id_documento=ocr_record.id_documento,
+                    user_id='SYSTEM_CRON'
+                )
+                procesados += 1
+            except Exception as e:
+                logger.error(f"Error re-encolando documento {ocr_record.id_documento}: {e}")
+                errores += 1
+        
+        resultado = {
+            'timestamp': datetime.now().isoformat(),
+            'documentos_sin_ocr': len(documentos_sin_ocr),
+            'documentos_error': len(documentos_error),
+            'encolados': procesados,
+            'errores': errores,
+            'omitidos': omitidos
+        }
+        
+        logger.info(f"Procesamiento de pendientes completado: {resultado}")
+        return resultado
+        
+    except Exception as e:
+        logger.error(f"Error en process_pending_documents: {str(e)}", exc_info=True)
+        raise
+    finally:
+        db.close()
+
