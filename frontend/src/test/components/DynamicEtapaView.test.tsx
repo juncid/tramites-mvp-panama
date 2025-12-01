@@ -469,6 +469,11 @@ describe('DynamicEtapaView', () => {
         orden: 1,
         es_visible: true,
         activo: true,
+        perfiles_permitidos: [],
+        es_etapa_inicial: false,
+        es_etapa_final: false,
+        requiere_validacion: false,
+        permite_edicion_posterior: true,
         preguntas: [
           {
             id: 1,

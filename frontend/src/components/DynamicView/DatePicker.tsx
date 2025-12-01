@@ -13,9 +13,9 @@ import type { Componente } from '../../types/dynamic-view';
 
 interface DatePickerProps {
   componente: Componente;
-  value: any;
+  value: string | null | undefined;
   error?: string;
-  onChange: (preguntaId: number, value: any) => void;
+  onChange: (preguntaId: number, value: string) => void;
 }
 
 export const DatePicker: React.FC<DatePickerProps> = ({ 

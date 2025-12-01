@@ -49,17 +49,32 @@ describe('useWorkflowEtapa', () => {
     id: 1,
     workflow_id: 1,
     etapa_actual_id: 5,
-    estado: 'EN_PROCESO',
+    estado: 'EN_PROGRESO' as const,
+    codigo_referencia: 'REF-001',
+    fecha_inicio: '2024-01-01T00:00:00Z',
+    activo: true,
+    created_at: '2024-01-01T00:00:00Z',
     workflow: {
       id: 1,
+      codigo: 'WF-001',
       nombre: 'Proceso PPSH',
+      estado: 'ACTIVO' as const,
+      version: 1,
+      perfiles_creadores: [],
+      activo: true,
+      created_at: '2024-01-01T00:00:00Z',
     },
   };
 
   const mockSolicitud = {
-    id: 100,
+    id_solicitud: 100,
     workflow_instancia_id: 1,
-    estado: 'EN_PROCESO',
+    tipo_solicitud: 'INDIVIDUAL' as const,
+    fecha_solicitud: '2024-01-01T00:00:00Z',
+    estado_actual: 'EN_PROCESO',
+    prioridad: 'NORMAL' as const,
+    solicitantes: [],
+    created_at: '2024-01-01T00:00:00Z',
   };
 
   beforeEach(() => {
@@ -120,8 +135,14 @@ describe('useWorkflowEtapa', () => {
     it('debería manejar error cuando solicitud no tiene workflow', async () => {
       mockParams = { id: '100' };
       vi.mocked(ppshService.getSolicitud).mockResolvedValue({
-        id: 100,
-        workflow_instancia_id: null,
+        id_solicitud: 100,
+        workflow_instancia_id: undefined,
+        tipo_solicitud: 'INDIVIDUAL' as const,
+        fecha_solicitud: '2024-01-01T00:00:00Z',
+        estado_actual: 'EN_PROCESO',
+        prioridad: 'NORMAL' as const,
+        solicitantes: [],
+        created_at: '2024-01-01T00:00:00Z',
       });
 
       const { result } = renderHook(() => useWorkflowEtapa());

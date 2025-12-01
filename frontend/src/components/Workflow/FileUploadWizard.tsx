@@ -108,7 +108,7 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
   onComplete,
   onBack,
   buttonLabels = { back: 'Volver', next: 'Siguiente' },
-  titulo,
+  // titulo - desestructurado pero no usado actualmente
   descripcion,
   datosSolicitante,
 }) => {
@@ -404,8 +404,6 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
   }
 
   const currentFileName = getFileName(respuestas[campoActual.codigo]);
-  const isLastStep = currentStep === totalSteps - 1;
-  const isFirstStep = currentStep === 0;
 
   // Obtener extensiones permitidas para el accept del input
   // Permitir cualquier archivo si no hay restricciones definidas

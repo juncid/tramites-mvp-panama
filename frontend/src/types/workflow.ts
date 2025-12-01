@@ -2,7 +2,7 @@
  * Tipos para el sistema de Workflows/Procesos dinámicos
  */
 
-export type TipoEtapa = 'ETAPA' | 'COMPUERTA' | 'SUBPROCESO' | 'PRESENCIAL' | 'FIN' | 'TERMINO';
+export type TipoEtapa = 'ETAPA' | 'COMPUERTA' | 'SUBPROCESO' | 'PRESENCIAL' | 'FIN' | 'TERMINO' | 'FORMULARIO';
 // Tipos de pregunta - deben coincidir exactamente con TipoPregunta enum del backend
 export type TipoPregunta = 
   | 'RESPUESTA_TEXTO'      // Respuesta de texto corta

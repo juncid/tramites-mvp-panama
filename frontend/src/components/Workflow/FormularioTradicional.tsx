@@ -168,7 +168,7 @@ export const FormularioTradicional: React.FC<FormularioTradicionalProps> = ({
         );
 
       case 'LISTA':
-      case 'SELECCION_SIMPLE':
+      case 'SELECCION_SIMPLE': {
         const opciones = pregunta.opciones_json || [];
         return (
           <FormControl key={pregunta.id} fullWidth error={!!error}>
@@ -193,6 +193,7 @@ export const FormularioTradicional: React.FC<FormularioTradicionalProps> = ({
             )}
           </FormControl>
         );
+      }
 
       case 'OPCIONES':
         return (

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   Box,
   TextField,
@@ -56,8 +56,6 @@ export const IndicacionesField: React.FC<{
 export const CargaArchivoFields: React.FC<PreguntaFieldsProps> = ({
   pregunta,
   onChange,
-  uploadedFileName = '',
-  onFileUpload,
 }) => (
   <>
     <TextField

@@ -6,7 +6,6 @@ import {
   AutoAwesome as AutoAwesomeIcon,
   Person as PersonIcon,
   Description as DescriptionIcon,
-  CheckBox as CheckBoxIcon,
   ArrowDropDown as ArrowDropDownIcon,
 } from '@mui/icons-material';
 import type { WorkflowEtapa } from '../../types/workflow';

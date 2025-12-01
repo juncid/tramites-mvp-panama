@@ -349,17 +349,6 @@ export const CargaArchivoView: React.FC<CargaArchivoViewProps> = ({
     setOcrErrorMessage('');
   };
 
-  const handleRemove = async (index: number) => {
-    const archivo = archivos[index];
-    
-    // Si tiene id_documento, se podría eliminar del backend (TODO)
-    // Por ahora solo eliminar localmente
-    
-    const nuevosArchivos = archivos.filter((_, i) => i !== index);
-    setArchivos(nuevosArchivos);
-    onAnswerChange?.(nuevosArchivos.map(a => a.file));
-  };
-
   // Helper para parsear el value y obtener info del archivo subido
   const getArchivoSubido = (): { url?: string; nombre?: string } | null => {
     if (!value) return null;

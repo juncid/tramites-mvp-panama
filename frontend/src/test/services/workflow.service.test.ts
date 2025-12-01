@@ -64,6 +64,7 @@ describe('workflowService', () => {
         nombre: 'Nuevo Workflow',
         descripcion: 'Descripción',
         codigo: 'NEW-WF',
+        perfiles_creadores: [],
       };
       vi.mocked(apiClient.post).mockResolvedValue({ id: 2, ...createData });
 
@@ -219,12 +220,12 @@ describe('workflowService', () => {
     });
 
     it('updateConexion debería actualizar una conexión', async () => {
-      vi.mocked(apiClient.put).mockResolvedValue({ ...mockConexion, es_default: false });
+      vi.mocked(apiClient.put).mockResolvedValue({ ...mockConexion, es_predeterminada: false });
 
-      const result = await workflowService.updateConexion(1, { es_default: false });
+      const result = await workflowService.updateConexion(1, { es_predeterminada: false });
 
-      expect(apiClient.put).toHaveBeenCalledWith('/workflow/conexiones/1', { es_default: false });
-      expect(result.es_default).toBe(false);
+      expect(apiClient.put).toHaveBeenCalledWith('/workflow/conexiones/1', { es_predeterminada: false });
+      expect(result.es_predeterminada).toBe(false);
     });
 
     it('deleteConexion debería eliminar una conexión', async () => {
@@ -284,7 +285,7 @@ describe('workflowService', () => {
     });
 
     it('transicionarInstancia debería transicionar a siguiente etapa', async () => {
-      const transicionData = { etapa_destino_id: 2, datos: {} };
+      const transicionData = { etapa_destino_id: 2, respuestas: [] };
       vi.mocked(apiClient.post).mockResolvedValue({ ...mockInstancia, etapa_actual_id: 2 });
 
       const result = await workflowService.transicionarInstancia(1, transicionData);
@@ -774,7 +775,7 @@ describe('workflowService', () => {
       vi.mocked(apiClient.post).mockRejectedValue(validationError);
 
       await expect(
-        workflowService.createWorkflow({ nombre: '', descripcion: '', codigo: '' })
+        workflowService.createWorkflow({ nombre: '', descripcion: '', codigo: '', perfiles_creadores: [] })
       ).rejects.toThrow('Validation failed');
     });
   });

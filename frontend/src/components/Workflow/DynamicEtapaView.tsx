@@ -181,7 +181,8 @@ export const DynamicEtapaView: React.FC<DynamicEtapaViewProps> = ({
     }
   };
 
-  const handleSave = async () => {
+  // handleSave preparado para uso futuro con botón guardar parcial
+  const _handleSave = async () => {
     if (!onSave || !instanciaId) return;
 
     setSaving(true);
@@ -193,6 +194,8 @@ export const DynamicEtapaView: React.FC<DynamicEtapaViewProps> = ({
       setSaving(false);
     }
   };
+  // Suprimir warning de variable no usada temporalmente
+  void _handleSave;
 
   const handleComplete = async () => {
     if (!onComplete || !instanciaId) return;
