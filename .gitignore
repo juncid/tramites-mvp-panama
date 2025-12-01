@@ -90,3 +90,15 @@ coverage/
 .cache/
 *.Zone.Identifier
 nul
+
+# Local documentation (not tracked in repo)
+docs/context/
+docs/Entregables/
+docs/Generated/
+docs/General/
+docs/Manuales/
+docs/Reports/
+informe-ejecutivo/
+k8s/
+.clinerules
+docs-generar/

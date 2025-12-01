@@ -160,7 +160,6 @@ docker-compose exec backend alembic current
 - `backend/alembic/versions/017_add_presencial_fields.py` - Última migración válida
 - `backend/alembic/versions/4478a4b15950_sincronizar_modelos_con_bd.py` - Migración 018 (marcada como aplicada sin ejecutar)
 - `backend/alembic/env.py` - Configuración de Alembic
-- `.clinerules` - Documentación de procedimientos
 
 ---
 

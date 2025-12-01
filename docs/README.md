@@ -240,7 +240,6 @@ Qué problema resuelve o qué funcionalidad implementa.
 ## 🆘 Soporte
 
 - **Issues**: Reportar en el repositorio GitHub
-- **Documentación adicional**: Ver carpeta `informe-ejecutivo/`
 - **Colecciones Postman**: Ver `postman-collections/`
 
 ---

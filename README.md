@@ -1,49 +1,35 @@
-# Trámites MVP Panamá - SNMP
+# Trámites MVP Panamá - SNM
 
-Sistema de gestión de trámites desarrollado con FastAPI (Python) y React (TypeScript), utilizando MS SQL Server como base de datos principal y Redis para caché.
+Sistema de gestión de trámites migratorios desarrollado con FastAPI (Python) y React (TypeScript), utilizando MS SQL Server como base de datos principal y Redis para caché.
 
-> **📢 Actualización Reciente (25 de Octubre de 2025):** 
-> - 🧹 Limpieza completa del proyecto - eliminados 58 archivos obsoletos, estructura optimizada 35% más limpia
-> - 💾 **Backup completo de base de datos disponible** en `database/backups/` con 47 tablas, ~330 registros de ejemplo y documentación completa
-> - 📋 Verificación de cumplimiento Producto Nº1 documentada (100% completado)
-> 
-> Ver detalles completos al final de este documento.
+> **📢 Actualización Reciente (1 de Diciembre de 2025):** 
+> - 📄 **Informe N°8 Frontend e Integraciones** - Documentación completa del frontend con 191 tests
+> - 🧹 **Refactorización DRY** - Eliminadas 914 líneas de código duplicado en el frontend
+> - ✅ **191 tests automatizados** pasando (156 unitarios, 69 componentes, 24 E2E)
+> - 📁 **Documentación reorganizada** - Estructura modular por carpetas temáticas
 
 ## 📋 Últimas Actualizaciones
+
+**1 de Diciembre de 2025** - Informe N°8 y Refactorización Frontend
+- 📄 **Informe N°8** - Documentación completa del desarrollo Frontend e Integraciones
+- 🧪 **191 tests automatizados** - Cobertura del 89% del código frontend
+- 🧹 **Refactorización DRY** - 9 páginas consolidadas en GenericEtapaPage
+- 📁 **Documentación reorganizada** en carpetas temáticas (OCR/, Vistas/, Seguridad/, Testing/, Workflow/)
+
+📖 **Documentación del proyecto:** [docs/README.md](./docs/README.md)
+
+**30 de Noviembre de 2025** - Sistema de Vistas Dinámicas y OCR
+- ✨ **Sistema de Vistas Dinámicas** - Formularios generados desde configuración JSON
+- 🔍 **Integración OCR** - Extracción automática de datos de documentos
+- 🔄 **Editor de Workflows Figma-like** - Diseño visual de flujos con ReactFlow
+- 🌐 **Acceso Público** - Consulta de trámites por código de acceso
 
 **25 de Octubre de 2025** - Backup de Base de Datos y Verificación de Entregables
 - 💾 **Backup completo creado** en `database/backups/` (~1 MB comprimido)
 - 📊 **47 tablas documentadas** con ~330 registros de ejemplo
 - 🔧 **Scripts automatizados** para crear y restaurar backups
-- ✅ **Verificación Producto Nº1** - 100% de cumplimiento documentado
-- 📖 **Documentación completa** de backups con guías de restauración
-- 📦 **Índice completo de archivos** del Producto Nº1 generado
 
-📖 **Índice Producto Nº1:** [docs/PRODUCTO1_ARCHIVOS.md](./docs/PRODUCTO1_ARCHIVOS.md) - Lista completa de entregables  
-📖 **Documentación de backups:** [database/backups/README.md](./database/backups/README.md)  
-📖 **Resumen del backup:** [database/backups/BACKUP_SUMMARY.md](./database/backups/BACKUP_SUMMARY.md)  
-📖 **Verificación de entregables:** [docs/VERIFICACION_PRODUCTO_1.md](./docs/VERIFICACION_PRODUCTO_1.md)
-
-**20 de Octubre de 2025** - Mejoras en Sistema de Workflows Dinámicos
-- ✨ **Creación de workflows completos en 1 petición** (antes: ~20 peticiones)
-- ✨ **UUID único** para trazabilidad completa de peticiones
-- ✨ **Logging mejorado** con captura automática de request/response body
-- ✨ **Uso de códigos** en lugar de IDs para referencias entre etapas
-- 🐛 Fixes de compatibilidad con MSSQL
-
-📖 **Documentación completa:** [docs/MEJORAS_LOGGING_Y_WORKFLOWS_2025-10-20.md](./docs/MEJORAS_LOGGING_Y_WORKFLOWS_2025-10-20.md)  
-📖 **Resumen ejecutivo:** [docs/RESUMEN_MEJORAS_2025-10-20.md](./docs/RESUMEN_MEJORAS_2025-10-20.md)  
-📖 **Ejemplos de uso:** [docs/ejemplos/](./docs/ejemplos/)
-
-**21 de Octubre de 2025** - Reorganización Arquitectónica Clean Architecture
-- 🏗️ **Implementación completa de Clean Architecture** con separación clara de capas
-- 📁 **Reorganización del backend** en directorios especializados (models/, services/, routers/, schemas/, infrastructure/, utils/)
-- 🔧 **Corrección masiva de imports** (50+ referencias PPSH actualizadas)
-- 🗃️ **Resolución de conflictos de migración** Alembic con heads divergentes
-- ✅ **Sistema 100% funcional** - Verificación completa de backend, API y base de datos
-- 📚 **Documentación completa de cambios** organizada en bitácora
-
-📖 **Resumen de cambios:** [docs/bitacora/CHANGES_SUMMARY.md](./docs/bitacora/CHANGES_SUMMARY.md)
+📖 **Documentación de backups:** [database/backups/README.md](./database/backups/README.md)
 
 ---
 
@@ -970,7 +956,7 @@ docker compose up --build
 
 ### Documentación Adicional
 
-- 📖 **Diccionario de Datos Completo:** [docs/DICCIONARIO_DATOS_COMPLETO.md](./docs/DICCIONARIO_DATOS_COMPLETO.md)
+- 📖 **Diccionario de Datos Completo:** [docs/BBDD/DICCIONARIO_DATOS_COMPLETO.md](./docs/BBDD/DICCIONARIO_DATOS_COMPLETO.md)
 - 📖 **Scripts SQL:** [backend/sql/](./backend/sql/)
 - 📖 **Migraciones Alembic:** [backend/alembic/versions/](./backend/alembic/versions/)
 - 📖 **Guía de Migraciones:** [MIGRATIONS_GUIDE.md](./MIGRATIONS_GUIDE.md)
@@ -1283,7 +1269,7 @@ WorkflowInstancia (1) ──→ (N) WorkflowInstanciaHistorial
 
 ### Documentación Completa
 
-📖 **Diccionario de Datos Completo:** [DICCIONARIO_DATOS_COMPLETO.md](./docs/DICCIONARIO_DATOS_COMPLETO.md)  
+📖 **Diccionario de Datos Completo:** [docs/BBDD/DICCIONARIO_DATOS_COMPLETO.md](./docs/BBDD/DICCIONARIO_DATOS_COMPLETO.md)  
 📖 **Scripts SQL:** [backend/sql/](./backend/sql/)  
 📖 **Migraciones Alembic:** [backend/alembic/versions/](./backend/alembic/versions/)
 
