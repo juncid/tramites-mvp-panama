@@ -2,8 +2,6 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Box,
-  Container,
-  Paper,
   Typography,
   TextField,
   Button,
@@ -20,6 +18,8 @@ import {
   DialogActions,
   IconButton,
   Tooltip,
+  Link,
+  Paper,
 } from '@mui/material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
@@ -29,8 +29,12 @@ import 'dayjs/locale/es';
 import {
   ContentCopy as ContentCopyIcon,
   CheckCircle as CheckCircleIcon,
+  Home as HomeIcon,
+  Info as InfoIcon,
 } from '@mui/icons-material';
 import { publicService } from '../services/public.service';
+import { Header } from '../components/Layout/Header';
+import { LogoMigracion } from '../components/Layout/LogoMigracion';
 
 interface FormData {
   pasaporte: string;
@@ -40,6 +44,7 @@ interface FormData {
   nacionalidad: string;
   sexo: string;
   fechaNacimiento: Dayjs | null;
+  ruex: string;
 }
 
 interface SolicitudResponse {
@@ -73,6 +78,7 @@ export const NuevaSolicitud: React.FC = () => {
     nacionalidad: 'PAN',
     sexo: 'M',
     fechaNacimiento: null,
+    ruex: '',
   });
   
   const [loading, setLoading] = useState(false);
@@ -171,210 +177,413 @@ export const NuevaSolicitud: React.FC = () => {
 
   return (
     <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale="es">
-      <Container maxWidth="md" sx={{ py: 4 }}>
-        <Paper
-          elevation={3}
+      <Box
+        sx={{
+          minHeight: '100vh',
+          bgcolor: '#ffffff',
+          display: 'flex',
+          flexDirection: 'column',
+        }}
+      >
+        {/* Header con logo */}
+        <Header />
+
+        {/* Hero section azul - full width */}
+        <Box
           sx={{
-            p: 4,
-            borderRadius: 2,
+            bgcolor: '#0e5fa6',
+            pt: { xs: 3, md: 5 },
+            pb: { xs: 3, md: 5 },
+            px: { xs: 2, sm: 3, md: '7.69rem' },
+            width: '100%',
           }}
         >
-          {/* Header */}
-          <Box sx={{ mb: 4 }}>
-            <Typography variant="h4" gutterBottom fontWeight="bold" color="primary">
-              Solicitud de Permiso Por Razones Humanitarias
-            </Typography>
-            <Typography variant="body1" color="text.secondary">
-              Complete el formulario para iniciar su solicitud PPSH
+          {/* Título principal */}
+          <Typography
+            sx={{
+              fontFamily: 'Roboto Flex, Roboto, sans-serif',
+              fontWeight: 700,
+              fontSize: { xs: '32px', md: '64px' },
+              lineHeight: 1.1,
+              color: 'white',
+              mb: { xs: 2, md: 4 },
+              maxWidth: '896px',
+            }}
+          >
+            Solicitud de Permiso por Razones Humanitarias
+          </Typography>
+
+          {/* Breadcrumb navigation */}
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1,
+              flexWrap: 'wrap',
+            }}
+          >
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <HomeIcon sx={{ color: 'white', fontSize: 20 }} />
+              <Link
+                component="button"
+                onClick={() => navigate('/inicio')}
+                sx={{
+                  fontFamily: 'Roboto, sans-serif',
+                  fontWeight: 400,
+                  fontSize: '14px',
+                  lineHeight: '24px',
+                  color: 'white',
+                  textDecoration: 'none',
+                  '&:hover': {
+                    textDecoration: 'underline',
+                  },
+                }}
+              >
+                Inicio
+              </Link>
+            </Box>
+            <Typography sx={{ fontFamily: 'Roboto, sans-serif', fontWeight: 400, fontSize: '14px', lineHeight: '24px', color: 'white' }}>/</Typography>
+            <Link
+              component="button"
+              onClick={() => navigate('/inicio')}
+              sx={{
+                fontFamily: 'Roboto, sans-serif',
+                fontWeight: 400,
+                fontSize: '14px',
+                lineHeight: '24px',
+                color: 'white',
+                textDecoration: 'none',
+                '&:hover': {
+                  textDecoration: 'underline',
+                },
+              }}
+            >
+              Trámites
+            </Link>
+            <Typography sx={{ fontFamily: 'Roboto, sans-serif', fontWeight: 400, fontSize: '14px', lineHeight: '24px', color: 'white' }}>/</Typography>
+            <Link
+              component="button"
+              onClick={() => navigate('/inicio-tramite')}
+              sx={{
+                fontFamily: 'Roboto, sans-serif',
+                fontWeight: 400,
+                fontSize: '14px',
+                lineHeight: '24px',
+                color: 'white',
+                textDecoration: 'none',
+                '&:hover': {
+                  textDecoration: 'underline',
+                },
+              }}
+            >
+              Permiso de Protección de Seguridad Humanitaria
+            </Link>
+            <Typography sx={{ fontFamily: 'Roboto, sans-serif', fontWeight: 400, fontSize: '14px', lineHeight: '24px', color: 'white' }}>/</Typography>
+            <Typography sx={{ fontFamily: 'Roboto, sans-serif', fontWeight: 400, fontSize: '14px', lineHeight: '24px', color: 'white' }}>
+              Carga de requisitos del trámite PPSH
             </Typography>
           </Box>
+        </Box>
 
-          {/* Mensaje indicativo sobre nombres */}
-          <Alert severity="warning" sx={{ mb: 3 }}>
-            <Typography variant="body2">
-              <strong>Importante:</strong> Por favor, ingrese sus nombres y apellidos <strong>exactamente como aparecen en su pasaporte</strong>. 
-              Esto es necesario para la verificación automática de sus documentos.
+        {/* Contenido principal */}
+        <Box
+          sx={{
+            flex: 1,
+            py: { xs: 4, md: 5 },
+            px: { xs: 2, sm: 3, md: '7.69rem' },
+          }}
+        >
+          <Box sx={{ maxWidth: 786, mx: 'auto' }}>
+            {/* Subtítulo del formulario */}
+            <Typography
+              sx={{
+                fontFamily: 'Roboto, sans-serif',
+                fontWeight: 700,
+                fontSize: '16px',
+                lineHeight: 1.5,
+                color: '#333333',
+                mb: 3,
+              }}
+            >
+              Complete el formulario para iniciar su solicitud PPSH
             </Typography>
-          </Alert>
 
-          {/* Error Alert */}
-          {error && (
-            <Alert severity="error" sx={{ mb: 3 }}>
-              {error}
-            </Alert>
-          )}
+            {/* Error Alert */}
+            {error && (
+              <Alert severity="error" sx={{ mb: 3 }}>
+                {error}
+              </Alert>
+            )}
 
-          {/* Form */}
-          <form onSubmit={handleSubmit}>
-            <Grid container spacing={3}>
-              {/* Pasaporte */}
-              <Grid item xs={12} md={6}>
-                <TextField
-                  fullWidth
-                  required
-                  label="Número de Pasaporte"
-                  placeholder="Ej: N-55-12345"
-                  value={formData.pasaporte}
-                  onChange={handleChange('pasaporte')}
-                  disabled={loading}
-                  helperText="Ingrese su número de pasaporte"
-                />
-              </Grid>
-
-              {/* Nacionalidad */}
-              <Grid item xs={12} md={6}>
-                <FormControl fullWidth>
-                  <InputLabel>Nacionalidad</InputLabel>
-                  <Select
-                    value={formData.nacionalidad}
-                    onChange={handleChange('nacionalidad') as any}
+            {/* Form */}
+            <form onSubmit={handleSubmit}>
+              <Grid container spacing={3}>
+                {/* Fila 1: Pasaporte | Nacionalidad */}
+                <Grid item xs={12} md={6}>
+                  <TextField
+                    fullWidth
+                    required
+                    label="Nº de Pasaporte"
+                    value={formData.pasaporte}
+                    onChange={handleChange('pasaporte')}
                     disabled={loading}
-                    label="Nacionalidad"
-                  >
-                    <MenuItem value="PAN">Panamá</MenuItem>
-                    <MenuItem value="VEN">Venezuela</MenuItem>
-                    <MenuItem value="COL">Colombia</MenuItem>
-                    <MenuItem value="CUB">Cuba</MenuItem>
-                    <MenuItem value="NIC">Nicaragua</MenuItem>
-                    <MenuItem value="HON">Honduras</MenuItem>
-                    <MenuItem value="SLV">El Salvador</MenuItem>
-                    <MenuItem value="GTM">Guatemala</MenuItem>
-                    <MenuItem value="DOM">República Dominicana</MenuItem>
-                    <MenuItem value="HTI">Haití</MenuItem>
-                    <MenuItem value="OTHER">Otra</MenuItem>
-                  </Select>
-                </FormControl>
-              </Grid>
+                    InputLabelProps={{ shrink: true }}
+                  />
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <FormControl fullWidth>
+                    <InputLabel shrink>Nacionalidad</InputLabel>
+                    <Select
+                      value={formData.nacionalidad}
+                      onChange={handleChange('nacionalidad') as any}
+                      disabled={loading}
+                      label="Nacionalidad"
+                      notched
+                    >
+                      <MenuItem value="PAN">Panamá</MenuItem>
+                      <MenuItem value="VEN">Venezuela</MenuItem>
+                      <MenuItem value="COL">Colombia</MenuItem>
+                      <MenuItem value="CUB">Cuba</MenuItem>
+                      <MenuItem value="NIC">Nicaragua</MenuItem>
+                      <MenuItem value="HON">Honduras</MenuItem>
+                      <MenuItem value="SLV">El Salvador</MenuItem>
+                      <MenuItem value="GTM">Guatemala</MenuItem>
+                      <MenuItem value="DOM">República Dominicana</MenuItem>
+                      <MenuItem value="HTI">Haití</MenuItem>
+                      <MenuItem value="OTHER">Otra</MenuItem>
+                    </Select>
+                  </FormControl>
+                </Grid>
 
-              {/* Nombres */}
-              <Grid item xs={12} md={6}>
-                <TextField
-                  fullWidth
-                  required
-                  label="Nombres"
-                  placeholder="Ej: María Elena"
-                  value={formData.nombres}
-                  onChange={handleChange('nombres')}
-                  disabled={loading}
-                  helperText="Tal como aparece en su pasaporte"
-                />
-              </Grid>
-
-              {/* Apellidos */}
-              <Grid item xs={12} md={6}>
-                <TextField
-                  fullWidth
-                  required
-                  label="Apellidos"
-                  placeholder="Ej: González Pérez"
-                  value={formData.apellidos}
-                  onChange={handleChange('apellidos')}
-                  disabled={loading}
-                  helperText="Tal como aparece en su pasaporte"
-                />
-              </Grid>
-
-              {/* Fecha de Nacimiento */}
-              <Grid item xs={12} md={6}>
-                <DatePicker
-                  label="Fecha de Nacimiento"
-                  value={formData.fechaNacimiento}
-                  onChange={handleDateChange}
-                  disabled={loading}
-                  maxDate={dayjs().subtract(18, 'year')}
-                  minDate={dayjs().subtract(120, 'year')}
-                  slotProps={{
-                    textField: {
-                      fullWidth: true,
-                      required: true,
-                      helperText: 'Debe ser mayor de 18 años',
-                    },
-                    popper: {
-                      placement: 'bottom-start',
-                      modifiers: [
-                        {
-                          name: 'flip',
-                          enabled: true,
-                          options: {
-                            fallbackPlacements: ['top-start', 'bottom-end'],
-                          },
-                        },
-                        {
-                          name: 'preventOverflow',
-                          enabled: true,
-                          options: {
-                            boundary: 'viewport',
-                          },
-                        },
-                      ],
-                    },
-                  }}
-                />
-              </Grid>
-
-              {/* Email */}
-              <Grid item xs={12} md={6}>
-                <TextField
-                  fullWidth
-                  type="email"
-                  label="Correo Electrónico (Opcional)"
-                  placeholder="ejemplo@correo.com"
-                  value={formData.email}
-                  onChange={handleChange('email')}
-                  disabled={loading}
-                  helperText="Recibirá notificaciones sobre su solicitud"
-                />
-              </Grid>
-
-              {/* Sexo */}
-              <Grid item xs={12} md={6}>
-                <FormControl fullWidth>
-                  <InputLabel>Sexo</InputLabel>
-                  <Select
-                    value={formData.sexo}
-                    onChange={handleChange('sexo') as any}
+                {/* Fila 2: Nombres | Apellidos */}
+                <Grid item xs={12} md={6}>
+                  <TextField
+                    fullWidth
+                    required
+                    label="Nombres"
+                    value={formData.nombres}
+                    onChange={handleChange('nombres')}
                     disabled={loading}
-                    label="Sexo"
+                    InputLabelProps={{ shrink: true }}
+                  />
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <TextField
+                    fullWidth
+                    required
+                    label="Apellidos"
+                    value={formData.apellidos}
+                    onChange={handleChange('apellidos')}
+                    disabled={loading}
+                    InputLabelProps={{ shrink: true }}
+                  />
+                </Grid>
+
+                {/* Fila 3: Fecha de Nacimiento | Nº de RUEX */}
+                <Grid item xs={12} md={6}>
+                  <DatePicker
+                    label="Fecha de Nacimiento"
+                    value={formData.fechaNacimiento}
+                    onChange={handleDateChange}
+                    disabled={loading}
+                    maxDate={dayjs().subtract(18, 'year')}
+                    minDate={dayjs().subtract(120, 'year')}
+                    slotProps={{
+                      textField: {
+                        fullWidth: true,
+                        required: true,
+                        InputLabelProps: { shrink: true },
+                      },
+                      popper: {
+                        placement: 'bottom-start',
+                        modifiers: [
+                          {
+                            name: 'flip',
+                            enabled: true,
+                            options: {
+                              fallbackPlacements: ['top-start', 'bottom-end'],
+                            },
+                          },
+                          {
+                            name: 'preventOverflow',
+                            enabled: true,
+                            options: {
+                              boundary: 'viewport',
+                            },
+                          },
+                        ],
+                      },
+                    }}
+                  />
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <TextField
+                    fullWidth
+                    label="Nº de RUEX"
+                    value={formData.ruex}
+                    onChange={handleChange('ruex')}
+                    disabled={loading}
+                    InputLabelProps={{ shrink: true }}
+                  />
+                </Grid>
+
+                {/* Fila 4: Correo Electrónico | Sexo */}
+                <Grid item xs={12} md={6}>
+                  <TextField
+                    fullWidth
+                    type="email"
+                    label="Correo Electrónico (Opcional)"
+                    value={formData.email}
+                    onChange={handleChange('email')}
+                    disabled={loading}
+                    InputLabelProps={{ shrink: true }}
+                  />
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <FormControl fullWidth>
+                    <InputLabel shrink>Sexo</InputLabel>
+                    <Select
+                      value={formData.sexo}
+                      onChange={handleChange('sexo') as any}
+                      disabled={loading}
+                      label="Sexo"
+                      notched
+                    >
+                      <MenuItem value="M">Masculino</MenuItem>
+                      <MenuItem value="F">Femenino</MenuItem>
+                    </Select>
+                  </FormControl>
+                </Grid>
+
+                {/* Info Alert 1 - Mensaje sobre pasaporte */}
+                <Grid item xs={12}>
+                  <Box
+                    sx={{
+                      bgcolor: '#e5f6fd',
+                      borderRadius: '8px',
+                      p: 2,
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      gap: 1,
+                    }}
                   >
-                    <MenuItem value="M">Masculino</MenuItem>
-                    <MenuItem value="F">Femenino</MenuItem>
-                  </Select>
-                </FormControl>
-              </Grid>
+                    <InfoIcon sx={{ color: '#18587b', fontSize: 20, mt: 0.25 }} />
+                    <Typography
+                      sx={{
+                        fontFamily: 'Roboto, sans-serif',
+                        fontSize: '16px',
+                        lineHeight: 1.5,
+                        color: '#18587b',
+                      }}
+                    >
+                      <Box component="span" sx={{ fontWeight: 700 }}>Importante:</Box>
+                      {' '}Por favor, ingrese sus nombres y apellidos exactamente como aparecen en su pasaporte. Esto es necesario para la verificación automática de sus documentos.
+                    </Typography>
+                  </Box>
+                </Grid>
 
-              {/* Submit Button */}
-              <Grid item xs={12}>
-                <Button
-                  type="submit"
-                  fullWidth
-                  variant="contained"
-                  size="large"
-                  disabled={loading}
-                  sx={{ mt: 2, py: 1.5 }}
-                >
-                  {loading ? (
-                    <>
-                      <CircularProgress size={24} sx={{ mr: 1 }} />
-                      Creando solicitud...
-                    </>
-                  ) : (
-                    'Iniciar Solicitud'
-                  )}
-                </Button>
-              </Grid>
+                {/* Info Alert 2 - Mensaje sobre enlace de seguimiento */}
+                <Grid item xs={12}>
+                  <Box
+                    sx={{
+                      bgcolor: '#e5f6fd',
+                      borderRadius: '8px',
+                      p: 2,
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      gap: 1,
+                    }}
+                  >
+                    <InfoIcon sx={{ color: '#18587b', fontSize: 20, mt: 0.25 }} />
+                    <Typography
+                      sx={{
+                        fontFamily: 'Roboto, sans-serif',
+                        fontSize: '16px',
+                        lineHeight: 1.5,
+                        color: '#18587b',
+                      }}
+                    >
+                      <Box component="span" sx={{ fontWeight: 700 }}>Importante:</Box>
+                      {' '}Al enviar este formulario se creará su solicitud PPSH y recibirá un enlace de seguimiento que podrá usar para completar el proceso en cualquier momento durante los próximos 30 días.
+                    </Typography>
+                  </Box>
+                </Grid>
 
-              {/* Info Text */}
-              <Grid item xs={12}>
-                <Alert severity="info">
-                  <Typography variant="body2">
-                    <strong>Importante:</strong> Al enviar este formulario se creará su solicitud PPSH 
-                    y recibirá un enlace de seguimiento que podrá usar para completar el proceso en cualquier momento 
-                    durante los próximos 30 días.
-                  </Typography>
-                </Alert>
+                {/* Botones: Cancelar | Siguiente */}
+                <Grid item xs={12}>
+                  <Grid 
+                    container 
+                    spacing={2} 
+                    sx={{ 
+                      mt: 2,
+                      flexDirection: { xs: 'column', sm: 'row' },
+                    }}
+                  >
+                    <Grid item xs={12} sm="auto">
+                      <Button
+                        variant="outlined"
+                        onClick={() => navigate('/inicio-tramite')}
+                        disabled={loading}
+                        fullWidth
+                        sx={{
+                          borderColor: '#0e5fa6',
+                          color: '#0e5fa6',
+                          borderRadius: '4px',
+                          px: 2,
+                          py: 1,
+                          fontFamily: 'Roboto, sans-serif',
+                          fontWeight: 400,
+                          fontSize: '16px',
+                          lineHeight: '24px',
+                          textTransform: 'none',
+                          minWidth: { xs: '100%', sm: '142px' },
+                          '&:hover': {
+                            borderColor: '#0e5fa6',
+                            backgroundColor: 'rgba(14, 95, 166, 0.04)',
+                          },
+                        }}
+                      >
+                        Cancelar
+                      </Button>
+                    </Grid>
+                    <Grid item xs={12} sm="auto" sx={{ ml: { sm: 'auto' } }}>
+                      <Button
+                        type="submit"
+                        variant="contained"
+                        disabled={loading}
+                        fullWidth
+                        sx={{
+                          bgcolor: '#0e5fa6',
+                          borderRadius: '4px',
+                          px: 2,
+                          py: 1,
+                          fontFamily: 'Roboto, sans-serif',
+                          fontWeight: 400,
+                          fontSize: '16px',
+                          lineHeight: '24px',
+                          textTransform: 'none',
+                          minWidth: { xs: '100%', sm: 'auto' },
+                          '&:hover': {
+                            bgcolor: '#0a4a82',
+                          },
+                        }}
+                      >
+                        {loading ? (
+                          <>
+                            <CircularProgress size={24} sx={{ mr: 1, color: 'white' }} />
+                            Creando solicitud...
+                          </>
+                        ) : (
+                          'Siguiente'
+                        )}
+                      </Button>
+                    </Grid>
+                  </Grid>
+                </Grid>
               </Grid>
-            </Grid>
-          </form>
+            </form>
+          </Box>
+        </Box>
 
         {/* Success Dialog */}
         <Dialog
@@ -506,8 +715,7 @@ export const NuevaSolicitud: React.FC = () => {
             </Button>
           </DialogActions>
         </Dialog>
-        </Paper>
-      </Container>
+      </Box>
     </LocalizationProvider>
   );
 };

@@ -673,9 +673,9 @@ async def subir_documento(
                 detail={"error": "file_storage_error", "message": f"Error al guardar archivo: {str(e)}"}
             )
 
-        # Encolar OCR automático si está habilitado y es imagen (PNG o JPG)
+        # Encolar OCR automático si está habilitado y es imagen (PNG, JPG) o PDF
         task_id = None
-        if ejecutar_ocr and extension in ['png', 'jpg', 'jpeg']:
+        if ejecutar_ocr and extension in ['png', 'jpg', 'jpeg', 'pdf']:
             try:
                 logger.info(f"🔍 Encolando tarea OCR para documento {documento.id_documento}...")
 

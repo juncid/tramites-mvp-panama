@@ -408,7 +408,7 @@ export const GenericEtapaPage: React.FC = () => {
           variant="h1"
           sx={{
             color: '#ffffff',
-            fontSize: { xs: '32px', md: '64px' },
+            fontSize: { xs: '40px', md: '64px' },
             fontWeight: 700,
             lineHeight: 1.1,
             mb: 2,
@@ -436,8 +436,34 @@ export const GenericEtapaPage: React.FC = () => {
           </Typography>
         )}
 
-        {/* Breadcrumbs - con "/" como separador según Figma */}
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+        {/* Breadcrumbs - En mobile solo muestra los primeros 2 elementos */}
+        {/* Versión Mobile - solo Inicio y Procesos */}
+        <Box sx={{ display: { xs: 'flex', md: 'none' }, alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          <Box 
+            sx={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '8px',
+              cursor: 'pointer',
+              '&:hover': { opacity: 0.8 },
+            }}
+            onClick={() => navigate('/')}
+          >
+            <HomeIcon sx={{ width: 20, height: 20, color: 'white' }} />
+            <Typography sx={{ fontSize: '14px', color: 'white', fontFamily: 'Roboto, sans-serif' }}>
+              Inicio
+            </Typography>
+          </Box>
+          <Typography sx={{ fontSize: '14px', color: 'white', fontFamily: 'Roboto, sans-serif' }}>
+            /
+          </Typography>
+          <Typography sx={{ fontSize: '14px', color: 'white', fontFamily: 'Roboto, sans-serif' }}>
+            Procesos
+          </Typography>
+        </Box>
+
+        {/* Versión Desktop - todos los elementos */}
+        <Box sx={{ display: { xs: 'none', md: 'flex' }, alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
           <Box 
             sx={{ 
               display: 'flex', 
@@ -481,7 +507,7 @@ export const GenericEtapaPage: React.FC = () => {
           variant="h2"
           sx={{
             color: '#333333',
-            fontSize: { xs: '32px', md: '48px' },
+            fontSize: { xs: '24px', md: '48px' },
             fontWeight: 700,
             lineHeight: 1.5,
             mb: 3,
@@ -530,11 +556,12 @@ export const GenericEtapaPage: React.FC = () => {
 
         {/* Botones de navegación */}
         {readonly ? (
-          <Box sx={{ maxWidth: '1194px' }}>
+          <Box sx={{ maxWidth: '1194px', width: '100%' }}>
             <Button
               variant="outlined"
               onClick={handleCancelar}
               sx={{
+                width: { xs: '100%', sm: 'auto' },
                 borderColor: '#0e5fa6',
                 color: '#0e5fa6',
                 px: 2,
@@ -542,7 +569,7 @@ export const GenericEtapaPage: React.FC = () => {
                 textTransform: 'none',
                 fontSize: '16px',
                 borderRadius: '4px',
-                minWidth: '124px',
+                minWidth: { xs: 'auto', sm: '124px' },
                 fontFamily: 'Roboto, sans-serif',
                 '&:hover': {
                   borderColor: '#0d5494',
@@ -557,9 +584,12 @@ export const GenericEtapaPage: React.FC = () => {
           <Box
             sx={{
               display: 'flex',
+              flexDirection: { xs: 'column', sm: 'row' },
               justifyContent: 'space-between',
-              alignItems: 'center',
+              alignItems: { xs: 'stretch', sm: 'center' },
+              gap: { xs: 2, sm: 0 },
               maxWidth: '1194px',
+              width: '100%',
             }}
           >
             <Button
@@ -567,6 +597,8 @@ export const GenericEtapaPage: React.FC = () => {
               onClick={handleCancelar}
               disabled={completing}
               sx={{
+                width: { xs: '100%', sm: 'auto' },
+                order: { xs: 1, sm: 0 },
                 borderColor: '#0e5fa6',
                 color: '#0e5fa6',
                 px: 2,
@@ -574,7 +606,7 @@ export const GenericEtapaPage: React.FC = () => {
                 textTransform: 'none',
                 fontSize: '16px',
                 borderRadius: '4px',
-                minWidth: '124px',
+                minWidth: { xs: 'auto', sm: '124px' },
                 fontFamily: 'Roboto, sans-serif',
                 '&:hover': {
                   borderColor: '#0d5494',
@@ -590,6 +622,8 @@ export const GenericEtapaPage: React.FC = () => {
               onClick={handleSiguiente}
               disabled={completing}
               sx={{
+                width: { xs: '100%', sm: 'auto' },
+                order: { xs: 0, sm: 1 },
                 backgroundColor: '#0e5fa6',
                 color: '#ffffff',
                 px: 2,
@@ -597,7 +631,7 @@ export const GenericEtapaPage: React.FC = () => {
                 textTransform: 'none',
                 fontSize: '16px',
                 borderRadius: '4px',
-                minWidth: '124px',
+                minWidth: { xs: 'auto', sm: '124px' },
                 fontFamily: 'Roboto, sans-serif',
                 '&:hover': {
                   backgroundColor: '#0d5494',

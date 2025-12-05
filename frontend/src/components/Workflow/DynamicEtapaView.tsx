@@ -24,6 +24,7 @@ import { FileUploadWizard } from './FileUploadWizard';
 
 interface DynamicEtapaViewProps {
   etapa?: WorkflowEtapa; // Opcional si usamos instanciaId
+  etapaId?: number; // ID de etapa específica para cargar (modo readonly/historial)
   instanciaId?: number; // Para cargar vista dinámica desde API
   userPerfil?: string; // Perfil del usuario actual (ADMIN, FUNCIONARIO, etc.)
   readonly?: boolean; // Vista de solo lectura (fuerza modo vista)
@@ -105,6 +106,7 @@ interface VistaActual {
  */
 export const DynamicEtapaView: React.FC<DynamicEtapaViewProps> = ({
   etapa: etapaProp,
+  etapaId,
   instanciaId,
   userPerfil = 'FUNCIONARIO',
   readonly: readonlyProp = false,
@@ -127,7 +129,7 @@ export const DynamicEtapaView: React.FC<DynamicEtapaViewProps> = ({
     if (instanciaId) {
       loadVistaActual();
     }
-  }, [instanciaId, userPerfil]);
+  }, [instanciaId, etapaId, userPerfil]);
 
   const loadVistaActual = async () => {
     if (!instanciaId) return;
@@ -136,7 +138,16 @@ export const DynamicEtapaView: React.FC<DynamicEtapaViewProps> = ({
     setError(null);
 
     try {
-      const vista = await workflowService.getVistaActual(instanciaId, userPerfil, accessToken);
+      let vista;
+      
+      // Si hay etapaId, cargar vista de esa etapa específica (para readonly/historial)
+      if (etapaId) {
+        vista = await workflowService.getVistaEtapa(instanciaId, etapaId, userPerfil, accessToken);
+      } else {
+        // Cargar vista de la etapa actual
+        vista = await workflowService.getVistaActual(instanciaId, userPerfil, accessToken);
+      }
+      
       console.log('📋 Vista cargada:', vista);
       console.log('📋 metadata_instancia:', vista.metadata_instancia);
       console.log('📋 solicitud_id:', vista.metadata_instancia?.id_solicitud);

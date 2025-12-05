@@ -61,6 +61,7 @@ class PPSHPermissionException(HTTPException):
 # ==========================================
 # Define qué perfiles pueden asignar cada estado según la guía normativa
 # Ref: Guía Explícita para la Implementación de Cambios de Estado PPSH
+# Catálogo completo: 16 estados en PPSH_ESTADO
 
 PERMISOS_CAMBIO_ESTADO: Dict[str, List[str]] = {
     # RECIBIDO: Estado inicial, generado automáticamente por el sistema
@@ -69,38 +70,123 @@ PERMISOS_CAMBIO_ESTADO: Dict[str, List[str]] = {
     # EN_REVISION: Cuando el expediente pasa a análisis documental
     "EN_REVISION": ["FUNCIONARIO", "ANALISTA", "JEFE", "DIRECTOR", "ADMIN"],
 
+    # INCOMPLETO: Documentación incompleta detectada en revisión
+    "INCOMPLETO": ["FUNCIONARIO", "ANALISTA", "JEFE", "DIRECTOR", "ADMIN"],
+
+    # SUBSANADO: Ciudadano corrigió documentación
+    "SUBSANADO": ["FUNCIONARIO", "ANALISTA", "JEFE", "DIRECTOR", "ADMIN"],
+
+    # EN_VERIFICACION: Verificación de antecedentes/documentos
+    "EN_VERIFICACION": ["FUNCIONARIO", "ANALISTA", "JEFE", "DIRECTOR", "ADMIN"],
+
     # EN_EVALUACION: Durante elaboración de resolución
     "EN_EVALUACION": ["ANALISTA", "JEFE", "DIRECTOR", "ADMIN"],
 
-    # APROBADO: Requiere firma de jefatura/dirección
+    # EN_ENTREVISTA: Pendiente de entrevista con solicitante
+    "EN_ENTREVISTA": ["ANALISTA", "JEFE", "DIRECTOR", "ADMIN"],
+
+    # CON_DICTAMEN_FAV: Dictamen favorable emitido
+    "CON_DICTAMEN_FAV": ["ANALISTA", "JEFE", "DIRECTOR", "ADMIN"],
+
+    # CON_DICTAMEN_DESFAV: Dictamen desfavorable emitido
+    "CON_DICTAMEN_DESFAV": ["ANALISTA", "JEFE", "DIRECTOR", "ADMIN"],
+
+    # EN_APROBACION: Pendiente de aprobación por jefatura
+    "EN_APROBACION": ["ANALISTA", "JEFE", "DIRECTOR", "ADMIN"],
+
+    # APROBADO: Requiere firma de jefatura/dirección con justificación
     "APROBADO": ["JEFE", "DIRECTOR", "ADMIN"],
 
     # RECHAZADO: Requiere autorización de jefatura y motivo obligatorio
     "RECHAZADO": ["JEFE", "DIRECTOR", "ADMIN"],
 
+    # EN_EMISION: En proceso de emisión de documentos finales
+    "EN_EMISION": ["FUNCIONARIO", "ANALISTA", "JEFE", "DIRECTOR", "ADMIN"],
+
     # RESUELTO: Conclusión formal después de entrega de documentos
     "RESUELTO": ["FUNCIONARIO", "ANALISTA", "JEFE", "DIRECTOR", "ADMIN"],
 
-    # SUBSANACION: Requiere documentos adicionales
+    # ARCHIVADO: Expediente archivado
+    "ARCHIVADO": ["FUNCIONARIO", "ANALISTA", "JEFE", "DIRECTOR", "ADMIN"],
+
+    # SUBSANACION: Requiere documentos adicionales del ciudadano
     "SUBSANACION": ["FUNCIONARIO", "ANALISTA", "JEFE", "DIRECTOR", "ADMIN"],
 
-    # CANCELADO: Solo administradores
+    # CANCELADO: Solo administradores/jefatura
     "CANCELADO": ["JEFE", "DIRECTOR", "ADMIN"],
 }
 
 # Estados que requieren motivo/observaciones obligatorias
-ESTADOS_REQUIEREN_MOTIVO: List[str] = ["RECHAZADO", "CANCELADO", "SUBSANACION"]
+# APROBADO incluido: toda decisión de aprobación debe estar justificada
+ESTADOS_REQUIEREN_MOTIVO: List[str] = ["APROBADO", "RECHAZADO", "CANCELADO", "SUBSANACION", "CON_DICTAMEN_FAV", "CON_DICTAMEN_DESFAV"]
+
+# ==========================================
+# MATRIZ DE TRANSICIONES VÁLIDAS
+# ==========================================
+# Define qué transiciones de estado están permitidas según el flujo de negocio
+# Cualquier transición no listada explícitamente será rechazada
+
+TRANSICIONES_VALIDAS: Dict[str, List[str]] = {
+    # Estado inicial
+    "RECIBIDO": ["EN_REVISION", "CANCELADO"],
+
+    # Revisión documental
+    "EN_REVISION": ["INCOMPLETO", "EN_VERIFICACION", "EN_EVALUACION", "SUBSANACION", "CANCELADO"],
+
+    # Documentación incompleta
+    "INCOMPLETO": ["SUBSANADO", "CANCELADO", "ARCHIVADO"],
+
+    # Documentación subsanada
+    "SUBSANADO": ["EN_REVISION", "EN_VERIFICACION", "CANCELADO"],
+
+    # Verificación de antecedentes
+    "EN_VERIFICACION": ["EN_EVALUACION", "EN_ENTREVISTA", "SUBSANACION", "CANCELADO"],
+
+    # Evaluación del caso
+    "EN_EVALUACION": ["EN_ENTREVISTA", "CON_DICTAMEN_FAV", "CON_DICTAMEN_DESFAV", "EN_APROBACION", "SUBSANACION", "CANCELADO"],
+
+    # Entrevista
+    "EN_ENTREVISTA": ["CON_DICTAMEN_FAV", "CON_DICTAMEN_DESFAV", "EN_EVALUACION", "SUBSANACION", "CANCELADO"],
+
+    # Dictamen favorable
+    "CON_DICTAMEN_FAV": ["EN_APROBACION", "APROBADO", "CANCELADO"],
+
+    # Dictamen desfavorable
+    "CON_DICTAMEN_DESFAV": ["RECHAZADO", "EN_APROBACION", "CANCELADO"],
+
+    # Pendiente aprobación
+    "EN_APROBACION": ["APROBADO", "RECHAZADO", "EN_EVALUACION", "CANCELADO"],
+
+    # Aprobado
+    "APROBADO": ["EN_EMISION", "RESUELTO", "CANCELADO"],
+
+    # Rechazado
+    "RECHAZADO": ["ARCHIVADO", "RESUELTO"],
+
+    # En emisión de documentos
+    "EN_EMISION": ["RESUELTO", "CANCELADO"],
+
+    # Solicitud de subsanación
+    "SUBSANACION": ["SUBSANADO", "INCOMPLETO", "CANCELADO", "ARCHIVADO"],
+
+    # Estados finales - no permiten transiciones (excepto archivar)
+    "RESUELTO": ["ARCHIVADO"],
+    "ARCHIVADO": [],
+    "CANCELADO": ["ARCHIVADO"],
+}
 
 
 def validar_permiso_cambio_estado(
+    estado_actual: str,
     estado_nuevo: str,
     user_perfil: str,
     observaciones: Optional[str] = None
 ) -> Tuple[bool, Optional[str]]:
     """
-    Valida si un usuario con determinado perfil puede cambiar a un estado específico.
+    Valida si un usuario con determinado perfil puede cambiar de un estado a otro.
     
     Args:
+        estado_actual: El código del estado actual de la solicitud
         estado_nuevo: El código del estado al que se quiere cambiar
         user_perfil: El perfil del usuario (FUNCIONARIO, ANALISTA, JEFE, DIRECTOR, ADMIN)
         observaciones: Observaciones proporcionadas (para validar estados que requieren motivo)
@@ -110,7 +196,19 @@ def validar_permiso_cambio_estado(
         - es_valido: True si el cambio está permitido
         - mensaje_error: None si es válido, o mensaje descriptivo si no lo es
     """
-    # Obtener perfiles permitidos para este estado
+    # ========================================
+    # 1. VALIDAR TRANSICIÓN DE ESTADO
+    # ========================================
+    transiciones_permitidas = TRANSICIONES_VALIDAS.get(estado_actual, [])
+    
+    # ADMIN puede hacer cualquier transición
+    if user_perfil != "ADMIN" and estado_nuevo not in transiciones_permitidas:
+        transiciones_str = ", ".join(transiciones_permitidas) if transiciones_permitidas else "ninguno"
+        return False, f"Transición no permitida: '{estado_actual}' → '{estado_nuevo}'. Estados permitidos desde '{estado_actual}': {transiciones_str}"
+
+    # ========================================
+    # 2. VALIDAR PERMISOS POR PERFIL
+    # ========================================
     perfiles_permitidos = PERMISOS_CAMBIO_ESTADO.get(estado_nuevo, [])
 
     # Si el estado no está en la matriz, solo ADMIN puede cambiarlo
@@ -124,7 +222,9 @@ def validar_permiso_cambio_estado(
         perfiles_str = ", ".join(perfiles_permitidos)
         return False, f"Su perfil '{user_perfil}' no puede asignar el estado '{estado_nuevo}'. Perfiles permitidos: {perfiles_str}"
 
-    # Verificar si el estado requiere motivo obligatorio
+    # ========================================
+    # 3. VALIDAR OBSERVACIONES OBLIGATORIAS
+    # ========================================
     if estado_nuevo in ESTADOS_REQUIEREN_MOTIVO:
         if not observaciones or len(observaciones.strip()) < 10:
             return False, f"El estado '{estado_nuevo}' requiere observaciones/motivo (mínimo 10 caracteres)"
@@ -496,9 +596,10 @@ class SolicitudService:
         nuevo_estado = CatalogoService.get_estado_by_codigo(db, cambio.estado_nuevo)
 
         # ========================================
-        # VALIDACIÓN DE PERMISOS POR PERFIL
+        # VALIDACIÓN DE PERMISOS Y TRANSICIONES
         # ========================================
         es_valido, mensaje_error = validar_permiso_cambio_estado(
+            estado_actual=solicitud.estado_actual,
             estado_nuevo=cambio.estado_nuevo,
             user_perfil=user_perfil,
             observaciones=cambio.observaciones

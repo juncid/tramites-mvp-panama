@@ -279,16 +279,33 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
               texto_ocr_completo: validacionOCR.texto_ocr_completo || '',
             });
             
-            if (!validacionOCR.validacion_exitosa && validacionOCR.campos_con_discrepancia.length > 0) {
-              // Hay discrepancias - guardar archivo pendiente y mostrar modal de error
-              setPendingUpload({
-                file,
-                resultado,
-                campo: campoActual
-              });
-              setIsLoadingOCR(false);
-              setShowOCRValidationError(true);
-              return;
+            // Verificar si la validación falló
+            if (!validacionOCR.validacion_exitosa) {
+              // Caso 1: Hay discrepancias entre datos ingresados y OCR
+              if (validacionOCR.campos_con_discrepancia && validacionOCR.campos_con_discrepancia.length > 0) {
+                // Mostrar modal amarillo "No pudimos validar el documento"
+                setPendingUpload({
+                  file,
+                  resultado,
+                  campo: campoActual
+                });
+                setIsLoadingOCR(false);
+                setShowOCRValidationError(true);
+                return;
+              }
+              
+              // Caso 2: OCR no pudo leer el documento (campos_no_encontrados tiene todos los campos)
+              if (validacionOCR.campos_no_encontrados && validacionOCR.campos_no_encontrados.length > 0 && 
+                  (!validacionOCR.datos_ocr_raw || Object.keys(validacionOCR.datos_ocr_raw).length === 0)) {
+                // Mostrar modal rojo "No pudimos leer la información"
+                setOcrResult({ 
+                  success: false, 
+                  message: 'La imagen parece estar borrosa o tener poca luz. Asegúrese de que el texto se vea nítido y vuelva a subir el archivo.' 
+                });
+                setShowResultModal(true);
+                setIsLoadingOCR(false);
+                return;
+              }
             }
           } else {
             console.warn('❌ No se pudo obtener validación OCR después de todos los intentos');

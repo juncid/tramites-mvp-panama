@@ -26,6 +26,7 @@ import NuevaSolicitud from '../pages/NuevaSolicitud';
 import SolicitudPublicaWorkflow from '../pages/SolicitudPublicaWorkflow';
 import { WorkflowEtapas } from '../pages/WorkflowEtapas';
 import { InicioTramite } from '../pages/InicioTramite';
+import { InicioCiudadano } from '../pages/InicioCiudadano';
 import WorkflowEtapasPublico from '../pages/WorkflowEtapasPublico';
 import { GenericEtapaPage } from '../pages/GenericEtapaPage';
 
@@ -41,15 +42,18 @@ import { Cotizacion } from '../pages/Cotizacion';                     // Lógica
 export const AppRouter = () => {
   return (
     <Routes>
-      {/* Página de inicio de trámite (pública, sin layout) */}
-      <Route path="/inicio" element={<InicioTramite />} />
+      {/* Página de inicio para ciudadanos (pública, sin layout) */}
+      <Route path="/inicio" element={<InicioCiudadano />} />
+      
+      {/* Página de inicio de trámite PPSH específico */}
+      <Route path="/inicio-tramite" element={<InicioTramite />} />
       
       {/* Rutas públicas CON layout */}
       <Route path="/acceso-publico" element={<MainLayout><PublicAccess /></MainLayout>} />
       <Route path="/consulta-publica/:numeroSolicitud" element={<MainLayout><PublicSolicitudView /></MainLayout>} />
       
       {/* Nuevas rutas públicas para solicitudes PPSH */}
-      <Route path="/solicitudes/nueva" element={<MainLayout><NuevaSolicitud /></MainLayout>} />
+      <Route path="/solicitudes/nueva" element={<NuevaSolicitud />} />
       <Route path="/solicitudes/:token/workflow" element={<PublicLayout><SolicitudPublicaWorkflow /></PublicLayout>} />
       {/* Ruta para ciudadanos con token JWT - WorkflowEtapasPublico detecta si es JWT o ID */}
       <Route path="/solicitudes/:token/etapas" element={<WorkflowEtapasPublico />} />
@@ -226,7 +230,7 @@ export const AppRouter = () => {
         path="/flujos/:id/ver"
         element={
           <MainLayout>
-            <WorkflowViewer />
+            <WorkflowEditorFigma readOnly />
           </MainLayout>
         }
       />

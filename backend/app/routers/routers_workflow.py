@@ -93,6 +93,33 @@ def eliminar_workflow(
     WorkflowService.eliminar_workflow(db, workflow_id, current_user)
 
 
+@router.post("/workflows/{workflow_id}/duplicar", response_model=schemas.WorkflowResponse, status_code=status.HTTP_201_CREATED)
+def duplicar_workflow(
+    workflow_id: int,
+    nuevo_nombre: Optional[str] = Query(None, description="Nombre para el nuevo workflow (opcional)"),
+    nuevo_codigo: Optional[str] = Query(None, description="Código para el nuevo workflow (opcional)"),
+    db: Session = Depends(get_db),
+    current_user: str = "ADMIN"
+):
+    """
+    Duplica un workflow completo incluyendo todas sus etapas, preguntas y conexiones.
+    
+    Se generan nuevos IDs para todas las entidades duplicadas, de forma que el
+    workflow duplicado sea completamente independiente del original.
+    
+    El nuevo workflow se crea en estado BORRADOR.
+    
+    Args:
+        workflow_id: ID del workflow a duplicar
+        nuevo_nombre: Nombre para el nuevo workflow (si no se provee, se genera automáticamente)
+        nuevo_codigo: Código para el nuevo workflow (si no se provee, se genera automáticamente)
+    
+    Returns:
+        El nuevo workflow creado con todas sus etapas y conexiones
+    """
+    return WorkflowService.duplicar_workflow(db, workflow_id, nuevo_nombre, nuevo_codigo, current_user)
+
+
 @router.get("/workflows/{workflow_id}/historial-cambios", response_model=List[schemas.WorkflowCambiosResponse])
 def obtener_historial_cambios_workflow(
     workflow_id: int,

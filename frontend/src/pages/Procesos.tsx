@@ -40,6 +40,7 @@ import {
   ExpandMore as ExpandMoreIcon,
   ExpandLess as ExpandLessIcon,
   Home as HomeIcon,
+  ContentCopy as ContentCopyIcon,
 } from '@mui/icons-material';
 import { workflowService } from '../services/workflow.service';
 import type { Workflow, EstadoWorkflow } from '../types/workflow';
@@ -53,6 +54,9 @@ export const Procesos: React.FC = () => {
   const [expandedRows, setExpandedRows] = useState<number[]>([]);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [workflowToDelete, setWorkflowToDelete] = useState<number | null>(null);
+  const [duplicateDialogOpen, setDuplicateDialogOpen] = useState(false);
+  const [workflowToDuplicate, setWorkflowToDuplicate] = useState<Workflow | null>(null);
+  const [duplicating, setDuplicating] = useState(false);
 
   useEffect(() => {
     loadWorkflows();
@@ -85,7 +89,7 @@ export const Procesos: React.FC = () => {
   };
 
   const handleView = (id: number) => {
-    navigate(`/flujos/${id}/ver-figma`);
+    navigate(`/flujos/${id}/ver`);
   };
 
   const handleDelete = (id: number) => {
@@ -114,6 +118,35 @@ export const Procesos: React.FC = () => {
   const handleCancelDelete = () => {
     setDeleteDialogOpen(false);
     setWorkflowToDelete(null);
+  };
+
+  const handleDuplicate = (workflow: Workflow) => {
+    setWorkflowToDuplicate(workflow);
+    setDuplicateDialogOpen(true);
+  };
+
+  const handleConfirmDuplicate = async () => {
+    if (workflowToDuplicate) {
+      try {
+        setDuplicating(true);
+        const nuevoWorkflow = await workflowService.duplicateWorkflow(workflowToDuplicate.id!);
+        // Agregar el nuevo workflow a la lista
+        setWorkflows(prevWorkflows => [nuevoWorkflow, ...prevWorkflows]);
+        setDuplicateDialogOpen(false);
+        setWorkflowToDuplicate(null);
+      } catch (error) {
+        console.error('Error al duplicar workflow:', error);
+        // Si hay error, recargar la lista completa
+        loadWorkflows();
+      } finally {
+        setDuplicating(false);
+      }
+    }
+  };
+
+  const handleCancelDuplicate = () => {
+    setDuplicateDialogOpen(false);
+    setWorkflowToDuplicate(null);
   };
 
   const filteredWorkflows = workflows.filter((workflow) => {
@@ -359,6 +392,20 @@ export const Procesos: React.FC = () => {
                         </Button>
                         <Button
                           size="small"
+                          startIcon={<ContentCopyIcon sx={{ fontSize: 16 }} />}
+                          onClick={() => handleDuplicate(workflow)}
+                          sx={{ 
+                            textTransform: 'none',
+                            color: '#0e5fa6',
+                            fontSize: 14,
+                            minWidth: 'auto',
+                            px: 1,
+                          }}
+                        >
+                          Duplicar
+                        </Button>
+                        <Button
+                          size="small"
                           startIcon={<DeleteIcon sx={{ fontSize: 16 }} />}
                           onClick={() => handleDelete(workflow.id!)}
                           disabled={workflow.estado === 'ACTIVO'}
@@ -475,6 +522,57 @@ export const Procesos: React.FC = () => {
             }}
           >
             Eliminar
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Modal de confirmación para duplicar */}
+      <Dialog
+        open={duplicateDialogOpen}
+        onClose={handleCancelDuplicate}
+        PaperProps={{
+          sx: {
+            borderRadius: '8px',
+            minWidth: '400px',
+          }
+        }}
+      >
+        <DialogTitle sx={{ fontWeight: 600, fontSize: 20, color: '#333333' }}>
+          Duplicar proceso
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{ color: '#666666', fontSize: 16 }}>
+            Se creará una copia completa del proceso "{workflowToDuplicate?.nombre}" con todas sus etapas, preguntas y conexiones.
+            <br /><br />
+            El nuevo proceso se creará en estado <strong>Borrador</strong> y podrá editarlo antes de activarlo.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button 
+            onClick={handleCancelDuplicate}
+            disabled={duplicating}
+            sx={{ 
+              textTransform: 'none',
+              color: '#666666',
+              fontSize: 14,
+            }}
+          >
+            Cancelar
+          </Button>
+          <Button 
+            onClick={handleConfirmDuplicate}
+            variant="contained"
+            disabled={duplicating}
+            sx={{ 
+              textTransform: 'none',
+              backgroundColor: '#0e5fa6',
+              fontSize: 14,
+              '&:hover': {
+                backgroundColor: '#0d5494',
+              }
+            }}
+          >
+            {duplicating ? 'Duplicando...' : 'Duplicar'}
           </Button>
         </DialogActions>
       </Dialog>

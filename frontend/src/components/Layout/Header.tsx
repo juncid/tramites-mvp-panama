@@ -55,9 +55,11 @@ export const Header = () => {
   // Es ruta pública solo si tiene token JWT (no numérico)
   const isPublicRoute = (location.pathname.startsWith('/solicitudes/') && !esIdNumerico) || 
                         location.pathname === '/acceso-publico' ||
-                        location.pathname.startsWith('/consulta-publica/');
+                        location.pathname.startsWith('/consulta-publica/') ||
+                        location.pathname === '/inicio' ||
+                        location.pathname === '/inicio-tramite';
   
-  // Ocultar tabs solo si es ruta pública
+  // Ocultar tabs en rutas públicas
   const shouldHideTabs = isPublicRoute;
 
   // Actualizar la hora cada segundo

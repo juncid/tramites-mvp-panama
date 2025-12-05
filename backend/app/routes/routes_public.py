@@ -341,3 +341,56 @@ def verificar_codigo_existe(
         "existe": instancia is not None,
         "codigo_acceso": codigo_acceso.strip().upper()
     }
+
+
+@router.get(
+    "/expediente/{num_expediente}/datos-acceso",
+    summary="Obtener datos de acceso por número de expediente",
+    description="Obtiene el código de acceso y pasaporte asociados a un número de expediente. Útil para soporte técnico."
+)
+def obtener_datos_acceso_por_expediente(
+    num_expediente: str,
+    db: Session = Depends(get_db)
+):
+    """
+    Obtiene los datos de acceso de una solicitud por su número de expediente
+    
+    **Acceso:** Público (para soporte técnico)
+    
+    Retorna:
+    - codigo_acceso: Código corto para acceso (ej: PPSH-A7X9)
+    - pasaporte: Número de pasaporte del solicitante
+    - nombre_titular: Nombre del solicitante
+    - estado: Estado actual del trámite
+    """
+    from app.models.models_workflow import WorkflowInstancia
+    
+    # Buscar instancia por número de expediente
+    instancia = db.query(WorkflowInstancia).filter(
+        WorkflowInstancia.num_expediente == num_expediente.strip().upper()
+    ).first()
+    
+    if not instancia:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"No se encontró solicitud con expediente: {num_expediente}"
+        )
+    
+    # Extraer pasaporte del metadata
+    pasaporte = None
+    nombre_titular = None
+    if instancia.metadata_adicional:
+        metadata = instancia.metadata_adicional if isinstance(instancia.metadata_adicional, dict) else {}
+        pasaporte = metadata.get('pasaporte')
+        nombre_titular = metadata.get('nombres_completos')
+    
+    return {
+        "success": True,
+        "num_expediente": instancia.num_expediente,
+        "codigo_acceso": instancia.codigo_acceso,
+        "pasaporte": pasaporte,
+        "nombre_titular": nombre_titular,
+        "estado": instancia.estado.value if hasattr(instancia.estado, 'value') else str(instancia.estado),
+        "instancia_id": instancia.id,
+        "link_seguimiento": f"/workflows/{instancia.id}/etapas"
+    }

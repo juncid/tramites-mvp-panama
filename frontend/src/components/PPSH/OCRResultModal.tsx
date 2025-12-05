@@ -18,7 +18,7 @@ export interface OCRResultModalProps {
 
 /**
  * Modal de resultado OCR (éxito o error)
- * Basado en wireframes Figma: Wireframe 103 (éxito), Wireframe 104 (error)
+ * Basado en wireframes Figma: Mobile - 13 (éxito node 2465:2048), Mobile - 14 (error node 2465:2285)
  */
 export const OCRResultModal = ({
   open,
@@ -44,11 +44,12 @@ export const OCRResultModal = ({
       onClose={onClose}
       PaperProps={{
         sx: {
-          width: { xs: '90%', sm: 440, md: 480 },
-          maxWidth: { xs: '340px', sm: 440, md: 480 },
-          height: { xs: 'auto', sm: 440, md: 480 },
-          borderRadius: 1,
-          p: { xs: 1.5, sm: 2 },
+          width: { xs: '330px', sm: 440, md: 480 },
+          maxWidth: { xs: '330px', sm: 440, md: 480 },
+          minHeight: { xs: '352px', sm: 440, md: 480 },
+          borderRadius: '4px',
+          p: 2,
+          m: { xs: 2, sm: 3 },
         },
       }}
       BackdropProps={{
@@ -64,20 +65,21 @@ export const OCRResultModal = ({
           alignItems: 'center',
           justifyContent: 'center',
           height: '100%',
-          px: { xs: 2, sm: 3 },
-          py: { xs: 3, sm: 0 },
+          px: 2,
+          py: 3,
+          position: 'relative',
         }}
       >
         {/* Label superior */}
         <Typography
-          variant="caption"
           sx={{
             position: 'absolute',
-            top: { xs: 12, sm: 16 },
-            left: { xs: 12, sm: 16 },
+            top: 16,
+            left: 16,
             color: '#ccc',
-            fontSize: { xs: '12px', sm: '0.875rem' },
-            fontWeight: 300,
+            fontSize: '14px',
+            fontWeight: 200,
+            fontFamily: 'Roboto, sans-serif',
           }}
         >
           Revisión OCR
@@ -85,33 +87,40 @@ export const OCRResultModal = ({
 
         {/* Título principal */}
         <Typography
-          variant="h6"
           sx={{
-            fontSize: { xs: '16px', sm: '1.375rem', md: '1.5rem' },
+            fontSize: '24px',
             fontWeight: 400,
             color: '#333',
-            mb: { xs: 3, sm: 4 },
+            mb: 3,
+            mt: 3,
             textAlign: 'center',
-            px: { xs: 1, sm: 0 },
-            lineHeight: 1.3,
+            lineHeight: 1.5,
+            fontFamily: 'Roboto, sans-serif',
           }}
         >
           {titulo}
         </Typography>
 
         {/* Icono (check verde o warning rojo) */}
-        <Box sx={{ mb: { xs: 3, sm: 4 } }}>
+        <Box 
+          sx={{ 
+            mb: 3,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
           {isSuccess ? (
             <CheckIcon
               sx={{
-                fontSize: { xs: 100, sm: 110, md: 120 },
+                fontSize: 100,
                 color: '#2e7d32', // verde
               }}
             />
           ) : (
             <ErrorIcon
               sx={{
-                fontSize: { xs: 100, sm: 110, md: 120 },
+                fontSize: 100,
                 color: '#d32f2f', // rojo
               }}
             />
@@ -120,15 +129,14 @@ export const OCRResultModal = ({
 
         {/* Mensaje */}
         <Typography
-          variant="body2"
           sx={{
-            fontSize: { xs: '14px', sm: '0.95rem', md: '1rem' },
+            fontSize: '16px',
             fontWeight: 300,
             color: '#333',
             textAlign: 'center',
-            mb: { xs: 3, sm: 4 },
-            px: { xs: 1, sm: 0 },
-            lineHeight: 1.4,
+            mb: 3,
+            lineHeight: 1.5,
+            fontFamily: 'Roboto, sans-serif',
           }}
         >
           {mensaje || defaultMensaje}
@@ -137,15 +145,17 @@ export const OCRResultModal = ({
         {/* Botón */}
         <Button
           variant="contained"
+          fullWidth
           onClick={onClose}
           sx={{
             backgroundColor: '#0e5fa6',
             color: 'white',
             textTransform: 'none',
-            px: { xs: 2.5, sm: 3 },
-            py: { xs: 0.875, sm: 1 },
-            fontSize: { xs: '14px', sm: '0.95rem', md: '1rem' },
-            width: { xs: '100%', sm: 'auto' },
+            px: 4,
+            py: 1,
+            fontSize: '16px',
+            borderRadius: '4px',
+            fontFamily: 'Roboto, sans-serif',
             '&:hover': {
               backgroundColor: '#0d5494',
             },
