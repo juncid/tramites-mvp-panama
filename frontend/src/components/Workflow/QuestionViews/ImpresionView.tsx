@@ -14,6 +14,7 @@ import {
 } from '@mui/icons-material';
 import type { WorkflowPregunta } from '../../../types/workflow';
 import { apiClient } from '../../../services/api';
+import { generateCotizacionPrintHTML } from '../../Print/PrintableCotizacion';
 
 interface CasoParaImpresion {
   id_solicitud: number;
@@ -22,12 +23,34 @@ interface CasoParaImpresion {
   nacionalidad: string;
 }
 
+/**
+ * Datos de cotización para impresión
+ */
+interface CotizacionDataForPrint {
+  nombre: string;
+  nacionalidad: string;
+  cotizacionNum: string;
+  tramite: string;
+  fecha: string;
+  responsable: string;
+  items: Array<{
+    id: string;
+    codigo: string;
+    descripcion: string;
+    precio: number;
+    checked: boolean;
+  }>;
+}
+
 interface ImpresionViewProps {
   pregunta: WorkflowPregunta;
   readonly?: boolean;
   onAnswerChange?: (valor: any) => void;
   instanciaId?: number;
   value?: number[] | boolean | { casos_seleccionados: number[], casos_data?: CasoParaImpresion[] };
+  // Datos adicionales para impresión de cotización
+  cotizacionData?: CotizacionDataForPrint;
+  esCotizacion?: boolean;
 }
 
 interface SolicitudParaImpresion {
@@ -51,12 +74,15 @@ const MIN_CASOS_PARA_IMPRIMIR = 6;
  * 2. Permite seleccionar casos (mínimo 6) para imprimir
  * 3. Al hacer clic en "Imprimir", genera documento con 6 tarjetas según diseño Figma
  * 4. En modo readonly: muestra los casos seleccionados y permite reimprimir
+ * 5. Si esCotizacion=true, genera documento de cotización con PrintableCotizacion
  */
 export const ImpresionView: React.FC<ImpresionViewProps> = ({
   pregunta,
   readonly = false,
   onAnswerChange,
   value,
+  cotizacionData,
+  esCotizacion = false,
 }) => {
   // Determinar si debe mostrar la lista de casos
   const mostrarListaCasos = React.useMemo(() => {
@@ -565,7 +591,32 @@ export const ImpresionView: React.FC<ImpresionViewProps> = ({
   // Si NO debe mostrar lista de casos, mostrar solo botón de impresión simple
   if (!mostrarListaCasos) {
     const handleImprimirSimple = () => {
-      window.print();
+      // Si es cotización y tenemos datos, usar PrintableCotizacion
+      if (esCotizacion && cotizacionData) {
+        const printWindow = window.open('', '_blank', 'width=650,height=850');
+        if (!printWindow) {
+          console.error('No se pudo abrir la ventana de impresión');
+          return;
+        }
+        
+        const htmlContent = generateCotizacionPrintHTML(cotizacionData);
+        printWindow.document.write(htmlContent);
+        printWindow.document.close();
+        
+        printWindow.onload = () => {
+          setTimeout(() => {
+            printWindow.print();
+          }, 500);
+        };
+        
+        // Fallback si onload no se dispara
+        setTimeout(() => {
+          printWindow.print();
+        }, 1000);
+      } else {
+        // Impresión simple por defecto
+        window.print();
+      }
       onAnswerChange?.(true);
     };
 

@@ -40,6 +40,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
 }) => {
   const { label, pregunta_id, obligatorio, config } = componente;
   const inputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [isLoadingOCR, setIsLoadingOCR] = useState(false);
   const [showResult, setShowResult] = useState(false);
@@ -51,6 +52,19 @@ export const FileUpload: React.FC<FileUploadProps> = ({
   const requiereOCR = config?.requiere_ocr || false;
   
   const archivos = Array.isArray(value) ? value : [];
+
+  // Detectar si es dispositivo móvil para mostrar opción de cámara
+  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+    typeof navigator !== 'undefined' ? navigator.userAgent : ''
+  );
+
+  // Obtener tipos aceptados incluyendo imágenes para captura de fotos en móvil
+  const getAcceptTypes = () => {
+    if (tiposPermitidos.length === 0) return '*/*';
+    const extensiones = tiposPermitidos.map(t => `.${t}`).join(',');
+    // Agregar image/* para permitir captura de fotos en móvil
+    return `${extensiones},image/*`;
+  };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
@@ -170,30 +184,65 @@ export const FileUpload: React.FC<FileUploadProps> = ({
           </div>
         )}
 
-        {/* Input de archivo */}
+        {/* Inputs de archivo */}
         {archivos.length < maxArchivos && (
           <>
+            {/* Input oculto para seleccionar archivo */}
             <input
               ref={inputRef}
               type="file"
               onChange={handleFileChange}
               className="hidden"
-              accept={tiposPermitidos.map(t => `.${t}`).join(',')}
+              accept={getAcceptTypes()}
               multiple={maxArchivos > 1}
             />
-            <button
-              type="button"
-              onClick={() => inputRef.current?.click()}
-              disabled={uploading}
-              className={`
-                w-full px-4 py-2 border-2 border-dashed rounded-md
-                ${uploading ? 'bg-gray-100 cursor-not-allowed' : 'bg-white hover:bg-gray-50'}
-                ${error ? 'border-red-300' : 'border-gray-300'}
-                text-sm text-gray-600
-              `}
-            >
-              {uploading ? '⏳ Subiendo...' : '📎 Seleccionar archivo(s)'}
-            </button>
+            
+            {/* Input oculto para cámara (solo móvil) */}
+            {isMobile && (
+              <input
+                ref={cameraInputRef}
+                type="file"
+                onChange={handleFileChange}
+                className="hidden"
+                accept="image/*"
+                capture="environment"
+              />
+            )}
+
+            {/* Contenedor de botones */}
+            <div className="flex gap-2 flex-wrap">
+              {/* Botón Seleccionar archivo */}
+              <button
+                type="button"
+                onClick={() => inputRef.current?.click()}
+                disabled={uploading}
+                className={`
+                  flex-1 min-w-[120px] px-4 py-2 border-2 border-dashed rounded-md
+                  ${uploading ? 'bg-gray-100 cursor-not-allowed' : 'bg-white hover:bg-gray-50'}
+                  ${error ? 'border-red-300' : 'border-gray-300'}
+                  text-sm text-gray-600
+                `}
+              >
+                {uploading ? '⏳ Subiendo...' : (isMobile ? '📁 Archivo' : '📎 Seleccionar archivo(s)')}
+              </button>
+
+              {/* Botón Tomar foto (solo móvil) */}
+              {isMobile && (
+                <button
+                  type="button"
+                  onClick={() => cameraInputRef.current?.click()}
+                  disabled={uploading}
+                  className={`
+                    flex-1 min-w-[120px] px-4 py-2 border-2 border-dashed rounded-md
+                    ${uploading ? 'bg-gray-100 cursor-not-allowed' : 'bg-blue-50 hover:bg-blue-100'}
+                    border-blue-300
+                    text-sm text-blue-600
+                  `}
+                >
+                  📷 Tomar foto
+                </button>
+              )}
+            </div>
           </>
         )}
       </div>

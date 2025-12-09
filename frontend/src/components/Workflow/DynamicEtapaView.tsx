@@ -481,7 +481,10 @@ export const DynamicEtapaView: React.FC<DynamicEtapaViewProps> = ({
           // Si usamos wizard, no mostrar botones aquí
           if (usarWizard) return null;
           
-          return vistaActual.puede_editar && (onBack || onComplete) && (
+          // Mostrar botones si hay onBack (siempre) o si puede editar y hay onComplete
+          const mostrarBotones = onBack || (vistaActual.puede_editar && onComplete);
+          
+          return mostrarBotones && (
           <Stack 
             direction="row" 
             justifyContent="space-between" 
@@ -515,7 +518,7 @@ export const DynamicEtapaView: React.FC<DynamicEtapaViewProps> = ({
             ) : (
               <Box /> // Spacer para mantener el siguiente a la derecha
             )}
-            {onComplete && (
+            {vistaActual.puede_editar && onComplete && (
               <Button
                 variant="contained"
                 onClick={handleComplete}

@@ -292,7 +292,16 @@ class WorkflowService:
         # Generar código único si no se provee
         if not nuevo_codigo:
             timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
-            nuevo_codigo = f"{workflow_original.codigo}_COPIA_{timestamp}"
+            # Limpiar código original: remover sufijos _COPIA_xxx anteriores
+            codigo_base = workflow_original.codigo
+            import re
+            codigo_base = re.sub(r'_COPIA_\d+', '', codigo_base)
+            # Truncar para que el código total no exceda 50 caracteres
+            # _COPIA_ (7) + timestamp (14) = 21 caracteres
+            max_base_length = 50 - 21
+            if len(codigo_base) > max_base_length:
+                codigo_base = codigo_base[:max_base_length]
+            nuevo_codigo = f"{codigo_base}_COPIA_{timestamp}"
         
         # Verificar que el nuevo código sea único
         WorkflowService.verificar_codigo_unico(db, nuevo_codigo)
@@ -939,6 +948,7 @@ class InstanciaService:
         return instancia
 
     @staticmethod
+    @staticmethod
     def _obtener_datos_solicitante_por_expediente(db: Session, num_expediente: str) -> Optional[Dict[str, Any]]:
         """
         Obtiene los datos del solicitante titular de una solicitud PPSH
@@ -952,14 +962,18 @@ class InstanciaService:
             Diccionario con datos del solicitante o None si no se encuentra
         """
         try:
+            logger.info(f"Buscando datos de solicitante para expediente: {num_expediente}")
+            
             # Buscar la solicitud PPSH por num_expediente
             solicitud = db.query(models_ppsh.PPSHSolicitud).filter(
                 models_ppsh.PPSHSolicitud.num_expediente == num_expediente
             ).first()
             
             if not solicitud:
-                logger.debug(f"No se encontró solicitud PPSH con expediente {num_expediente}")
+                logger.warning(f"No se encontró solicitud PPSH con expediente {num_expediente}")
                 return None
+            
+            logger.info(f"Solicitud encontrada: ID={solicitud.id_solicitud}")
             
             # Buscar el solicitante titular
             solicitante = db.query(models_ppsh.PPSHSolicitante).filter(
@@ -983,7 +997,16 @@ class InstanciaService:
             # Formatear fecha de nacimiento
             fecha_nacimiento_str = None
             if solicitante.fecha_nacimiento:
-                fecha_nacimiento_str = solicitante.fecha_nacimiento.strftime("%Y-%m-%d")
+                fecha_nacimiento_str = solicitante.fecha_nacimiento.strftime("%d.%m.%Y")
+            
+            # Determinar sexo
+            sexo_map = {"M": "Masculino", "F": "Femenino"}
+            sexo = sexo_map.get(solicitante.cod_sexo, solicitante.cod_sexo)
+            
+            # URL de la foto (si existe)
+            foto_url = None
+            if solicitante.foto:
+                foto_url = f"/api/v1/ppsh/solicitudes/{solicitud.id_solicitud}/solicitante/foto"
             
             return {
                 "pasaporte": solicitante.num_documento,
@@ -991,7 +1014,11 @@ class InstanciaService:
                 "nombres": nombres,
                 "apellidos": apellidos,
                 "fecha_nacimiento": fecha_nacimiento_str,
-                "id_solicitud": solicitud.id_solicitud
+                "id_solicitud": solicitud.id_solicitud,
+                "tipo_solicitud": solicitud.tipo_solicitud or "PPSH",
+                "num_expediente": solicitud.num_expediente,
+                "sexo": sexo,
+                "foto_url": foto_url
             }
             
         except Exception as e:
@@ -1565,7 +1592,8 @@ class InstanciaService:
             "puede_editar": puede_editar,
             "es_etapa_completada": es_etapa_completada,
             "campos": campos,
-            "metadata_instancia": instancia.metadata_adicional
+            "metadata_instancia": instancia.metadata_adicional,
+            "datos_solicitante": InstanciaService._obtener_datos_solicitante_por_expediente(db, instancia.num_expediente)
         }
 
 

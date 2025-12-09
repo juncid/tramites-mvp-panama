@@ -11,7 +11,7 @@ Siguiendo principios SOLID y best practices de FastAPI:
 """
 
 from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile, File, Form
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from typing import List, Optional
@@ -1437,4 +1437,61 @@ async def validar_ocr_documento(
             puede_continuar=True,
             datos_ocr_raw=None,
             texto_ocr_completo=None
+        )
+
+
+# ==========================================
+# ENDPOINT: Foto del Solicitante
+# ==========================================
+
+@router.get(
+    "/solicitudes/{id_solicitud}/solicitante/foto",
+    summary="Obtener foto del solicitante titular",
+    description="Devuelve la foto del solicitante titular de la solicitud como imagen",
+    responses={
+        200: {"content": {"image/jpeg": {}}},
+        404: {"description": "Foto no encontrada"}
+    }
+)
+async def obtener_foto_solicitante(
+    id_solicitud: int,
+    db: Session = Depends(get_db)
+):
+    """
+    Obtiene la foto del solicitante titular de una solicitud PPSH.
+    
+    Si no hay foto almacenada, devuelve una imagen placeholder.
+    """
+    try:
+        # Buscar solicitante titular
+        solicitante = db.query(PPSHSolicitante).filter(
+            PPSHSolicitante.id_solicitud == id_solicitud,
+            PPSHSolicitante.es_titular == True
+        ).first()
+        
+        if not solicitante:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No se encontró el solicitante titular"
+            )
+        
+        if not solicitante.foto:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="El solicitante no tiene foto registrada"
+            )
+        
+        # Detectar tipo MIME (asumimos JPEG si no hay otro indicador)
+        return Response(
+            content=solicitante.foto,
+            media_type="image/jpeg"
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error obteniendo foto de solicitante: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error al obtener la foto del solicitante"
         )

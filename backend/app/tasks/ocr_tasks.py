@@ -844,17 +844,68 @@ def validate_ocr_against_solicitud(
                         encontrado = True
                         coincidencia_tipo = f'parcial ({partes_encontradas}/{len(partes)} partes)'
                 
-                # 4. Para fechas, probar varios formatos
+                # 4. Para fechas, probar todos los formatos posibles (ref: IBM date formats)
                 elif campo == 'fecha_nacimiento' and solicitante.fecha_nacimiento:
                     fecha = solicitante.fecha_nacimiento
+                    # Lista completa de formatos de fecha soportados
                     formatos_fecha = [
-                        fecha.strftime('%d/%m/%Y'),      # 25/12/1990
-                        fecha.strftime('%d-%m-%Y'),      # 25-12-1990
-                        fecha.strftime('%Y-%m-%d'),      # 1990-12-25
-                        fecha.strftime('%d %b %Y'),      # 25 Dec 1990
-                        fecha.strftime('%d%m%Y'),        # 25121990 (sin separadores)
-                        f"{fecha.day}/{fecha.month}/{fecha.year}",  # Sin ceros: 5/3/1990
+                        # Formatos con barras (/)
+                        fecha.strftime('%m/%d/%Y'),      # 02/21/2012 (mm/dd/aaaa)
+                        fecha.strftime('%m/%d/%y'),      # 02/21/12 (mm/dd/aa)
+                        fecha.strftime('%d/%m/%Y'),      # 21/02/2012 (dd/mm/aaaa)
+                        fecha.strftime('%d/%m/%y'),      # 21/02/12 (dd/mm/aa)
+                        f"{fecha.month}/{fecha.day}/{fecha.year}",      # 2/21/2012 (m/d/aaaa)
+                        f"{fecha.month}/{fecha.day}/{fecha.year % 100}",  # 2/21/12 (m/d/aa)
+                        f"{fecha.day}/{fecha.month}/{fecha.year}",      # 21/2/2012 (d/m/aaaa)
+                        f"{fecha.day}/{fecha.month}/{fecha.year % 100}",  # 21/2/12 (d/m/aa)
+                        
+                        # Formatos con guiones (-)
+                        fecha.strftime('%d-%m-%Y'),      # 21-02-2012 (dd-mm-aaaa)
+                        fecha.strftime('%d-%m-%y'),      # 21-02-12 (dd-mm-aa)
+                        fecha.strftime('%m-%d-%Y'),      # 02-21-2012 (mm-dd-aaaa)
+                        fecha.strftime('%m-%d-%y'),      # 02-21-12 (mm-dd-aa)
+                        fecha.strftime('%Y-%m-%d'),      # 2012-02-21 (aaaa-mm-dd) ISO
+                        f"{fecha.month}-{fecha.day}-{fecha.year}",      # 2-21-2012 (m-d-aaaa)
+                        f"{fecha.month}-{fecha.day}-{fecha.year % 100}",  # 2-21-12 (m-d-aa)
+                        f"{fecha.day}-{fecha.month}-{fecha.year}",      # 21-2-2012 (d-m-aaaa)
+                        f"{fecha.day}-{fecha.month}-{fecha.year % 100}",  # 21-2-12 (d-m-aa)
+                        
+                        # Formatos con nombre de mes (español e inglés)
+                        fecha.strftime('%b %d, %Y'),     # Feb 21, 2012 (mes abreviado inglés)
+                        fecha.strftime('%B %d, %Y'),     # February 21, 2012 (mes completo inglés)
+                        f"{fecha.day} {fecha.strftime('%b')} {fecha.year}",  # 21 Feb 2012
+                        f"{fecha.day} {fecha.strftime('%B')} {fecha.year}",  # 21 February 2012
+                        
+                        # Formatos con hora (timestamp)
+                        fecha.strftime('%Y-%m-%d') + ' 00:00:00',  # 2012-02-21 00:00:00
+                        
+                        # Formatos sin separadores
+                        fecha.strftime('%d%m%Y'),        # 21022012
+                        fecha.strftime('%Y%m%d'),        # 20120221
+                        fecha.strftime('%m%d%Y'),        # 02212012
+                        
+                        # Formatos con puntos (.)
+                        fecha.strftime('%d.%m.%Y'),      # 21.02.2012
+                        fecha.strftime('%d.%m.%y'),      # 21.02.12
                     ]
+                    
+                    # Agregar meses en español
+                    meses_espanol = {
+                        1: ('Ene', 'Enero'), 2: ('Feb', 'Febrero'), 3: ('Mar', 'Marzo'),
+                        4: ('Abr', 'Abril'), 5: ('May', 'Mayo'), 6: ('Jun', 'Junio'),
+                        7: ('Jul', 'Julio'), 8: ('Ago', 'Agosto'), 9: ('Sep', 'Septiembre'),
+                        10: ('Oct', 'Octubre'), 11: ('Nov', 'Noviembre'), 12: ('Dic', 'Diciembre')
+                    }
+                    mes_abrev, mes_completo = meses_espanol.get(fecha.month, ('', ''))
+                    if mes_abrev:
+                        formatos_fecha.extend([
+                            f"{mes_abrev} {fecha.day}, {fecha.year}",    # Feb 21, 2012
+                            f"{mes_completo} {fecha.day}, {fecha.year}", # Febrero 21, 2012
+                            f"{fecha.day} {mes_abrev} {fecha.year}",     # 21 Feb 2012
+                            f"{fecha.day} {mes_completo} {fecha.year}",  # 21 Febrero 2012
+                            f"{fecha.day} de {mes_completo} de {fecha.year}",  # 21 de Febrero de 2012
+                        ])
+                    
                     for fmt in formatos_fecha:
                         if fmt.upper() in texto_normalizado:
                             encontrado = True

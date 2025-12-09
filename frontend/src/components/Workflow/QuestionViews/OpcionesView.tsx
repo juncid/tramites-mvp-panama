@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Typography,
@@ -14,16 +14,31 @@ import type { WorkflowPregunta } from '../../../types/workflow';
 interface OpcionesViewProps {
   pregunta: WorkflowPregunta;
   readonly?: boolean;
+  value?: string | string[];
   onAnswerChange?: (valor: string | string[]) => void;
 }
 
 export const OpcionesView: React.FC<OpcionesViewProps> = ({
   pregunta,
   readonly = false,
+  value,
   onAnswerChange,
 }) => {
-  const [valorSimple, setValorSimple] = useState('');
-  const [valoresMultiples, setValoresMultiples] = useState<string[]>([]);
+  const [valorSimple, setValorSimple] = useState<string>(
+    typeof value === 'string' ? value : ''
+  );
+  const [valoresMultiples, setValoresMultiples] = useState<string[]>(
+    Array.isArray(value) ? value : []
+  );
+
+  // Sincronizar con valor externo cuando cambie
+  useEffect(() => {
+    if (typeof value === 'string') {
+      setValorSimple(value);
+    } else if (Array.isArray(value)) {
+      setValoresMultiples(value);
+    }
+  }, [value]);
 
   // Soporte para lista_elementos o opciones (de la BD)
   let opciones: string[] = [];

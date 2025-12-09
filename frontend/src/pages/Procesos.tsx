@@ -126,21 +126,25 @@ export const Procesos: React.FC = () => {
   };
 
   const handleConfirmDuplicate = async () => {
-    if (workflowToDuplicate) {
-      try {
-        setDuplicating(true);
-        const nuevoWorkflow = await workflowService.duplicateWorkflow(workflowToDuplicate.id!);
-        // Agregar el nuevo workflow a la lista
-        setWorkflows(prevWorkflows => [nuevoWorkflow, ...prevWorkflows]);
-        setDuplicateDialogOpen(false);
-        setWorkflowToDuplicate(null);
-      } catch (error) {
-        console.error('Error al duplicar workflow:', error);
-        // Si hay error, recargar la lista completa
-        loadWorkflows();
-      } finally {
-        setDuplicating(false);
-      }
+    // Evitar múltiples ejecuciones
+    if (duplicating || !workflowToDuplicate) return;
+    
+    try {
+      setDuplicating(true);
+      // Cerrar el modal inmediatamente para evitar múltiples clicks
+      setDuplicateDialogOpen(false);
+      
+      const nuevoWorkflow = await workflowService.duplicateWorkflow(workflowToDuplicate.id!);
+      // Agregar el nuevo workflow a la lista
+      setWorkflows(prevWorkflows => [nuevoWorkflow, ...prevWorkflows]);
+      setWorkflowToDuplicate(null);
+    } catch (error) {
+      console.error('Error al duplicar workflow:', error);
+      // Si hay error, recargar la lista completa
+      loadWorkflows();
+      setWorkflowToDuplicate(null);
+    } finally {
+      setDuplicating(false);
     }
   };
 

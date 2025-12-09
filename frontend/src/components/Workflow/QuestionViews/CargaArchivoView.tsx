@@ -425,124 +425,206 @@ export const CargaArchivoView: React.FC<CargaArchivoViewProps> = ({
 
   // Si está en modo readonly y hay un documento subido (desde la API de documentos)
   if (readonly && documentoSubido) {
+    const handleDescargarDoc = () => {
+      if (documentoSubido.ruta_archivo) {
+        const url = `${API_URL}${documentoSubido.ruta_archivo}`;
+        window.open(url, '_blank');
+      }
+    };
+
     return (
-      <Box sx={{ mb: 3 }}>
-        {/* Label */}
-        <Typography 
-          sx={{ 
-            fontWeight: 500, 
-            fontSize: '16px',
-            mb: 1, 
-            color: '#333333',
-            fontFamily: 'Roboto, sans-serif',
+      <Box sx={{ mb: 0 }}>
+        {/* Card estilo accordion header - similar a RevisionManualDocumentosView */}
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            py: 1.5,
+            px: 2,
+            backgroundColor: '#f9f9f9',
+            borderBottom: '1px solid #e0e0e0',
+            '&:hover': {
+              backgroundColor: '#f0f0f0',
+            },
           }}
         >
-          {pregunta.pregunta}
-          {pregunta.es_obligatoria && (
-            <Typography component="span" sx={{ color: '#DC2626', ml: 0.5 }}>
-              *
+          {/* Icono y nombre del documento */}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flex: 1 }}>
+            <AttachFileIcon 
+              sx={{ 
+                color: '#333', 
+                fontSize: 20,
+                transform: 'rotate(45deg)',
+              }} 
+            />
+            <Typography
+              variant="body1"
+              sx={{
+                color: '#333',
+                fontSize: '16px',
+                lineHeight: 1.5,
+              }}
+            >
+              {pregunta.pregunta}
+              {pregunta.es_obligatoria && (
+                <Typography component="span" sx={{ color: '#DC2626', ml: 0.5 }}>
+                  *
+                </Typography>
+              )}
             </Typography>
-          )}
-        </Typography>
-
-        {/* Campo de texto mostrando el nombre del archivo - readonly */}
-        <Box sx={{ display: 'block', mb: 0.5 }}>
-          <TextField
-            fullWidth
-            value={documentoSubido.nombre_archivo}
-            disabled
-            sx={{
-              maxWidth: '520px',
-              '& .MuiOutlinedInput-root': {
-                height: '56px',
+          </Box>
+          
+          {/* Botón de descarga */}
+          {documentoSubido.ruta_archivo && (
+            <Button
+              variant="contained"
+              size="small"
+              startIcon={<DownloadIcon sx={{ fontSize: 16 }} />}
+              onClick={handleDescargarDoc}
+              sx={{
+                textTransform: 'none',
+                backgroundColor: '#0e5fa6',
+                '&:hover': { backgroundColor: '#0d5391' },
                 borderRadius: '4px',
-                backgroundColor: '#f5f5f5',
-                '& fieldset': {
-                  borderColor: '#333333',
-                  borderWidth: '1px',
-                },
-                '&.Mui-disabled fieldset': {
-                  borderColor: '#333333',
-                },
-                '& input': {
-                  color: '#4d4d4d',
-                  fontSize: '16px',
-                  fontFamily: 'Roboto, sans-serif',
-                  WebkitTextFillColor: '#4d4d4d',
-                },
-              },
-            }}
-          />
+                px: 2,
+                py: 0.75,
+                fontSize: '14px',
+                fontWeight: 500,
+              }}
+            >
+              Descargar
+            </Button>
+          )}
         </Box>
       </Box>
     );
   }
 
-  // Si está en modo readonly y hay un archivo subido (desde value prop), mostrar como botón de descarga
+  // Si está en modo readonly y hay un archivo subido (desde value prop), mostrar como card
   if (readonly && archivoSubido) {
     return (
-      <Box sx={{ mb: 3 }}>
-        {/* Label */}
-        <Typography 
-          sx={{ 
-            fontWeight: 500, 
-            fontSize: '16px',
-            mb: 1, 
-            color: '#333333',
-            fontFamily: 'Roboto, sans-serif',
-          }}
-        >
-          {pregunta.pregunta}
-          {pregunta.es_obligatoria && (
-            <Typography component="span" sx={{ color: '#DC2626', ml: 0.5 }}>
-              *
-            </Typography>
-          )}
-        </Typography>
-
-        {/* Botón de descarga estilo DescargaArchivoView */}
-        <Button
-          variant="contained"
-          startIcon={<DownloadIcon />}
-          onClick={handleDescargar}
+      <Box sx={{ mb: 0 }}>
+        {/* Card estilo accordion header - similar a RevisionManualDocumentosView */}
+        <Box
           sx={{
-            textTransform: 'none',
-            backgroundColor: '#0e5fa6',
-            '&:hover': { backgroundColor: '#0d5391' },
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            py: 1.5,
+            px: 2,
+            backgroundColor: '#f9f9f9',
+            borderBottom: '1px solid #e0e0e0',
+            '&:hover': {
+              backgroundColor: '#f0f0f0',
+            },
           }}
         >
-          {archivoSubido.nombre}
-        </Button>
+          {/* Icono y nombre del documento */}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flex: 1 }}>
+            <AttachFileIcon 
+              sx={{ 
+                color: '#333', 
+                fontSize: 20,
+                transform: 'rotate(45deg)',
+              }} 
+            />
+            <Typography
+              variant="body1"
+              sx={{
+                color: '#333',
+                fontSize: '16px',
+                lineHeight: 1.5,
+              }}
+            >
+              {pregunta.pregunta}
+              {pregunta.es_obligatoria && (
+                <Typography component="span" sx={{ color: '#DC2626', ml: 0.5 }}>
+                  *
+                </Typography>
+              )}
+            </Typography>
+          </Box>
+          
+          {/* Botón de descarga */}
+          {archivoSubido.url && (
+            <Button
+              variant="contained"
+              size="small"
+              startIcon={<DownloadIcon sx={{ fontSize: 16 }} />}
+              onClick={handleDescargar}
+              sx={{
+                textTransform: 'none',
+                backgroundColor: '#0e5fa6',
+                '&:hover': { backgroundColor: '#0d5391' },
+                borderRadius: '4px',
+                px: 2,
+                py: 0.75,
+                fontSize: '14px',
+                fontWeight: 500,
+              }}
+            >
+              Descargar
+            </Button>
+          )}
+        </Box>
       </Box>
     );
   }
 
-  // Si está en modo readonly pero sin archivo disponible, mostrar mensaje
+  // Si está en modo readonly pero sin archivo disponible, mostrar card con indicador
   if (readonly && !archivoSubido) {
     return (
-      <Box sx={{ mb: 3 }}>
-        {/* Label */}
-        <Typography 
-          sx={{ 
-            fontWeight: 500, 
-            fontSize: '16px',
-            mb: 1, 
-            color: '#333333',
-            fontFamily: 'Roboto, sans-serif',
+      <Box sx={{ mb: 0 }}>
+        {/* Card estilo accordion header - documento no disponible */}
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            py: 1.5,
+            px: 2,
+            backgroundColor: '#f9f9f9',
+            borderBottom: '1px solid #e0e0e0',
           }}
         >
-          {pregunta.pregunta}
-          {pregunta.es_obligatoria && (
-            <Typography component="span" sx={{ color: '#DC2626', ml: 0.5 }}>
-              *
+          {/* Icono y nombre del documento */}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flex: 1 }}>
+            <AttachFileIcon 
+              sx={{ 
+                color: '#999', 
+                fontSize: 20,
+                transform: 'rotate(45deg)',
+              }} 
+            />
+            <Typography
+              variant="body1"
+              sx={{
+                color: '#666',
+                fontSize: '16px',
+                lineHeight: 1.5,
+              }}
+            >
+              {pregunta.pregunta}
+              {pregunta.es_obligatoria && (
+                <Typography component="span" sx={{ color: '#DC2626', ml: 0.5 }}>
+                  *
+                </Typography>
+              )}
             </Typography>
-          )}
-        </Typography>
-
-        {/* Mensaje indicando que no hay archivo */}
-        <Alert severity="info" sx={{ maxWidth: '520px' }}>
-          El archivo fue procesado en esta etapa. No hay vista previa disponible.
-        </Alert>
+          </Box>
+          
+          {/* Indicador de procesado */}
+          <Typography
+            variant="caption"
+            sx={{
+              color: '#999',
+              fontSize: '12px',
+            }}
+          >
+            Procesado
+          </Typography>
+        </Box>
       </Box>
     );
   }
@@ -603,7 +685,7 @@ export const CargaArchivoView: React.FC<CargaArchivoViewProps> = ({
         />
       </Box>
 
-      {/* Botón Cargar archivo - Según Figma: fondo #0e5fa6, altura 32px, border-radius 2px, ícono attach-file */}
+      {/* Botón Cargar archivo - Según Figma: fondo #f1f3f4, altura 32px, border-radius 2px, texto #788093 */}
       {!readonly && archivos.length < maxArchivos && (
         <Box
           component="label"
@@ -611,19 +693,19 @@ export const CargaArchivoView: React.FC<CargaArchivoViewProps> = ({
             display: 'inline-flex',
             alignItems: 'center',
             gap: '2px',
-            bgcolor: '#0e5fa6',
-            color: 'white',
+            bgcolor: '#f1f3f4',
+            color: '#788093',
             height: '32px',
             px: 1.5,
             borderRadius: '2px',
             cursor: isLoadingOCR ? 'not-allowed' : 'pointer',
             opacity: isLoadingOCR ? 0.7 : 1,
             '&:hover': {
-              bgcolor: isLoadingOCR ? '#0e5fa6' : '#0d5494',
+              bgcolor: isLoadingOCR ? '#f1f3f4' : '#e5e7eb',
             },
           }}
         >
-          <AttachFileIcon sx={{ fontSize: 16 }} />
+          <AttachFileIcon sx={{ fontSize: 16, color: '#788093' }} />
           <Typography 
             sx={{ 
               fontSize: '16px', 
@@ -631,6 +713,7 @@ export const CargaArchivoView: React.FC<CargaArchivoViewProps> = ({
               fontFamily: 'Roboto, sans-serif',
               fontWeight: 400,
               letterSpacing: '0.5px',
+              color: '#788093',
             }}
           >
             Cargar archivo
@@ -644,6 +727,21 @@ export const CargaArchivoView: React.FC<CargaArchivoViewProps> = ({
             disabled={isLoadingOCR}
           />
         </Box>
+      )}
+
+      {/* Indicador de formatos - Según Figma */}
+      {!readonly && archivos.length < maxArchivos && (
+        <Typography 
+          sx={{ 
+            fontSize: '12px',
+            color: '#6B7280',
+            mt: 0.5,
+            ml: 2,
+            fontFamily: 'Roboto, sans-serif',
+          }}
+        >
+          Formatos: .PDF, .JPG, .PNG • Máximo: {maxSizeMb} MB
+        </Typography>
       )}
 
       {/* Texto de ayuda / Indicaciones extra - Según Figma: font-light, 14px, color #333333 */}

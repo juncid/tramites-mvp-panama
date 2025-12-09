@@ -8,7 +8,7 @@ import {
   Checkbox,
   FormControlLabel,
 } from '@mui/material';
-import { Warning as WarningIcon } from '@mui/icons-material';
+import WarningAmberRoundedIcon from '@mui/icons-material/WarningAmberRounded';
 
 interface OCRValidationErrorModalProps {
   open: boolean;
@@ -48,13 +48,15 @@ export const OCRValidationErrorModal: React.FC<OCRValidationErrorModalProps> = (
     <Dialog
       open={open}
       onClose={handleClose}
+      fullWidth
+      maxWidth="xs"
       PaperProps={{
         sx: { 
-          width: { xs: '330px', sm: 440, md: 480 },
-          maxWidth: { xs: '330px', sm: 440, md: 480 },
-          borderRadius: '4px',
-          p: 2,
-          m: { xs: 2, sm: 3 },
+          width: '100%',
+          maxWidth: { xs: '100%', sm: 440, md: 480 },
+          borderRadius: 1,
+          p: { xs: 1.5, sm: 2 },
+          m: { xs: 1, sm: 2, md: 3 },
         }
       }}
       BackdropProps={{
@@ -63,75 +65,55 @@ export const OCRValidationErrorModal: React.FC<OCRValidationErrorModalProps> = (
         },
       }}
     >
-      <DialogContent sx={{ textAlign: 'center', py: 3, px: 2, position: 'relative' }}>
+      <DialogContent sx={{ textAlign: 'center', py: { xs: 2, sm: 3 }, px: { xs: 1, sm: 2 }, position: 'relative' }}>
         {/* Título pequeño */}
         <Typography 
+          variant="caption" 
           sx={{ 
             position: 'absolute',
-            top: 16,
-            left: 16,
-            color: '#ccc',
-            fontSize: '14px',
+            top: { xs: 8, sm: 16 },
+            left: { xs: 8, sm: 16 },
+            color: 'text.secondary',
             fontWeight: 200,
-            fontFamily: 'Roboto, sans-serif',
           }}
         >
-          Revisión OCR
-        </Typography>
-        
-        {/* Título principal */}
+          Revisión del Sistema
+        </Typography>        {/* Título principal */}
         <Typography 
+          variant="h5"
+          component="h2"
           sx={{ 
-            mt: 3,
-            mb: 3,
-            color: '#333',
-            fontSize: '24px',
+            mt: { xs: 2, sm: 3 },
+            mb: { xs: 2, sm: 3 },
+            color: 'text.primary',
             fontWeight: 400,
             lineHeight: 1.5,
-            fontFamily: 'Roboto, sans-serif',
+            fontSize: { xs: '1.25rem', sm: '1.5rem' },
           }}
         >
           No pudimos validar el documento
         </Typography>
 
         {/* Ícono de advertencia triangular */}
-        <Box sx={{ my: 3, display: 'flex', justifyContent: 'center' }}>
-          <Box
+        <Box sx={{ my: { xs: 2, sm: 3 }, display: 'flex', justifyContent: 'center' }}>
+          <WarningAmberRoundedIcon
             sx={{
-              width: 0,
-              height: 0,
-              borderLeft: '50px solid transparent',
-              borderRight: '50px solid transparent',
-              borderBottom: '86px solid #f5a623',
-              position: 'relative',
+              fontSize: { xs: 80, sm: 100, md: 120 },
+              color: 'warning.main',
             }}
-          >
-            <Typography
-              sx={{
-                position: 'absolute',
-                top: '35px',
-                left: '50%',
-                transform: 'translateX(-50%)',
-                fontSize: '40px',
-                fontWeight: 'bold',
-                color: 'white',
-              }}
-            >
-              !
-            </Typography>
-          </Box>
+          />
         </Box>
 
         {/* Mensaje explicativo */}
         <Typography 
+          variant="body1"
           sx={{ 
-            mb: 3, 
-            px: 1,
-            fontSize: '16px',
+            mb: { xs: 2, sm: 3 }, 
+            px: { xs: 0, sm: 1 },
             lineHeight: 1.5,
-            color: '#333',
+            color: 'text.primary',
             fontWeight: 300,
-            fontFamily: 'Roboto, sans-serif',
+            fontSize: { xs: '0.875rem', sm: '1rem' },
           }}
         >
           La información del archivo no concuerda con los datos ingresados. 
@@ -141,25 +123,25 @@ export const OCRValidationErrorModal: React.FC<OCRValidationErrorModalProps> = (
         {/* Botón Entendido (primario) */}
         <Button
           variant="contained"
-          fullWidth
           onClick={handleClose}
+          fullWidth
           sx={{
-            bgcolor: '#0e5fa6',
-            px: 4,
+            bgcolor: 'primary.main',
+            maxWidth: { xs: '100%', sm: 200 },
+            px: { xs: 2, sm: 4 },
             py: 1,
-            mb: 3,
+            mb: { xs: 2, sm: 3 },
             textTransform: 'none',
-            fontSize: '16px',
-            borderRadius: '4px',
-            fontFamily: 'Roboto, sans-serif',
-            '&:hover': { bgcolor: '#0d5391' },
+            fontSize: { xs: '0.875rem', sm: '1rem' },
+            borderRadius: 1,
+            '&:hover': { bgcolor: 'primary.dark' },
           }}
         >
           Entendido
         </Button>
 
         {/* Checkbox para aceptar riesgo */}
-        <Box sx={{ display: 'flex', justifyContent: 'flex-start', mb: 2 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'flex-start', mb: { xs: 1.5, sm: 2 } }}>
           <FormControlLabel
             control={
               <Checkbox
@@ -167,21 +149,21 @@ export const OCRValidationErrorModal: React.FC<OCRValidationErrorModalProps> = (
                 onChange={(e) => setAceptaRiesgo(e.target.checked)}
                 size="small"
                 sx={{
-                  color: '#666',
+                  color: 'text.secondary',
                   '&.Mui-checked': {
-                    color: '#0e5fa6',
+                    color: 'primary.main',
                   },
                 }}
               />
             }
             label={
               <Typography 
+                variant="body2"
                 sx={{ 
-                  fontSize: '14px',
-                  color: '#333',
+                  color: 'text.primary',
                   fontWeight: 300,
-                  fontFamily: 'Roboto, sans-serif',
                   textAlign: 'left',
+                  fontSize: { xs: '0.75rem', sm: '0.875rem' },
                 }}
               >
                 Enviar de todos modos, asumiendo el riesgo de rechazo.
@@ -193,25 +175,25 @@ export const OCRValidationErrorModal: React.FC<OCRValidationErrorModalProps> = (
         {/* Botón Enviar (secundario) */}
         <Button
           variant="outlined"
-          fullWidth
           onClick={handleEnviar}
           disabled={!aceptaRiesgo}
+          fullWidth
           sx={{
-            borderColor: '#0e5fa6',
-            color: '#0e5fa6',
-            px: 4,
+            borderColor: 'primary.main',
+            color: 'primary.main',
+            maxWidth: { xs: '100%', sm: 200 },
+            px: { xs: 2, sm: 4 },
             py: 1,
             textTransform: 'none',
-            fontSize: '16px',
-            borderRadius: '4px',
-            fontFamily: 'Roboto, sans-serif',
+            fontSize: { xs: '0.875rem', sm: '1rem' },
+            borderRadius: 1,
             '&:hover': {
-              borderColor: '#0d5391',
-              backgroundColor: 'rgba(14, 95, 166, 0.04)',
+              borderColor: 'primary.dark',
+              backgroundColor: 'action.hover',
             },
             '&.Mui-disabled': {
-              borderColor: '#ccc',
-              color: '#ccc',
+              borderColor: 'action.disabled',
+              color: 'action.disabled',
             },
           }}
         >
