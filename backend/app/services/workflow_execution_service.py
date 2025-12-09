@@ -354,10 +354,17 @@ class WorkflowExecutionService:
         respuesta_etapa.fecha_completado = datetime.utcnow()
         respuesta_etapa.updated_by = user_id
 
-        # Determinar siguiente etapa
-        siguiente_etapa = WorkflowExecutionService._determinar_siguiente_etapa(
-            db, etapa, respuestas
-        )
+        # Detectar si hay rechazo en las respuestas (pregunta de resultado del permiso)
+        hay_rechazo = WorkflowExecutionService._detectar_rechazo_en_respuestas(etapa, respuestas)
+
+        # Determinar siguiente etapa (None si hay rechazo)
+        if hay_rechazo:
+            siguiente_etapa = None
+            logger.info("Detectado RECHAZO - El workflow terminará sin continuar a siguiente etapa")
+        else:
+            siguiente_etapa = WorkflowExecutionService._determinar_siguiente_etapa(
+                db, etapa, respuestas
+            )
 
         # Actualizar instancia
         etapa_anterior_id = instancia.etapa_actual_id
@@ -365,7 +372,7 @@ class WorkflowExecutionService:
             instancia.etapa_actual_id = siguiente_etapa.id
             instancia.estado = models.EstadoInstancia.EN_PROGRESO
         else:
-            # No hay más etapas, marcar como completado
+            # No hay más etapas o hay rechazo, marcar como completado
             instancia.etapa_actual_id = None
             instancia.estado = models.EstadoInstancia.COMPLETADO
             instancia.fecha_fin = datetime.utcnow()
@@ -598,3 +605,36 @@ class WorkflowExecutionService:
         except Exception as e:
             logger.error(f"Error sincronizando estado con PPSH: {str(e)}")
             # No fallar la ejecución de la etapa por error de sincronización
+
+    @staticmethod
+    def _detectar_rechazo_en_respuestas(
+        etapa: models.WorkflowEtapa,
+        respuestas: Dict[str, Any]
+    ) -> bool:
+        """
+        Detecta si hay una respuesta de rechazo en las preguntas de resultado/dictamen.
+        
+        Args:
+            etapa: Etapa que se está completando
+            respuestas: Respuestas dadas en la etapa
+            
+        Returns:
+            True si se detectó un rechazo, False en caso contrario
+        """
+        try:
+            for pregunta in etapa.preguntas:
+                pregunta_texto = (pregunta.pregunta or "").lower()
+                
+                # Detectar preguntas de resultado/dictamen
+                if any(keyword in pregunta_texto for keyword in ["resultado", "dictamen", "decisión", "aprobación"]):
+                    valor = respuestas.get(pregunta.codigo)
+                    if valor:
+                        valor_upper = str(valor).upper().strip()
+                        if valor_upper == "RECHAZADO":
+                            logger.info(f"Detectado RECHAZO en pregunta {pregunta.codigo}")
+                            return True
+            
+            return False
+        except Exception as e:
+            logger.error(f"Error detectando rechazo: {str(e)}")
+            return False
