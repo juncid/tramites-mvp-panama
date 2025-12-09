@@ -189,7 +189,8 @@ export const WorkflowEtapasUnificado: React.FC<WorkflowEtapasProps> = ({ perfil:
         const numericId = resolveWorkflowId(instanciaId);
         setWorkflowInstanciaId(numericId);
       } else if (realSolicitudId) {
-        const response = await fetch(`http://localhost:8000/api/v1/ppsh/solicitudes/${realSolicitudId}`);
+        const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1';
+        const response = await fetch(`${apiBaseUrl}/ppsh/solicitudes/${realSolicitudId}`);
         if (!response.ok) throw new Error('Solicitud no encontrada');
         const data = await response.json();
         if (data.workflow_instancia_id) {

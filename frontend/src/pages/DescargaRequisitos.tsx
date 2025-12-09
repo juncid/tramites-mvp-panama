@@ -36,7 +36,7 @@ export const DescargaRequisitos: React.FC = () => {
 
   const handleDescargar = () => {
     // URL del archivo de requisitos en el backend
-    const API_URL = 'http://localhost:8000';
+    const API_URL = import.meta.env.VITE_API_BASE_URL?.replace('/api/v1', '') || 'http://localhost:8000';
     const archivoUrl = '/static/documentos/requisitos_ppsh.txt';
     
     // Abrir en nueva pestaña para descargar

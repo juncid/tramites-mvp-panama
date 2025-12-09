@@ -10,8 +10,8 @@ import {
 } from '@mui/icons-material';
 import type { WorkflowPregunta } from '../../../types/workflow';
 
-// URL base del API
-const API_URL = 'http://localhost:8000';
+// URL base del API (sin /api/v1)
+const API_URL = import.meta.env.VITE_API_BASE_URL?.replace('/api/v1', '') || 'http://localhost:8000';
 
 interface ArchivoOpciones {
   archivo_url?: string;
