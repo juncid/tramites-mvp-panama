@@ -252,8 +252,8 @@ export const InicioCiudadano: React.FC = () => {
           </Box>
         </Box>
 
-        {/* Botón Volver - full width en móvil según Figma */}
-        <Box sx={{ mt: 6, display: 'flex', justifyContent: { xs: 'center', md: 'flex-start' } }}>
+        {/* Botón Volver - oculto en móvil, visible en desktop */}
+        <Box sx={{ mt: 6, display: { xs: 'none', md: 'flex' }, justifyContent: 'flex-start' }}>
           <Button
             variant="outlined"
             onClick={handleVolverClick}
