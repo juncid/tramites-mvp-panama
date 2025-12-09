@@ -20,6 +20,7 @@ import {
   Edit as EditIcon,
   Visibility as VisibilityIcon,
   CheckCircleOutline as CheckCircleOutlineIcon,
+  Cancel as CancelIcon,
   ArrowUpward as ArrowUpwardIcon,
   ArrowDownward as ArrowDownwardIcon,
 } from '@mui/icons-material';
@@ -127,26 +128,27 @@ export const Solicitudes = () => {
         return {
           backgroundColor: '#e1fcef',
           color: '#328056',
-          icon: true,
+          icon: 'check' as const,
         };
       case 'COMPLETADO':
       case 'RESUELTO':
         return {
           backgroundColor: '#e3f2fd',
           color: '#1565c0',
-          icon: true,
+          icon: 'check' as const,
         };
       case 'RECHAZADO':
         return {
           backgroundColor: '#ffebee',
           color: '#c62828',
-          icon: true,
+          icon: 'cancel' as const,
+          fontWeight: 600,
         };
       default:
         return {
           backgroundColor: '#f5f5f5',
           color: '#666666',
-          icon: false,
+          icon: null as const,
         };
     }
   };
@@ -155,6 +157,20 @@ export const Solicitudes = () => {
   const isEstadoSoloLectura = (estado: string): boolean => {
     const estadoUpper = estado.toUpperCase();
     return estadoUpper === 'RECHAZADO' || estadoUpper === 'RESUELTO';
+  };
+
+  // Función helper para obtener el icono según el tipo
+  const getEstadoIcon = (iconType: 'check' | 'cancel' | null) => {
+    if (iconType === 'check') return <CheckCircleOutlineIcon sx={{ fontSize: 14 }} />;
+    if (iconType === 'cancel') return <CancelIcon sx={{ fontSize: 14 }} />;
+    return undefined;
+  };
+
+  // Función para obtener el label del estado (RECHAZADO siempre en mayúsculas)
+  const getEstadoLabel = (estado: string): string => {
+    if (estado === 'RECIBIDO') return 'Activo';
+    if (estado.toUpperCase() === 'RECHAZADO') return 'RECHAZADO';
+    return estado.toLowerCase();
   };
 
   return (
@@ -294,14 +310,15 @@ export const Solicitudes = () => {
                           PPSH
                         </Typography>
                         <Chip
-                          icon={estadoStyles.icon ? <CheckCircleOutlineIcon sx={{ fontSize: 14 }} /> : undefined}
-                          label={solicitud.estado_actual === 'RECIBIDO' ? 'Activo' : solicitud.estado_actual.toLowerCase()}
+                          icon={getEstadoIcon(estadoStyles.icon)}
+                          label={getEstadoLabel(solicitud.estado_actual)}
                           size="small"
                           sx={{
                             backgroundColor: estadoStyles.backgroundColor,
                             color: estadoStyles.color,
                             fontFamily: 'Roboto, sans-serif',
-                            textTransform: 'capitalize',
+                            textTransform: solicitud.estado_actual.toUpperCase() === 'RECHAZADO' ? 'uppercase' : 'capitalize',
+                            fontWeight: solicitud.estado_actual.toUpperCase() === 'RECHAZADO' ? 600 : 400,
                             '& .MuiChip-icon': {
                               color: estadoStyles.color,
                             },
@@ -493,16 +510,20 @@ export const Solicitudes = () => {
                         width: 'fit-content',
                       }}
                     >
-                      {estadoStyles.icon && (
+                      {estadoStyles.icon === 'check' && (
                         <CheckCircleOutlineIcon sx={{ fontSize: 16, color: estadoStyles.color }} />
+                      )}
+                      {estadoStyles.icon === 'cancel' && (
+                        <CancelIcon sx={{ fontSize: 16, color: estadoStyles.color }} />
                       )}
                       <Typography sx={{ 
                         color: estadoStyles.color, 
                         fontSize: '16px', 
                         fontFamily: 'Roboto, sans-serif',
-                        textTransform: 'capitalize',
+                        textTransform: solicitud.estado_actual.toUpperCase() === 'RECHAZADO' ? 'uppercase' : 'capitalize',
+                        fontWeight: solicitud.estado_actual.toUpperCase() === 'RECHAZADO' ? 600 : 400,
                       }}>
-                        {solicitud.estado_actual === 'RECIBIDO' ? 'Activo' : solicitud.estado_actual.toLowerCase()}
+                        {getEstadoLabel(solicitud.estado_actual)}
                       </Typography>
                     </Box>
 
