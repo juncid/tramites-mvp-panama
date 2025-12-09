@@ -245,3 +245,179 @@ const TarjetaCaso: React.FC<TarjetaCasoProps> = ({ caso, sede }) => {
 };
 
 export default PrintableCasosDocument;
+
+/**
+ * Genera HTML completo para impresión de etiquetas de casos
+ * Abre en nueva ventana y ejecuta window.print()
+ * @param casos - Array de casos a imprimir (máximo 6 por página)
+ * @param sede - Nombre de la sede (default: 'SEDE CENTRAL')
+ * @returns String con HTML completo
+ */
+export function generateCasosPrintHTML(
+  casos: CasoParaImpresion[],
+  sede: string = 'SEDE CENTRAL'
+): string {
+  // Si no hay casos, crear un caso de ejemplo para prueba
+  if (casos.length === 0) {
+    console.warn('generateCasosPrintHTML: No hay casos para imprimir');
+    casos = [{
+      id_solicitud: 0,
+      num_expediente: 'SIN-EXPEDIENTE',
+      nombre: 'Sin casos seleccionados',
+      nacionalidad: 'N/A',
+    }];
+  }
+
+  // Debug: mostrar casos recibidos
+  console.log('generateCasosPrintHTML - Casos a imprimir:', casos);
+
+  // Dividir en páginas de 6 casos
+  const paginas: CasoParaImpresion[][] = [];
+  for (let i = 0; i < casos.length; i += 6) {
+    paginas.push(casos.slice(i, i + 6));
+  }
+
+  const paginasHTML = paginas.map((paginaCasos, pageIndex) => `
+    <div class="pagina" style="
+      width: 8.5in;
+      height: 11in;
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      grid-template-rows: repeat(3, 1fr);
+      gap: 8px;
+      padding: 16px;
+      page-break-after: ${pageIndex < paginas.length - 1 ? 'always' : 'auto'};
+      background: white;
+      box-sizing: border-box;
+    ">
+      ${paginaCasos.map(caso => generarTarjetaCasoHTML(caso, sede)).join('')}
+    </div>
+  `).join('');
+
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <title>Etiquetas de Casos - Migración Panamá</title>
+      <style>
+        @page {
+          size: letter portrait;
+          margin: 0;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+          font-family: 'Roboto', 'Roboto Flex', sans-serif;
+          background: white;
+          -webkit-print-color-adjust: exact;
+          print-color-adjust: exact;
+        }
+        @media print {
+          body { margin: 0; padding: 0; }
+        }
+      </style>
+    </head>
+    <body>
+      ${paginasHTML}
+    </body>
+    </html>
+  `;
+}
+
+function generarTarjetaCasoHTML(caso: CasoParaImpresion, sede: string): string {
+  const escudoSVG = `
+    <svg width="40" height="34" viewBox="0 0 27 23" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <ellipse cx="13.5" cy="11.5" rx="13.5" ry="11.5" fill="#FFD700"/>
+      <path d="M13.5 2C8 2 4 6 4 11.5C4 17 8 21 13.5 21C19 21 23 17 23 11.5C23 6 19 2 13.5 2Z" fill="#0066B3"/>
+      <path d="M13.5 4C9 4 6 7.5 6 11.5C6 15.5 9 19 13.5 19C18 19 21 15.5 21 11.5C21 7.5 18 4 13.5 4Z" fill="#FFFFFF"/>
+      <circle cx="13.5" cy="11.5" r="4" fill="#D4AF37"/>
+    </svg>
+  `;
+
+  return `
+    <div style="
+      width: 100%;
+      height: 100%;
+      position: relative;
+      border: 3px solid #000000;
+      box-sizing: border-box;
+      background: white;
+      display: flex;
+      flex-direction: column;
+      padding: 12px;
+    ">
+      <!-- Borde interior -->
+      <div style="
+        position: absolute;
+        top: 4px; left: 4px; right: 4px; bottom: 4px;
+        border: 2px solid #000000;
+        pointer-events: none;
+      "></div>
+      
+      <!-- Encabezado institucional -->
+      <div style="
+        text-align: center;
+        padding: 8px 0 12px 0;
+        border-bottom: 1px solid #999;
+        margin-bottom: 10px;
+      ">
+        <div style="margin-bottom: 6px;">
+          ${escudoSVG}
+        </div>
+        <div style="
+          font-family: 'Roboto', Arial, sans-serif;
+          font-weight: 600;
+          font-size: 9px;
+          color: #333333;
+          line-height: 1.4;
+          text-transform: uppercase;
+        ">
+          República de Panamá<br>
+          Ministerio de Seguridad Pública<br>
+          Servicio Nacional de Migración<br>
+          <span style="font-weight: 700;">${sede}</span>
+        </div>
+      </div>
+      
+      <!-- Datos del caso -->
+      <div style="
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: 8px;
+        padding: 0 8px;
+      ">
+        <!-- Expediente -->
+        <div style="
+          font-family: 'Roboto', Arial, sans-serif;
+          font-size: 11px;
+          color: #333333;
+        ">
+          <span style="font-weight: 700;">EXPEDIENTE N°:</span><br>
+          <span style="font-size: 13px; font-weight: 600;">${caso.num_expediente || 'N/A'}</span>
+        </div>
+        
+        <!-- Nombre -->
+        <div style="
+          font-family: 'Roboto', Arial, sans-serif;
+          font-size: 11px;
+          color: #333333;
+        ">
+          <span style="font-weight: 700;">NOMBRE:</span><br>
+          <span style="font-size: 12px;">${caso.nombre || 'N/A'}</span>
+        </div>
+        
+        <!-- Nacionalidad -->
+        <div style="
+          font-family: 'Roboto', Arial, sans-serif;
+          font-size: 11px;
+          color: #333333;
+        ">
+          <span style="font-weight: 700;">NACIONALIDAD:</span><br>
+          <span style="font-size: 12px;">${caso.nacionalidad || 'N/A'}</span>
+        </div>
+      </div>
+    </div>
+  `;
+}
