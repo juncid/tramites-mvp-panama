@@ -234,7 +234,14 @@ export const CargaArchivoView: React.FC<CargaArchivoViewProps> = ({
   }, []);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
     const files = Array.from(e.target.files || []);
+    
+    // Limpiar el input para permitir seleccionar el mismo archivo otra vez
+    e.target.value = '';
+    
     setUploadError('');
     
     // Validar tamaño
@@ -258,7 +265,12 @@ export const CargaArchivoView: React.FC<CargaArchivoViewProps> = ({
     // Si hay solicitudId, subir al backend
     if (solicitudId) {
       for (const file of archivosValidos) {
-        await uploadFileToBackend(file);
+        try {
+          await uploadFileToBackend(file);
+        } catch (err) {
+          console.error('Error en uploadFileToBackend:', err);
+          // El error ya se maneja dentro de uploadFileToBackend
+        }
       }
     } else {
       // Sin solicitudId, solo agregar localmente (modo formulario nuevo)
