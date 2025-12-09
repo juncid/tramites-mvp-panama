@@ -385,6 +385,14 @@ class WorkflowExecutionService:
         )
         db.add(historial)
 
+        # ========================================
+        # SINCRONIZACIÓN CON SOLICITUD PPSH
+        # Detectar pregunta "Resultado del permiso" y actualizar estado de solicitud
+        # ========================================
+        WorkflowExecutionService._sincronizar_estado_solicitud_ppsh(
+            db, instancia, etapa, respuestas, user_id
+        )
+
         db.commit()
         db.refresh(instancia)
 
@@ -490,3 +498,103 @@ class WorkflowExecutionService:
         except Exception as e:
             logger.error(f"Error evaluando condición: {e}")
             return False
+
+    @staticmethod
+    def _sincronizar_estado_solicitud_ppsh(
+        db: Session,
+        instancia: models.WorkflowInstancia,
+        etapa: models.WorkflowEtapa,
+        respuestas: Dict[str, Any],
+        user_id: str
+    ) -> None:
+        """
+        Sincroniza el estado de la solicitud PPSH cuando se detecta una pregunta
+        de tipo "Resultado del permiso" con valores Aprobado/Rechazado.
+        
+        Args:
+            db: Sesión de base de datos
+            instancia: Instancia del workflow
+            etapa: Etapa que se acaba de completar
+            respuestas: Respuestas dadas en la etapa
+            user_id: ID del usuario ejecutando
+        """
+        try:
+            # Buscar pregunta que contenga "resultado" en su nombre y tenga opciones Aprobado/Rechazado
+            resultado_permiso = None
+            
+            for pregunta in etapa.preguntas:
+                pregunta_texto = (pregunta.pregunta or "").lower()
+                codigo = (pregunta.codigo or "").lower()
+                
+                # Detectar preguntas de resultado/dictamen
+                if any(keyword in pregunta_texto for keyword in ["resultado", "dictamen", "decisión", "aprobación"]):
+                    valor = respuestas.get(pregunta.codigo)
+                    if valor:
+                        # Normalizar el valor
+                        valor_upper = str(valor).upper().strip()
+                        if valor_upper in ["APROBADO", "RECHAZADO"]:
+                            resultado_permiso = valor_upper
+                            logger.info(f"Detectada respuesta de resultado: {pregunta.codigo} = {resultado_permiso}")
+                            break
+            
+            if not resultado_permiso:
+                return
+            
+            # Obtener id_solicitud de metadata_adicional
+            if not instancia.metadata_adicional:
+                logger.warning("No hay metadata_adicional en la instancia")
+                return
+                
+            id_solicitud = instancia.metadata_adicional.get("id_solicitud")
+            if not id_solicitud:
+                logger.warning("No hay id_solicitud en metadata_adicional")
+                return
+            
+            # Importar modelos y servicios de PPSH
+            from app.models import models_ppsh
+            
+            # Obtener la solicitud
+            solicitud = db.query(models_ppsh.PPSHSolicitud).filter(
+                models_ppsh.PPSHSolicitud.id_solicitud == id_solicitud
+            ).first()
+            
+            if not solicitud:
+                logger.warning(f"No se encontró solicitud PPSH con id {id_solicitud}")
+                return
+            
+            # Solo actualizar si el estado actual permite la transición
+            estado_anterior = solicitud.estado_actual
+            
+            # Determinar nuevo estado basado en el resultado
+            if resultado_permiso == "APROBADO":
+                nuevo_estado = "APROBADO"
+            else:  # RECHAZADO
+                nuevo_estado = "RECHAZADO"
+            
+            # Actualizar estado de la solicitud
+            solicitud.estado_actual = nuevo_estado
+            
+            # Crear registro en historial de estados
+            historial_estado = models_ppsh.PPSHEstadoHistorial(
+                id_solicitud=id_solicitud,
+                estado_anterior=estado_anterior,
+                estado_nuevo=nuevo_estado,
+                fecha_cambio=datetime.utcnow(),
+                observaciones=f"Estado actualizado automáticamente desde etapa '{etapa.nombre}' del workflow",
+                user_id=user_id
+            )
+            db.add(historial_estado)
+            
+            # Guardar resultado en metadata de la instancia para uso posterior
+            if instancia.metadata_adicional is None:
+                instancia.metadata_adicional = {}
+            instancia.metadata_adicional["resultado_workflow"] = resultado_permiso
+            
+            logger.info(
+                f"✅ Solicitud PPSH {solicitud.num_expediente} actualizada: "
+                f"{estado_anterior} → {nuevo_estado}"
+            )
+            
+        except Exception as e:
+            logger.error(f"Error sincronizando estado con PPSH: {str(e)}")
+            # No fallar la ejecución de la etapa por error de sincronización
