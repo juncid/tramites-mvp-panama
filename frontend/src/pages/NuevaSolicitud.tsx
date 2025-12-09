@@ -151,19 +151,51 @@ export const NuevaSolicitud: React.FC = () => {
     }
   };
 
-  const handleCopyLink = () => {
+  const handleCopyLink = async () => {
     if (success) {
-      navigator.clipboard.writeText(success.link_seguimiento);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(success.link_seguimiento);
+        } else {
+          // Fallback para HTTP (sin HTTPS)
+          const textArea = document.createElement('textarea');
+          textArea.value = success.link_seguimiento;
+          textArea.style.position = 'fixed';
+          textArea.style.left = '-9999px';
+          document.body.appendChild(textArea);
+          textArea.select();
+          document.execCommand('copy');
+          document.body.removeChild(textArea);
+        }
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      } catch (err) {
+        console.error('Error al copiar:', err);
+      }
     }
   };
 
-  const handleCopyCode = () => {
+  const handleCopyCode = async () => {
     if (success?.codigo_acceso) {
-      navigator.clipboard.writeText(success.codigo_acceso);
-      setCopiedCode(true);
-      setTimeout(() => setCopiedCode(false), 2000);
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(success.codigo_acceso);
+        } else {
+          // Fallback para HTTP (sin HTTPS)
+          const textArea = document.createElement('textarea');
+          textArea.value = success.codigo_acceso;
+          textArea.style.position = 'fixed';
+          textArea.style.left = '-9999px';
+          document.body.appendChild(textArea);
+          textArea.select();
+          document.execCommand('copy');
+          document.body.removeChild(textArea);
+        }
+        setCopiedCode(true);
+        setTimeout(() => setCopiedCode(false), 2000);
+      } catch (err) {
+        console.error('Error al copiar:', err);
+      }
     }
   };
 
@@ -593,9 +625,9 @@ export const NuevaSolicitud: React.FC = () => {
           fullWidth
           disableEscapeKeyDown
         >
-          <DialogTitle sx={{ textAlign: 'center', pt: 4 }}>
+          <DialogTitle component="div" sx={{ textAlign: 'center', pt: 4 }}>
             <CheckCircleIcon color="success" sx={{ fontSize: 60, mb: 2 }} />
-            <Typography variant="h5" fontWeight="bold">
+            <Typography variant="h5" component="span" fontWeight="bold">
               ¡Solicitud Creada Exitosamente!
             </Typography>
           </DialogTitle>
