@@ -214,6 +214,9 @@ export const InicioCiudadano: React.FC = () => {
           flex: 1,
           py: { xs: 4, md: 5 },
           px: { xs: '16px', sm: 3, md: '7.69rem' },
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: { xs: 'center', md: 'flex-start' },
         }}
       >
         {/* Grid de tarjetas de trámites */}
@@ -223,9 +226,10 @@ export const InicioCiudadano: React.FC = () => {
             flexDirection: 'column',
             gap: '30px',
             maxWidth: '1194px',
+            width: '100%',
           }}
         >
-          {/* En móvil todas apiladas, en desktop 3 + 1 */}
+          {/* En móvil todas apiladas y centradas, en desktop 3 + 1 */}
           <Box
             sx={{
               display: 'flex',
@@ -233,6 +237,8 @@ export const InicioCiudadano: React.FC = () => {
               flexWrap: 'wrap',
               gap: '30px',
               justifyContent: { xs: 'center', md: 'flex-start' },
+              alignItems: { xs: 'center', md: 'flex-start' },
+              width: '100%',
             }}
           >
             {tramites.map((tramite, index) => (
@@ -247,7 +253,7 @@ export const InicioCiudadano: React.FC = () => {
         </Box>
 
         {/* Botón Volver - full width en móvil según Figma */}
-        <Box sx={{ mt: 6 }}>
+        <Box sx={{ mt: 6, display: 'flex', justifyContent: { xs: 'center', md: 'flex-start' } }}>
           <Button
             variant="outlined"
             onClick={handleVolverClick}

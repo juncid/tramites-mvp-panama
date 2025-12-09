@@ -1,4 +1,5 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
+import { useMediaQuery, useTheme } from '@mui/material';
 import { MainLayout } from '../components/Layout/MainLayout';
 import { PublicLayout } from '../components/Layout/PublicLayout';
 import { Dashboard } from '../pages/Dashboard';
@@ -39,6 +40,18 @@ import { CargaPoderGeneral } from '../pages/CargaPoderGeneral';       // Lógica
 import { CargaSolicitudFirmada } from '../pages/CargaSolicitudFirmada'; // Lógica especial: OCR upload
 import { Cotizacion } from '../pages/Cotizacion';                     // Lógica especial: items dinámicos
 
+// Componente para redirección condicional en móvil
+const MobileRedirect = ({ children }: { children: React.ReactNode }) => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  
+  if (isMobile) {
+    return <Navigate to="/inicio" replace />;
+  }
+  
+  return <>{children}</>;
+};
+
 export const AppRouter = () => {
   return (
     <Routes>
@@ -63,9 +76,11 @@ export const AppRouter = () => {
       <Route
         path="/"
         element={
-          <MainLayout>
-            <Dashboard />
-          </MainLayout>
+          <MobileRedirect>
+            <MainLayout>
+              <Dashboard />
+            </MainLayout>
+          </MobileRedirect>
         }
       />
       <Route
