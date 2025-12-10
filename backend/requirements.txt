@@ -24,3 +24,9 @@ pdf2image==1.16.3
 
 # Monitoreo de Celery
 flower==2.0.1
+
+# Testing
+pytest==7.4.3
+pytest-cov==4.1.0
+httpx==0.25.1
+faker==20.1.0
