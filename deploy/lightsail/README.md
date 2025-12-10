@@ -107,20 +107,19 @@ docker compose -f docker-compose.lightsail.yml ps
 docker compose -f docker-compose.lightsail.yml logs -f
 ```
 
-### 6. Inicializar Base de Datos (Primera vez)
+### 6. Inicializar Base de Datos
 
+Tienes dos opciones:
+
+**Opción A: Inicializar desde cero (Recomendado para nueva instalación)**
 ```bash
-# Esperar a que SQL Server esté listo (puede tardar 1-2 minutos)
-docker compose -f docker-compose.lightsail.yml logs sqlserver
+./init-db.sh
+```
 
-# Inicializar BD
-docker compose -f docker-compose.lightsail.yml exec backend python /app/scripts/init_database.py
-
-# Aplicar migraciones
-docker compose -f docker-compose.lightsail.yml exec backend alembic upgrade head
-
-# (Opcional) Cargar datos de prueba
-docker compose -f docker-compose.lightsail.yml exec backend python /app/scripts/seed_test_data.py --all
+**Opción B: Restaurar backup existente**
+Si tienes un backup en `database/backups/sim_panama_latest.bak`, usa este script:
+```bash
+./restore-backup.sh
 ```
 
 ## Verificación
