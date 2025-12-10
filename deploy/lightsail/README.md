@@ -76,8 +76,8 @@ O manualmente:
 
 ```bash
 # Clonar repositorio
-git clone https://github.com/juncid/tramites-mvp-panama.git /opt/tramites-panama
-cd /opt/tramites-panama/deploy/lightsail
+git clone https://github.com/juncid/tramites-mvp-panama.git ~/tramites-panama
+cd ~/tramites-panama/deploy/lightsail
 
 # Configurar swap (IMPORTANTE para 4GB RAM)
 sudo fallocate -l 4G /swapfile
@@ -95,7 +95,7 @@ nano .env  # Editar con tus valores
 ### 5. Iniciar Contenedores
 
 ```bash
-cd /opt/tramites-panama/deploy/lightsail
+cd ~/tramites-panama/deploy/lightsail
 
 # Iniciar todos los servicios
 docker compose -f docker-compose.lightsail.yml up -d

@@ -51,8 +51,8 @@ Conéctate por SSH y ejecuta:
 
 ```bash
 # Clonar repositorio
-git clone https://github.com/juncid/tramites-mvp-panama.git /opt/tramites-panama
-cd /opt/tramites-panama/deploy/lightsail
+git clone https://github.com/juncid/tramites-mvp-panama.git ~/tramites-panama
+cd ~/tramites-panama/deploy/lightsail
 ```
 
 ### 3. Ejecutar Instalador
