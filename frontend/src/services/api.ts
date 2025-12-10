@@ -19,7 +19,12 @@ class ApiClient {
   }
 
   private buildUrl(endpoint: string, params?: Record<string, any>): string {
-    const url = new URL(`${this.baseUrl}${endpoint}`);
+    // Si la baseUrl es relativa (comienza con /), usar el origen actual
+    const fullBaseUrl = this.baseUrl.startsWith('/')
+      ? `${window.location.origin}${this.baseUrl}`
+      : this.baseUrl;
+    
+    const url = new URL(`${fullBaseUrl}${endpoint}`);
     
     if (params) {
       Object.entries(params).forEach(([key, value]) => {
