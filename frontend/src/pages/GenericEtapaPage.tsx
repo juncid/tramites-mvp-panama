@@ -31,6 +31,7 @@ import { ImpresionView } from '../components/Workflow/QuestionViews/ImpresionVie
 import { ImpresionListaCasosView } from '../components/Workflow/QuestionViews/ImpresionListaCasosView';
 import { SolicitudSummaryCard } from '../components/Solicitudes/SolicitudSummaryCard';
 import { FileUploadWizard } from '../components/Workflow/FileUploadWizard';
+import { getApiBaseUrl, getApiRootUrl } from '../utils/apiUrl';
 
 interface CampoVista {
   id: number;
@@ -92,6 +93,7 @@ interface VistaActual {
     sexo?: string;
     foto_url?: string;
   };
+  nombre_workflow?: string;
 }
 
 /**
@@ -127,6 +129,7 @@ export const GenericEtapaPage: React.FC = () => {
   const [showSummaryCard, setShowSummaryCard] = useState(false);
   const [ocrErrorCount, setOcrErrorCount] = useState<number | null>(null);
   const [ocrAutoSelectedCode, setOcrAutoSelectedCode] = useState<string | null>(null);
+  const [camposAutoLlenados, setCamposAutoLlenados] = useState<string[]>([]);
 
   useEffect(() => {
     loadVistaActual();
@@ -143,7 +146,7 @@ export const GenericEtapaPage: React.FC = () => {
         numericId = parseInt(instanciaId);
       } else if (solicitudId) {
         // Obtener workflow_instancia_id desde la solicitud
-        const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1';
+        const apiBaseUrl = getApiBaseUrl();
         const response = await fetch(`${apiBaseUrl}/ppsh/solicitudes/${solicitudId}`);
         if (!response.ok) {
           throw new Error('No se pudo obtener la información de la solicitud');
@@ -191,6 +194,39 @@ export const GenericEtapaPage: React.FC = () => {
           }
         }
       });
+
+      // Auto-llenar fecha y responsable para etapas de cotización
+      const esCotizacion = vista.etapa_actual?.nombre?.toLowerCase().includes('cotización') ||
+                           vista.etapa_actual?.codigo?.toLowerCase().includes('cotizacion');
+      
+      if (esCotizacion) {
+        const camposAutoLlenadosList: string[] = [];
+        
+        // Buscar campo de fecha (PREGUNTA_3 o que contenga "fecha" en el nombre)
+        const campoFecha = vista.campos.find((c: CampoVista) => 
+          c.codigo === 'PREGUNTA_3' || c.pregunta?.toLowerCase().includes('fecha')
+        );
+        
+        // Buscar campo de responsable (PREGUNTA_4 o que contenga "responsable" en el nombre)
+        const campoResponsable = vista.campos.find((c: CampoVista) => 
+          c.codigo === 'PREGUNTA_4' || c.pregunta?.toLowerCase().includes('responsable')
+        );
+        
+        // Auto-llenar fecha con la fecha de hoy si no tiene valor
+        if (campoFecha && !valoresIniciales[campoFecha.codigo]) {
+          valoresIniciales[campoFecha.codigo] = new Date().toLocaleDateString('es-PA');
+          camposAutoLlenadosList.push(campoFecha.codigo);
+        }
+        
+        // Auto-llenar responsable con el nombre del usuario si no tiene valor
+        if (campoResponsable && !valoresIniciales[campoResponsable.codigo] && usuario?.nombre) {
+          valoresIniciales[campoResponsable.codigo] = usuario.nombre;
+          camposAutoLlenadosList.push(campoResponsable.codigo);
+        }
+        
+        setCamposAutoLlenados(camposAutoLlenadosList);
+      }
+
       setRespuestas(valoresIniciales);
 
     } catch (err: any) {
@@ -368,7 +404,10 @@ export const GenericEtapaPage: React.FC = () => {
     // Determinar si este campo debe estar en readonly
     // - Si la página está en readonly mode
     // - Si es la pregunta de OCR que fue auto-seleccionada
-    const isFieldReadonly = isReadonly || (campo.codigo === ocrAutoSelectedCode);
+    // - Si es un campo auto-llenado (fecha/responsable en cotización)
+    const isFieldReadonly = isReadonly || 
+                           (campo.codigo === ocrAutoSelectedCode) || 
+                           camposAutoLlenados.includes(campo.codigo);
 
     const commonProps = {
       pregunta,
@@ -409,7 +448,16 @@ export const GenericEtapaPage: React.FC = () => {
           return <RevisionOCRView key={campo.id} {...commonProps} instanciaId={workflowInstanciaId ?? undefined} />;
         
         case 'DATOS_CASO':
-          return <DatosCasoView key={campo.id} {...commonProps} instanciaId={workflowInstanciaId ?? undefined} metadataInstancia={vistaActual?.metadata_instancia} />;
+          return (
+            <DatosCasoView 
+              key={campo.id} 
+              {...commonProps} 
+              instanciaId={workflowInstanciaId ?? undefined} 
+              metadataInstancia={vistaActual?.metadata_instancia}
+              datosSolicitante={vistaActual?.datos_solicitante}
+              nombreWorkflow={vistaActual?.nombre_workflow}
+            />
+          );
         
         case 'SELECCION_FECHA':
           return <SeleccionFechaView key={campo.id} {...commonProps} />;
@@ -752,8 +800,8 @@ export const GenericEtapaPage: React.FC = () => {
                 const camposArchivo = camposOrdenados.filter(c => c.tipo_pregunta === 'CARGA_ARCHIVO');
                 const camposOtros = camposOrdenados.filter(c => c.tipo_pregunta !== 'CARGA_ARCHIVO');
                 
-                // Si hay múltiples campos de archivo y NO es readonly, usar el wizard
-                const usarWizard = camposArchivo.length > 1 && !readonly;
+                // Si hay múltiples campos de archivo, usar el wizard (tanto en modo edición como readonly)
+                const usarWizard = camposArchivo.length > 1;
                 
                 return (
                   <>
@@ -770,7 +818,7 @@ export const GenericEtapaPage: React.FC = () => {
                         readonly={readonly}
                         onComplete={handleSiguiente}
                         onBack={handleCancelar}
-                        buttonLabels={{ next: 'Siguiente', back: 'Cancelar', complete: 'Guardar' }}
+                        buttonLabels={{ next: 'Continuar', back: 'Cancelar', complete: 'Guardar' }}
                         datosSolicitante={vistaActual.datos_solicitante}
                       />
                     ) : (
@@ -785,7 +833,7 @@ export const GenericEtapaPage: React.FC = () => {
             {/* Botones de navegación - Solo mostrar si NO usamos el wizard (el wizard tiene sus propios botones) */}
             {(() => {
               const camposArchivo = vistaActual.campos.filter(c => c.tipo_pregunta === 'CARGA_ARCHIVO');
-              const usarWizard = camposArchivo.length > 1 && !readonly;
+              const usarWizard = camposArchivo.length > 1;
               
               // Si usamos wizard, no mostrar botones aquí
               if (usarWizard) return null;
@@ -872,7 +920,7 @@ export const GenericEtapaPage: React.FC = () => {
                       },
                     }}
                   >
-                    {completing ? <CircularProgress size={24} color="inherit" /> : 'Siguiente'}
+                    {completing ? <CircularProgress size={24} color="inherit" /> : 'Continuar'}
                   </Button>
                 </Box>
               );
@@ -931,7 +979,7 @@ export const GenericEtapaPage: React.FC = () => {
                     expediente: vistaActual.datos_solicitante.num_expediente || 'N/A',
                     fechaNacimiento: vistaActual.datos_solicitante.fecha_nacimiento || 'N/A',
                     photoUrl: vistaActual.datos_solicitante.foto_url 
-                      ? `${import.meta.env.VITE_API_BASE_URL?.replace('/api/v1', '') || 'http://localhost:8000'}${vistaActual.datos_solicitante.foto_url}`
+                      ? `${getApiRootUrl()}${vistaActual.datos_solicitante.foto_url}`
                       : undefined,
                   }}
                 />

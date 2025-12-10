@@ -98,7 +98,6 @@ export const EtapaExecution = () => {
       });
 
       // TODO: Implementar guardado de respuestas
-      console.log('Respuestas a guardar:', respuestas);
       
       alert('Respuestas guardadas exitosamente');
       navigate(`/flujos/${workflowId}/instancias/${instanciaId}`);

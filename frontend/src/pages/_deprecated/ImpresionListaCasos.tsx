@@ -128,7 +128,6 @@ export const ImpresionListaCasos = () => {
   };
 
   const handleImprimir = () => {
-    console.log('Imprimiendo lista de casos...');
     window.print();
   };
 

@@ -213,6 +213,10 @@ class WorkflowExecutionService:
         Returns:
             True si tiene permiso, False si no
         """
+        # ADMIN siempre tiene acceso a todas las etapas
+        if perfil == "ADMIN":
+            return True
+            
         # Si no hay perfiles definidos, todos tienen acceso
         if not etapa.perfiles_permitidos:
             return True
@@ -333,7 +337,8 @@ class WorkflowExecutionService:
             if pregunta.tipo_pregunta in [
                 models.TipoPregunta.LISTA,
                 models.TipoPregunta.OPCIONES,
-                models.TipoPregunta.DATOS_CASO
+                models.TipoPregunta.DATOS_CASO,
+                models.TipoPregunta.IMPRESION
             ]:
                 respuesta_obj.valor_json = valor_respuesta
             elif pregunta.tipo_pregunta == models.TipoPregunta.SELECCION_FECHA:

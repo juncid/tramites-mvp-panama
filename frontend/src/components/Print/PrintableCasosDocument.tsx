@@ -269,7 +269,6 @@ export function generateCasosPrintHTML(
   }
 
   // Debug: mostrar casos recibidos
-  console.log('generateCasosPrintHTML - Casos a imprimir:', casos);
 
   // Dividir en páginas de 6 casos
   const paginas: CasoParaImpresion[][] = [];

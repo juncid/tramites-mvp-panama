@@ -126,14 +126,11 @@ interface WorkflowEditorFigmaContentProps {
 }
 
 const WorkflowEditorFigmaContent: React.FC<WorkflowEditorFigmaContentProps> = ({ readOnly = false }) => {
-  console.log('💡 WorkflowEditorFigma: Componente renderizándose, readOnly =', readOnly);
   
   const { id } = useParams();
-  console.log('💡 WorkflowEditorFigma: id desde useParams =', id);
   
   const navigate = useNavigate();
   const isEditMode = !!id;
-  console.log('💡 WorkflowEditorFigma: isEditMode =', isEditMode);
   
   const { zoomIn, zoomOut, setViewport, getViewport, fitView } = useReactFlow();
 
@@ -254,7 +251,6 @@ const WorkflowEditorFigmaContent: React.FC<WorkflowEditorFigmaContentProps> = ({
   }, [nodes]);
 
   useEffect(() => {
-    console.log('🔍 useEffect ejecutado - isEditMode:', isEditMode, 'id:', id);
     if (isEditMode) {
       loadWorkflow();
     } else {
@@ -293,27 +289,10 @@ const WorkflowEditorFigmaContent: React.FC<WorkflowEditorFigmaContentProps> = ({
   */
 
   const loadWorkflow = async () => {
-    console.log('🚀 loadWorkflow llamado con id:', id);
     if (!id) return;
     
     try {
-      console.log('🌐 Llamando a workflowService.getWorkflow con id:', parseInt(id));
       const data = await workflowService.getWorkflow(parseInt(id));
-
-      console.log('📋 Workflow cargado desde BD:', {
-        id: data.id,
-        codigo: data.codigo,
-        nombre: data.nombre,
-        descripcion: data.descripcion,
-        estado: data.estado,
-        version: data.version,
-        perfiles_creadores: data.perfiles_creadores,
-        activo: data.activo,
-        total_etapas: data.etapas?.length || 0,
-        total_conexiones: data.conexiones?.length || 0,
-        etapas: data.etapas,
-        conexiones: data.conexiones,
-      });
 
       // Cargar información del workflow
       setWorkflowData({
@@ -828,21 +807,17 @@ const WorkflowEditorFigmaContent: React.FC<WorkflowEditorFigmaContentProps> = ({
         
         for (const etapa of etapasADesactivar) {
           if (!etapa.id) continue;
-          console.log(`Desactivando etapa ${etapa.id} (${etapa.codigo}) del workflow (soft delete)`);
           // Marcar como inactiva en lugar de eliminar
           await workflowService.updateEtapa(etapa.id, { activo: false });
         }
         
         if (etapasADesactivar.length > 0) {
-          console.log(`Desactivadas ${etapasADesactivar.length} etapas`);
         }
 
         // 3. Actualizar etapas existentes con sus datos completos (incluyendo preguntas)
         const updatePromises = etapasExistentes.map(async (node) => {
           const etapaId = parseInt(node.id);
           const orden = todasOrdenadas.findIndex(n => n.id === node.id) + 1;
-          
-          console.log(`Procesando etapa ${etapaId} (${node.data.nombre}) con ${node.data.preguntas?.length || 0} preguntas`);
           
           // Actualizar datos básicos de la etapa
           await workflowService.updateEtapa(etapaId, {
@@ -908,7 +883,6 @@ const WorkflowEditorFigmaContent: React.FC<WorkflowEditorFigmaContentProps> = ({
                 });
               } else {
                 // Pregunta nueva - crear
-                console.log(`Creando nueva pregunta para etapa ${etapaId}:`, pregunta);
                 await workflowService.createPregunta({
                   etapa_id: etapaId,
                   codigo: pregunta.codigo || `PREGUNTA_${Date.now()}_${i}`,
@@ -930,7 +904,6 @@ const WorkflowEditorFigmaContent: React.FC<WorkflowEditorFigmaContentProps> = ({
         });
 
         await Promise.all(updatePromises);
-        console.log(`Actualizadas ${etapasExistentes.length} etapas existentes con sus preguntas`);
 
         // 4. Crear etapas nuevas
         if (etapasNuevas.length > 0) {
@@ -952,7 +925,6 @@ const WorkflowEditorFigmaContent: React.FC<WorkflowEditorFigmaContentProps> = ({
           });
 
           await Promise.all(createPromises);
-          console.log(`Creadas ${etapasNuevas.length} etapas nuevas`);
         }
 
         // 5. Sincronizar conexiones (edges)
@@ -973,7 +945,6 @@ const WorkflowEditorFigmaContent: React.FC<WorkflowEditorFigmaContentProps> = ({
           return !isNaN(sourceId) && !isNaN(targetId) && sourceId < 1000000000 && targetId < 1000000000;
         });
         
-        console.log(`Conexiones activas en BD: ${conexionesEnBD.length}, Conexiones en editor: ${edgesValidos.length}`);
         
         // Crear un mapa de conexiones en el editor para búsqueda rápida
         const edgesMap = new Map(edgesValidos.map(e => [`${e.source}-${e.target}`, e]));
@@ -986,7 +957,6 @@ const WorkflowEditorFigmaContent: React.FC<WorkflowEditorFigmaContentProps> = ({
         
         for (const conexion of conexionesADesactivar) {
           if (!conexion.id) continue;
-          console.log(`Desactivando conexión ${conexion.id}: ${conexion.etapa_origen_id} -> ${conexion.etapa_destino_id}`);
           await workflowService.updateConexion(conexion.id, { activo: false });
         }
         
@@ -1000,7 +970,6 @@ const WorkflowEditorFigmaContent: React.FC<WorkflowEditorFigmaContentProps> = ({
         });
         
         for (const edge of conexionesNuevas) {
-          console.log(`Creando conexión: ${edge.source} -> ${edge.target}`);
           await workflowService.createConexion({
             workflow_id: parseInt(id),
             etapa_origen_id: parseInt(edge.source),
@@ -1011,10 +980,8 @@ const WorkflowEditorFigmaContent: React.FC<WorkflowEditorFigmaContentProps> = ({
           });
         }
         
-        console.log(`Conexiones desactivadas: ${conexionesADesactivar.length}, Conexiones creadas: ${conexionesNuevas.length}`);
 
         // 6. Recargar el workflow para obtener los IDs reales de la BD
-        console.log('Recargando workflow para sincronizar IDs...');
         const workflowActualizado = await workflowService.getWorkflow(parseInt(id));
         
         // Actualizar los nodos con los datos frescos de la BD (incluyendo IDs reales de preguntas)
@@ -1042,7 +1009,6 @@ const WorkflowEditorFigmaContent: React.FC<WorkflowEditorFigmaContentProps> = ({
         });
         
         setNodes(nodosActualizados);
-        console.log('Workflow sincronizado con IDs de BD');
 
         setSaveSuccess(true);
         // No navegar automáticamente, permitir seguir editando

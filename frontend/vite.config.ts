@@ -6,6 +6,12 @@ import { resolve } from 'path'
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
+  // Eliminar console.log, console.debug e console.info en desarrollo y producción
+  // Mantiene console.error y console.warn
+  esbuild: {
+    drop: ['debugger'],
+    pure: ['console.log', 'console.debug', 'console.info'],
+  },
   server: {
     host: '0.0.0.0',
     port: 3000,
@@ -25,6 +31,8 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     sourcemap: true,
+    // Usar esbuild para minificación (más rápido que terser)
+    minify: 'esbuild',
     rollupOptions: {
       output: {
         manualChunks: {

@@ -30,6 +30,8 @@ import { InicioTramite } from '../pages/InicioTramite';
 import { InicioCiudadano } from '../pages/InicioCiudadano';
 import WorkflowEtapasPublico from '../pages/WorkflowEtapasPublico';
 import { GenericEtapaPage } from '../pages/GenericEtapaPage';
+import { LoginDev } from '../pages/LoginDev';
+import { useAuth } from '../context/AuthContext';
 
 // =============================================================================
 // PÁGINAS ESPECÍFICAS DE ETAPA (mantener solo las que tienen lógica especial)
@@ -52,9 +54,27 @@ const MobileRedirect = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
+// Componente para proteger rutas que requieren autenticación (funcionarios/admin)
+const RequireAuth = ({ children }: { children: React.ReactNode }) => {
+  const { isAuthenticated } = useAuth();
+  
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+  
+  return <>{children}</>;
+};
+
 export const AppRouter = () => {
   return (
     <Routes>
+      {/* ============================================== */}
+      {/* RUTAS PÚBLICAS - Ciudadanos (sin login)       */}
+      {/* ============================================== */}
+      
+      {/* Ruta raíz redirige a inicio ciudadano */}
+      <Route path="/" element={<Navigate to="/inicio" replace />} />
+      
       {/* Página de inicio para ciudadanos (pública, sin layout) */}
       <Route path="/inicio" element={<InicioCiudadano />} />
       
@@ -65,38 +85,50 @@ export const AppRouter = () => {
       <Route path="/acceso-publico" element={<MainLayout><PublicAccess /></MainLayout>} />
       <Route path="/consulta-publica/:numeroSolicitud" element={<MainLayout><PublicSolicitudView /></MainLayout>} />
       
-      {/* Nuevas rutas públicas para solicitudes PPSH */}
+      {/* Rutas públicas para solicitudes PPSH (ciudadanos con token JWT) */}
       <Route path="/solicitudes/nueva" element={<NuevaSolicitud />} />
       <Route path="/solicitudes/:token/workflow" element={<PublicLayout><SolicitudPublicaWorkflow /></PublicLayout>} />
-      {/* Ruta para ciudadanos con token JWT - WorkflowEtapasPublico detecta si es JWT o ID */}
       <Route path="/solicitudes/:token/etapas" element={<WorkflowEtapasPublico />} />
       <Route path="/solicitudes/:token/etapa/:etapaOrden" element={<PublicLayout><SolicitudPublicaWorkflow /></PublicLayout>} />
 
-      {/* Rutas con layout */}
+      {/* ============================================== */}
+      {/* RUTAS PROTEGIDAS - Funcionarios/Admin (login) */}
+      {/* ============================================== */}
+      
+      {/* Ruta de Login para funcionarios/admin */}
+      <Route path="/login" element={<LoginDev />} />
+      
+      {/* Dashboard - Panel principal de funcionarios */}
       <Route
-        path="/"
+        path="/dashboard"
         element={
-          <MobileRedirect>
-            <MainLayout>
-              <Dashboard />
-            </MainLayout>
-          </MobileRedirect>
+          <RequireAuth>
+            <MobileRedirect>
+              <MainLayout>
+                <Dashboard />
+              </MainLayout>
+            </MobileRedirect>
+          </RequireAuth>
         }
       />
       <Route
         path="/solicitudes"
         element={
-          <MainLayout>
-            <Solicitudes />
-          </MainLayout>
+          <RequireAuth>
+            <MainLayout>
+              <Solicitudes />
+            </MainLayout>
+          </RequireAuth>
         }
       />
       <Route
         path="/solicitudes/:id/revision"
         element={
-          <MainLayout>
-            <RevisionRequisitos />
-          </MainLayout>
+          <RequireAuth>
+            <MainLayout>
+              <RevisionRequisitos />
+            </MainLayout>
+          </RequireAuth>
         }
       />
       <Route

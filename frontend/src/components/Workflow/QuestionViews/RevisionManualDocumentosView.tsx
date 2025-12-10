@@ -26,6 +26,7 @@ import {
 } from '@mui/icons-material';
 import type { WorkflowPregunta } from '../../../types/workflow';
 import { apiClient } from '../../../services/api';
+import { getApiRootUrl } from '../../../utils/apiUrl';
 
 interface RevisionManualDocumentosViewProps {
   pregunta: WorkflowPregunta;
@@ -176,8 +177,7 @@ export const RevisionManualDocumentosView: React.FC<RevisionManualDocumentosView
           `/workflow/instancias/${instanciaId}/etapas/${etapaOrigenId}/documentos`
         );
         
-        const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1';
-        const baseUrl = apiBaseUrl.replace('/api/v1', '');
+        const baseUrl = getApiRootUrl();
         
         const documentosMapeados: Documento[] = response.documentos.map((doc) => ({
           id: doc.id,

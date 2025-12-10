@@ -1447,7 +1447,8 @@ class InstanciaService:
             "puede_editar": puede_editar,
             "campos": campos,
             "metadata_instancia": instancia.metadata_adicional,
-            "datos_solicitante": InstanciaService._obtener_datos_solicitante_por_expediente(db, instancia.num_expediente)
+            "datos_solicitante": InstanciaService._obtener_datos_solicitante_por_expediente(db, instancia.num_expediente),
+            "nombre_workflow": instancia.workflow.nombre if instancia.workflow else None
         }
 
     @staticmethod
@@ -1593,7 +1594,8 @@ class InstanciaService:
             "es_etapa_completada": es_etapa_completada,
             "campos": campos,
             "metadata_instancia": instancia.metadata_adicional,
-            "datos_solicitante": InstanciaService._obtener_datos_solicitante_por_expediente(db, instancia.num_expediente)
+            "datos_solicitante": InstanciaService._obtener_datos_solicitante_por_expediente(db, instancia.num_expediente),
+            "nombre_workflow": instancia.workflow.nombre if instancia.workflow else None
         }
 
 

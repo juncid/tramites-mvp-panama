@@ -25,7 +25,6 @@ export const RevisionOCRView: React.FC<RevisionOCRViewProps> = ({
 }) => {
   const handleIniciarOCR = () => {
     // TODO: Implementar lógica de inicio de OCR
-    console.log('Iniciando revisión OCR...');
     onAnswerChange?.({ iniciado: true, timestamp: new Date().toISOString() });
   };
 

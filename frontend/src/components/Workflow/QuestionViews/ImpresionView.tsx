@@ -226,7 +226,6 @@ export const ImpresionView: React.FC<ImpresionViewProps> = ({
 
         // Si no hay suficientes solicitudes, completar con datos de prueba
         if (solicitudesEnEtapa.length < MIN_CASOS_PARA_IMPRIMIR) {
-          console.log(`Solo hay ${solicitudesEnEtapa.length} solicitudes, completando con datos de prueba...`);
           const datosPrueba = generarDatosPrueba();
           // Agregar datos de prueba para completar hasta tener al menos 6
           const faltantes = MIN_CASOS_PARA_IMPRIMIR - solicitudesEnEtapa.length;
@@ -237,7 +236,6 @@ export const ImpresionView: React.FC<ImpresionViewProps> = ({
       } catch (err) {
         console.error('Error cargando solicitudes:', err);
         // Si hay error, usar datos de prueba
-        console.log('Usando datos de prueba debido al error...');
         setSolicitudes(generarDatosPrueba());
       } finally {
         setLoading(false);
@@ -371,7 +369,6 @@ export const ImpresionView: React.FC<ImpresionViewProps> = ({
       if (readonly && casosData.length > 0) {
         // En modo readonly, usar los datos guardados
         casosParaImprimir = [...casosData];
-        console.log('Modo readonly - usando casosData:', casosParaImprimir);
       } else if (solicitudes.length > 0 && seleccionados.size > 0) {
         // En modo edición, obtener datos de las solicitudes seleccionadas
         casosParaImprimir = solicitudes
@@ -382,7 +379,6 @@ export const ImpresionView: React.FC<ImpresionViewProps> = ({
             nombre: s.nombre || '',
             nacionalidad: s.nacionalidad || '',
           }));
-        console.log('Modo edición - casos seleccionados:', casosParaImprimir);
       } else {
         // Fallback: usar datos de prueba
         console.warn('No hay casos disponibles, usando datos de prueba');
@@ -410,7 +406,6 @@ export const ImpresionView: React.FC<ImpresionViewProps> = ({
         }
       }
 
-      console.log('Casos finales para imprimir:', casosParaImprimir);
 
       // Generar el HTML usando la función centralizada de PrintableCasosDocument
       const htmlContent = generateCasosPrintHTML(casosParaImprimir, 'SEDE CENTRAL');

@@ -22,9 +22,10 @@ import {
   Link as LinkIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
+import { getApiBaseUrl } from '../utils/apiUrl';
 
 // URL del API
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
+const API_URL = getApiBaseUrl();
 
 interface TabPanelProps {
   children?: React.ReactNode;

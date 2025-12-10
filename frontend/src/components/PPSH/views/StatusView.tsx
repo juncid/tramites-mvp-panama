@@ -52,7 +52,6 @@ export const StatusView = ({ procesoId, solicitudId }: StatusViewProps) => {
 
   const handleSave = async () => {
     // TODO: Guardar cambios en API
-    console.log('Guardando nuevo estado:', isActivado);
     if (estado) {
       setEstado({
         ...estado,

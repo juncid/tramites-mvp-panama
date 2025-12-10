@@ -148,10 +148,6 @@ export const DynamicEtapaView: React.FC<DynamicEtapaViewProps> = ({
         vista = await workflowService.getVistaActual(instanciaId, userPerfil, accessToken);
       }
       
-      console.log('📋 Vista cargada:', vista);
-      console.log('📋 metadata_instancia:', vista.metadata_instancia);
-      console.log('📋 solicitud_id:', vista.metadata_instancia?.id_solicitud);
-      console.log('📋 datos_solicitante:', vista.datos_solicitante);
       setVistaActual(vista);
 
       // Cargar valores actuales en el estado de respuestas
@@ -216,9 +212,6 @@ export const DynamicEtapaView: React.FC<DynamicEtapaViewProps> = ({
       ? { ...respuestas, ...respuestasArchivos }
       : respuestas;
     
-    console.log('🔍 handleComplete - respuestas actuales:', respuestas);
-    console.log('🔍 handleComplete - respuestas de archivos:', respuestasArchivos);
-    console.log('🔍 handleComplete - respuestas finales:', respuestasFinales);
 
     // Validar campos obligatorios
     const camposObligatorios = vistaActual?.campos.filter(c => c.es_obligatoria) || [];
@@ -226,7 +219,6 @@ export const DynamicEtapaView: React.FC<DynamicEtapaViewProps> = ({
     
     const faltantes = camposObligatorios.filter(campo => {
       const valor = respuestasFinales[campo.codigo];
-      console.log(`🔍 Campo ${campo.codigo}: valor =`, valor);
       return !valor || (Array.isArray(valor) && valor.length === 0);
     });
 
@@ -237,7 +229,6 @@ export const DynamicEtapaView: React.FC<DynamicEtapaViewProps> = ({
       return;
     }
 
-    console.log('✅ handleComplete - Todos los campos completos, procediendo a completar etapa');
     setSaving(true);
     setError(null);
     try {

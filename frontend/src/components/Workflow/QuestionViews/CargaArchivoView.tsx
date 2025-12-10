@@ -134,24 +134,20 @@ export const CargaArchivoView: React.FC<CargaArchivoViewProps> = ({
     }
 
     const wsUrl = `${WS_BASE_URL}/ws/ocr/${taskId}`;
-    console.log(`🔌 Conectando WebSocket OCR: ${wsUrl}`);
     
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
     currentTaskRef.current = taskId;
 
     ws.onopen = () => {
-      console.log('✅ WebSocket OCR conectado');
     };
 
     ws.onmessage = (event) => {
       try {
         const data: OCRWebSocketMessage = JSON.parse(event.data);
-        console.log('📨 WebSocket mensaje:', data);
 
         switch (data.type) {
           case 'connected':
-            console.log('Conexión confirmada');
             break;
             
           case 'pending':
@@ -168,10 +164,6 @@ export const CargaArchivoView: React.FC<CargaArchivoViewProps> = ({
             break;
             
           case 'complete':
-            console.log('🎉 ========================================');
-            console.log('🎉 OCR COMPLETADO');
-            console.log('🎉 ========================================');
-            console.log('🎉 Data completa:', data);
             setIsLoadingOCR(false);
             setOcrResult('success');
             setShowResult(true);
@@ -229,7 +221,6 @@ export const CargaArchivoView: React.FC<CargaArchivoViewProps> = ({
     };
 
     ws.onclose = () => {
-      console.log('🔌 WebSocket cerrado');
       wsRef.current = null;
       currentTaskRef.current = null;
     };
@@ -293,15 +284,7 @@ export const CargaArchivoView: React.FC<CargaArchivoViewProps> = ({
       ejecutar_ocr: requiereOCR ? 'true' : 'false',
     };
 
-    console.log('🚀 ========================================');
-    console.log('🚀 SUBIENDO ARCHIVO AL BACKEND');
-    console.log('🚀 ========================================');
-    console.log('📤 Endpoint:', endpoint);
     console.log('📤 Archivo:', file.name, '| Tamaño:', (file.size / 1024).toFixed(2), 'KB');
-    console.log('📤 Parámetros:', params);
-    console.log('📤 solicitudId:', solicitudId);
-    console.log('📤 pregunta.id:', pregunta.id);
-    console.log('📤 requiereOCR:', requiereOCR);
 
     try {
       const response = await apiClient.uploadFile<any>(
@@ -311,13 +294,6 @@ export const CargaArchivoView: React.FC<CargaArchivoViewProps> = ({
         'archivo'  // El backend espera el campo 'archivo', no 'file'
       );
 
-      console.log('✅ ========================================');
-      console.log('✅ RESPUESTA DEL BACKEND');
-      console.log('✅ ========================================');
-      console.log('📄 Documento subido:', response);
-      console.log('📄 id_documento:', response.id_documento);
-      console.log('📄 ruta_archivo:', response.ruta_archivo);
-      console.log('📄 ocr_task_id:', response.ocr_task_id);
 
       const nuevoArchivo: UploadedFile = {
         file,
@@ -332,7 +308,6 @@ export const CargaArchivoView: React.FC<CargaArchivoViewProps> = ({
 
       // Si hay tarea OCR, conectar WebSocket
       if (response.ocr_task_id && requiereOCR) {
-        console.log('🔄 Iniciando WebSocket OCR para task:', response.ocr_task_id);
         connectOCRWebSocket(response.ocr_task_id);
       } else {
         // Sin OCR, terminar loading

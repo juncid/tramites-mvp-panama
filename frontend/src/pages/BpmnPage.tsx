@@ -22,7 +22,6 @@ const BpmnPage: React.FC = () => {
 
   const handleSave = (xml: string) => {
     // Aquí puedes implementar la lógica para guardar en el backend
-    console.log('Guardando diagrama BPMN:', xml);
     setHasUnsavedChanges(false);
 
     // Ejemplo: enviar al backend

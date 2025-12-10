@@ -166,10 +166,7 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
   
   // DEBUG: Log de estado restaurado
   if (storedState) {
-    console.log('🔄 FileUploadWizard - Estado restaurado desde sessionStorage:', storedState);
   }
-  console.log('🔍 FileUploadWizard - datosSolicitante:', datosSolicitante);
-  console.log('🔍 FileUploadWizard - solicitudId:', solicitudId);
   
   // Estados para los modales de OCR
   const [isLoadingOCR, setIsLoadingOCR] = useState(false);
@@ -194,16 +191,13 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
       // Solo cargar si no hay archivos en sessionStorage
       const storedState = getStoredState();
       if (storedState?.uploadedFiles && Object.keys(storedState.uploadedFiles).length > 0) {
-        console.log('📂 Ya hay archivos en sessionStorage, no cargamos del servidor');
         return;
       }
       
       documentosServerCargados.current = true;
-      console.log('📥 Cargando documentos existentes del servidor para solicitud:', solicitudId);
       
       try {
         const documentos = await ppshService.getDocumentos(solicitudId);
-        console.log('📥 Documentos del servidor:', documentos);
         
         if (documentos && documentos.length > 0) {
           const archivosExistentes: Record<string, any> = {};
@@ -252,8 +246,6 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
             }
           }
           
-          console.log('📥 Archivos existentes mapeados:', archivosExistentes);
-          console.log('📥 OCR results existentes:', ocrResultsExistentes);
           
           // Verificar si tenemos todos los campos obligatorios
           const camposCompletos = camposOrdenados.every(campo => 
@@ -266,7 +258,6 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
             
             // Si todos los campos están completos, ir al último paso
             if (camposCompletos) {
-              console.log('✅ Todos los documentos ya están cargados, mostrando último paso');
               setCurrentStep(camposOrdenados.length - 1);
             }
           }
@@ -306,12 +297,9 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
       if (ocrCheckInProgress.current) return; // Evitar llamadas duplicadas
       
       const storedFile = uploadedFiles[campoActual.codigo];
-      console.log('🔍 checkPendingOCR - storedFile:', storedFile);
-      console.log('🔍 checkPendingOCR - ocrResults:', ocrResults);
       
       // Si hay un archivo con OCR pendiente, consultar el resultado con polling
       if (storedFile?.ocr_pendiente && storedFile?.id_documento) {
-        console.log('🔄 Detectado archivo con OCR pendiente, iniciando polling...');
         ocrCheckInProgress.current = true;
         setIsLoadingOCR(true);
         
@@ -324,20 +312,16 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
         
         try {
           for (let intento = 1; intento <= MAX_INTENTOS && !ocrCompletado; intento++) {
-            console.log(`📡 Intento ${intento}/${MAX_INTENTOS} - Consultando OCR...`);
             
             try {
               validacionOCR = await workflowService.validarOCR(solicitudId, storedFile.id_documento);
-              console.log(`📡 Respuesta intento ${intento}:`, validacionOCR);
               
               // Si tenemos datos OCR, el procesamiento terminó
               if (validacionOCR.datos_ocr_raw && Object.keys(validacionOCR.datos_ocr_raw).length > 0) {
                 ocrCompletado = true;
-                console.log(`✅ OCR completado en intento ${intento}`);
               } else if (validacionOCR.mensaje && !validacionOCR.mensaje.includes('aún no ha procesado')) {
                 // El OCR respondió pero sin datos estructurados
                 ocrCompletado = true;
-                console.log(`⚠️ OCR respondió sin datos en intento ${intento}`);
               } else {
                 // Esperar antes del siguiente intento
                 if (intento < MAX_INTENTOS) {
@@ -353,8 +337,6 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
           }
           
           if (validacionOCR && validacionOCR.datos_ocr_raw && Object.keys(validacionOCR.datos_ocr_raw).length > 0) {
-            console.log('✅ OCR recuperado exitosamente');
-            console.log('📊 datos_ocr_raw:', validacionOCR.datos_ocr_raw);
             
             // Crear datos de comparación
             const comparisonData: OCRComparisonData = {
@@ -372,9 +354,7 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
               texto_ocr_completo: validacionOCR.texto_ocr_completo || '',
             };
             
-            console.log('📊 comparisonData creado:', comparisonData);
             setOcrComparisonData(comparisonData);
-            console.log('✅ setOcrComparisonData llamado');
             
             // Actualizar archivo como procesado
             const archivoActualizado = {
@@ -407,12 +387,10 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
             
             // Caso 1: 0 campos = error rojo
             if (camposEncontradosCount === 0) {
-              console.log('🔴 Mostrando modal de error de lectura');
               setShowReadErrorModal(true);
             }
             // Caso 2: <4 campos o discrepancias = warning amarillo
             else if (camposConDiscrepanciaCount > 0 || camposEncontradosCount < 4) {
-              console.log('🟡 Mostrando modal de advertencia');
               setPendingUpload({
                 file: new File([], storedFile.nombre), // Archivo dummy para el handler
                 resultado: { id_documento: storedFile.id_documento },
@@ -422,7 +400,6 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
             }
             // Caso 3: >= 4 campos = éxito verde
             else {
-              console.log('🟢 Mostrando modal de éxito');
               setShowSuccessModal(true);
             }
           }
@@ -435,20 +412,17 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
       }
       // Si hay resultado OCR guardado pero no está en el estado actual, restaurarlo
       else if (ocrResults[campoActual.codigo] && !ocrComparisonData) {
-        console.log('🔄 Restaurando datos OCR desde sessionStorage:', ocrResults[campoActual.codigo]);
         setOcrComparisonData(ocrResults[campoActual.codigo]);
         // No mostrar modal automáticamente al restaurar - solo mostrar la tabla
       }
       // Si hay archivo subido pero no tenemos datos OCR, intentar obtenerlos
       else if (storedFile?.id_documento && !storedFile?.ocr_pendiente && !ocrResults[campoActual.codigo]) {
-        console.log('🔄 Archivo existe sin datos OCR, consultando al servidor...');
         setIsLoadingOCR(true);
         
         try {
           const validacionOCR = await workflowService.validarOCR(solicitudId, storedFile.id_documento);
           
           if (validacionOCR.datos_ocr_raw && Object.keys(validacionOCR.datos_ocr_raw).length > 0) {
-            console.log('✅ OCR obtenido del servidor');
             
             const comparisonData: OCRComparisonData = {
               campos_validados: validacionOCR.campos_validados || {},
@@ -538,7 +512,6 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
     if (currentStep < totalSteps - 1) {
       // Avanzar al siguiente paso del wizard
       const nextStep = currentStep + 1;
-      console.log('➡️ Avanzando al paso', nextStep, 'de', totalSteps);
       
       // Guardar estado ANTES de cambiar el paso (por si hay un reload)
       if (storageKey) {
@@ -550,7 +523,6 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
         };
         try {
           sessionStorage.setItem(storageKey, JSON.stringify(stateToSave));
-          console.log('💾 Estado guardado al avanzar:', stateToSave);
         } catch (e) {
           console.warn('Error guardando estado al avanzar:', e);
         }
@@ -559,25 +531,21 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
       setCurrentStep(nextStep);
     } else if (onComplete) {
       // Último paso - construir respuestas de archivos y completar etapa
-      console.log('🏁 Último paso - construyendo respuestas de archivos');
       
       // Construir objeto de respuestas con todos los archivos subidos
       const respuestasArchivos: Record<string, any> = {};
       for (const [codigo, archivoInfo] of Object.entries(uploadedFiles)) {
         if (archivoInfo) {
-          console.log(`📤 Archivo ${codigo}:`, archivoInfo);
           respuestasArchivos[codigo] = [archivoInfo];
           // También sincronizar al padre por si acaso
           onAnswerChange(codigo, [archivoInfo]);
         }
       }
       
-      console.log('📦 Respuestas de archivos construidas:', respuestasArchivos);
       
       // Limpiar sessionStorage ya que se completó exitosamente
       if (storageKey) {
         sessionStorage.removeItem(storageKey);
-        console.log('🗑️ SessionStorage limpiado');
       }
       
       // Llamar onComplete con las respuestas de archivos
@@ -590,7 +558,6 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
     if (currentStep > 0) {
       // Volver al paso anterior del wizard
       const prevStep = currentStep - 1;
-      console.log('⬅️ Volviendo al paso', prevStep);
       
       // Guardar estado ANTES de cambiar el paso
       if (storageKey) {
@@ -602,7 +569,6 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
         };
         try {
           sessionStorage.setItem(storageKey, JSON.stringify(stateToSave));
-          console.log('💾 Estado guardado al retroceder:', stateToSave);
         } catch (e) {
           console.warn('Error guardando estado al retroceder:', e);
         }
@@ -713,17 +679,14 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
             await new Promise(resolve => setTimeout(resolve, INTERVALO_MS));
             
             try {
-              console.log(`🔄 Intento ${intento}/${MAX_INTENTOS} - Verificando OCR...`);
               validacionOCR = await workflowService.validarOCR(solicitudId, resultado.id_documento);
               
               // Si tenemos datos OCR o ya no hay campos "no encontrados" por procesar, el OCR terminó
               if (validacionOCR.datos_ocr_raw && Object.keys(validacionOCR.datos_ocr_raw).length > 0) {
                 ocrCompletado = true;
-                console.log(`✅ OCR completado en intento ${intento}`);
               } else if (validacionOCR.mensaje && !validacionOCR.mensaje.includes('aún no ha procesado')) {
                 // El OCR respondió pero sin datos estructurados
                 ocrCompletado = true;
-                console.log(`⚠️ OCR respondió sin datos estructurados en intento ${intento}`);
               }
             } catch (err) {
               console.warn(`⚠️ Intento ${intento} falló:`, err);
@@ -734,8 +697,6 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
           if (validacionOCR) {
             // DEBUG: Log de datos recibidos
             console.log('📊 validacionOCR completo:', JSON.stringify(validacionOCR, null, 2));
-            console.log('📊 datos_ocr_raw:', validacionOCR.datos_ocr_raw);
-            console.log('📊 texto_ocr_completo:', validacionOCR.texto_ocr_completo);
             
             // Guardar datos de comparación para mostrar en la tabla
             setOcrComparisonData({
@@ -805,7 +766,6 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
           }
         }
 
-        console.log('📦 Guardando archivo en sessionStorage y mostrando modal de éxito...');
         // Guardar archivo en sessionStorage
         const archivoInfo = {
           nombre: file.name,
@@ -837,7 +797,6 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
         // Mostrar modal de éxito
         console.log('🎉 Llamando setShowSuccessModal(true)');
         setShowSuccessModal(true);
-        console.log('🎉 setShowSuccessModal llamado - el modal debería mostrarse ahora');
       } else {
         // Sin solicitudId - guardar archivo localmente (modo preview/desarrollo)
         const archivoInfo = {
@@ -1312,7 +1271,6 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
   // Si hay OCR guardado y no está en el estado actual, restaurarlo
   React.useEffect(() => {
     if (storedOcrResult && !ocrComparisonData) {
-      console.log('🔄 Restaurando resultado OCR desde sessionStorage:', storedOcrResult);
       setOcrComparisonData(storedOcrResult);
     }
   }, [storedOcrResult, ocrComparisonData]);
@@ -1321,7 +1279,6 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
   // NO mostrar modal automáticamente - el usuario ya vio el resultado antes del reload
   React.useEffect(() => {
     if (storedState && currentFileName && !hasScrolledToFile.current) {
-      console.log('🎯 Estado restaurado con archivo cargado, haciendo scroll al input...');
       hasScrolledToFile.current = true;
       
       // Scroll al contenedor del archivo con un pequeño delay para asegurar que el DOM esté listo

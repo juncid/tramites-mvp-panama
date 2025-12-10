@@ -9,9 +9,10 @@ import {
   CloudDownload as DownloadIcon,
 } from '@mui/icons-material';
 import type { WorkflowPregunta } from '../../../types/workflow';
+import { getApiRootUrl } from '../../../utils/apiUrl';
 
 // URL base del API (sin /api/v1)
-const API_URL = import.meta.env.VITE_API_BASE_URL?.replace('/api/v1', '') || 'http://localhost:8000';
+const API_URL = getApiRootUrl();
 
 interface ArchivoOpciones {
   archivo_url?: string;

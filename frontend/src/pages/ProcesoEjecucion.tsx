@@ -135,7 +135,6 @@ export const ProcesoEjecucion: React.FC = () => {
             }
           } catch (err) {
             // No hay vista dinámica, se usará formulario tradicional
-            console.log('No hay vista dinámica para esta etapa, usar formulario tradicional');
           }
         }
       } catch (err: any) {
