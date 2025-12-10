@@ -373,7 +373,7 @@ export const DynamicEtapaView: React.FC<DynamicEtapaViewProps> = ({
           return <SeleccionFechaView key={campo.id} {...commonProps} />;
         
         case 'DESCARGA_ARCHIVO':
-          return <DescargaArchivoView key={campo.id} {...commonProps} />;
+          return <DescargaArchivoView key={campo.id} {...commonProps} opcionesOriginales={campo.opciones} />;
         
         case 'IMPRESION':
           return <ImpresionView key={campo.id} {...commonProps} />;

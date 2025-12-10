@@ -24,39 +24,48 @@ interface DescargaArchivoViewProps {
   pregunta: WorkflowPregunta;
   readonly?: boolean;
   onAnswerChange?: (descargado: boolean) => void;
+  opcionesOriginales?: ArchivoOpciones | string | string[] | null;  // Opciones directas del campo
 }
 
 export const DescargaArchivoView: React.FC<DescargaArchivoViewProps> = ({
   pregunta,
   onAnswerChange,
+  opcionesOriginales,
 }) => {
-  // DEBUG: Log para verificar qué recibe el componente
-  console.log('[DescargaArchivoView] pregunta.opciones:', pregunta.opciones, 'tipo:', typeof pregunta.opciones);
-  
   // Parsear opciones para obtener la URL del archivo
+  // Priorizar opcionesOriginales si están disponibles
   const getArchivoOpciones = (): ArchivoOpciones => {
+    // Primero intentar con opcionesOriginales (viene directamente del campo)
+    if (opcionesOriginales) {
+      if (typeof opcionesOriginales === 'object') {
+        return opcionesOriginales as ArchivoOpciones;
+      }
+      if (typeof opcionesOriginales === 'string') {
+        try {
+          return JSON.parse(opcionesOriginales);
+        } catch {
+          // continuar con pregunta.opciones
+        }
+      }
+    }
+    
+    // Fallback a pregunta.opciones
     if (!pregunta.opciones) {
-      console.log('[DescargaArchivoView] opciones es null/undefined');
       return {};
     }
     
     if (typeof pregunta.opciones === 'string') {
       try {
-        const parsed = JSON.parse(pregunta.opciones);
-        console.log('[DescargaArchivoView] parsed from string:', parsed);
-        return parsed;
-      } catch (e) {
-        console.log('[DescargaArchivoView] error parsing:', e);
+        return JSON.parse(pregunta.opciones);
+      } catch {
         return {};
       }
     }
     
-    console.log('[DescargaArchivoView] opciones is object:', pregunta.opciones);
     return pregunta.opciones as ArchivoOpciones;
   };
 
   const opciones = getArchivoOpciones();
-  console.log('[DescargaArchivoView] opciones result:', opciones, 'archivo_url:', opciones.archivo_url);
   const archivoUrl = opciones.archivo_url;
   const nombreArchivo = opciones.nombre_archivo || 'Documento';
   
