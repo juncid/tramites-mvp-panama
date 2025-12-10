@@ -737,6 +737,7 @@ export const CargaArchivoView: React.FC<CargaArchivoViewProps> = ({
             hidden
             multiple={maxArchivos > 1}
             accept=".pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg"
+            capture="environment"
             onChange={handleFileChange}
             disabled={isLoadingOCR}
           />

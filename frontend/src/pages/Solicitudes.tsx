@@ -148,7 +148,7 @@ export const Solicitudes = () => {
         return {
           backgroundColor: '#f5f5f5',
           color: '#666666',
-          icon: null as const,
+          icon: null,
         };
     }
   };

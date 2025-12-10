@@ -174,9 +174,14 @@ def _process_document_ocr_internal(
         )
 
         preprocessing_opts = opciones.get('preprocessing', {}) if opciones else {}
+        
+        # Analizar calidad de imagen ANTES del preprocesamiento para saber si es screenshot
+        calidad_imagen = analyze_image_quality(imagen)
+        es_screenshot = calidad_imagen.get('es_foto_de_pantalla', False)
+        
         imagen_procesada = preprocess_image(imagen, preprocessing_opts)
 
-        logger.info("Preprocesamiento completado")
+        logger.info(f"Preprocesamiento completado (es_screenshot={es_screenshot})")
 
         # 5. Ejecutar OCR
         task_instance.update_state(
@@ -186,7 +191,7 @@ def _process_document_ocr_internal(
 
         idioma = opciones.get('idioma', 'spa+eng') if opciones else 'spa+eng'
         inicio_ocr = time.time()
-        resultado_ocr = execute_ocr(imagen_procesada, idioma=idioma)
+        resultado_ocr = execute_ocr(imagen_procesada, idioma=idioma, es_screenshot=es_screenshot)
         tiempo_ocr = int((time.time() - inicio_ocr) * 1000)
 
         logger.info(f"OCR completado en {tiempo_ocr}ms. Confianza: {resultado_ocr['confianza']}%")
@@ -486,13 +491,239 @@ def _load_pdf_from_bytes(pdf_bytes: bytes) -> Optional[np.ndarray]:
         return None
 
 
+def detect_screenshot_or_photo_of_screen(imagen: np.ndarray) -> Dict[str, Any]:
+    """
+    Detecta si la imagen es una captura de pantalla o foto de pantalla.
+    Las fotos de pantalla tienen patrones de moiré, ruido de píxeles y artefactos.
+    
+    Returns:
+        Dict con:
+        - es_screenshot: True si parece ser una captura/foto de pantalla
+        - es_foto_de_pantalla: True si es una foto tomada a una pantalla (más degradada)
+        - confianza: 0-100
+        - patron_moire: True si detecta patrones de moiré
+    """
+    try:
+        # Convertir a escala de grises si es necesario
+        if len(imagen.shape) == 3:
+            gray = cv2.cvtColor(imagen, cv2.COLOR_BGR2GRAY)
+        else:
+            gray = imagen.copy()
+        
+        indicadores = []
+        
+        # 1. Detectar patrones de moiré usando FFT (Fourier)
+        # Las fotos de pantalla tienen picos de frecuencia específicos
+        f_transform = np.fft.fft2(gray)
+        f_shift = np.fft.fftshift(f_transform)
+        magnitude = np.abs(f_shift)
+        
+        # Normalizar y buscar picos periódicos (típicos de moiré)
+        mag_log = np.log1p(magnitude)
+        mag_normalized = (mag_log - mag_log.min()) / (mag_log.max() - mag_log.min() + 1e-10)
+        
+        # Calcular energía en frecuencias medias (donde aparece el moiré)
+        h, w = mag_normalized.shape
+        center_h, center_w = h // 2, w // 2
+        
+        # Crear máscara para frecuencias medias (excluir bajas y muy altas)
+        y, x = np.ogrid[:h, :w]
+        dist_from_center = np.sqrt((x - center_w)**2 + (y - center_h)**2)
+        mask_mid = (dist_from_center > min(h, w) * 0.1) & (dist_from_center < min(h, w) * 0.4)
+        
+        energia_media = np.mean(mag_normalized[mask_mid])
+        patron_moire = energia_media > 0.15  # Umbral para detectar moiré
+        
+        if patron_moire:
+            indicadores.append("moire_detectado")
+        
+        # 2. Detectar bordes de píxeles de pantalla (líneas horizontales/verticales regulares)
+        # Aplicar detector de bordes
+        edges = cv2.Canny(gray, 50, 150)
+        
+        # Contar líneas horizontales y verticales usando Hough
+        lines = cv2.HoughLinesP(edges, 1, np.pi/180, threshold=100, minLineLength=50, maxLineGap=10)
+        if lines is not None:
+            horizontal_lines = 0
+            vertical_lines = 0
+            for line in lines:
+                x1, y1, x2, y2 = line[0]
+                angle = np.abs(np.arctan2(y2 - y1, x2 - x1) * 180 / np.pi)
+                if angle < 5 or angle > 175:  # Horizontal
+                    horizontal_lines += 1
+                elif 85 < angle < 95:  # Vertical
+                    vertical_lines += 1
+            
+            # Muchas líneas regulares = posible UI de pantalla
+            if horizontal_lines > 20 or vertical_lines > 20:
+                indicadores.append("lineas_ui_detectadas")
+        
+        # 3. Detectar variación de color típica de pantallas (subpíxeles RGB)
+        if len(imagen.shape) == 3:
+            # Las pantallas tienen variación de color característica
+            b, g, r = cv2.split(imagen)
+            
+            # Calcular diferencia entre canales en áreas que deberían ser uniformes
+            diff_rg = np.std(np.abs(r.astype(float) - g.astype(float)))
+            diff_rb = np.std(np.abs(r.astype(float) - b.astype(float)))
+            diff_gb = np.std(np.abs(g.astype(float) - b.astype(float)))
+            
+            variacion_subpixel = (diff_rg + diff_rb + diff_gb) / 3
+            
+            # Variación alta en grises que deberían ser uniformes = foto de pantalla
+            if variacion_subpixel > 30:
+                indicadores.append("variacion_subpixel")
+        
+        # 4. Detectar ruido de alta frecuencia (típico de fotos de pantalla)
+        laplacian = cv2.Laplacian(gray, cv2.CV_64F)
+        ruido_alta_freq = np.var(laplacian)
+        
+        # Ruido muy alto pero con estructura = foto de pantalla
+        if ruido_alta_freq > 1000:
+            indicadores.append("ruido_alta_frecuencia")
+        
+        # 5. Verificar si hay artefactos de compresión JPEG cerca de bordes
+        # Las fotos de pantalla suelen tener artefactos de bloque cerca del texto
+        block_size = 8
+        h, w = gray.shape
+        block_artifacts = 0
+        
+        for i in range(0, h - block_size, block_size * 4):
+            for j in range(0, w - block_size, block_size * 4):
+                block = gray[i:i+block_size, j:j+block_size]
+                if block.shape == (block_size, block_size):
+                    # Calcular variación en bordes del bloque
+                    edge_var = np.var(block[0, :]) + np.var(block[-1, :]) + \
+                               np.var(block[:, 0]) + np.var(block[:, -1])
+                    if edge_var > 500:
+                        block_artifacts += 1
+        
+        if block_artifacts > 50:
+            indicadores.append("artefactos_jpeg")
+        
+        # Determinar resultado
+        num_indicadores = len(indicadores)
+        
+        es_screenshot = num_indicadores >= 1 and "lineas_ui_detectadas" in indicadores
+        es_foto_de_pantalla = num_indicadores >= 2 or patron_moire
+        
+        confianza = min(100, num_indicadores * 25 + (25 if patron_moire else 0))
+        
+        return {
+            'es_screenshot': es_screenshot,
+            'es_foto_de_pantalla': es_foto_de_pantalla,
+            'confianza': confianza,
+            'patron_moire': patron_moire,
+            'indicadores': indicadores,
+            'energia_frecuencia_media': float(energia_media),
+            'ruido_alta_freq': float(ruido_alta_freq) if 'ruido_alta_freq' in dir() else 0
+        }
+        
+    except Exception as e:
+        logger.warning(f"Error detectando screenshot: {e}")
+        return {
+            'es_screenshot': False,
+            'es_foto_de_pantalla': False,
+            'confianza': 0,
+            'patron_moire': False,
+            'indicadores': [],
+            'energia_frecuencia_media': 0,
+            'ruido_alta_freq': 0
+        }
+
+
+def analyze_image_quality(imagen: np.ndarray) -> Dict[str, Any]:
+    """
+    Analiza la calidad de la imagen para decidir qué preprocesamiento aplicar.
+    
+    Returns:
+        Dict con métricas de calidad:
+        - contraste: Alto si > 100, Bajo si < 50
+        - brillo_promedio: 0-255
+        - es_documento_limpio: True si parece un documento digital/escaneado limpio
+        - es_foto_de_pantalla: True si es una foto tomada a una pantalla
+        - necesita_preprocesamiento: False si la imagen ya es de buena calidad
+    """
+    try:
+        # Convertir a escala de grises si es necesario
+        if len(imagen.shape) == 3:
+            gray = cv2.cvtColor(imagen, cv2.COLOR_BGR2GRAY)
+        else:
+            gray = imagen
+        
+        # Calcular métricas básicas
+        brillo_promedio = np.mean(gray)
+        desviacion = np.std(gray)
+        
+        # Histograma para analizar distribución
+        hist = cv2.calcHist([gray], [0], None, [256], [0, 256])
+        hist = hist.flatten()
+        
+        # Verificar si es bimodal (típico de documentos limpios)
+        picos_altos = np.sum(hist > np.mean(hist) * 5)
+        
+        # NUEVO: Detectar si es foto de pantalla
+        screenshot_info = detect_screenshot_or_photo_of_screen(imagen)
+        
+        # Documentos limpios tienen:
+        # - Alto contraste (desviación moderada-alta)
+        # - Brillo promedio alto (fondo blanco)
+        # - Distribución concentrada
+        # - NO son fotos de pantalla
+        es_documento_limpio = (
+            brillo_promedio > 140 and  # Fondo claro
+            desviacion > 45 and        # Buen contraste
+            picos_altos <= 15 and      # Distribución concentrada
+            not screenshot_info['es_foto_de_pantalla']  # No es foto de pantalla
+        )
+        
+        # Determinar tipo de preprocesamiento necesario
+        if screenshot_info['es_foto_de_pantalla']:
+            tipo_preprocesamiento = 'screenshot'
+        elif es_documento_limpio:
+            tipo_preprocesamiento = 'minimo'
+        else:
+            tipo_preprocesamiento = 'completo'
+        
+        necesita_preprocesamiento = not es_documento_limpio
+        
+        return {
+            'contraste': desviacion,
+            'brillo_promedio': brillo_promedio,
+            'es_documento_limpio': es_documento_limpio,
+            'es_foto_de_pantalla': screenshot_info['es_foto_de_pantalla'],
+            'es_screenshot': screenshot_info['es_screenshot'],
+            'patron_moire': screenshot_info['patron_moire'],
+            'screenshot_confianza': screenshot_info['confianza'],
+            'screenshot_indicadores': screenshot_info['indicadores'],
+            'tipo_preprocesamiento': tipo_preprocesamiento,
+            'necesita_preprocesamiento': necesita_preprocesamiento,
+            'picos_histograma': picos_altos
+        }
+    except Exception as e:
+        logger.warning(f"Error analizando calidad de imagen: {e}")
+        return {
+            'contraste': 0,
+            'brillo_promedio': 128,
+            'es_documento_limpio': False,
+            'es_foto_de_pantalla': False,
+            'es_screenshot': False,
+            'patron_moire': False,
+            'screenshot_confianza': 0,
+            'screenshot_indicadores': [],
+            'tipo_preprocesamiento': 'completo',
+            'necesita_preprocesamiento': True,
+            'picos_histograma': 0
+        }
+
+
 def preprocess_image(
     imagen: np.ndarray,
     opciones: Dict[str, Any]
 ) -> np.ndarray:
     """
     Preprocesa imagen para mejorar resultados OCR
-    VERSIÓN MEJORADA - Optimizada para español
+    VERSIÓN ADAPTATIVA - Detecta calidad de imagen y aplica preprocesamiento selectivo
     
     Args:
         imagen: Array numpy con la imagen
@@ -502,8 +733,233 @@ def preprocess_image(
         Imagen preprocesada
     """
     try:
-        logger.debug(f"Preprocesando imagen (versión mejorada). Opciones: {opciones}")
+        logger.debug(f"Preprocesando imagen (versión adaptativa). Opciones: {opciones}")
 
+        # NUEVO: Analizar calidad de imagen antes de preprocesar
+        calidad = analyze_image_quality(imagen)
+        logger.info(f"📊 Análisis de imagen: contraste={calidad['contraste']:.1f}, "
+                    f"brillo={calidad['brillo_promedio']:.1f}, "
+                    f"documento_limpio={calidad['es_documento_limpio']}, "
+                    f"foto_de_pantalla={calidad['es_foto_de_pantalla']}, "
+                    f"tipo={calidad['tipo_preprocesamiento']}")
+        
+        if calidad['es_foto_de_pantalla']:
+            logger.info(f"📱 Foto de pantalla detectada (confianza: {calidad['screenshot_confianza']}%) - "
+                       f"indicadores: {calidad['screenshot_indicadores']}")
+        
+        # Seleccionar preprocesamiento según tipo detectado
+        if calidad['tipo_preprocesamiento'] == 'screenshot':
+            # Foto de pantalla: preprocesamiento especial anti-moiré
+            logger.info("📱 Aplicando preprocesamiento para FOTO DE PANTALLA")
+            return preprocess_image_screenshot(imagen)
+        elif calidad['tipo_preprocesamiento'] == 'minimo':
+            # Documento limpio: preprocesamiento mínimo
+            logger.info("✅ Documento limpio detectado - usando preprocesamiento mínimo")
+            return preprocess_image_minimal(imagen)
+        else:
+            # Documento de baja calidad: preprocesamiento completo
+            logger.info("📸 Documento de baja calidad detectado - aplicando preprocesamiento completo")
+            return preprocess_image_full(imagen, opciones)
+
+    except Exception as e:
+        logger.error(f"Error en preprocesamiento: {str(e)}", exc_info=True)
+        return imagen
+
+
+def _deskew_image_for_screenshot(imagen: np.ndarray) -> np.ndarray:
+    """
+    Corrige la inclinación de la imagen (versión para screenshots).
+    Útil para fotos tomadas con cierto ángulo.
+    """
+    try:
+        logger.debug("Corrigiendo inclinación (deskew)")
+
+        # Detectar bordes
+        edges = cv2.Canny(imagen, 50, 150, apertureSize=3)
+
+        # Detectar líneas usando Hough Transform
+        lines = cv2.HoughLinesP(
+            edges, 1, np.pi / 180,
+            threshold=100,
+            minLineLength=100,
+            maxLineGap=10
+        )
+
+        if lines is None or len(lines) < 3:
+            logger.debug("Pocas líneas detectadas para deskew")
+            return imagen
+
+        # Calcular ángulos de las líneas
+        angles = []
+        for line in lines:
+            x1, y1, x2, y2 = line[0]
+            angle = np.arctan2(y2 - y1, x2 - x1) * 180.0 / np.pi
+            # Solo considerar ángulos pequeños
+            if abs(angle) < 15:
+                angles.append(angle)
+
+        if not angles:
+            return imagen
+
+        # Calcular ángulo mediano
+        median_angle = np.median(angles)
+
+        # Solo rotar si el ángulo es significativo
+        if abs(median_angle) > 0.5:
+            (h, w) = imagen.shape[:2]
+            center = (w // 2, h // 2)
+            M = cv2.getRotationMatrix2D(center, median_angle, 1.0)
+            imagen = cv2.warpAffine(
+                imagen, M, (w, h),
+                flags=cv2.INTER_CUBIC,
+                borderMode=cv2.BORDER_REPLICATE
+            )
+            logger.info(f"✨ Imagen rotada {median_angle:.2f}° (deskew)")
+
+        return imagen
+
+    except Exception as e:
+        logger.warning(f"Error en deskew: {e}")
+        return imagen
+
+
+def preprocess_image_screenshot(imagen: np.ndarray) -> np.ndarray:
+    """
+    Preprocesamiento especial para fotos de pantalla.
+    
+    Las fotos de pantalla de documentos digitales ya tienen buen contraste,
+    solo necesitan:
+    1. Corrección de inclinación (deskew)
+    2. Filtro anti-moiré muy suave
+    3. Conversión a escala de grises
+    4. Escalado para mejor resolución
+    
+    NO aplicamos binarización porque destruye el texto en documentos claros.
+    Tesseract funciona bien con imágenes en escala de grises de buena calidad.
+    """
+    try:
+        logger.info("📱 Iniciando preprocesamiento SUAVE para foto de pantalla...")
+        
+        # 1. Convertir a escala de grises si es necesario
+        if len(imagen.shape) == 3:
+            gray = cv2.cvtColor(imagen, cv2.COLOR_BGR2GRAY)
+            logger.debug("Convertido a escala de grises")
+        else:
+            gray = imagen.copy()
+        
+        # 2. Corregir inclinación (deskew) ANTES de escalar
+        gray = _deskew_image_for_screenshot(gray)
+        
+        # 3. Analizar si el documento es claro (fondo blanco, texto oscuro)
+        brillo = np.mean(gray)
+        
+        if brillo > 180:
+            # Documento muy claro - probablemente captura de documento digital
+            # Aplicar SOLO filtro anti-moiré muy suave, nada más
+            logger.info(f"📱 Documento claro detectado (brillo={brillo:.1f}) - preprocesamiento mínimo")
+            
+            # Filtro gaussiano muy suave para reducir artefactos de moiré
+            gray = cv2.GaussianBlur(gray, (3, 3), 0)
+            
+            logger.info("📱 Preprocesamiento mínimo para screenshot completado")
+            return gray
+        
+        elif brillo > 140:
+            # Documento moderadamente claro
+            # Combinación: Escalar 2x + Gaussiano suave + CLAHE
+            logger.info(f"📱 Documento moderado (brillo={brillo:.1f}) - Escalar 2x + Gaussian + CLAHE")
+            
+            # ESCALAR 2x: Balance entre resolución y ruido
+            height, width = gray.shape[:2]
+            if width < 2000:
+                scale_factor = 2.0  # Escalar 2x para mejor OCR
+                new_width = int(width * scale_factor)
+                new_height = int(height * scale_factor)
+                gray = cv2.resize(gray, (new_width, new_height), interpolation=cv2.INTER_CUBIC)
+                logger.info(f"✨ Imagen escalada 2x: de {width}x{height} a {new_width}x{new_height}")
+            
+            # Filtro gaussiano MUY suave para reducir ruido sin perder detalle
+            gray = cv2.GaussianBlur(gray, (3, 3), 0)
+            
+            # CLAHE con clipLimit moderado
+            clahe = cv2.createCLAHE(clipLimit=1.5, tileGridSize=(8, 8))
+            gray = clahe.apply(gray)
+            
+            logger.info("📱 Preprocesamiento suave para screenshot completado")
+            return gray
+        
+        else:
+            # Documento oscuro o con problemas - aplicar preprocesamiento más agresivo
+            logger.info(f"📱 Documento oscuro (brillo={brillo:.1f}) - preprocesamiento completo")
+            
+            # Filtro anti-moiré
+            gray = cv2.GaussianBlur(gray, (3, 3), 0)
+            
+            # Escalar si es pequeño
+            height, width = gray.shape[:2]
+            if width < 1500:
+                scale_factor = 1500 / width
+                new_width = int(width * scale_factor)
+                new_height = int(height * scale_factor)
+                gray = cv2.resize(gray, (new_width, new_height), interpolation=cv2.INTER_LANCZOS4)
+                logger.info(f"✨ Imagen escalada de {width}x{height} a {new_width}x{new_height}")
+            
+            # Reducción de ruido
+            gray = cv2.bilateralFilter(gray, 5, 50, 50)
+            
+            # Mejora de contraste
+            clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+            gray = clahe.apply(gray)
+            
+            # Para documentos oscuros, SÍ aplicar binarización adaptativa
+            binary = cv2.adaptiveThreshold(
+                gray,
+                255,
+                cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+                cv2.THRESH_BINARY,
+                blockSize=21,
+                C=10
+            )
+            
+            logger.info("📱 Preprocesamiento completo para screenshot completado")
+            return binary
+        
+    except Exception as e:
+        logger.error(f"Error en preprocesamiento de screenshot: {str(e)}", exc_info=True)
+        # Fallback: devolver imagen en escala de grises sin más procesamiento
+        if len(imagen.shape) == 3:
+            return cv2.cvtColor(imagen, cv2.COLOR_BGR2GRAY)
+        return imagen
+
+
+def preprocess_image_minimal(imagen: np.ndarray) -> np.ndarray:
+    """
+    Preprocesamiento mínimo para documentos de buena calidad.
+    Solo convierte a escala de grises sin transformaciones destructivas.
+    """
+    try:
+        # Solo convertir a escala de grises si es color
+        if len(imagen.shape) == 3:
+            imagen = cv2.cvtColor(imagen, cv2.COLOR_BGR2GRAY)
+            logger.debug("Convertido a escala de grises")
+        
+        logger.info("✅ Preprocesamiento mínimo completado")
+        return imagen
+        
+    except Exception as e:
+        logger.error(f"Error en preprocesamiento mínimo: {str(e)}")
+        return imagen
+
+
+def preprocess_image_full(
+    imagen: np.ndarray,
+    opciones: Dict[str, Any]
+) -> np.ndarray:
+    """
+    Preprocesamiento completo para documentos de baja calidad.
+    Aplica todas las transformaciones para mejorar legibilidad.
+    """
+    try:
         # Convertir a escala de grises
         if len(imagen.shape) == 3:
             imagen = cv2.cvtColor(imagen, cv2.COLOR_BGR2GRAY)
@@ -567,11 +1023,11 @@ def preprocess_image(
         if opciones.get('deskew', True):
             imagen = deskew_image(imagen)
 
-        logger.info("✅ Preprocesamiento mejorado completado")
+        logger.info("✅ Preprocesamiento completo finalizado")
         return imagen
 
     except Exception as e:
-        logger.error(f"Error en preprocesamiento: {str(e)}", exc_info=True)
+        logger.error(f"Error en preprocesamiento completo: {str(e)}", exc_info=True)
         return imagen
 
 
@@ -640,7 +1096,9 @@ def deskew_image(imagen: np.ndarray) -> np.ndarray:
 
 def execute_ocr(
     imagen: np.ndarray,
-    idioma: str = 'spa+eng'
+    idioma: str = 'spa+eng',
+    psm: int = 6,
+    es_screenshot: bool = False
 ) -> Dict[str, Any]:
     """
     Ejecuta OCR con Tesseract
@@ -649,6 +1107,8 @@ def execute_ocr(
     Args:
         imagen: Array numpy con la imagen preprocesada
         idioma: Códigos de idioma para Tesseract (ej: 'spa', 'eng', 'spa+eng')
+        psm: Page Segmentation Mode (6=bloque uniforme, 4=columna variable, 11=texto disperso)
+        es_screenshot: True si es foto de pantalla (usa PSM diferente)
     
     Returns:
         Dict con texto extraído y confianza
@@ -656,16 +1116,20 @@ def execute_ocr(
     try:
         logger.debug(f"Ejecutando OCR con idioma: {idioma}")
 
+        # Para screenshots usar el mismo PSM 6 (bloque uniforme)
+        # PSM 4 y PSM 11 producen peores resultados en pruebas
+        psm_to_use = psm  # Siempre PSM 6
+
         # CONFIGURACIÓN OPTIMIZADA PARA ESPAÑOL + DICCIONARIO PANAMÁ
         # --oem 3: LSTM OCR Engine (mejor para español)
-        # --psm 6: Assume a single uniform block of text (mejor para documentos)
+        # --psm X: Page Segmentation Mode
         # --user-words: Diccionario personalizado con términos panameños
         custom_config = (
-            r'--oem 3 --psm 6 '
+            f'--oem 3 --psm {psm_to_use} '
             r'--user-words /usr/share/tesseract-ocr/5/tessdata/panama.user-words'
         )
 
-        logger.info("✨ Config OCR mejorada: LSTM Engine + PSM 6 + Diccionario Panamá")
+        logger.info(f"✨ Config OCR mejorada: LSTM Engine + PSM {psm_to_use} + Diccionario Panamá")
 
         # Extraer texto
         texto = pytesseract.image_to_string(

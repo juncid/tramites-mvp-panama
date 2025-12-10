@@ -12,6 +12,10 @@ export default defineConfig({
     watch: {
       usePolling: true,
     },
+    // HMR deshabilitado para evitar reloads en móviles cuando se usa la cámara
+    // Chrome pone la pestaña en segundo plano al abrir la cámara, 
+    // causando desconexión del WebSocket y reload automático
+    hmr: false,
   },
   resolve: {
     alias: {

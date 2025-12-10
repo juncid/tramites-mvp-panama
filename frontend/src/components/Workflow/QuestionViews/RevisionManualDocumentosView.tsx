@@ -544,7 +544,7 @@ export const RevisionManualDocumentosView: React.FC<RevisionManualDocumentosView
                             pb: 0.5,
                           }}
                         >
-                          Datos Encontrados (OCR)
+                          Datos Encontrados por Sistema
                         </Typography>
                         
                         {doc.ocr_datos_estructurados?.datos_solicitante && Object.keys(doc.ocr_datos_estructurados.datos_solicitante).length > 0 ? (

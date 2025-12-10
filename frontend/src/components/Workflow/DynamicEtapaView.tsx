@@ -208,25 +208,40 @@ export const DynamicEtapaView: React.FC<DynamicEtapaViewProps> = ({
   // Suprimir warning de variable no usada temporalmente
   void _handleSave;
 
-  const handleComplete = async () => {
+  const handleComplete = async (respuestasArchivos?: Record<string, any>) => {
     if (!onComplete || !instanciaId) return;
+
+    // Si vienen respuestas de archivos del wizard, combinarlas con las respuestas actuales
+    const respuestasFinales = respuestasArchivos 
+      ? { ...respuestas, ...respuestasArchivos }
+      : respuestas;
+    
+    console.log('🔍 handleComplete - respuestas actuales:', respuestas);
+    console.log('🔍 handleComplete - respuestas de archivos:', respuestasArchivos);
+    console.log('🔍 handleComplete - respuestas finales:', respuestasFinales);
 
     // Validar campos obligatorios
     const camposObligatorios = vistaActual?.campos.filter(c => c.es_obligatoria) || [];
+    console.log('🔍 handleComplete - campos obligatorios:', camposObligatorios.map(c => c.codigo));
+    
     const faltantes = camposObligatorios.filter(campo => {
-      const valor = respuestas[campo.codigo];
+      const valor = respuestasFinales[campo.codigo];
+      console.log(`🔍 Campo ${campo.codigo}: valor =`, valor);
       return !valor || (Array.isArray(valor) && valor.length === 0);
     });
+
+    console.log('🔍 handleComplete - faltantes:', faltantes.map(c => c.codigo));
 
     if (faltantes.length > 0) {
       setError(`Faltan campos obligatorios: ${faltantes.map(c => c.pregunta).join(', ')}`);
       return;
     }
 
+    console.log('✅ handleComplete - Todos los campos completos, procediendo a completar etapa');
     setSaving(true);
     setError(null);
     try {
-      await onComplete(respuestas);
+      await onComplete(respuestasFinales);
     } catch (err: any) {
       console.error('Error completando etapa:', err);
       setError(err.response?.data?.detail || 'Error al completar la etapa');

@@ -1259,11 +1259,11 @@ async def validar_ocr_documento(
         if not solicitante:
             raise PPSHNotFoundException(detail="No se encontró el solicitante titular")
         
-        # 2. Obtener resultado OCR del documento
+        # 2. Obtener resultado OCR del documento (el más reciente)
         ocr_result = db.query(PPSHDocumentoOCR).filter(
             PPSHDocumentoOCR.id_documento == request.id_documento,
             PPSHDocumentoOCR.estado_ocr == 'COMPLETADO'
-        ).first()
+        ).order_by(PPSHDocumentoOCR.id_ocr.desc()).first()
         
         if not ocr_result:
             # OCR no completado o no existe
@@ -1286,6 +1286,55 @@ async def validar_ocr_documento(
             except json.JSONDecodeError:
                 pass
         
+        # NUEVO: Si ya tenemos validaciones procesadas por el task OCR, usarlas directamente
+        if datos_ocr.get('validaciones') and datos_ocr.get('resumen_validacion'):
+            validaciones = datos_ocr['validaciones']
+            resumen = datos_ocr['resumen_validacion']
+            
+            # Construir respuesta desde las validaciones ya procesadas
+            campos_validados = {}
+            campos_no_encontrados = []
+            campos_con_discrepancia = []
+            
+            # Iterar sobre las validaciones del OCR task
+            for campo_interno, info in validaciones.items():
+                if info.get('encontrado'):
+                    valor = info.get('valor_esperado', '')
+                    tipo = info.get('tipo_coincidencia', 'exacta')
+                    campos_validados[campo_interno] = f"{valor} ({tipo})"
+                else:
+                    campos_no_encontrados.append(campo_interno)
+            
+            # Usar directamente los valores del resumen (más preciso)
+            campos_encontrados = resumen.get('campos_encontrados', 0)
+            campos_totales = resumen.get('campos_totales', 7)
+            porcentaje = resumen.get('porcentaje', 0)
+            
+            # Validación exitosa si tiene 4+ campos de 7
+            validacion_exitosa = campos_encontrados >= 4
+            
+            # Mensaje basado en el resultado
+            if validacion_exitosa:
+                mensaje = f"Validación exitosa. Se validaron {campos_encontrados}/{campos_totales} campos ({porcentaje:.1f}%)."
+            elif campos_encontrados >= 4:
+                mensaje = f"Validación parcial exitosa. Se validaron {campos_encontrados}/{campos_totales} campos ({porcentaje:.1f}%)."
+            elif campos_encontrados > 0:
+                mensaje = f"Validación incompleta. Solo se encontraron {campos_encontrados}/{campos_totales} campos ({porcentaje:.1f}%)."
+            else:
+                mensaje = "No se pudieron extraer suficientes datos del documento para validar."
+            
+            return ValidarOCRResponse(
+                validacion_exitosa=validacion_exitosa,
+                campos_validados=campos_validados,
+                campos_no_encontrados=campos_no_encontrados,
+                campos_con_discrepancia=campos_con_discrepancia,
+                mensaje=mensaje,
+                puede_continuar=True,
+                datos_ocr_raw=datos_ocr,
+                texto_ocr_completo=ocr_result.texto_extraido
+            )
+        
+        # FALLBACK: Lógica antigua si no hay validaciones procesadas
         # También buscar en el texto extraído si no hay datos estructurados
         texto_ocr = (ocr_result.texto_extraido or "").upper()
         
