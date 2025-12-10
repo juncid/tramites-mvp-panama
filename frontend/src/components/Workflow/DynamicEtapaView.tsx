@@ -302,9 +302,18 @@ export const DynamicEtapaView: React.FC<DynamicEtapaViewProps> = ({
 
     // Determinar el valor de opciones según el tipo de pregunta
     // Para DESCARGA_ARCHIVO y tipos similares, usar el objeto original
-    const opcionesParaPregunta = ['DESCARGA_ARCHIVO', 'CARGA_ARCHIVO'].includes(campo.tipo_pregunta)
-      ? (typeof opcionesRaw === 'object' && !Array.isArray(opcionesRaw) ? JSON.stringify(opcionesRaw) : campo.opciones)
-      : opcionesArray.join(',');
+    let opcionesParaPregunta: string | undefined;
+    if (['DESCARGA_ARCHIVO', 'CARGA_ARCHIVO'].includes(campo.tipo_pregunta)) {
+      if (typeof opcionesRaw === 'object' && !Array.isArray(opcionesRaw)) {
+        opcionesParaPregunta = JSON.stringify(opcionesRaw);
+      } else if (typeof campo.opciones === 'string') {
+        opcionesParaPregunta = campo.opciones;
+      } else {
+        opcionesParaPregunta = undefined;
+      }
+    } else {
+      opcionesParaPregunta = opcionesArray.join(',');
+    }
 
     const pregunta: WorkflowPregunta = {
       id: campo.id,
