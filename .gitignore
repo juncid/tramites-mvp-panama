@@ -102,3 +102,7 @@ informe-ejecutivo/
 k8s/
 .clinerules
 docs-generar/
+
+# SSH Keys
+*.pem
+*.pem:Zone.Identifier
