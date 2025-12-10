@@ -4,6 +4,7 @@ import { workflowService } from '../services/workflow.service';
 import { EtapaInformativa } from '../components/workflow/EtapaInformativa';
 import { getEtapaBreadcrumbs, getViewConfig } from '../config/workflowViews';
 import { useWorkflowEtapa } from '../hooks';
+import { getApiRootUrl } from '../utils/apiUrl';
 
 const ETAPA_ORDEN = 1;
 const config = getViewConfig(ETAPA_ORDEN)!;
@@ -36,7 +37,7 @@ export const DescargaRequisitos: React.FC = () => {
 
   const handleDescargar = () => {
     // URL del archivo de requisitos en el backend
-    const API_URL = import.meta.env.VITE_API_BASE_URL?.replace('/api/v1', '') || 'http://localhost:8000';
+    const API_URL = getApiRootUrl();
     const archivoUrl = '/static/documentos/requisitos_ppsh.txt';
     
     // Abrir en nueva pestaña para descargar

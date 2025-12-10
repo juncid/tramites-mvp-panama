@@ -16,6 +16,7 @@ import type { WorkflowPregunta } from '../../../types/workflow';
 import { OCRLoadingModal } from '../../PPSH/OCRLoadingModal';
 import { OCRResultModal } from '../../PPSH/OCRResultModal';
 import { apiClient } from '../../../services/api';
+import { getApiBaseUrl, getApiRootUrl } from '../../../utils/apiUrl';
 
 interface OCRProgress {
   current: number;
@@ -60,11 +61,20 @@ interface CargaArchivoViewProps {
   value?: any;  // Valor actual (para modo readonly): puede ser string, array, o objeto con info del archivo
 }
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1';
-// Derivar WS_BASE_URL de API_BASE_URL: http -> ws, https -> wss
-const WS_BASE_URL = import.meta.env.VITE_WS_BASE_URL || 
-  API_BASE_URL.replace(/^http/, 'ws');
-const API_URL = import.meta.env.VITE_API_BASE_URL?.replace('/api/v1', '') || 'http://localhost:8000';
+// Use dynamic URL detection for production/development
+const API_BASE_URL = getApiBaseUrl();
+// Derivar WS_BASE_URL: for production use relative ws, for dev use localhost
+const WS_BASE_URL = (() => {
+  if (import.meta.env.VITE_WS_BASE_URL) return import.meta.env.VITE_WS_BASE_URL;
+  const base = getApiBaseUrl();
+  if (base.startsWith('/')) {
+    // Production: use current host with ws/wss
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    return `${protocol}//${window.location.host}${base}`;
+  }
+  return base.replace(/^http/, 'ws');
+})();
+const API_URL = getApiRootUrl();
 
 export const CargaArchivoView: React.FC<CargaArchivoViewProps> = ({
   pregunta,
