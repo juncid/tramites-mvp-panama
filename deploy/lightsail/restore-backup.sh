@@ -31,7 +31,7 @@ if [ ! -f "$BACKUP_FILE" ]; then
 fi
 
 # Verificar que los contenedores estén corriendo
-if ! docker compose -f docker-compose.lightsail.yml ps | grep -q "running"; then
+if ! docker compose -f docker-compose.lightsail.yml ps | grep -qE "running|Up"; then
     echo -e "${RED}❌ Error: Los contenedores no están corriendo${NC}"
     echo -e "${YELLOW}Ejecuta primero: ./start.sh${NC}"
     exit 1
