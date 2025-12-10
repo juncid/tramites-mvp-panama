@@ -103,15 +103,13 @@ echo -e "${GREEN}Firewall configurado${NC}"
 # =============================================================================
 echo -e "${YELLOW}[6/7] Preparando aplicación...${NC}"
 
-APP_DIR="/opt/tramites-panama"
+APP_DIR="$HOME/tramites-panama"
 
 if [ -d "$APP_DIR" ]; then
     echo -e "${GREEN}Directorio ya existe, actualizando...${NC}"
     cd $APP_DIR
     git pull origin main
 else
-    sudo mkdir -p $APP_DIR
-    sudo chown $USER:$USER $APP_DIR
     git clone https://github.com/juncid/tramites-mvp-panama.git $APP_DIR
     cd $APP_DIR
 fi
