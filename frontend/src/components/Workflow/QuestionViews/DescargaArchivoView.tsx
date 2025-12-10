@@ -30,22 +30,33 @@ export const DescargaArchivoView: React.FC<DescargaArchivoViewProps> = ({
   pregunta,
   onAnswerChange,
 }) => {
+  // DEBUG: Log para verificar qué recibe el componente
+  console.log('[DescargaArchivoView] pregunta.opciones:', pregunta.opciones, 'tipo:', typeof pregunta.opciones);
+  
   // Parsear opciones para obtener la URL del archivo
   const getArchivoOpciones = (): ArchivoOpciones => {
-    if (!pregunta.opciones) return {};
+    if (!pregunta.opciones) {
+      console.log('[DescargaArchivoView] opciones es null/undefined');
+      return {};
+    }
     
     if (typeof pregunta.opciones === 'string') {
       try {
-        return JSON.parse(pregunta.opciones);
-      } catch {
+        const parsed = JSON.parse(pregunta.opciones);
+        console.log('[DescargaArchivoView] parsed from string:', parsed);
+        return parsed;
+      } catch (e) {
+        console.log('[DescargaArchivoView] error parsing:', e);
         return {};
       }
     }
     
+    console.log('[DescargaArchivoView] opciones is object:', pregunta.opciones);
     return pregunta.opciones as ArchivoOpciones;
   };
 
   const opciones = getArchivoOpciones();
+  console.log('[DescargaArchivoView] opciones result:', opciones, 'archivo_url:', opciones.archivo_url);
   const archivoUrl = opciones.archivo_url;
   const nombreArchivo = opciones.nombre_archivo || 'Documento';
   
