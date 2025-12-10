@@ -5,7 +5,7 @@ Permite código de acceso corto para solicitudes públicas (ej: PPSH-A7X9)
 Facilita a ciudadanos continuar su trámite sin necesidad del link completo.
 
 Revision ID: 019
-Revises: 018_migrate_tipo_pregunta_values
+Revises: 08be95d1d13e
 Create Date: 2025-01-22
 """
 from alembic import op
