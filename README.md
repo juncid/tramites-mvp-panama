@@ -2,13 +2,19 @@
 
 Sistema de gestión de trámites migratorios desarrollado con FastAPI (Python) y React (TypeScript), utilizando MS SQL Server como base de datos principal y Redis para caché.
 
-> **📢 Actualización Reciente (1 de Diciembre de 2025):** 
-> - 📄 **Informe N°8 Frontend e Integraciones** - Documentación completa del frontend con 191 tests
-> - 🧹 **Refactorización DRY** - Eliminadas 914 líneas de código duplicado en el frontend
-> - ✅ **191 tests automatizados** pasando (156 unitarios, 69 componentes, 24 E2E)
-> - 📁 **Documentación reorganizada** - Estructura modular por carpetas temáticas
+> **📢 Actualización Reciente (10 de Diciembre de 2025):** 
+> - 🚀 **Despliegue en AWS Lightsail** - Scripts completos para despliegue en instancias de 4GB RAM
+> - 🏗️ **Refactorización de Arquitectura** - Backend más robusto y limpieza de código
+> - 🧹 **Limpieza de Repositorio** - Eliminación de carpetas obsoletas (k8s, nginx)
+> - 🔧 **CI/CD** - Corrección de pipelines y dependencias de testing
 
 ## 📋 Últimas Actualizaciones
+
+**10 de Diciembre de 2025** - Infraestructura y Arquitectura
+- 🚀 **Despliegue Lightsail** - Configuración optimizada con Swap para SQL Server en 4GB RAM
+- 🏗️ **Refactorización Backend** - Eliminación de imports frágiles y gestión de esquema vía Alembic
+- 🧹 **Limpieza** - Eliminación de carpetas `k8s/` y `nginx/` obsoletas
+- 🔧 **CI Fixes** - Corrección de dependencias de testing (`faker`, `pytest`)
 
 **1 de Diciembre de 2025** - Informe N°8 y Refactorización Frontend
 - 📄 **Informe N°8** - Documentación completa del desarrollo Frontend e Integraciones
@@ -30,6 +36,42 @@ Sistema de gestión de trámites migratorios desarrollado con FastAPI (Python) y
 - 🔧 **Scripts automatizados** para crear y restaurar backups
 
 📖 **Documentación de backups:** [database/backups/README.md](./database/backups/README.md)
+
+---
+
+## 🚀 Despliegue Rápido en AWS Lightsail
+
+Para desplegar este proyecto en una instancia de AWS Lightsail (Ubuntu 22.04, 4GB RAM), sigue estos pasos resumidos. Para la guía completa, ver [deploy/lightsail/README.md](./deploy/lightsail/README.md).
+
+### 1. Preparar Instancia
+Crea una instancia en Lightsail con **Ubuntu 22.04 LTS** y plan de **$20 (4GB RAM)**.
+
+### 2. Conectar y Clonar
+Conéctate por SSH y ejecuta:
+
+```bash
+# Clonar repositorio
+git clone https://github.com/juncid/tramites-mvp-panama.git /opt/tramites-panama
+cd /opt/tramites-panama/deploy/lightsail
+```
+
+### 3. Ejecutar Instalador
+El script `install.sh` configurará Docker, Swap (4GB) y permisos automáticamente:
+
+```bash
+chmod +x install.sh
+sudo ./install.sh
+```
+
+### 4. Iniciar Servicios
+```bash
+# Configurar variables de entorno
+cp .env.example .env
+# Editar .env si es necesario (passwords, dominios)
+
+# Iniciar contenedores
+./start.sh
+```
 
 ---
 
