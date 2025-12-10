@@ -270,8 +270,11 @@ export const DynamicEtapaView: React.FC<DynamicEtapaViewProps> = ({
     const isReadonly = readonlyProp || !campo.puede_editar_campo || !vistaActual?.puede_editar;
 
     // Convertir campo a formato WorkflowPregunta para compatibilidad
-    // Asegurar que opciones sea un array
+    // Asegurar que opciones sea un array para tipos que lo necesitan
+    // Pero preservar el objeto original para tipos como DESCARGA_ARCHIVO
     let opcionesArray: string[] = [];
+    let opcionesRaw: any = campo.opciones; // Preservar opciones originales
+    
     if (campo.opciones) {
       if (Array.isArray(campo.opciones)) {
         opcionesArray = campo.opciones;
@@ -279,13 +282,29 @@ export const DynamicEtapaView: React.FC<DynamicEtapaViewProps> = ({
         // Si es un string JSON, parsearlo
         try {
           const parsed = JSON.parse(campo.opciones);
-          opcionesArray = Array.isArray(parsed) ? parsed : [campo.opciones];
+          if (Array.isArray(parsed)) {
+            opcionesArray = parsed;
+          } else if (typeof parsed === 'object') {
+            // Es un objeto JSON (como {archivo_url: ...}), preservarlo
+            opcionesRaw = parsed;
+          } else {
+            opcionesArray = [campo.opciones];
+          }
         } catch {
           // Si no es JSON, tratarlo como string separado por comas
           opcionesArray = campo.opciones.split(',').map(o => o.trim());
         }
+      } else if (typeof campo.opciones === 'object') {
+        // Ya es un objeto, preservarlo directamente
+        opcionesRaw = campo.opciones;
       }
     }
+
+    // Determinar el valor de opciones según el tipo de pregunta
+    // Para DESCARGA_ARCHIVO y tipos similares, usar el objeto original
+    const opcionesParaPregunta = ['DESCARGA_ARCHIVO', 'CARGA_ARCHIVO'].includes(campo.tipo_pregunta)
+      ? (typeof opcionesRaw === 'object' && !Array.isArray(opcionesRaw) ? JSON.stringify(opcionesRaw) : campo.opciones)
+      : opcionesArray.join(',');
 
     const pregunta: WorkflowPregunta = {
       id: campo.id,
@@ -301,7 +320,7 @@ export const DynamicEtapaView: React.FC<DynamicEtapaViewProps> = ({
       valor_por_defecto: campo.valor_predeterminado,
       activo: true,
       es_visible: true,
-      opciones: opcionesArray.join(','),
+      opciones: opcionesParaPregunta,
       lista_elementos: opcionesArray,
       permite_multiple: campo.permite_multiple,
       max_size_mb: campo.tamano_maximo_mb,
