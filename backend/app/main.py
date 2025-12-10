@@ -12,55 +12,16 @@ import logging
 import os
 
 # Importar Redis para métricas
-try:
-    from app.infrastructure.redis_client import get_redis
-    from app.utils.metrics import init_metrics, get_metrics
-    METRICS_AVAILABLE = True
-except ImportError:
-    METRICS_AVAILABLE = False
+from app.infrastructure.redis_client import get_redis
+from app.utils.metrics import init_metrics, get_metrics
 
 # Importar routers adicionales
-try:
-    from app.routers.routers_ppsh import router as ppsh_router
-    PPSH_AVAILABLE = True
-except ImportError:
-    PPSH_AVAILABLE = False
-    ppsh_router = None
-
-try:
-    from app.routers.routers_workflow import router as workflow_router
-    WORKFLOW_AVAILABLE = True
-except ImportError:
-    WORKFLOW_AVAILABLE = False
-    workflow_router = None
-
-try:
-    from app.routers.routers_sim_ft import router as sim_ft_router
-    SIM_FT_AVAILABLE = True
-except ImportError:
-    SIM_FT_AVAILABLE = False
-    sim_ft_router = None
-
-try:
-    from app.routers.routers_ocr import router as ocr_router
-    OCR_AVAILABLE = True
-except ImportError:
-    OCR_AVAILABLE = False
-    ocr_router = None
-
-try:
-    from app.routers.websocket_ocr import router as websocket_ocr_router
-    WEBSOCKET_OCR_AVAILABLE = True
-except ImportError:
-    WEBSOCKET_OCR_AVAILABLE = False
-    websocket_ocr_router = None
-
-try:
-    from app.routes.routes_public import router as public_router
-    PUBLIC_AVAILABLE = True
-except ImportError:
-    PUBLIC_AVAILABLE = False
-    public_router = None
+from app.routers.routers_ppsh import router as ppsh_router
+from app.routers.routers_workflow import router as workflow_router
+from app.routers.routers_sim_ft import router as sim_ft_router
+from app.routers.routers_ocr import router as ocr_router
+from app.routers.websocket_ocr import router as websocket_ocr_router
+from app.routes.routes_public import router as public_router
 
 # Configurar logging
 log_file = os.path.join("logs", "app.log") if os.path.exists("logs") else None
@@ -71,12 +32,9 @@ setup_logging(
 
 logger = logging.getLogger(__name__)
 
-# Crear tablas (si no existen)
-try:
-    Base.metadata.create_all(bind=engine)
-    logger.info("✅ Tablas de base de datos verificadas/creadas")
-except Exception as e:
-    logger.error(f"❌ Error creando tablas: {e}")
+# NOTA DE ARQUITECTURA:
+# Se ha eliminado Base.metadata.create_all(bind=engine) para evitar conflictos con Alembic.
+# La gestión del esquema de base de datos debe realizarse exclusivamente mediante migraciones.
 
 # Crear aplicación FastAPI
 app = FastAPI(
@@ -117,47 +75,24 @@ app.add_middleware(LoggerMiddleware)
 # Incluir routers
 app.include_router(router, prefix="/api/v1")
 
-# Incluir router de PPSH si está disponible
-if PPSH_AVAILABLE and ppsh_router:
-    app.include_router(ppsh_router, prefix="/api/v1")
-    logger.info("✅ Módulo PPSH registrado en /api/v1/ppsh")
-else:
-    logger.warning("⚠️  Módulo PPSH no disponible")
+# Incluir routers de módulos
+app.include_router(ppsh_router, prefix="/api/v1")
+logger.info("✅ Módulo PPSH registrado en /api/v1/ppsh")
 
-# Incluir router de Workflow si está disponible
-if WORKFLOW_AVAILABLE and workflow_router:
-    app.include_router(workflow_router, prefix="/api/v1")
-    logger.info("✅ Módulo Workflow Dinámico registrado en /api/v1/workflow")
-else:
-    logger.warning("⚠️  Módulo Workflow Dinámico no disponible")
+app.include_router(workflow_router, prefix="/api/v1")
+logger.info("✅ Módulo Workflow Dinámico registrado en /api/v1/workflow")
 
-# Incluir router de SIM_FT si está disponible
-if SIM_FT_AVAILABLE and sim_ft_router:
-    app.include_router(sim_ft_router, prefix="/api/v1")
-    logger.info("✅ Módulo SIM_FT registrado en /api/v1/sim-ft")
-else:
-    logger.warning("⚠️  Módulo SIM_FT no disponible")
+app.include_router(sim_ft_router, prefix="/api/v1")
+logger.info("✅ Módulo SIM_FT registrado en /api/v1/sim-ft")
 
-# Incluir router de OCR si está disponible
-if OCR_AVAILABLE and ocr_router:
-    app.include_router(ocr_router, prefix="/api/v1")
-    logger.info("✅ Módulo OCR registrado en /api/v1/ocr")
-else:
-    logger.warning("⚠️  Módulo OCR no disponible")
+app.include_router(ocr_router, prefix="/api/v1")
+logger.info("✅ Módulo OCR registrado en /api/v1/ocr")
 
-# Incluir WebSocket router de OCR si está disponible
-if WEBSOCKET_OCR_AVAILABLE and websocket_ocr_router:
-    app.include_router(websocket_ocr_router, prefix="/api/v1")
-    logger.info("✅ WebSocket OCR registrado en /api/v1/ws/ocr")
-else:
-    logger.warning("⚠️  WebSocket OCR no disponible")
+app.include_router(websocket_ocr_router, prefix="/api/v1")
+logger.info("✅ WebSocket OCR registrado en /api/v1/ws/ocr")
 
-# Incluir router de solicitudes públicas si está disponible
-if PUBLIC_AVAILABLE and public_router:
-    app.include_router(public_router, prefix="/api/v1")
-    logger.info("✅ Módulo Solicitudes Públicas registrado en /api/v1/public")
-else:
-    logger.warning("⚠️  Módulo Solicitudes Públicas no disponible")
+app.include_router(public_router, prefix="/api/v1")
+logger.info("✅ Módulo Solicitudes Públicas registrado en /api/v1/public")
 
 logger.info("🚀 Aplicación FastAPI inicializada")
 
@@ -182,39 +117,14 @@ async def root():
         "docs": "/api/docs",
         "health": "/health",
         "database_status": "/health/database",
-        "modules": {}
+        "modules": {
+            "ppsh": "✅ Disponible en /api/v1/ppsh",
+            "workflow": "✅ Disponible en /api/v1/workflow",
+            "sim_ft": "✅ Disponible en /api/v1/sim-ft",
+            "ocr": "✅ Disponible en /api/v1/ocr",
+            "public": "✅ Disponible en /api/v1/public"
+        }
     }
-
-    # Agregar módulo PPSH si está disponible
-    if PPSH_AVAILABLE:
-        response["modules"]["ppsh"] = "✅ Disponible en /api/v1/ppsh"
-    else:
-        response["modules"]["ppsh"] = "❌ No disponible"
-
-    # Agregar módulo Workflow si está disponible
-    if WORKFLOW_AVAILABLE:
-        response["modules"]["workflow"] = "✅ Disponible en /api/v1/workflow"
-    else:
-        response["modules"]["workflow"] = "❌ No disponible"
-
-    # Agregar módulo SIM_FT si está disponible
-    if SIM_FT_AVAILABLE:
-        response["modules"]["sim_ft"] = "✅ Disponible en /api/v1/sim-ft"
-    else:
-        response["modules"]["sim_ft"] = "❌ No disponible"
-
-    # Agregar módulo OCR si está disponible
-    if OCR_AVAILABLE:
-        response["modules"]["ocr"] = "✅ Disponible en /api/v1/ocr"
-    else:
-        response["modules"]["ocr"] = "❌ No disponible"
-
-    # Agregar módulo Solicitudes Públicas si está disponible
-    if PUBLIC_AVAILABLE:
-        response["modules"]["public"] = "✅ Disponible en /api/v1/public"
-    else:
-        response["modules"]["public"] = "❌ No disponible"
-
     return response
 
 @app.get("/health", tags=["Health"], status_code=status.HTTP_200_OK)
@@ -327,23 +237,18 @@ async def startup_event():
     # Módulos disponibles
     logger.info("  Módulos activos:")
     logger.info("    - Trámites: ✅")
-    if PPSH_AVAILABLE:
-        logger.info("    - PPSH: ✅")
-    if WORKFLOW_AVAILABLE:
-        logger.info("    - Workflow Dinámico: ✅")
-    if SIM_FT_AVAILABLE:
-        logger.info("    - SIM_FT: ✅")
-    if OCR_AVAILABLE:
-        logger.info("    - OCR: ✅")
+    logger.info("    - PPSH: ✅")
+    logger.info("    - Workflow Dinámico: ✅")
+    logger.info("    - SIM_FT: ✅")
+    logger.info("    - OCR: ✅")
 
-    # Inicializar métricas si está disponible
-    if METRICS_AVAILABLE:
-        try:
-            redis_client = get_redis()
-            init_metrics(redis_client)
-            logger.info("  ✅ Sistema de métricas inicializado")
-        except Exception as e:
-            logger.warning(f"  ⚠️  No se pudo inicializar métricas: {e}")
+    # Inicializar métricas
+    try:
+        redis_client = get_redis()
+        init_metrics(redis_client)
+        logger.info("  ✅ Sistema de métricas inicializado")
+    except Exception as e:
+        logger.warning(f"  ⚠️  No se pudo inicializar métricas: {e}")
 
     logger.info("="*60)
 
@@ -361,15 +266,6 @@ async def metrics_endpoint():
     Endpoint de métricas de la aplicación
     Retorna contadores, gauges y timings recolectados
     """
-    if not METRICS_AVAILABLE:
-        return JSONResponse(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            content={
-                "status": "unavailable",
-                "message": "Sistema de métricas no disponible"
-            }
-        )
-
     try:
         metrics_collector = get_metrics()
         if not metrics_collector:
@@ -409,12 +305,6 @@ async def metric_detail(metric_name: str):
     """
     Endpoint para obtener detalles de una métrica específica
     """
-    if not METRICS_AVAILABLE:
-        return JSONResponse(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            content={"message": "Sistema de métricas no disponible"}
-        )
-
     try:
         metrics_collector = get_metrics()
         if not metrics_collector:
