@@ -1,31 +1,30 @@
 /**
  * Utility to get the API URL dynamically based on the current host
- * This allows the app to work from both localhost and network IP
+ * This allows the app to work from both localhost and production
  */
 
 /**
  * Gets the API base URL dynamically.
- * - If accessed from localhost, uses localhost:8000
- * - If accessed from a network IP, uses that same IP:8000
- * - Falls back to environment variable if set
+ * - In production: uses relative URL /api/v1 (goes through Nginx proxy)
+ * - In development (localhost): uses localhost:8000
  */
 export function getApiBaseUrl(): string {
-  // Check if we have an explicit environment variable that's not localhost
+  // Check if we have an explicit environment variable
   const envUrl = import.meta.env.VITE_API_BASE_URL;
+  if (envUrl) {
+    return envUrl;
+  }
   
   // Get current hostname from browser
   const currentHost = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
   
-  // If accessing from localhost, use localhost
-  // If accessing from an IP or other host, use that same host for API
-  const apiHost = currentHost === 'localhost' || currentHost === '127.0.0.1' 
-    ? 'localhost' 
-    : currentHost;
+  // In production (not localhost), use relative URL through Nginx proxy
+  if (currentHost !== 'localhost' && currentHost !== '127.0.0.1') {
+    return '/api/v1';
+  }
   
-  // Build the API URL using the detected host
-  const apiUrl = `http://${apiHost}:8000/api/v1`;
-  
-  return apiUrl;
+  // In development, use localhost:8000
+  return 'http://localhost:8000/api/v1';
 }
 
 /**
@@ -33,11 +32,13 @@ export function getApiBaseUrl(): string {
  */
 export function getApiRootUrl(): string {
   const currentHost = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
-  const apiHost = currentHost === 'localhost' || currentHost === '127.0.0.1' 
-    ? 'localhost' 
-    : currentHost;
   
-  return `http://${apiHost}:8000`;
+  // In production, use relative URL (empty string, files served from same origin)
+  if (currentHost !== 'localhost' && currentHost !== '127.0.0.1') {
+    return '';
+  }
+  
+  return 'http://localhost:8000';
 }
 
 // Export singleton instance for convenience
