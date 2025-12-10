@@ -16,6 +16,20 @@ interface MetadataInstancia {
   [key: string]: any;
 }
 
+interface DatosSolicitante {
+  pasaporte?: string;
+  nacionalidad?: string;
+  nombres?: string;
+  apellidos?: string;
+  fecha_nacimiento?: string;
+  id_solicitud?: number;
+  tipo_solicitud?: string;
+  num_expediente?: string;
+  sexo?: string;
+  foto_url?: string | null;
+  [key: string]: any;
+}
+
 interface DatosCasoViewProps {
   pregunta: WorkflowPregunta;
   readonly?: boolean;
@@ -24,6 +38,8 @@ interface DatosCasoViewProps {
   compact?: boolean;
   value?: Record<string, string>;
   metadataInstancia?: MetadataInstancia;
+  datosSolicitante?: DatosSolicitante;
+  nombreWorkflow?: string;
 }
 
 export const DatosCasoView: React.FC<DatosCasoViewProps> = ({
@@ -31,6 +47,8 @@ export const DatosCasoView: React.FC<DatosCasoViewProps> = ({
   onAnswerChange,
   value,
   metadataInstancia,
+  datosSolicitante,
+  nombreWorkflow,
 }) => {
   // Ref para evitar notificaciones duplicadas
   const hasNotified = useRef(false);
@@ -51,7 +69,7 @@ export const DatosCasoView: React.FC<DatosCasoViewProps> = ({
     'direccion': 'Dirección',
   };
 
-  // Construir datos del caso desde metadata_instancia
+  // Construir datos del caso desde metadata_instancia y datos_solicitante
   const datosCaso: Record<string, string> = useMemo(() => {
     if (value && Object.keys(value).length > 0) {
       return value;
@@ -69,15 +87,44 @@ export const DatosCasoView: React.FC<DatosCasoViewProps> = ({
     camposConfig.forEach((campoKey: string) => {
       const keyLower = campoKey.toLowerCase();
       const label = mapeoLabels[keyLower] || campoKey;
-      // Obtener valor de metadataInstancia si existe, sino mostrar '-'
-      const valor = metadataInstancia 
-        ? (metadataInstancia[keyLower] || metadataInstancia[campoKey] || '-')
-        : '-';
+      
+      // Obtener valor según el campo solicitado
+      let valor = '-';
+      
+      // Campos especiales
+      if (keyLower === 'tramite') {
+        // Usar el nombre del workflow (proceso)
+        valor = nombreWorkflow || '-';
+      } else if (keyLower === 'sexo') {
+        // Obtener de datosSolicitante (viene del formulario inicial)
+        valor = datosSolicitante?.sexo || '-';
+      } else if (keyLower === 'nombres_completos' || keyLower === 'nombre') {
+        // Combinar nombres y apellidos de datosSolicitante o usar metadataInstancia
+        if (datosSolicitante?.nombres && datosSolicitante?.apellidos) {
+          valor = `${datosSolicitante.nombres} ${datosSolicitante.apellidos}`;
+        } else if (metadataInstancia?.nombres_completos) {
+          valor = metadataInstancia.nombres_completos;
+        }
+      } else if (keyLower === 'pasaporte') {
+        valor = datosSolicitante?.pasaporte || metadataInstancia?.pasaporte || '-';
+      } else if (keyLower === 'nacionalidad') {
+        valor = datosSolicitante?.nacionalidad || metadataInstancia?.nacionalidad || '-';
+      } else if (keyLower === 'fecha_nacimiento') {
+        valor = datosSolicitante?.fecha_nacimiento || '-';
+      } else {
+        // Buscar en metadataInstancia o datosSolicitante
+        valor = metadataInstancia?.[keyLower] || 
+                metadataInstancia?.[campoKey] || 
+                datosSolicitante?.[keyLower] ||
+                datosSolicitante?.[campoKey] ||
+                '-';
+      }
+      
       datos[label] = String(valor);
     });
 
     return datos;
-  }, [metadataInstancia, pregunta.campos_caso, value]);
+  }, [metadataInstancia, datosSolicitante, nombreWorkflow, pregunta.campos_caso, value]);
 
   // Notificar el valor solo una vez cuando los datos del caso estén listos
   useEffect(() => {
@@ -88,7 +135,6 @@ export const DatosCasoView: React.FC<DatosCasoViewProps> = ({
     
     if (onAnswerChange && Object.keys(datosCaso).length > 0) {
       if (!hasNotified.current || lastNotifiedValue.current !== currentValueStr) {
-        console.log('[DatosCasoView] Notificando valor:', datosCaso);
         onAnswerChange(datosCaso);
         hasNotified.current = true;
         lastNotifiedValue.current = currentValueStr;

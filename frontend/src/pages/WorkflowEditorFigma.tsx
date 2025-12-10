@@ -121,15 +121,16 @@ const TIPOS_PREGUNTA: { value: TipoPregunta; label: string; icon?: React.ReactNo
   { value: 'IMPRESION', label: 'Impresión', icon: <PrintIcon /> },
 ];
 
-const WorkflowEditorFigmaContent: React.FC = () => {
-  console.log('💡 WorkflowEditorFigma: Componente renderizándose');
+interface WorkflowEditorFigmaContentProps {
+  readOnly?: boolean;
+}
+
+const WorkflowEditorFigmaContent: React.FC<WorkflowEditorFigmaContentProps> = ({ readOnly = false }) => {
   
   const { id } = useParams();
-  console.log('💡 WorkflowEditorFigma: id desde useParams =', id);
   
   const navigate = useNavigate();
   const isEditMode = !!id;
-  console.log('💡 WorkflowEditorFigma: isEditMode =', isEditMode);
   
   const { zoomIn, zoomOut, setViewport, getViewport, fitView } = useReactFlow();
 
@@ -250,7 +251,6 @@ const WorkflowEditorFigmaContent: React.FC = () => {
   }, [nodes]);
 
   useEffect(() => {
-    console.log('🔍 useEffect ejecutado - isEditMode:', isEditMode, 'id:', id);
     if (isEditMode) {
       loadWorkflow();
     } else {
@@ -289,27 +289,10 @@ const WorkflowEditorFigmaContent: React.FC = () => {
   */
 
   const loadWorkflow = async () => {
-    console.log('🚀 loadWorkflow llamado con id:', id);
     if (!id) return;
     
     try {
-      console.log('🌐 Llamando a workflowService.getWorkflow con id:', parseInt(id));
       const data = await workflowService.getWorkflow(parseInt(id));
-
-      console.log('📋 Workflow cargado desde BD:', {
-        id: data.id,
-        codigo: data.codigo,
-        nombre: data.nombre,
-        descripcion: data.descripcion,
-        estado: data.estado,
-        version: data.version,
-        perfiles_creadores: data.perfiles_creadores,
-        activo: data.activo,
-        total_etapas: data.etapas?.length || 0,
-        total_conexiones: data.conexiones?.length || 0,
-        etapas: data.etapas,
-        conexiones: data.conexiones,
-      });
 
       // Cargar información del workflow
       setWorkflowData({
@@ -824,21 +807,17 @@ const WorkflowEditorFigmaContent: React.FC = () => {
         
         for (const etapa of etapasADesactivar) {
           if (!etapa.id) continue;
-          console.log(`Desactivando etapa ${etapa.id} (${etapa.codigo}) del workflow (soft delete)`);
           // Marcar como inactiva en lugar de eliminar
           await workflowService.updateEtapa(etapa.id, { activo: false });
         }
         
         if (etapasADesactivar.length > 0) {
-          console.log(`Desactivadas ${etapasADesactivar.length} etapas`);
         }
 
         // 3. Actualizar etapas existentes con sus datos completos (incluyendo preguntas)
         const updatePromises = etapasExistentes.map(async (node) => {
           const etapaId = parseInt(node.id);
           const orden = todasOrdenadas.findIndex(n => n.id === node.id) + 1;
-          
-          console.log(`Procesando etapa ${etapaId} (${node.data.nombre}) con ${node.data.preguntas?.length || 0} preguntas`);
           
           // Actualizar datos básicos de la etapa
           await workflowService.updateEtapa(etapaId, {
@@ -904,7 +883,6 @@ const WorkflowEditorFigmaContent: React.FC = () => {
                 });
               } else {
                 // Pregunta nueva - crear
-                console.log(`Creando nueva pregunta para etapa ${etapaId}:`, pregunta);
                 await workflowService.createPregunta({
                   etapa_id: etapaId,
                   codigo: pregunta.codigo || `PREGUNTA_${Date.now()}_${i}`,
@@ -926,7 +904,6 @@ const WorkflowEditorFigmaContent: React.FC = () => {
         });
 
         await Promise.all(updatePromises);
-        console.log(`Actualizadas ${etapasExistentes.length} etapas existentes con sus preguntas`);
 
         // 4. Crear etapas nuevas
         if (etapasNuevas.length > 0) {
@@ -948,7 +925,6 @@ const WorkflowEditorFigmaContent: React.FC = () => {
           });
 
           await Promise.all(createPromises);
-          console.log(`Creadas ${etapasNuevas.length} etapas nuevas`);
         }
 
         // 5. Sincronizar conexiones (edges)
@@ -969,7 +945,6 @@ const WorkflowEditorFigmaContent: React.FC = () => {
           return !isNaN(sourceId) && !isNaN(targetId) && sourceId < 1000000000 && targetId < 1000000000;
         });
         
-        console.log(`Conexiones activas en BD: ${conexionesEnBD.length}, Conexiones en editor: ${edgesValidos.length}`);
         
         // Crear un mapa de conexiones en el editor para búsqueda rápida
         const edgesMap = new Map(edgesValidos.map(e => [`${e.source}-${e.target}`, e]));
@@ -982,7 +957,6 @@ const WorkflowEditorFigmaContent: React.FC = () => {
         
         for (const conexion of conexionesADesactivar) {
           if (!conexion.id) continue;
-          console.log(`Desactivando conexión ${conexion.id}: ${conexion.etapa_origen_id} -> ${conexion.etapa_destino_id}`);
           await workflowService.updateConexion(conexion.id, { activo: false });
         }
         
@@ -996,7 +970,6 @@ const WorkflowEditorFigmaContent: React.FC = () => {
         });
         
         for (const edge of conexionesNuevas) {
-          console.log(`Creando conexión: ${edge.source} -> ${edge.target}`);
           await workflowService.createConexion({
             workflow_id: parseInt(id),
             etapa_origen_id: parseInt(edge.source),
@@ -1007,10 +980,8 @@ const WorkflowEditorFigmaContent: React.FC = () => {
           });
         }
         
-        console.log(`Conexiones desactivadas: ${conexionesADesactivar.length}, Conexiones creadas: ${conexionesNuevas.length}`);
 
         // 6. Recargar el workflow para obtener los IDs reales de la BD
-        console.log('Recargando workflow para sincronizar IDs...');
         const workflowActualizado = await workflowService.getWorkflow(parseInt(id));
         
         // Actualizar los nodos con los datos frescos de la BD (incluyendo IDs reales de preguntas)
@@ -1038,7 +1009,6 @@ const WorkflowEditorFigmaContent: React.FC = () => {
         });
         
         setNodes(nodosActualizados);
-        console.log('Workflow sincronizado con IDs de BD');
 
         setSaveSuccess(true);
         // No navegar automáticamente, permitir seguir editando
@@ -1227,6 +1197,7 @@ const WorkflowEditorFigmaContent: React.FC = () => {
               value={workflowData.nombre}
               onChange={(e) => setWorkflowData({ ...workflowData, nombre: e.target.value })}
               fullWidth
+              InputProps={{ readOnly: readOnly }}
               sx={{
                 '& .MuiOutlinedInput-root': {
                   borderRadius: '4px',
@@ -1276,6 +1247,7 @@ const WorkflowEditorFigmaContent: React.FC = () => {
               value={workflowData.descripcion}
               onChange={(e) => setWorkflowData({ ...workflowData, descripcion: e.target.value })}
               fullWidth
+              InputProps={{ readOnly: readOnly }}
               sx={{
                 '& .MuiOutlinedInput-root': {
                   borderRadius: '4px',
@@ -1336,6 +1308,7 @@ const WorkflowEditorFigmaContent: React.FC = () => {
               <Switch
                 checked={workflowData.activo ?? true}
                 onChange={(e) => setWorkflowData({ ...workflowData, activo: e.target.checked })}
+                disabled={readOnly}
                 sx={{
                   '& .MuiSwitch-switchBase.Mui-checked': {
                     color: '#0e5fa6',
@@ -1390,28 +1363,30 @@ const WorkflowEditorFigmaContent: React.FC = () => {
                 },
               }}
             >
-              Cancelar
+              {readOnly ? 'Volver' : 'Cancelar'}
             </Button>
-            <Button
-              variant="contained"
-              onClick={handleSaveWorkflow}
-              disabled={saving}
-              sx={{
-                textTransform: 'none',
-                fontFamily: 'Roboto, sans-serif',
-                fontSize: '16px',
-                fontWeight: 400,
-                backgroundColor: '#0e5fa6',
-                borderRadius: '4px',
-                px: 2,
-                py: 1,
-                '&:hover': {
-                  backgroundColor: '#0a4a82',
-                },
-              }}
-            >
-              {saving ? 'Guardando...' : 'Guardar cambios'}
-            </Button>
+            {!readOnly && (
+              <Button
+                variant="contained"
+                onClick={handleSaveWorkflow}
+                disabled={saving}
+                sx={{
+                  textTransform: 'none',
+                  fontFamily: 'Roboto, sans-serif',
+                  fontSize: '16px',
+                  fontWeight: 400,
+                  backgroundColor: '#0e5fa6',
+                  borderRadius: '4px',
+                  px: 2,
+                  py: 1,
+                  '&:hover': {
+                    backgroundColor: '#0a4a82',
+                  },
+                }}
+              >
+                {saving ? 'Guardando...' : 'Guardar cambios'}
+              </Button>
+            )}
           </Box>
         </Box>
       )}
@@ -1580,28 +1555,30 @@ const WorkflowEditorFigmaContent: React.FC = () => {
             gap: 1,
           }}
         >
-          <Button
-            variant="contained"
-            size="small"
-            onClick={handleSaveWorkflow}
-            disabled={saving}
-            startIcon={<SaveIcon sx={{ fontSize: 16 }} />}
-            sx={{
-              textTransform: 'none',
-              fontFamily: 'Roboto, sans-serif',
-              fontSize: '14px',
-              fontWeight: 400,
-              backgroundColor: '#0e5fa6',
-              borderRadius: '4px',
-              px: 2,
-              py: 0.75,
-              '&:hover': {
-                backgroundColor: '#0a4a82',
-              },
-            }}
-          >
-            {saving ? 'Guardando...' : 'Guardar'}
-          </Button>
+          {!readOnly && (
+            <Button
+              variant="contained"
+              size="small"
+              onClick={handleSaveWorkflow}
+              disabled={saving}
+              startIcon={<SaveIcon sx={{ fontSize: 16 }} />}
+              sx={{
+                textTransform: 'none',
+                fontFamily: 'Roboto, sans-serif',
+                fontSize: '14px',
+                fontWeight: 400,
+                backgroundColor: '#0e5fa6',
+                borderRadius: '4px',
+                px: 2,
+                py: 0.75,
+                '&:hover': {
+                  backgroundColor: '#0a4a82',
+                },
+              }}
+            >
+              {saving ? 'Guardando...' : 'Guardar'}
+            </Button>
+          )}
           <IconButton
             size="small"
             onClick={() => window.print()}
@@ -1625,14 +1602,18 @@ const WorkflowEditorFigmaContent: React.FC = () => {
               ...node.data,
               isLastNode: node.id === lastNodeId,
               showArrowAsDefault: !selectedNode && node.id === lastNodeId,
+              isReadOnly: readOnly,
             }
           }))}
           edges={filteredEdges}
-          onNodesChange={onNodesChange}
-          onEdgesChange={onEdgesChange}
-          onConnect={onConnect}
+          onNodesChange={readOnly ? undefined : onNodesChange}
+          onEdgesChange={readOnly ? undefined : onEdgesChange}
+          onConnect={readOnly ? undefined : onConnect}
           onNodeClick={handleNodeClick}
           nodeTypes={nodeTypes}
+          nodesDraggable={!readOnly}
+          nodesConnectable={!readOnly}
+          elementsSelectable={true}
           fitView
           snapToGrid={true}
           snapGrid={[20, 20]}
@@ -1675,8 +1656,10 @@ const WorkflowEditorFigmaContent: React.FC = () => {
           <EtapaConfigPanel
             etapa={selectedNode.data}
             hideCloseButton={true}
+            isReadOnly={readOnly}
             allEtapas={nodes.filter(n => n.type === 'custom').map(n => n.data as Partial<WorkflowEtapa>)}
             onSave={(updatedEtapa) => {
+              if (readOnly) return;
               setNodes((nds) =>
                 nds.map((node) => {
                   if (node.id === selectedNode.id) {
@@ -1692,7 +1675,7 @@ const WorkflowEditorFigmaContent: React.FC = () => {
               // Deseleccionar el nodo para cerrar el panel de configuración
               setSelectedNode(null);
             }}
-            onDelete={() => {
+            onDelete={readOnly ? undefined : () => {
               if (!selectedNode) return;
 
               // No permitir eliminar el nodo inicial
@@ -1809,10 +1792,14 @@ const WorkflowEditorFigmaContent: React.FC = () => {
   );
 };
 
-export const WorkflowEditorFigma: React.FC = () => {
+interface WorkflowEditorFigmaProps {
+  readOnly?: boolean;
+}
+
+export const WorkflowEditorFigma: React.FC<WorkflowEditorFigmaProps> = ({ readOnly = false }) => {
   return (
     <ReactFlowProvider>
-      <WorkflowEditorFigmaContent />
+      <WorkflowEditorFigmaContent readOnly={readOnly} />
     </ReactFlowProvider>
   );
 };

@@ -154,8 +154,8 @@ export const EtapaInformativa: React.FC<EtapaInformativaProps> = ({
       <Box
         sx={{
           backgroundColor: '#0e5fa6',
-          py: 5,
-          px: 15.375,
+          py: { xs: 5, md: 5 },
+          px: { xs: 2, md: 15.375 },
           position: 'relative',
         }}
       >
@@ -163,7 +163,7 @@ export const EtapaInformativa: React.FC<EtapaInformativaProps> = ({
           variant="h1"
           sx={{
             color: '#ffffff',
-            fontSize: '64px',
+            fontSize: { xs: '40px', md: '64px' },
             fontWeight: 700,
             lineHeight: 1.1,
             mb: 3,
@@ -173,68 +173,129 @@ export const EtapaInformativa: React.FC<EtapaInformativaProps> = ({
           {headerTitle}
         </Typography>
 
-        {/* Breadcrumbs */}
-        <Breadcrumbs
-          separator={<NavigateNextIcon fontSize="small" sx={{ color: '#ffffff' }} />}
-          sx={{ mt: 2 }}
-        >
-          {breadcrumbs.map((item, index) => {
-            const isLast = index === breadcrumbs.length - 1;
-            
-            if (isLast || !item.path) {
-              return (
-                <Typography key={index} sx={{ color: '#ffffff', fontSize: '14px' }}>
-                  {item.label}
-                </Typography>
-              );
-            }
+        {/* Breadcrumbs - En mobile solo muestra los primeros 2 elementos */}
+        <Box sx={{ mt: 2 }}>
+          {/* Versión mobile - solo primeros 2 elementos */}
+          <Breadcrumbs
+            separator={<NavigateNextIcon fontSize="small" sx={{ color: '#ffffff' }} />}
+            sx={{ display: { xs: 'flex', md: 'none' } }}
+          >
+            {breadcrumbs.slice(0, 2).map((item, index) => {
+              const isLast = index === 1;
+              
+              if (isLast || !item.path) {
+                return (
+                  <Typography 
+                    key={index} 
+                    sx={{ color: '#ffffff', fontSize: '14px' }}
+                  >
+                    {item.label}
+                  </Typography>
+                );
+              }
 
-            // Breadcrumb con link
-            if (item.path === '/') {
+              if (item.path === '/') {
+                return (
+                  <Link
+                    key={index}
+                    underline="hover"
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      color: '#ffffff',
+                      cursor: 'pointer',
+                      '&:hover': { color: '#e0e0e0' },
+                    }}
+                    onClick={() => navigate(item.path!)}
+                  >
+                    <HomeIcon sx={{ mr: 0.5, fontSize: 20 }} />
+                    {item.label}
+                  </Link>
+                );
+              }
+
               return (
                 <Link
                   key={index}
                   underline="hover"
                   sx={{
-                    display: 'flex',
-                    alignItems: 'center',
                     color: '#ffffff',
                     cursor: 'pointer',
                     '&:hover': { color: '#e0e0e0' },
                   }}
                   onClick={() => navigate(item.path!)}
                 >
-                  <HomeIcon sx={{ mr: 0.5, fontSize: 20 }} />
                   {item.label}
                 </Link>
               );
-            }
+            })}
+          </Breadcrumbs>
 
-            return (
-              <Link
-                key={index}
-                underline="hover"
-                sx={{
-                  color: '#ffffff',
-                  cursor: 'pointer',
-                  '&:hover': { color: '#e0e0e0' },
-                }}
-                onClick={() => navigate(item.path!)}
-              >
-                {item.label}
-              </Link>
-            );
-          })}
-        </Breadcrumbs>
+          {/* Versión desktop - todos los elementos */}
+          <Breadcrumbs
+            separator={<NavigateNextIcon fontSize="small" sx={{ color: '#ffffff' }} />}
+            sx={{ display: { xs: 'none', md: 'flex' } }}
+          >
+            {breadcrumbs.map((item, index) => {
+              const isLast = index === breadcrumbs.length - 1;
+              
+              if (isLast || !item.path) {
+                return (
+                  <Typography 
+                    key={index} 
+                    sx={{ color: '#ffffff', fontSize: '14px' }}
+                  >
+                    {item.label}
+                  </Typography>
+                );
+              }
+
+              if (item.path === '/') {
+                return (
+                  <Link
+                    key={index}
+                    underline="hover"
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      color: '#ffffff',
+                      cursor: 'pointer',
+                      '&:hover': { color: '#e0e0e0' },
+                    }}
+                    onClick={() => navigate(item.path!)}
+                  >
+                    <HomeIcon sx={{ mr: 0.5, fontSize: 20 }} />
+                    {item.label}
+                  </Link>
+                );
+              }
+
+              return (
+                <Link
+                  key={index}
+                  underline="hover"
+                  sx={{
+                    color: '#ffffff',
+                    cursor: 'pointer',
+                    '&:hover': { color: '#e0e0e0' },
+                  }}
+                  onClick={() => navigate(item.path!)}
+                >
+                  {item.label}
+                </Link>
+              );
+            })}
+          </Breadcrumbs>
+        </Box>
       </Box>
 
       {/* Contenido principal */}
-      <Box sx={{ px: 15.375, py: 5 }}>
+      <Box sx={{ px: { xs: 2, md: 15.375 }, py: { xs: 3, md: 5 } }}>
         <Typography
           variant="h2"
           sx={{
             color: '#333333',
-            fontSize: '48px',
+            fontSize: { xs: '24px', md: '48px' },
             fontWeight: 700,
             lineHeight: 1.5,
             mb: 3,
@@ -312,23 +373,22 @@ export const EtapaInformativa: React.FC<EtapaInformativaProps> = ({
         {/* Botón de acción opcional */}
         {actionButton && (
           <Button
-            variant={actionButton.variant || 'outlined'}
+            variant={actionButton.variant || 'contained'}
             startIcon={actionButton.icon}
             onClick={actionButton.onClick}
             sx={{
-              borderColor: actionButton.backgroundColor || '#0e5fa6',
-              color: actionButton.color || '#0e5fa6',
-              backgroundColor: 'transparent',
+              width: { xs: '100%', sm: 'auto' },
+              backgroundColor: actionButton.backgroundColor || '#0e5fa6',
+              color: actionButton.color || '#ffffff',
               px: 3,
-              py: 1.5,
+              py: 1,
               textTransform: 'none',
               fontSize: '16px',
-              fontWeight: 500,
+              fontWeight: 400,
               borderRadius: '4px',
               mb: 4,
               '&:hover': {
-                borderColor: '#0d5494',
-                backgroundColor: 'rgba(14, 95, 166, 0.04)',
+                backgroundColor: '#0d5494',
               },
             }}
           >
@@ -357,12 +417,13 @@ export const EtapaInformativa: React.FC<EtapaInformativaProps> = ({
         {/* Botones de navegación */}
         {readonly ? (
           /* Modo solo lectura - Solo botón Volver */
-          <Box sx={{ maxWidth: '1194px' }}>
+          <Box sx={{ maxWidth: '1194px', width: '100%' }}>
             <Button
               variant="outlined"
               startIcon={<ArrowBackIcon />}
               onClick={onCancel}
               sx={{
+                width: { xs: '100%', sm: 'auto' },
                 borderColor: '#0e5fa6',
                 color: '#0e5fa6',
                 px: 2,
@@ -384,9 +445,12 @@ export const EtapaInformativa: React.FC<EtapaInformativaProps> = ({
           <Box
             sx={{
               display: 'flex',
+              flexDirection: { xs: 'column', sm: 'row' },
               justifyContent: 'space-between',
-              alignItems: 'center',
+              alignItems: { xs: 'stretch', sm: 'center' },
+              gap: { xs: 3, sm: 0 },
               maxWidth: '1194px',
+              width: '100%',
             }}
           >
             <Button
@@ -394,6 +458,8 @@ export const EtapaInformativa: React.FC<EtapaInformativaProps> = ({
               onClick={onCancel}
               disabled={completing}
               sx={{
+                width: { xs: '100%', sm: 'auto' },
+                order: { xs: 1, sm: 0 },
                 borderColor: '#0e5fa6',
                 color: '#0e5fa6',
                 px: 2,
@@ -401,14 +467,14 @@ export const EtapaInformativa: React.FC<EtapaInformativaProps> = ({
                 textTransform: 'none',
                 fontSize: '16px',
                 borderRadius: '4px',
-                minWidth: '124px',
+                minWidth: { xs: 'auto', sm: '124px' },
                 '&:hover': {
                   borderColor: '#0d5494',
                   backgroundColor: 'rgba(14, 95, 166, 0.04)',
                 },
               }}
             >
-              {cancelButtonText || 'Volver'}
+              {cancelButtonText || 'Cancelar'}
             </Button>
 
             {onNext && (
@@ -417,6 +483,8 @@ export const EtapaInformativa: React.FC<EtapaInformativaProps> = ({
                 onClick={onNext}
                 disabled={completing || nextButtonDisabled}
                 sx={{
+                  width: { xs: '100%', sm: 'auto' },
+                  order: { xs: 2, sm: 0 },
                   backgroundColor: '#0e5fa6',
                   color: '#ffffff',
                   px: 2,
@@ -424,7 +492,7 @@ export const EtapaInformativa: React.FC<EtapaInformativaProps> = ({
                   textTransform: 'none',
                   fontSize: '16px',
                   borderRadius: '4px',
-                  minWidth: '124px',
+                  minWidth: { xs: 'auto', sm: '124px' },
                   '&:hover': {
                     backgroundColor: '#0d5494',
                   },

@@ -8,7 +8,7 @@ import {
   Checkbox,
   FormControlLabel,
 } from '@mui/material';
-import { Warning as WarningIcon } from '@mui/icons-material';
+import WarningAmberRoundedIcon from '@mui/icons-material/WarningAmberRounded';
 
 interface OCRValidationErrorModalProps {
   open: boolean;
@@ -19,6 +19,7 @@ interface OCRValidationErrorModalProps {
 /**
  * Modal que se muestra cuando la validación OCR detecta discrepancias
  * entre los datos ingresados por el usuario y los datos extraídos del documento.
+ * Basado en wireframe Figma: Mobile - 15 (node 2465:2522)
  * 
  * Permite al usuario:
  * - Cerrar el modal y subir otro documento
@@ -47,62 +48,72 @@ export const OCRValidationErrorModal: React.FC<OCRValidationErrorModalProps> = (
     <Dialog
       open={open}
       onClose={handleClose}
-      maxWidth="sm"
       fullWidth
+      maxWidth="xs"
       PaperProps={{
         sx: { 
-          borderRadius: 2, 
-          p: 2,
-          maxWidth: '480px',
+          width: '100%',
+          maxWidth: { xs: '100%', sm: 440, md: 480 },
+          borderRadius: 1,
+          p: { xs: 1.5, sm: 2 },
+          m: { xs: 1, sm: 2, md: 3 },
         }
       }}
+      BackdropProps={{
+        sx: {
+          backgroundColor: 'rgba(33, 33, 33, 0.45)',
+        },
+      }}
     >
-      <DialogContent sx={{ textAlign: 'center', py: 3, px: 4 }}>
+      <DialogContent sx={{ textAlign: 'center', py: { xs: 2, sm: 3 }, px: { xs: 1, sm: 2 }, position: 'relative' }}>
         {/* Título pequeño */}
         <Typography 
           variant="caption" 
-          color="text.secondary" 
           sx={{ 
-            mb: 2, 
-            display: 'block',
-            fontSize: '12px',
+            position: 'absolute',
+            top: { xs: 8, sm: 16 },
+            left: { xs: 8, sm: 16 },
+            color: 'text.secondary',
+            fontWeight: 200,
           }}
         >
-          Revisión OCR
-        </Typography>
-        
-        {/* Título principal */}
+          Revisión del Sistema
+        </Typography>        {/* Título principal */}
         <Typography 
-          variant="h5" 
-          fontWeight="bold" 
+          variant="h5"
+          component="h2"
           sx={{ 
-            mb: 3,
-            color: '#333',
-            fontSize: '24px',
+            mt: { xs: 2, sm: 3 },
+            mb: { xs: 2, sm: 3 },
+            color: 'text.primary',
+            fontWeight: 400,
+            lineHeight: 1.5,
+            fontSize: { xs: '1.25rem', sm: '1.5rem' },
           }}
         >
           No pudimos validar el documento
         </Typography>
 
-        {/* Ícono de advertencia */}
-        <Box sx={{ my: 3 }}>
-          <WarningIcon 
-            sx={{ 
-              fontSize: 80, 
-              color: '#f5a623',
-            }} 
+        {/* Ícono de advertencia triangular */}
+        <Box sx={{ my: { xs: 2, sm: 3 }, display: 'flex', justifyContent: 'center' }}>
+          <WarningAmberRoundedIcon
+            sx={{
+              fontSize: { xs: 80, sm: 100, md: 120 },
+              color: 'warning.main',
+            }}
           />
         </Box>
 
         {/* Mensaje explicativo */}
         <Typography 
-          variant="body1" 
-          color="text.secondary" 
+          variant="body1"
           sx={{ 
-            mb: 4, 
-            px: 2,
-            fontSize: '14px',
-            lineHeight: 1.6,
+            mb: { xs: 2, sm: 3 }, 
+            px: { xs: 0, sm: 1 },
+            lineHeight: 1.5,
+            color: 'text.primary',
+            fontWeight: 300,
+            fontSize: { xs: '0.875rem', sm: '1rem' },
           }}
         >
           La información del archivo no concuerda con los datos ingresados. 
@@ -113,22 +124,24 @@ export const OCRValidationErrorModal: React.FC<OCRValidationErrorModalProps> = (
         <Button
           variant="contained"
           onClick={handleClose}
+          fullWidth
           sx={{
-            bgcolor: '#0e5fa6',
-            px: 4,
+            bgcolor: 'primary.main',
+            maxWidth: { xs: '100%', sm: 200 },
+            px: { xs: 2, sm: 4 },
             py: 1,
-            mb: 3,
+            mb: { xs: 2, sm: 3 },
             textTransform: 'none',
-            fontSize: '16px',
-            borderRadius: '4px',
-            '&:hover': { bgcolor: '#0d5391' },
+            fontSize: { xs: '0.875rem', sm: '1rem' },
+            borderRadius: 1,
+            '&:hover': { bgcolor: 'primary.dark' },
           }}
         >
           Entendido
         </Button>
 
         {/* Checkbox para aceptar riesgo */}
-        <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'flex-start', mb: { xs: 1.5, sm: 2 } }}>
           <FormControlLabel
             control={
               <Checkbox
@@ -136,15 +149,23 @@ export const OCRValidationErrorModal: React.FC<OCRValidationErrorModalProps> = (
                 onChange={(e) => setAceptaRiesgo(e.target.checked)}
                 size="small"
                 sx={{
-                  color: '#666',
+                  color: 'text.secondary',
                   '&.Mui-checked': {
-                    color: '#0e5fa6',
+                    color: 'primary.main',
                   },
                 }}
               />
             }
             label={
-              <Typography variant="body2" color="text.secondary" sx={{ fontSize: '13px' }}>
+              <Typography 
+                variant="body2"
+                sx={{ 
+                  color: 'text.primary',
+                  fontWeight: 300,
+                  textAlign: 'left',
+                  fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                }}
+              >
                 Enviar de todos modos, asumiendo el riesgo de rechazo.
               </Typography>
             }
@@ -156,21 +177,23 @@ export const OCRValidationErrorModal: React.FC<OCRValidationErrorModalProps> = (
           variant="outlined"
           onClick={handleEnviar}
           disabled={!aceptaRiesgo}
+          fullWidth
           sx={{
-            borderColor: '#0e5fa6',
-            color: '#0e5fa6',
-            px: 4,
+            borderColor: 'primary.main',
+            color: 'primary.main',
+            maxWidth: { xs: '100%', sm: 200 },
+            px: { xs: 2, sm: 4 },
             py: 1,
             textTransform: 'none',
-            fontSize: '16px',
-            borderRadius: '4px',
+            fontSize: { xs: '0.875rem', sm: '1rem' },
+            borderRadius: 1,
             '&:hover': {
-              borderColor: '#0d5391',
-              backgroundColor: 'rgba(14, 95, 166, 0.04)',
+              borderColor: 'primary.dark',
+              backgroundColor: 'action.hover',
             },
             '&.Mui-disabled': {
-              borderColor: '#ccc',
-              color: '#ccc',
+              borderColor: 'action.disabled',
+              color: 'action.disabled',
             },
           }}
         >

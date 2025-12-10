@@ -93,6 +93,33 @@ def eliminar_workflow(
     WorkflowService.eliminar_workflow(db, workflow_id, current_user)
 
 
+@router.post("/workflows/{workflow_id}/duplicar", response_model=schemas.WorkflowResponse, status_code=status.HTTP_201_CREATED)
+def duplicar_workflow(
+    workflow_id: int,
+    nuevo_nombre: Optional[str] = Query(None, description="Nombre para el nuevo workflow (opcional)"),
+    nuevo_codigo: Optional[str] = Query(None, description="Código para el nuevo workflow (opcional)"),
+    db: Session = Depends(get_db),
+    current_user: str = "ADMIN"
+):
+    """
+    Duplica un workflow completo incluyendo todas sus etapas, preguntas y conexiones.
+    
+    Se generan nuevos IDs para todas las entidades duplicadas, de forma que el
+    workflow duplicado sea completamente independiente del original.
+    
+    El nuevo workflow se crea en estado BORRADOR.
+    
+    Args:
+        workflow_id: ID del workflow a duplicar
+        nuevo_nombre: Nombre para el nuevo workflow (si no se provee, se genera automáticamente)
+        nuevo_codigo: Código para el nuevo workflow (si no se provee, se genera automáticamente)
+    
+    Returns:
+        El nuevo workflow creado con todas sus etapas y conexiones
+    """
+    return WorkflowService.duplicar_workflow(db, workflow_id, nuevo_nombre, nuevo_codigo, current_user)
+
+
 @router.get("/workflows/{workflow_id}/historial-cambios", response_model=List[schemas.WorkflowCambiosResponse])
 def obtener_historial_cambios_workflow(
     workflow_id: int,
@@ -864,12 +891,24 @@ def obtener_documentos_etapa(
                     if doc_key in docs_por_pregunta:
                         continue
                     
-                    # Verificar OCR
+                    # Verificar OCR y obtener datos
                     ocr_exitoso = None
+                    ocr_texto_extraido = None
+                    ocr_datos_estructurados = None
+                    ocr_confianza = None
                     if doc.ocr_results:
-                        ultimo_ocr = max(doc.ocr_results, key=lambda x: x.fecha_fin_proceso or x.fecha_inicio_proceso, default=None)
+                        ultimo_ocr = max(doc.ocr_results, key=lambda x: x.fecha_fin_proceso or x.fecha_inicio_proceso or x.created_at, default=None)
                         if ultimo_ocr:
                             ocr_exitoso = ultimo_ocr.estado_ocr == 'COMPLETADO'
+                            ocr_texto_extraido = ultimo_ocr.texto_extraido
+                            ocr_confianza = float(ultimo_ocr.texto_confianza) if ultimo_ocr.texto_confianza else None
+                            # Parsear datos estructurados si existen
+                            if ultimo_ocr.datos_estructurados:
+                                try:
+                                    import json
+                                    ocr_datos_estructurados = json.loads(ultimo_ocr.datos_estructurados)
+                                except:
+                                    ocr_datos_estructurados = None
                     
                     docs_por_pregunta[doc_key] = {
                         "id": str(doc.id_documento),
@@ -882,6 +921,9 @@ def obtener_documentos_etapa(
                         "es_obligatoria": pregunta.es_obligatoria if pregunta else doc.es_obligatorio,
                         "requiere_ocr": pregunta.requiere_ocr if pregunta else True,
                         "ocr_exitoso": ocr_exitoso,
+                        "ocr_texto_extraido": ocr_texto_extraido,
+                        "ocr_datos_estructurados": ocr_datos_estructurados,
+                        "ocr_confianza": ocr_confianza,
                         "estado_verificacion": doc.estado_verificacion,
                         "orden": pregunta.orden if pregunta else 999
                     }
@@ -889,12 +931,59 @@ def obtener_documentos_etapa(
             # Ordenar documentos por el orden de las preguntas
             documentos = sorted(docs_por_pregunta.values(), key=lambda x: x.get('orden', 999))
     
+    # Obtener datos del solicitante para comparación con OCR
+    datos_solicitante = None
+    id_solicitud = None
+    if instancia.metadata_adicional and isinstance(instancia.metadata_adicional, dict):
+        id_solicitud = instancia.metadata_adicional.get('id_solicitud')
+    
+    if id_solicitud:
+        from app.models import models_ppsh
+        solicitante = db.query(models_ppsh.PPSHSolicitante).filter(
+            models_ppsh.PPSHSolicitante.id_solicitud == id_solicitud,
+            models_ppsh.PPSHSolicitante.es_titular == True,
+            models_ppsh.PPSHSolicitante.activo == True
+        ).first()
+        
+        if solicitante:
+            # Construir nombres y apellidos completos
+            nombres_completos = " ".join(filter(None, [solicitante.primer_nombre, solicitante.segundo_nombre]))
+            apellidos_completos = " ".join(filter(None, [solicitante.primer_apellido, solicitante.segundo_apellido]))
+            
+            # Formatear fecha de nacimiento (formato dd.MM.yyyy para mostrar)
+            fecha_nacimiento_formateada = solicitante.fecha_nacimiento.strftime("%d.%m.%Y") if solicitante.fecha_nacimiento else None
+            
+            datos_solicitante = {
+                # Campos originales
+                "nombre_completo": solicitante.nombre_completo,
+                "primer_nombre": solicitante.primer_nombre,
+                "segundo_nombre": solicitante.segundo_nombre,
+                "primer_apellido": solicitante.primer_apellido,
+                "segundo_apellido": solicitante.segundo_apellido,
+                "tipo_documento": solicitante.tipo_documento,
+                "num_documento": solicitante.num_documento,
+                "fecha_nacimiento_iso": solicitante.fecha_nacimiento.isoformat() if solicitante.fecha_nacimiento else None,
+                "fecha_emision_doc": solicitante.fecha_emision_doc.isoformat() if solicitante.fecha_emision_doc else None,
+                "fecha_vencimiento_doc": solicitante.fecha_vencimiento_doc.isoformat() if solicitante.fecha_vencimiento_doc else None,
+                "pais_emisor": solicitante.pais_emisor,
+                "cod_nacionalidad": solicitante.cod_nacionalidad,
+                "cod_sexo": solicitante.cod_sexo,
+                # Campos con alias para compatibilidad con frontend
+                "pasaporte": solicitante.num_documento,  # Alias para num_documento
+                "nacionalidad": solicitante.cod_nacionalidad,  # Alias para cod_nacionalidad
+                "nombres": nombres_completos,  # primer_nombre + segundo_nombre
+                "apellidos": apellidos_completos,  # primer_apellido + segundo_apellido
+                "fecha_nacimiento": fecha_nacimiento_formateada,  # Formato dd.MM.yyyy
+                "sexo": solicitante.cod_sexo,  # Alias para cod_sexo
+            }
+    
     return {
         "instancia_id": instancia_id,
         "etapa_id": etapa_id,
         "etapa_nombre": etapa.nombre,
         "documentos": documentos,
-        "total": len(documentos)
+        "total": len(documentos),
+        "datos_solicitante": datos_solicitante
     }
 
 

@@ -14,6 +14,7 @@ interface ListaViewProps {
   readonly?: boolean;
   onAnswerChange?: (valor: string[]) => void;
   value?: string[] | string; // Puede venir como array o string JSON
+  allowSelectionInReadonly?: boolean; // Permitir selección incluso en modo readonly (ej: cotización)
 }
 
 export const ListaView: React.FC<ListaViewProps> = ({
@@ -21,6 +22,7 @@ export const ListaView: React.FC<ListaViewProps> = ({
   readonly = false,
   onAnswerChange,
   value,
+  allowSelectionInReadonly = false,
 }) => {
   // Parsear el valor inicial
   const parseInitialValue = (): string[] => {
@@ -120,7 +122,7 @@ export const ListaView: React.FC<ListaViewProps> = ({
                 <Checkbox
                   checked={seleccionados.includes(opcion)}
                   onChange={() => handleChange(opcion)}
-                  disabled={readonly}
+                  disabled={readonly && !allowSelectionInReadonly}
                   sx={{
                     color: '#333333',
                     p: 0,

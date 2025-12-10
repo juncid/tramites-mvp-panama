@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Box,
   Container,
@@ -25,16 +25,23 @@ import { DynamicEtapaView } from '../components/Workflow/DynamicEtapaView';
  * FUNCIONALIDAD:
  * - Si el ciudadano tiene una etapa donde puede interactuar (CIUDADANO en perfiles), muestra el formulario
  * - Si la etapa actual requiere otro perfil (FUNCIONARIO), redirige a la vista de etapas (/solicitudes/:token/etapas)
+ * - Soporta modo readonly para ver etapas completadas
  */
 export const SolicitudPublicaWorkflow: React.FC = () => {
-  const { token } = useParams<{ token: string }>();
+  const { token, etapaOrden } = useParams<{ token: string; etapaOrden?: string }>();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  
+  // Detectar si estamos en modo readonly
+  const isReadonly = searchParams.get('readonly') === 'true';
+  const targetEtapaOrden = etapaOrden ? parseInt(etapaOrden, 10) : null;
   
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [tokenValid, setTokenValid] = useState(false);
   const [instancia, setInstancia] = useState<any>(null);
   const [etapaActual, setEtapaActual] = useState<any>(null);
+  const [etapaAMostrar, setEtapaAMostrar] = useState<any>(null);
   const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
@@ -44,7 +51,7 @@ export const SolicitudPublicaWorkflow: React.FC = () => {
       setError('Token no proporcionado');
       setLoading(false);
     }
-  }, [token, refreshKey]);
+  }, [token, refreshKey, targetEtapaOrden, isReadonly]);
 
   const validateAndLoad = async () => {
     if (!token) return;
@@ -68,10 +75,35 @@ export const SolicitudPublicaWorkflow: React.FC = () => {
       const instanciaData = await publicService.getInstanciaPorToken(token);
       setInstancia(instanciaData);
       
-      // 3. Determinar si el ciudadano puede interactuar con la etapa actual
+      // 3. Determinar qué etapa mostrar
       const etapaActualData = instanciaData.etapa_actual;
       setEtapaActual(etapaActualData);
       
+      // Si estamos en modo readonly y hay un etapaOrden específico, buscar esa etapa
+      if (isReadonly && targetEtapaOrden !== null && instanciaData.workflow?.etapas) {
+        const etapaTarget = instanciaData.workflow.etapas.find(
+          (e: any) => e.orden === targetEtapaOrden
+        );
+        
+        if (etapaTarget) {
+          // Verificar que el ciudadano tenga permiso para ver esta etapa
+          const perfilesPermitidos = etapaTarget.perfiles_permitidos || [];
+          const ciudadanoPuedeVer = perfilesPermitidos.includes('CIUDADANO') || 
+                                    perfilesPermitidos.includes('ABOGADO') ||
+                                    perfilesPermitidos.length === 0;
+          
+          if (ciudadanoPuedeVer) {
+            setEtapaAMostrar(etapaTarget);
+            return;
+          } else {
+            // No tiene permiso para ver esta etapa
+            navigate(`/solicitudes/${token}/etapas`, { replace: true });
+            return;
+          }
+        }
+      }
+      
+      // Modo normal (no readonly) - mostrar etapa actual
       if (etapaActualData) {
         const perfilesPermitidos = etapaActualData.perfiles_permitidos || [];
         const ciudadanoPuedeEditar = perfilesPermitidos.includes('CIUDADANO') || 
@@ -83,6 +115,8 @@ export const SolicitudPublicaWorkflow: React.FC = () => {
           navigate(`/solicitudes/${token}/etapas`, { replace: true });
           return;
         }
+        
+        setEtapaAMostrar(etapaActualData);
       } else {
         // No hay etapa actual (workflow completado o error)
         // Redirigir a la vista de etapas para mostrar el estado
@@ -235,37 +269,39 @@ export const SolicitudPublicaWorkflow: React.FC = () => {
           </MuiLink>
           <Typography sx={{ color: 'white', fontSize: '14px' }}>Procesos</Typography>
           <Typography sx={{ color: 'white', fontSize: '14px' }}>Permiso de Protección de Seguridad Humanitaria</Typography>
-          <Typography sx={{ color: 'white', fontSize: '14px' }}>{etapaActual?.nombre || 'Cargando...'}</Typography>
+          <Typography sx={{ color: 'white', fontSize: '14px' }}>{etapaAMostrar?.nombre || 'Cargando...'}</Typography>
         </Breadcrumbs>
       </Box>
 
       {/* Content */}
       <Container maxWidth={false} sx={{ px: { xs: 2, sm: 3, md: '7.69rem' }, py: 4, backgroundColor: 'white' }}>
         <Typography variant="h3" sx={{ fontSize: '48px', fontWeight: 700, color: '#333333', mb: 3, lineHeight: 1.5 }}>
-          {etapaActual?.titulo_formulario || etapaActual?.nombre || 'Etapa actual'}
+          {etapaAMostrar?.titulo_formulario || etapaAMostrar?.nombre || 'Etapa actual'}
         </Typography>
 
-        {etapaActual?.bajada_formulario && (
+        {etapaAMostrar?.bajada_formulario && (
           <Typography variant="body1" sx={{ fontSize: '16px', color: '#333333', mb: 4, lineHeight: 1.5, maxWidth: '1167px' }}>
-            {etapaActual.bajada_formulario}
+            {etapaAMostrar.bajada_formulario}
           </Typography>
         )}
 
-        {etapaActual && (
+        {etapaAMostrar && (
           <Box sx={{ mb: 4 }}>
             <DynamicEtapaView 
               instanciaId={instancia.id} 
-              onComplete={handleEtapaCompletada}
+              etapaId={isReadonly ? etapaAMostrar.id : undefined}
+              onComplete={isReadonly ? undefined : handleEtapaCompletada}
               onBack={handleVolver}
               userPerfil="CIUDADANO" 
               accessToken={token}
               hideHeader={true}
-              buttonLabels={{ back: 'Volver', next: 'Siguiente' }}
+              readonly={isReadonly}
+              buttonLabels={{ back: 'Volver', next: isReadonly ? undefined : 'Siguiente' }}
             />
           </Box>
         )}
 
-        {!etapaActual && instancia?.estado !== 'COMPLETADO' && (
+        {!etapaAMostrar && instancia?.estado !== 'COMPLETADO' && (
           <Alert severity="warning">
             <Typography variant="h6" gutterBottom>No hay etapas disponibles</Typography>
             <Typography variant="body2">Su solicitud está siendo procesada.</Typography>

@@ -11,6 +11,10 @@ import {
   Button,
   TextField,
   InputAdornment,
+  Card,
+  CardContent,
+  useMediaQuery,
+  useTheme,
 } from '@mui/material';
 import {
   Home as HomeIcon,
@@ -24,6 +28,7 @@ import { publicService } from '../services/public.service';
 import { workflowService } from '../services/workflow.service';
 import { resolveWorkflowId } from '../config/workflowAliases';
 import { getEtapaNavigationPath } from '../config/workflowViews';
+import { getApiBaseUrl } from '../utils/apiUrl';
 import { MainLayout } from '../components/Layout/MainLayout';
 
 // ============================================================================
@@ -39,6 +44,7 @@ interface EtapaInfo {
   puede_ver: boolean;
   puede_editar: boolean;
   fecha_completado?: string;
+  perfiles_permitidos: string[];
 }
 
 type PerfilUsuario = 'CIUDADANO' | 'FUNCIONARIO';
@@ -54,6 +60,8 @@ interface WorkflowEtapasProps {
 
 export const WorkflowEtapasUnificado: React.FC<WorkflowEtapasProps> = ({ perfil: perfilProp }) => {
   const navigate = useNavigate();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   
   // Params de la URL - pueden venir de diferentes rutas
   const { 
@@ -182,7 +190,8 @@ export const WorkflowEtapasUnificado: React.FC<WorkflowEtapasProps> = ({ perfil:
         const numericId = resolveWorkflowId(instanciaId);
         setWorkflowInstanciaId(numericId);
       } else if (realSolicitudId) {
-        const response = await fetch(`http://localhost:8000/api/v1/ppsh/solicitudes/${realSolicitudId}`);
+        const apiBaseUrl = getApiBaseUrl();
+        const response = await fetch(`${apiBaseUrl}/ppsh/solicitudes/${realSolicitudId}`);
         if (!response.ok) throw new Error('Solicitud no encontrada');
         const data = await response.json();
         if (data.workflow_instancia_id) {
@@ -249,6 +258,10 @@ export const WorkflowEtapasUnificado: React.FC<WorkflowEtapasProps> = ({ perfil:
         h.tipo_cambio === 'TRANSICION' && h.etapa_origen_id === etapa.id
       );
       const esActual = etapa.id === etapaActualId;
+      const perfilesPermitidos = etapa.perfiles_permitidos || [];
+      
+      // Verificar si el ciudadano tiene permiso para esta etapa
+      const ciudadanoTienePermiso = perfilesPermitidos.includes('CIUDADANO') || perfilesPermitidos.includes('ABOGADO');
       
       return {
         id: etapa.id,
@@ -256,12 +269,14 @@ export const WorkflowEtapasUnificado: React.FC<WorkflowEtapasProps> = ({ perfil:
         nombre: etapa.nombre,
         orden: etapa.orden || 0,
         estado: completada ? 'COMPLETADO' : esActual ? 'EN_PROCESO' : 'PENDIENTE',
-        puede_ver: true,
+        // Para ciudadanos, solo puede ver si tiene permiso
+        puede_ver: esCiudadano ? ciudadanoTienePermiso : true,
         // Solo puede editar si es la etapa actual Y tiene permisos
         puede_editar: esActual && puedeEditarActual,
         fecha_completado: completada 
           ? historial.find((h: any) => h.tipo_cambio === 'TRANSICION' && h.etapa_origen_id === etapa.id)?.created_at 
           : undefined,
+        perfiles_permitidos: perfilesPermitidos,
       };
     });
 
@@ -277,6 +292,7 @@ export const WorkflowEtapasUnificado: React.FC<WorkflowEtapasProps> = ({ perfil:
 
   const handleVerEtapa = (etapaId: number, etapaOrden: number, estado: string): void => {
     if (esCiudadano) {
+      // Usar el token original de la URL para ciudadanos
       navigate(`/solicitudes/${token}/etapa/${etapaOrden}?readonly=true`);
     } else {
       const baseParam = solicitudId || instanciaId || workflowInstanciaId;
@@ -289,6 +305,7 @@ export const WorkflowEtapasUnificado: React.FC<WorkflowEtapasProps> = ({ perfil:
 
   const handleEditarEtapa = (etapaId: number, etapaOrden: number): void => {
     if (esCiudadano) {
+      // Usar el token original de la URL para ciudadanos
       navigate(`/solicitudes/${token}/etapa/${etapaOrden}`);
     } else {
       const baseParam = solicitudId || instanciaId || workflowInstanciaId;
@@ -435,6 +452,109 @@ export const WorkflowEtapasUnificado: React.FC<WorkflowEtapasProps> = ({ perfil:
     </Box>
   );
 
+  // Componente Card para vista mobile
+  const EtapaCard = ({ etapa }: { etapa: EtapaInfo }) => (
+    <Card
+      sx={{
+        mb: 2,
+        boxShadow: '0px 1px 3px rgba(0, 0, 0, 0.1)',
+        borderRadius: '8px',
+        border: '1px solid #e0e0e0',
+      }}
+    >
+      <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
+        {/* Etapa número */}
+        <Typography
+          sx={{
+            fontSize: 12,
+            color: '#757575',
+            fontWeight: 500,
+            fontFamily: 'Roboto',
+            textTransform: 'uppercase',
+            mb: 0.5,
+          }}
+        >
+          Etapa 1.{etapa.orden}
+        </Typography>
+
+        {/* Nombre de la etapa */}
+        <Typography
+          sx={{
+            fontSize: 16,
+            color: '#333333',
+            fontWeight: 500,
+            fontFamily: 'Roboto',
+            mb: 1.5,
+          }}
+        >
+          {etapa.nombre}
+        </Typography>
+
+        {/* Estado */}
+        <Box sx={{ mb: 2 }}>
+          <Chip
+            icon={getEstadoIcon(etapa.estado)}
+            label={getEstadoLabel(etapa.estado)}
+            size="small"
+            sx={{
+              backgroundColor: getEstadoColor(etapa.estado),
+              color: getEstadoTextColor(etapa.estado),
+              fontSize: 14,
+              fontWeight: 400,
+              height: 28,
+              borderRadius: '14px',
+              fontFamily: 'Roboto',
+              '& .MuiChip-icon': {
+                color: getEstadoTextColor(etapa.estado),
+              },
+            }}
+          />
+        </Box>
+
+        {/* Botón de acción */}
+        {etapa.puede_editar && etapa.estado === 'EN_PROCESO' ? (
+          <Button
+            fullWidth
+            variant="contained"
+            startIcon={<EditIcon />}
+            onClick={() => handleEditarEtapa(etapa.id, etapa.orden)}
+            sx={{
+              textTransform: 'none',
+              backgroundColor: '#0e5fa6',
+              color: '#ffffff',
+              fontSize: 14,
+              fontWeight: 500,
+              fontFamily: 'Roboto',
+              py: 1,
+              '&:hover': { backgroundColor: '#0d5494' },
+            }}
+          >
+            Ver y editar
+          </Button>
+        ) : (etapa.puede_ver && etapa.estado === 'COMPLETADO') || (!esCiudadano && etapa.estado === 'EN_PROCESO') ? (
+          <Button
+            fullWidth
+            variant="outlined"
+            startIcon={<VisibilityIcon />}
+            onClick={() => handleVerEtapa(etapa.id, etapa.orden, etapa.estado)}
+            sx={{
+              textTransform: 'none',
+              borderColor: '#0e5fa6',
+              color: '#0e5fa6',
+              fontSize: 14,
+              fontWeight: 500,
+              fontFamily: 'Roboto',
+              py: 1,
+              '&:hover': { borderColor: '#0d5494', backgroundColor: 'rgba(14, 95, 166, 0.04)' },
+            }}
+          >
+            Ver
+          </Button>
+        ) : null}
+      </CardContent>
+    </Card>
+  );
+
   const SectionHeader = () => (
     <Box
       sx={{
@@ -512,9 +632,14 @@ export const WorkflowEtapasUnificado: React.FC<WorkflowEtapasProps> = ({ perfil:
       {/* Etapas Actuales */}
       {etapasActuales.length > 0 && (
         <Box sx={{ mb: 6, maxWidth: 1194 }}>
-          <SectionHeader />
+          {/* En desktop muestra tabla, en mobile muestra cards */}
+          {!isMobile && <SectionHeader />}
           {etapasActuales.map((etapa) => (
-            <EtapaRow key={etapa.id} etapa={etapa} />
+            isMobile ? (
+              <EtapaCard key={etapa.id} etapa={etapa} />
+            ) : (
+              <EtapaRow key={etapa.id} etapa={etapa} />
+            )
           ))}
         </Box>
       )}
@@ -527,15 +652,19 @@ export const WorkflowEtapasUnificado: React.FC<WorkflowEtapasProps> = ({ perfil:
               fontWeight: 500, 
               color: '#333333',
               mb: 3,
-              fontSize: 36,
+              fontSize: { xs: 24, md: 36 },
               fontFamily: 'Roboto, sans-serif',
             }}
           >
             Historial
           </Typography>
-          <SectionHeader />
+          {!isMobile && <SectionHeader />}
           {etapasCompletadas.map((etapa) => (
-            <EtapaRow key={etapa.id} etapa={etapa} />
+            isMobile ? (
+              <EtapaCard key={etapa.id} etapa={etapa} />
+            ) : (
+              <EtapaRow key={etapa.id} etapa={etapa} />
+            )
           ))}
         </Box>
       )}
@@ -864,7 +993,7 @@ export const WorkflowEtapasUnificado: React.FC<WorkflowEtapasProps> = ({ perfil:
               fontWeight: 700, 
               color: '#333333',
               mb: 4,
-              fontSize: 48,
+              fontSize: { xs: 32, md: 48 },
               fontFamily: 'Roboto Flex, Roboto, sans-serif',
             }}
           >
@@ -930,7 +1059,7 @@ export const WorkflowEtapasUnificado: React.FC<WorkflowEtapasProps> = ({ perfil:
           fontWeight: 700, 
           color: '#333333',
           mb: 4,
-          fontSize: 48,
+          fontSize: { xs: 32, md: 48 },
           fontFamily: 'Roboto Flex, Roboto, sans-serif',
         }}
       >

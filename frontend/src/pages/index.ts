@@ -51,6 +51,7 @@ export { EntregaResolucion } from './_deprecated/EntregaResolucion'
 
 // Páginas públicas
 export { InicioTramite } from './InicioTramite'
+export { InicioCiudadano } from './InicioCiudadano'
 export { default as PublicAccess } from './PublicAccess'
 export { default as PublicSolicitudView } from './PublicSolicitudView'
 export { default as NuevaSolicitud } from './NuevaSolicitud'

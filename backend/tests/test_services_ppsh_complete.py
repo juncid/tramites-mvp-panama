@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 from app.services.services_ppsh import (
     PPSHNotFoundException, PPSHBusinessException, PPSHPermissionException,
     validar_permiso_cambio_estado,
-    PERMISOS_CAMBIO_ESTADO, ESTADOS_REQUIEREN_MOTIVO,
+    PERMISOS_CAMBIO_ESTADO, ESTADOS_REQUIEREN_MOTIVO, TRANSICIONES_VALIDAS,
     CatalogoService, SolicitudService, DocumentoService, EntrevistaService,
     PPSHComentarioService
 )
@@ -64,94 +64,115 @@ class TestValidarPermisoCambioEstado:
     """Tests para la función validar_permiso_cambio_estado"""
     
     def test_admin_puede_cambiar_cualquier_estado(self):
-        """Test: ADMIN puede cambiar a cualquier estado"""
-        es_valido, error = validar_permiso_cambio_estado("APROBADO", "ADMIN")
+        """Test: ADMIN puede cambiar a cualquier estado (saltando validación de transición)"""
+        # ADMIN puede hacer transiciones directas
+        es_valido, error = validar_permiso_cambio_estado("EN_APROBACION", "APROBADO", "ADMIN", "Aprobado por cumplir requisitos")
         assert es_valido is True
         assert error is None
     
     def test_admin_puede_cambiar_recibido(self):
         """Test: ADMIN puede cambiar a RECIBIDO"""
-        es_valido, error = validar_permiso_cambio_estado("RECIBIDO", "ADMIN")
+        es_valido, error = validar_permiso_cambio_estado("RECIBIDO", "RECIBIDO", "ADMIN")
         assert es_valido is True
     
     def test_funcionario_puede_cambiar_en_revision(self):
-        """Test: FUNCIONARIO puede cambiar a EN_REVISION"""
-        es_valido, error = validar_permiso_cambio_estado("EN_REVISION", "FUNCIONARIO")
+        """Test: FUNCIONARIO puede cambiar de RECIBIDO a EN_REVISION"""
+        es_valido, error = validar_permiso_cambio_estado("RECIBIDO", "EN_REVISION", "FUNCIONARIO")
         assert es_valido is True
     
     def test_analista_puede_cambiar_en_evaluacion(self):
-        """Test: ANALISTA puede cambiar a EN_EVALUACION"""
-        es_valido, error = validar_permiso_cambio_estado("EN_EVALUACION", "ANALISTA")
+        """Test: ANALISTA puede cambiar de EN_REVISION a EN_EVALUACION"""
+        es_valido, error = validar_permiso_cambio_estado("EN_REVISION", "EN_EVALUACION", "ANALISTA")
         assert es_valido is True
     
     def test_funcionario_no_puede_aprobar(self):
         """Test: FUNCIONARIO no puede cambiar a APROBADO"""
-        es_valido, error = validar_permiso_cambio_estado("APROBADO", "FUNCIONARIO")
+        es_valido, error = validar_permiso_cambio_estado("EN_APROBACION", "APROBADO", "FUNCIONARIO")
         assert es_valido is False
         assert "FUNCIONARIO" in error
         assert "APROBADO" in error
     
     def test_jefe_puede_aprobar(self):
-        """Test: JEFE puede cambiar a APROBADO"""
-        es_valido, error = validar_permiso_cambio_estado("APROBADO", "JEFE")
+        """Test: JEFE puede cambiar de EN_APROBACION a APROBADO con motivo"""
+        es_valido, error = validar_permiso_cambio_estado("EN_APROBACION", "APROBADO", "JEFE", "Aprobado por cumplir requisitos")
         assert es_valido is True
     
     def test_director_puede_aprobar(self):
-        """Test: DIRECTOR puede cambiar a APROBADO"""
-        es_valido, error = validar_permiso_cambio_estado("APROBADO", "DIRECTOR")
+        """Test: DIRECTOR puede cambiar de EN_APROBACION a APROBADO con motivo"""
+        es_valido, error = validar_permiso_cambio_estado("EN_APROBACION", "APROBADO", "DIRECTOR", "Aprobado por cumplir requisitos")
         assert es_valido is True
     
     def test_rechazado_requiere_motivo(self):
         """Test: Estado RECHAZADO requiere motivo"""
-        es_valido, error = validar_permiso_cambio_estado("RECHAZADO", "JEFE")
+        es_valido, error = validar_permiso_cambio_estado("EN_APROBACION", "RECHAZADO", "JEFE")
         assert es_valido is False
         assert "motivo" in error.lower() or "observaciones" in error.lower()
     
     def test_rechazado_con_motivo_valido(self):
         """Test: Estado RECHAZADO con motivo válido es permitido"""
         es_valido, error = validar_permiso_cambio_estado(
-            "RECHAZADO", "JEFE", "Documentos incompletos, falta pasaporte"
+            "EN_APROBACION", "RECHAZADO", "JEFE", "Documentos incompletos, falta pasaporte"
         )
         assert es_valido is True
     
     def test_rechazado_motivo_muy_corto(self):
         """Test: Estado RECHAZADO con motivo muy corto falla"""
-        es_valido, error = validar_permiso_cambio_estado("RECHAZADO", "JEFE", "corto")
+        es_valido, error = validar_permiso_cambio_estado("EN_APROBACION", "RECHAZADO", "JEFE", "corto")
         assert es_valido is False
     
     def test_cancelado_requiere_motivo(self):
         """Test: Estado CANCELADO requiere motivo"""
-        es_valido, error = validar_permiso_cambio_estado("CANCELADO", "ADMIN")
+        es_valido, error = validar_permiso_cambio_estado("RECIBIDO", "CANCELADO", "ADMIN")
         assert es_valido is False
     
     def test_cancelado_con_motivo(self):
         """Test: Estado CANCELADO con motivo válido"""
         es_valido, error = validar_permiso_cambio_estado(
-            "CANCELADO", "ADMIN", "Solicitud duplicada en el sistema"
+            "RECIBIDO", "CANCELADO", "ADMIN", "Solicitud duplicada en el sistema"
         )
         assert es_valido is True
     
     def test_subsanacion_requiere_motivo(self):
         """Test: Estado SUBSANACION requiere motivo"""
-        es_valido, error = validar_permiso_cambio_estado("SUBSANACION", "ANALISTA")
+        es_valido, error = validar_permiso_cambio_estado("EN_REVISION", "SUBSANACION", "ANALISTA")
         assert es_valido is False
     
     def test_subsanacion_con_motivo(self):
         """Test: Estado SUBSANACION con motivo válido"""
         es_valido, error = validar_permiso_cambio_estado(
-            "SUBSANACION", "ANALISTA", "Se requiere copia certificada del pasaporte"
+            "EN_REVISION", "SUBSANACION", "ANALISTA", "Se requiere copia certificada del pasaporte"
         )
         assert es_valido is True
     
     def test_estado_desconocido_solo_admin(self):
         """Test: Estado no configurado solo permite ADMIN"""
-        es_valido, error = validar_permiso_cambio_estado("ESTADO_NUEVO", "FUNCIONARIO")
+        es_valido, error = validar_permiso_cambio_estado("RECIBIDO", "ESTADO_NUEVO", "FUNCIONARIO")
         assert es_valido is False
-        assert "ADMIN" in error or "administrador" in error.lower()
+        # Debería fallar por transición o por estado desconocido
+        assert error is not None
+    
+    def test_transicion_invalida_rechazada(self):
+        """Test: Transiciones no válidas son rechazadas"""
+        # RECIBIDO solo puede ir a EN_REVISION o CANCELADO
+        es_valido, error = validar_permiso_cambio_estado("RECIBIDO", "APROBADO", "JEFE", "Motivo valido aqui")
+        assert es_valido is False
+        assert "Transición no permitida" in error
+    
+    def test_transicion_valida_permitida(self):
+        """Test: Transiciones válidas son permitidas"""
+        # RECIBIDO puede ir a EN_REVISION
+        es_valido, error = validar_permiso_cambio_estado("RECIBIDO", "EN_REVISION", "FUNCIONARIO")
+        assert es_valido is True
+    
+    def test_aprobado_requiere_motivo(self):
+        """Test: Estado APROBADO requiere motivo obligatorio"""
+        es_valido, error = validar_permiso_cambio_estado("EN_APROBACION", "APROBADO", "JEFE")
+        assert es_valido is False
+        assert "motivo" in error.lower() or "observaciones" in error.lower()
     
     def test_estado_desconocido_admin_permitido(self):
-        """Test: ADMIN puede asignar estado no configurado"""
-        es_valido, error = validar_permiso_cambio_estado("ESTADO_NUEVO", "ADMIN")
+        """Test: ADMIN puede asignar estado no configurado (ADMIN salta validación de transición)"""
+        es_valido, error = validar_permiso_cambio_estado("RECIBIDO", "ESTADO_NUEVO", "ADMIN")
         assert es_valido is True
 
 
@@ -189,9 +210,9 @@ class TestMatrizPermisos:
         assert "CANCELADO" in ESTADOS_REQUIEREN_MOTIVO
         assert "SUBSANACION" in ESTADOS_REQUIEREN_MOTIVO
     
-    def test_aprobado_no_requiere_motivo(self):
-        """Test: APROBADO no requiere motivo"""
-        assert "APROBADO" not in ESTADOS_REQUIEREN_MOTIVO
+    def test_aprobado_requiere_motivo_obligatorio(self):
+        """Test: APROBADO requiere motivo obligatorio (regla de negocio)"""
+        assert "APROBADO" in ESTADOS_REQUIEREN_MOTIVO
 
 
 # ==========================================

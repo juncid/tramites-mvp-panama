@@ -213,6 +213,10 @@ class WorkflowExecutionService:
         Returns:
             True si tiene permiso, False si no
         """
+        # ADMIN siempre tiene acceso a todas las etapas
+        if perfil == "ADMIN":
+            return True
+            
         # Si no hay perfiles definidos, todos tienen acceso
         if not etapa.perfiles_permitidos:
             return True
@@ -333,7 +337,8 @@ class WorkflowExecutionService:
             if pregunta.tipo_pregunta in [
                 models.TipoPregunta.LISTA,
                 models.TipoPregunta.OPCIONES,
-                models.TipoPregunta.DATOS_CASO
+                models.TipoPregunta.DATOS_CASO,
+                models.TipoPregunta.IMPRESION
             ]:
                 respuesta_obj.valor_json = valor_respuesta
             elif pregunta.tipo_pregunta == models.TipoPregunta.SELECCION_FECHA:
@@ -354,10 +359,17 @@ class WorkflowExecutionService:
         respuesta_etapa.fecha_completado = datetime.utcnow()
         respuesta_etapa.updated_by = user_id
 
-        # Determinar siguiente etapa
-        siguiente_etapa = WorkflowExecutionService._determinar_siguiente_etapa(
-            db, etapa, respuestas
-        )
+        # Detectar si hay rechazo en las respuestas (pregunta de resultado del permiso)
+        hay_rechazo = WorkflowExecutionService._detectar_rechazo_en_respuestas(etapa, respuestas)
+
+        # Determinar siguiente etapa (None si hay rechazo)
+        if hay_rechazo:
+            siguiente_etapa = None
+            logger.info("Detectado RECHAZO - El workflow terminará sin continuar a siguiente etapa")
+        else:
+            siguiente_etapa = WorkflowExecutionService._determinar_siguiente_etapa(
+                db, etapa, respuestas
+            )
 
         # Actualizar instancia
         etapa_anterior_id = instancia.etapa_actual_id
@@ -365,7 +377,7 @@ class WorkflowExecutionService:
             instancia.etapa_actual_id = siguiente_etapa.id
             instancia.estado = models.EstadoInstancia.EN_PROGRESO
         else:
-            # No hay más etapas, marcar como completado
+            # No hay más etapas o hay rechazo, marcar como completado
             instancia.etapa_actual_id = None
             instancia.estado = models.EstadoInstancia.COMPLETADO
             instancia.fecha_fin = datetime.utcnow()
@@ -384,6 +396,14 @@ class WorkflowExecutionService:
             created_by=user_id
         )
         db.add(historial)
+
+        # ========================================
+        # SINCRONIZACIÓN CON SOLICITUD PPSH
+        # Detectar pregunta "Resultado del permiso" y actualizar estado de solicitud
+        # ========================================
+        WorkflowExecutionService._sincronizar_estado_solicitud_ppsh(
+            db, instancia, etapa, respuestas, user_id
+        )
 
         db.commit()
         db.refresh(instancia)
@@ -489,4 +509,137 @@ class WorkflowExecutionService:
                 return False
         except Exception as e:
             logger.error(f"Error evaluando condición: {e}")
+            return False
+
+    @staticmethod
+    def _sincronizar_estado_solicitud_ppsh(
+        db: Session,
+        instancia: models.WorkflowInstancia,
+        etapa: models.WorkflowEtapa,
+        respuestas: Dict[str, Any],
+        user_id: str
+    ) -> None:
+        """
+        Sincroniza el estado de la solicitud PPSH cuando se detecta una pregunta
+        de tipo "Resultado del permiso" con valores Aprobado/Rechazado.
+        
+        Args:
+            db: Sesión de base de datos
+            instancia: Instancia del workflow
+            etapa: Etapa que se acaba de completar
+            respuestas: Respuestas dadas en la etapa
+            user_id: ID del usuario ejecutando
+        """
+        try:
+            # Buscar pregunta que contenga "resultado" en su nombre y tenga opciones Aprobado/Rechazado
+            resultado_permiso = None
+            
+            for pregunta in etapa.preguntas:
+                pregunta_texto = (pregunta.pregunta or "").lower()
+                codigo = (pregunta.codigo or "").lower()
+                
+                # Detectar preguntas de resultado/dictamen
+                if any(keyword in pregunta_texto for keyword in ["resultado", "dictamen", "decisión", "aprobación"]):
+                    valor = respuestas.get(pregunta.codigo)
+                    if valor:
+                        # Normalizar el valor
+                        valor_upper = str(valor).upper().strip()
+                        if valor_upper in ["APROBADO", "RECHAZADO"]:
+                            resultado_permiso = valor_upper
+                            logger.info(f"Detectada respuesta de resultado: {pregunta.codigo} = {resultado_permiso}")
+                            break
+            
+            if not resultado_permiso:
+                return
+            
+            # Obtener id_solicitud de metadata_adicional
+            if not instancia.metadata_adicional:
+                logger.warning("No hay metadata_adicional en la instancia")
+                return
+                
+            id_solicitud = instancia.metadata_adicional.get("id_solicitud")
+            if not id_solicitud:
+                logger.warning("No hay id_solicitud en metadata_adicional")
+                return
+            
+            # Importar modelos y servicios de PPSH
+            from app.models import models_ppsh
+            
+            # Obtener la solicitud
+            solicitud = db.query(models_ppsh.PPSHSolicitud).filter(
+                models_ppsh.PPSHSolicitud.id_solicitud == id_solicitud
+            ).first()
+            
+            if not solicitud:
+                logger.warning(f"No se encontró solicitud PPSH con id {id_solicitud}")
+                return
+            
+            # Solo actualizar si el estado actual permite la transición
+            estado_anterior = solicitud.estado_actual
+            
+            # Determinar nuevo estado basado en el resultado
+            if resultado_permiso == "APROBADO":
+                nuevo_estado = "APROBADO"
+            else:  # RECHAZADO
+                nuevo_estado = "RECHAZADO"
+            
+            # Actualizar estado de la solicitud
+            solicitud.estado_actual = nuevo_estado
+            
+            # Crear registro en historial de estados
+            historial_estado = models_ppsh.PPSHEstadoHistorial(
+                id_solicitud=id_solicitud,
+                estado_anterior=estado_anterior,
+                estado_nuevo=nuevo_estado,
+                fecha_cambio=datetime.utcnow(),
+                observaciones=f"Estado actualizado automáticamente desde etapa '{etapa.nombre}' del workflow",
+                user_id=user_id
+            )
+            db.add(historial_estado)
+            
+            # Guardar resultado en metadata de la instancia para uso posterior
+            if instancia.metadata_adicional is None:
+                instancia.metadata_adicional = {}
+            instancia.metadata_adicional["resultado_workflow"] = resultado_permiso
+            
+            logger.info(
+                f"✅ Solicitud PPSH {solicitud.num_expediente} actualizada: "
+                f"{estado_anterior} → {nuevo_estado}"
+            )
+            
+        except Exception as e:
+            logger.error(f"Error sincronizando estado con PPSH: {str(e)}")
+            # No fallar la ejecución de la etapa por error de sincronización
+
+    @staticmethod
+    def _detectar_rechazo_en_respuestas(
+        etapa: models.WorkflowEtapa,
+        respuestas: Dict[str, Any]
+    ) -> bool:
+        """
+        Detecta si hay una respuesta de rechazo en las preguntas de resultado/dictamen.
+        
+        Args:
+            etapa: Etapa que se está completando
+            respuestas: Respuestas dadas en la etapa
+            
+        Returns:
+            True si se detectó un rechazo, False en caso contrario
+        """
+        try:
+            for pregunta in etapa.preguntas:
+                pregunta_texto = (pregunta.pregunta or "").lower()
+                
+                # Detectar preguntas de resultado/dictamen
+                if any(keyword in pregunta_texto for keyword in ["resultado", "dictamen", "decisión", "aprobación"]):
+                    valor = respuestas.get(pregunta.codigo)
+                    if valor:
+                        valor_upper = str(valor).upper().strip()
+                        if valor_upper == "RECHAZADO":
+                            logger.info(f"Detectado RECHAZO en pregunta {pregunta.codigo}")
+                            return True
+            
+            return False
+        except Exception as e:
+            logger.error(f"Error detectando rechazo: {str(e)}")
             return False

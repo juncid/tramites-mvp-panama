@@ -16,7 +16,7 @@ export interface OCRLoadingModalProps {
 
 /**
  * Modal de loading para procesamiento OCR
- * Basado en wireframe Figma: Wireframe 102
+ * Basado en wireframe Figma: Mobile - 12 (node 2465:1813)
  */
 export const OCRLoadingModal = ({ open, progress }: OCRLoadingModalProps) => {
   return (
@@ -24,11 +24,12 @@ export const OCRLoadingModal = ({ open, progress }: OCRLoadingModalProps) => {
       open={open}
       PaperProps={{
         sx: {
-          width: { xs: '90%', sm: 440, md: 480 },
-          maxWidth: { xs: '340px', sm: 440, md: 480 },
-          height: { xs: 'auto', sm: 440, md: 480 },
-          borderRadius: 1,
-          p: { xs: 1.5, sm: 2 },
+          width: { xs: '330px', sm: 440, md: 480 },
+          maxWidth: { xs: '330px', sm: 440, md: 480 },
+          minHeight: { xs: '352px', sm: 440, md: 480 },
+          borderRadius: '4px',
+          p: 2,
+          m: { xs: 2, sm: 3 },
         },
       }}
       BackdropProps={{
@@ -44,20 +45,21 @@ export const OCRLoadingModal = ({ open, progress }: OCRLoadingModalProps) => {
           alignItems: 'center',
           justifyContent: 'center',
           height: '100%',
-          px: { xs: 2, sm: 3 },
-          py: { xs: 3, sm: 0 },
+          px: 2,
+          py: 3,
+          position: 'relative',
         }}
       >
         {/* Label superior */}
         <Typography
-          variant="caption"
           sx={{
             position: 'absolute',
-            top: { xs: 12, sm: 16 },
-            left: { xs: 12, sm: 16 },
+            top: 16,
+            left: 16,
             color: '#ccc',
-            fontSize: { xs: '12px', sm: '0.875rem' },
-            fontWeight: 300,
+            fontSize: '14px',
+            fontWeight: 200,
+            fontFamily: 'Roboto, sans-serif',
           }}
         >
           Revisión OCR
@@ -65,14 +67,15 @@ export const OCRLoadingModal = ({ open, progress }: OCRLoadingModalProps) => {
 
         {/* Título principal */}
         <Typography
-          variant="h6"
           sx={{
-            fontSize: { xs: '16px', sm: '1.375rem', md: '1.5rem' },
+            fontSize: '24px',
             fontWeight: 400,
             color: '#333',
-            mb: { xs: 3, sm: 4 },
+            mb: 4,
+            mt: 3,
             textAlign: 'center',
-            lineHeight: 1.3,
+            lineHeight: 1.5,
+            fontFamily: 'Roboto, sans-serif',
           }}
         >
           Estamos revisando su documento
@@ -80,7 +83,7 @@ export const OCRLoadingModal = ({ open, progress }: OCRLoadingModalProps) => {
 
         {/* Spinner o Progress Bar */}
         {progress ? (
-          <Box sx={{ width: '100%', mb: { xs: 3, sm: 4 }, px: 2 }}>
+          <Box sx={{ width: '100%', mb: 4, px: 2 }}>
             <LinearProgress 
               variant="determinate" 
               value={progress.porcentaje} 
@@ -95,12 +98,12 @@ export const OCRLoadingModal = ({ open, progress }: OCRLoadingModalProps) => {
               }}
             />
             <Typography
-              variant="body2"
               sx={{
                 textAlign: 'center',
                 mt: 2,
                 color: '#666',
-                fontSize: '0.875rem',
+                fontSize: '14px',
+                fontFamily: 'Roboto, sans-serif',
               }}
             >
               {progress.status} ({progress.porcentaje}%)
@@ -112,20 +115,20 @@ export const OCRLoadingModal = ({ open, progress }: OCRLoadingModalProps) => {
             thickness={3}
             sx={{
               color: '#0e5fa6',
-              mb: { xs: 3, sm: 4 },
+              mb: 4,
             }}
           />
         )}
 
         {/* Mensaje inferior */}
         <Typography
-          variant="body2"
           sx={{
-            fontSize: { xs: '14px', sm: '0.95rem', md: '1rem' },
+            fontSize: '16px',
             fontWeight: 300,
             color: '#333',
             textAlign: 'center',
-            lineHeight: 1.4,
+            lineHeight: 1.5,
+            fontFamily: 'Roboto, sans-serif',
           }}
         >
           Este proceso puede tardar unos minutos

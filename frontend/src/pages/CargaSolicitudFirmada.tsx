@@ -70,7 +70,6 @@ export const CargaSolicitudFirmada: React.FC = () => {
     let nombreArchivoFinal = uploadedFile?.name || 'fotos-carnet-dummy.pdf';
 
     if (!uploadedFile || !documentoId) {
-      console.log('⚠️ Modo desarrollo: Creando documento dummy para continuar');
       documentoIdFinal = Math.floor(Math.random() * 9000) + 1000;
     }
 

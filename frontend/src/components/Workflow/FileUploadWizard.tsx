@@ -22,7 +22,6 @@ import {
   Link,
   Dialog,
   DialogContent,
-  DialogActions,
   CircularProgress,
   Table,
   TableBody,
@@ -32,16 +31,23 @@ import {
   TableRow,
   Paper,
   Chip,
+  Card,
+  CardContent,
+  Accordion,
+  AccordionSummary,
+  AccordionDetails,
 } from '@mui/material';
 import {
   Delete as DeleteIcon,
   AttachFile as AttachFileIcon,
-  CheckCircle as CheckCircleIcon,
-  Error as ErrorIcon,
   CompareArrows as CompareArrowsIcon,
+  ExpandMore as ExpandMoreIcon,
 } from '@mui/icons-material';
 import { workflowService } from '../../services/workflow.service';
+import { ppshService } from '../../services/ppsh.service';
 import { OCRValidationErrorModal } from '../PPSH/OCRValidationErrorModal';
+import { OCRSuccessModal } from '../PPSH/OCRSuccessModal';
+import { OCRReadErrorModal } from '../PPSH/OCRReadErrorModal';
 
 // Interface para datos de comparación OCR
 interface OCRComparisonData {
@@ -78,9 +84,9 @@ interface FileUploadWizardProps {
   onAnswerChange: (codigo: string, valor: any) => void;
   solicitudId?: number;
   readonly?: boolean;
-  onComplete?: () => void;
+  onComplete?: (respuestasArchivos?: Record<string, any>) => void;
   onBack?: () => void;
-  buttonLabels?: { back?: string; next?: string };
+  buttonLabels?: { back?: string; next?: string; complete?: string };
   titulo?: string;
   descripcion?: string;
   datosSolicitante?: {
@@ -112,33 +118,382 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
   descripcion,
   datosSolicitante,
 }) => {
-  const [currentStep, setCurrentStep] = useState(0);
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  // Clave única para sessionStorage basada en solicitudId
+  const storageKey = solicitudId ? `fileUploadWizard_${solicitudId}` : null;
   
-  // DEBUG: Log de datosSolicitante recibidos
-  console.log('🔍 FileUploadWizard - datosSolicitante:', datosSolicitante);
-  console.log('🔍 FileUploadWizard - solicitudId:', solicitudId);
+  // Función para obtener estado guardado de sessionStorage
+  const getStoredState = () => {
+    if (!storageKey) return null;
+    try {
+      const stored = sessionStorage.getItem(storageKey);
+      if (stored) {
+        return JSON.parse(stored);
+      }
+    } catch (e) {
+      console.warn('Error leyendo sessionStorage:', e);
+    }
+    return null;
+  };
+  
+  // Función para guardar estado en sessionStorage
+  const saveState = (state: { 
+    currentStep: number; 
+    uploadedFiles: Record<string, any>;
+    ocrResults: Record<string, any>;
+    lastUpdate: string;
+  }) => {
+    if (!storageKey) return;
+    try {
+      sessionStorage.setItem(storageKey, JSON.stringify(state));
+    } catch (e) {
+      console.warn('Error guardando en sessionStorage:', e);
+    }
+  };
+  
+  // Inicializar estado desde sessionStorage si existe
+  const storedState = getStoredState();
+  const [currentStep, setCurrentStep] = useState(storedState?.currentStep || 0);
+  const [uploadedFiles, setUploadedFiles] = useState<Record<string, any>>(storedState?.uploadedFiles || {});
+  const [ocrResults, setOcrResults] = useState<Record<string, any>>(storedState?.ocrResults || {});
+  
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const fileContainerRef = useRef<HTMLDivElement | null>(null);
+  
+  // Ref para controlar si ya mostramos el modal tras restaurar estado
+  const hasShownRestoredModal = useRef(false);
+  // Ref para controlar si ya hicimos scroll al archivo
+  const hasScrolledToFile = useRef(false);
+  
+  // DEBUG: Log de estado restaurado
+  if (storedState) {
+  }
   
   // Estados para los modales de OCR
   const [isLoadingOCR, setIsLoadingOCR] = useState(false);
-  const [showResultModal, setShowResultModal] = useState(false);
-  const [ocrResult, setOcrResult] = useState<{ success: boolean; message: string }>({ success: true, message: '' });
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [showReadErrorModal, setShowReadErrorModal] = useState(false);
   
   // Estado para modal de validación OCR fallida
   const [showOCRValidationError, setShowOCRValidationError] = useState(false);
   const [pendingUpload, setPendingUpload] = useState<PendingUpload | null>(null);
   
-  // Estado para datos de comparación OCR
+  // Estado para datos de comparación OCR - se inicializa como null y se restaura en useEffect
   const [ocrComparisonData, setOcrComparisonData] = useState<OCRComparisonData | null>(null);
+  
+  // Estado para controlar si ya cargamos documentos del servidor
+  const documentosServerCargados = useRef(false);
+  
+  // 🔄 Efecto para cargar documentos existentes del servidor al iniciar
+  React.useEffect(() => {
+    const cargarDocumentosExistentes = async () => {
+      if (!solicitudId || documentosServerCargados.current) return;
+      
+      // Solo cargar si no hay archivos en sessionStorage
+      const storedState = getStoredState();
+      if (storedState?.uploadedFiles && Object.keys(storedState.uploadedFiles).length > 0) {
+        return;
+      }
+      
+      documentosServerCargados.current = true;
+      
+      try {
+        const documentos = await ppshService.getDocumentos(solicitudId);
+        
+        if (documentos && documentos.length > 0) {
+          const archivosExistentes: Record<string, any> = {};
+          const ocrResultsExistentes: Record<string, any> = {};
+          
+          // Mapear documentos a los campos del wizard
+          for (const doc of documentos) {
+            // El campo se guarda en observaciones como "Documento: CODIGO"
+            const codigoMatch = doc.observaciones?.match(/Documento: (\w+)/);
+            const codigoCampo = codigoMatch ? codigoMatch[1] : null;
+            
+            if (codigoCampo) {
+              // Solo guardar el más reciente para cada campo
+              if (!archivosExistentes[codigoCampo] || 
+                  new Date(doc.uploaded_at) > new Date(archivosExistentes[codigoCampo].uploaded_at)) {
+                
+                archivosExistentes[codigoCampo] = {
+                  nombre: doc.nombre_archivo,
+                  size: doc.tamano_bytes,
+                  uploaded_at: doc.uploaded_at,
+                  id_documento: doc.id_documento,
+                  ocr_procesado: doc.ocr_resultado?.estado_ocr === 'COMPLETADO',
+                  ocr_pendiente: false,
+                  desde_servidor: true, // Flag para saber que viene del servidor
+                };
+                
+                // Si hay resultado OCR, guardarlo también
+                if (doc.ocr_resultado?.datos_estructurados) {
+                  const datos = doc.ocr_resultado.datos_estructurados;
+                  ocrResultsExistentes[codigoCampo] = {
+                    campos_validados: {},
+                    campos_no_encontrados: [],
+                    campos_con_discrepancia: [],
+                    datos_ingresados: {
+                      pasaporte: datosSolicitante?.pasaporte || '',
+                      nacionalidad: datosSolicitante?.nacionalidad || '',
+                      nombres: datosSolicitante?.nombres || '',
+                      apellidos: datosSolicitante?.apellidos || '',
+                      fecha_nacimiento: datosSolicitante?.fecha_nacimiento || '',
+                    },
+                    datos_ocr_raw: datos,
+                    texto_ocr_completo: '',
+                  };
+                }
+              }
+            }
+          }
+          
+          
+          // Verificar si tenemos todos los campos obligatorios
+          const camposCompletos = camposOrdenados.every(campo => 
+            !campo.es_obligatoria || archivosExistentes[campo.codigo]
+          );
+          
+          if (Object.keys(archivosExistentes).length > 0) {
+            setUploadedFiles(archivosExistentes);
+            setOcrResults(ocrResultsExistentes);
+            
+            // Si todos los campos están completos, ir al último paso
+            if (camposCompletos) {
+              setCurrentStep(camposOrdenados.length - 1);
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('Error cargando documentos del servidor:', err);
+      }
+    };
+    
+    cargarDocumentosExistentes();
+  }, [solicitudId]);
+  
+  // Guardar estado cuando cambia
+  React.useEffect(() => {
+    if (storageKey) {
+      saveState({
+        currentStep,
+        uploadedFiles,
+        ocrResults,
+        lastUpdate: new Date().toISOString(),
+      });
+    }
+  }, [currentStep, uploadedFiles, ocrResults, storageKey]);
 
   // Ordenar campos por orden
   const camposOrdenados = [...campos].sort((a, b) => a.orden - b.orden);
   const totalSteps = camposOrdenados.length;
   const campoActual = camposOrdenados[currentStep];
+  
+  // Ref para evitar múltiples llamadas al OCR
+  const ocrCheckInProgress = useRef(false);
 
-  // Verificar si el paso actual tiene archivo cargado
+  // 🔄 Efecto para recuperar estado de archivos con OCR pendiente
+  React.useEffect(() => {
+    const checkPendingOCR = async () => {
+      if (!campoActual || !solicitudId) return;
+      if (ocrCheckInProgress.current) return; // Evitar llamadas duplicadas
+      
+      const storedFile = uploadedFiles[campoActual.codigo];
+      
+      // Si hay un archivo con OCR pendiente, consultar el resultado con polling
+      if (storedFile?.ocr_pendiente && storedFile?.id_documento) {
+        ocrCheckInProgress.current = true;
+        setIsLoadingOCR(true);
+        
+        // Polling: consultar cada 2 segundos hasta que el OCR termine (máximo 30 segundos)
+        const MAX_INTENTOS = 15;
+        const INTERVALO_MS = 2000;
+        
+        let ocrCompletado = false;
+        let validacionOCR = null;
+        
+        try {
+          for (let intento = 1; intento <= MAX_INTENTOS && !ocrCompletado; intento++) {
+            
+            try {
+              validacionOCR = await workflowService.validarOCR(solicitudId, storedFile.id_documento);
+              
+              // Si tenemos datos OCR, el procesamiento terminó
+              if (validacionOCR.datos_ocr_raw && Object.keys(validacionOCR.datos_ocr_raw).length > 0) {
+                ocrCompletado = true;
+              } else if (validacionOCR.mensaje && !validacionOCR.mensaje.includes('aún no ha procesado')) {
+                // El OCR respondió pero sin datos estructurados
+                ocrCompletado = true;
+              } else {
+                // Esperar antes del siguiente intento
+                if (intento < MAX_INTENTOS) {
+                  await new Promise(resolve => setTimeout(resolve, INTERVALO_MS));
+                }
+              }
+            } catch (err) {
+              console.warn(`⚠️ Error en intento ${intento}:`, err);
+              if (intento < MAX_INTENTOS) {
+                await new Promise(resolve => setTimeout(resolve, INTERVALO_MS));
+              }
+            }
+          }
+          
+          if (validacionOCR && validacionOCR.datos_ocr_raw && Object.keys(validacionOCR.datos_ocr_raw).length > 0) {
+            
+            // Crear datos de comparación
+            const comparisonData: OCRComparisonData = {
+              campos_validados: validacionOCR.campos_validados || {},
+              campos_no_encontrados: validacionOCR.campos_no_encontrados || [],
+              campos_con_discrepancia: validacionOCR.campos_con_discrepancia || [],
+              datos_ingresados: {
+                pasaporte: datosSolicitante?.pasaporte || '',
+                nacionalidad: datosSolicitante?.nacionalidad || '',
+                nombres: datosSolicitante?.nombres || '',
+                apellidos: datosSolicitante?.apellidos || '',
+                fecha_nacimiento: datosSolicitante?.fecha_nacimiento || '',
+              },
+              datos_ocr_raw: validacionOCR.datos_ocr_raw || {},
+              texto_ocr_completo: validacionOCR.texto_ocr_completo || '',
+            };
+            
+            setOcrComparisonData(comparisonData);
+            
+            // Actualizar archivo como procesado
+            const archivoActualizado = {
+              ...storedFile,
+              ocr_pendiente: false,
+              ocr_procesado: true,
+            };
+            setUploadedFiles(prev => ({
+              ...prev,
+              [campoActual.codigo]: archivoActualizado
+            }));
+            
+            // Guardar resultado OCR
+            setOcrResults(prev => ({
+              ...prev,
+              [campoActual.codigo]: comparisonData
+            }));
+            
+            // Evaluar qué modal mostrar basado en campos encontrados
+            const resumenValidacion = validacionOCR.datos_ocr_raw?.resumen_validacion;
+            const validacionesDetalle = validacionOCR.datos_ocr_raw?.validaciones || {};
+            const camposEncontradosCount = resumenValidacion?.campos_encontrados 
+              ?? Object.values(validacionesDetalle).filter((v: any) => v.encontrado).length;
+            const camposConDiscrepanciaCount = validacionOCR.campos_con_discrepancia?.length || 0;
+            
+            console.log('📊 Evaluación modal (checkPendingOCR):', {
+              camposEncontrados: camposEncontradosCount,
+              camposConDiscrepancia: camposConDiscrepanciaCount
+            });
+            
+            // Caso 1: 0 campos = error rojo
+            if (camposEncontradosCount === 0) {
+              setShowReadErrorModal(true);
+            }
+            // Caso 2: <4 campos o discrepancias = warning amarillo
+            else if (camposConDiscrepanciaCount > 0 || camposEncontradosCount < 4) {
+              setPendingUpload({
+                file: new File([], storedFile.nombre), // Archivo dummy para el handler
+                resultado: { id_documento: storedFile.id_documento },
+                campo: campoActual
+              });
+              setShowOCRValidationError(true);
+            }
+            // Caso 3: >= 4 campos = éxito verde
+            else {
+              setShowSuccessModal(true);
+            }
+          }
+        } catch (err) {
+          console.warn('Error recuperando OCR:', err);
+        } finally {
+          setIsLoadingOCR(false);
+          ocrCheckInProgress.current = false;
+        }
+      }
+      // Si hay resultado OCR guardado pero no está en el estado actual, restaurarlo
+      else if (ocrResults[campoActual.codigo] && !ocrComparisonData) {
+        setOcrComparisonData(ocrResults[campoActual.codigo]);
+        // No mostrar modal automáticamente al restaurar - solo mostrar la tabla
+      }
+      // Si hay archivo subido pero no tenemos datos OCR, intentar obtenerlos
+      else if (storedFile?.id_documento && !storedFile?.ocr_pendiente && !ocrResults[campoActual.codigo]) {
+        setIsLoadingOCR(true);
+        
+        try {
+          const validacionOCR = await workflowService.validarOCR(solicitudId, storedFile.id_documento);
+          
+          if (validacionOCR.datos_ocr_raw && Object.keys(validacionOCR.datos_ocr_raw).length > 0) {
+            
+            const comparisonData: OCRComparisonData = {
+              campos_validados: validacionOCR.campos_validados || {},
+              campos_no_encontrados: validacionOCR.campos_no_encontrados || [],
+              campos_con_discrepancia: validacionOCR.campos_con_discrepancia || [],
+              datos_ingresados: {
+                pasaporte: datosSolicitante?.pasaporte || '',
+                nacionalidad: datosSolicitante?.nacionalidad || '',
+                nombres: datosSolicitante?.nombres || '',
+                apellidos: datosSolicitante?.apellidos || '',
+                fecha_nacimiento: datosSolicitante?.fecha_nacimiento || '',
+              },
+              datos_ocr_raw: validacionOCR.datos_ocr_raw || {},
+              texto_ocr_completo: validacionOCR.texto_ocr_completo || '',
+            };
+            
+            setOcrComparisonData(comparisonData);
+            setOcrResults(prev => ({
+              ...prev,
+              [campoActual.codigo]: comparisonData
+            }));
+            
+            // Evaluar qué modal mostrar (mismo logic que checkPendingOCR)
+            const resumenValidacion = validacionOCR.datos_ocr_raw?.resumen_validacion;
+            const validacionesDetalle = validacionOCR.datos_ocr_raw?.validaciones || {};
+            const camposEncontradosCount = resumenValidacion?.campos_encontrados 
+              ?? Object.values(validacionesDetalle).filter((v: any) => v.encontrado).length;
+            const camposConDiscrepanciaCount = validacionOCR.campos_con_discrepancia?.length || 0;
+            
+            console.log('📊 Evaluación modal (archivo existente):', {
+              camposEncontrados: camposEncontradosCount,
+              camposConDiscrepancia: camposConDiscrepanciaCount
+            });
+            
+            if (camposEncontradosCount === 0) {
+              setShowReadErrorModal(true);
+            } else if (camposConDiscrepanciaCount > 0 || camposEncontradosCount < 4) {
+              setPendingUpload({
+                file: new File([], storedFile.nombre),
+                resultado: { id_documento: storedFile.id_documento },
+                campo: campoActual
+              });
+              setShowOCRValidationError(true);
+            } else {
+              setShowSuccessModal(true);
+            }
+          }
+        } catch (err) {
+          console.warn('Error obteniendo OCR:', err);
+        } finally {
+          setIsLoadingOCR(false);
+        }
+      }
+    };
+    
+    checkPendingOCR();
+  }, [campoActual?.codigo, solicitudId]);
+
+  // Resetear refs de scroll cuando cambia el paso actual
+  React.useEffect(() => {
+    hasScrolledToFile.current = false;
+    // Limpiar ocrComparisonData al cambiar de paso para cargar el del nuevo paso
+    setOcrComparisonData(null);
+  }, [currentStep]);
+
+  // Verificar si el paso actual tiene archivo cargado (considerando también uploadedFiles de sessionStorage)
   const isCurrentStepComplete = (): boolean => {
     if (!campoActual) return false;
+    // Primero verificar en uploadedFiles (sessionStorage)
+    if (uploadedFiles[campoActual.codigo]) return true;
+    // Luego verificar en respuestas (props)
     const valor = respuestas[campoActual.codigo];
     if (!valor) return false;
     if (Array.isArray(valor)) return valor.length > 0;
@@ -156,17 +511,70 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
 
     if (currentStep < totalSteps - 1) {
       // Avanzar al siguiente paso del wizard
-      setCurrentStep(prev => prev + 1);
+      const nextStep = currentStep + 1;
+      
+      // Guardar estado ANTES de cambiar el paso (por si hay un reload)
+      if (storageKey) {
+        const stateToSave = {
+          currentStep: nextStep,
+          uploadedFiles,
+          ocrResults,
+          lastUpdate: new Date().toISOString(),
+        };
+        try {
+          sessionStorage.setItem(storageKey, JSON.stringify(stateToSave));
+        } catch (e) {
+          console.warn('Error guardando estado al avanzar:', e);
+        }
+      }
+      
+      setCurrentStep(nextStep);
     } else if (onComplete) {
-      // Último paso - completar etapa y avanzar a la siguiente
-      onComplete();
+      // Último paso - construir respuestas de archivos y completar etapa
+      
+      // Construir objeto de respuestas con todos los archivos subidos
+      const respuestasArchivos: Record<string, any> = {};
+      for (const [codigo, archivoInfo] of Object.entries(uploadedFiles)) {
+        if (archivoInfo) {
+          respuestasArchivos[codigo] = [archivoInfo];
+          // También sincronizar al padre por si acaso
+          onAnswerChange(codigo, [archivoInfo]);
+        }
+      }
+      
+      
+      // Limpiar sessionStorage ya que se completó exitosamente
+      if (storageKey) {
+        sessionStorage.removeItem(storageKey);
+      }
+      
+      // Llamar onComplete con las respuestas de archivos
+      console.log('✅ Llamando onComplete() con respuestas');
+      onComplete(respuestasArchivos);
     }
   };
 
   const handleBack = () => {
     if (currentStep > 0) {
       // Volver al paso anterior del wizard
-      setCurrentStep(prev => prev - 1);
+      const prevStep = currentStep - 1;
+      
+      // Guardar estado ANTES de cambiar el paso
+      if (storageKey) {
+        const stateToSave = {
+          currentStep: prevStep,
+          uploadedFiles,
+          ocrResults,
+          lastUpdate: new Date().toISOString(),
+        };
+        try {
+          sessionStorage.setItem(storageKey, JSON.stringify(stateToSave));
+        } catch (e) {
+          console.warn('Error guardando estado al retroceder:', e);
+        }
+      }
+      
+      setCurrentStep(prevStep);
     } else if (onBack) {
       // Primer paso - volver a la etapa anterior
       onBack();
@@ -174,19 +582,30 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
   };
 
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    // Prevenir cualquier comportamiento por defecto del navegador
+    event.preventDefault();
+    event.stopPropagation();
+    
     const files = event.target.files;
     
+    // Limpiar el input inmediatamente para permitir re-seleccionar el mismo archivo
+    // y evitar comportamientos extraños en móviles
+    const inputElement = event.target;
+    
     if (!files || files.length === 0 || !campoActual) {
+      inputElement.value = '';
       return;
     }
 
     const file = files[0];
+    
+    // Limpiar el input después de capturar el archivo
+    inputElement.value = '';
     const maxSizeMb = campoActual.tamano_maximo_mb || 10;
 
     // Validar tamaño
     if (file.size > maxSizeMb * 1024 * 1024) {
-      setOcrResult({ success: false, message: `El archivo es muy grande. Tamaño máximo: ${maxSizeMb} MB` });
-      setShowResultModal(true);
+      alert(`El archivo es muy grande. Tamaño máximo: ${maxSizeMb} MB`);
       return;
     }
 
@@ -200,11 +619,7 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
       );
       
       if (ext && !extensionesNormalizadas.includes(ext)) {
-        setOcrResult({ 
-          success: false, 
-          message: `Tipo de archivo no permitido. Formatos permitidos: ${extensionesNormalizadas.join(', ').toUpperCase()}` 
-        });
-        setShowResultModal(true);
+        alert(`Tipo de archivo no permitido. Formatos permitidos: ${extensionesNormalizadas.join(', ').toUpperCase()}`);
         return;
       }
     }
@@ -224,6 +639,31 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
           }
         );
 
+        // ⚡ GUARDAR INMEDIATAMENTE en sessionStorage después de subir
+        // Esto asegura que si la página se recarga, tengamos el archivo
+        const archivoInfoPendiente = {
+          nombre: file.name,
+          size: file.size,
+          uploaded_at: new Date().toISOString(),
+          id_documento: resultado.id_documento,
+          ocr_pendiente: true, // Marcamos que el OCR aún no terminó
+        };
+        setUploadedFiles(prev => ({
+          ...prev,
+          [campoActual.codigo]: archivoInfoPendiente
+        }));
+        // Forzar guardado síncrono en sessionStorage
+        if (storageKey) {
+          const currentState = {
+            currentStep,
+            uploadedFiles: { ...uploadedFiles, [campoActual.codigo]: archivoInfoPendiente },
+            ocrResults,
+            lastUpdate: new Date().toISOString(),
+          };
+          sessionStorage.setItem(storageKey, JSON.stringify(currentState));
+          console.log('💾 Estado guardado en sessionStorage (archivo subido, OCR pendiente)');
+        }
+
         // Esperar un momento para que el OCR procese el documento
         // Luego validar OCR contra datos del solicitante
         if (campoActual.requiere_ocr && resultado.id_documento) {
@@ -239,17 +679,14 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
             await new Promise(resolve => setTimeout(resolve, INTERVALO_MS));
             
             try {
-              console.log(`🔄 Intento ${intento}/${MAX_INTENTOS} - Verificando OCR...`);
               validacionOCR = await workflowService.validarOCR(solicitudId, resultado.id_documento);
               
               // Si tenemos datos OCR o ya no hay campos "no encontrados" por procesar, el OCR terminó
               if (validacionOCR.datos_ocr_raw && Object.keys(validacionOCR.datos_ocr_raw).length > 0) {
                 ocrCompletado = true;
-                console.log(`✅ OCR completado en intento ${intento}`);
               } else if (validacionOCR.mensaje && !validacionOCR.mensaje.includes('aún no ha procesado')) {
                 // El OCR respondió pero sin datos estructurados
                 ocrCompletado = true;
-                console.log(`⚠️ OCR respondió sin datos estructurados en intento ${intento}`);
               }
             } catch (err) {
               console.warn(`⚠️ Intento ${intento} falló:`, err);
@@ -260,8 +697,6 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
           if (validacionOCR) {
             // DEBUG: Log de datos recibidos
             console.log('📊 validacionOCR completo:', JSON.stringify(validacionOCR, null, 2));
-            console.log('📊 datos_ocr_raw:', validacionOCR.datos_ocr_raw);
-            console.log('📊 texto_ocr_completo:', validacionOCR.texto_ocr_completo);
             
             // Guardar datos de comparación para mostrar en la tabla
             setOcrComparisonData({
@@ -279,8 +714,41 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
               texto_ocr_completo: validacionOCR.texto_ocr_completo || '',
             });
             
-            if (!validacionOCR.validacion_exitosa && validacionOCR.campos_con_discrepancia.length > 0) {
-              // Hay discrepancias - guardar archivo pendiente y mostrar modal de error
+            // Obtener datos del resumen de validación interno (más preciso)
+            const resumenValidacion = validacionOCR.datos_ocr_raw?.resumen_validacion;
+            const validacionesDetalle = validacionOCR.datos_ocr_raw?.validaciones || {};
+            
+            // Contar campos encontrados desde el resumen interno o desde validaciones
+            const camposEncontradosCount = resumenValidacion?.campos_encontrados 
+              ?? Object.values(validacionesDetalle).filter((v: any) => v.encontrado).length;
+            const camposTotales = resumenValidacion?.campos_totales 
+              ?? Object.keys(validacionesDetalle).length;
+            const validacionExitosaReal = resumenValidacion?.validacion_exitosa 
+              ?? validacionOCR.validacion_exitosa;
+            
+            // Campos con discrepancia del nivel superior
+            const camposConDiscrepanciaCount = validacionOCR.campos_con_discrepancia?.length || 0;
+            
+            console.log('📊 Resultado OCR:', {
+              camposEncontrados: camposEncontradosCount,
+              camposTotales: camposTotales,
+              camposConDiscrepancia: camposConDiscrepanciaCount,
+              validacionExitosaResumen: validacionExitosaReal,
+              validacionExitosaSuperior: validacionOCR.validacion_exitosa,
+              porcentaje: resumenValidacion?.porcentaje
+            });
+            
+            // Caso 1: OCR no pudo leer nada del documento (0 campos encontrados)
+            if (camposEncontradosCount === 0) {
+              // Mostrar modal rojo "No pudimos leer la información"
+              setShowReadErrorModal(true);
+              setIsLoadingOCR(false);
+              return;
+            }
+            
+            // Caso 2: Hay discrepancias o pocos campos encontrados (1-3 de 6)
+            // Mostrar modal amarillo "No pudimos validar el documento"
+            if (camposConDiscrepanciaCount > 0 || camposEncontradosCount < 4) {
               setPendingUpload({
                 file,
                 resultado,
@@ -290,49 +758,75 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
               setShowOCRValidationError(true);
               return;
             }
+            
+            // Caso 3: Validación exitosa - continúa al flujo de éxito abajo
+            console.log('✅ Caso 3: Validación OCR exitosa (4+ campos), mostrando modal de éxito...');
           } else {
             console.warn('❌ No se pudo obtener validación OCR después de todos los intentos');
           }
         }
 
-        // Guardar archivo con datos del servidor
-        onAnswerChange(campoActual.codigo, [{
+        // Guardar archivo en sessionStorage
+        const archivoInfo = {
           nombre: file.name,
           size: file.size,
-          file: file,
           uploaded_at: new Date().toISOString(),
           id_documento: resultado.id_documento,
           ocr_procesado: true,
           ocr_validado: true
+        };
+        setUploadedFiles(prev => ({
+          ...prev,
+          [campoActual.codigo]: archivoInfo
+        }));
+        
+        // Guardar resultado OCR en sessionStorage si existe
+        if (ocrComparisonData) {
+          setOcrResults(prev => ({
+            ...prev,
+            [campoActual.codigo]: ocrComparisonData
+          }));
+        }
+
+        // Notificar al padre
+        onAnswerChange(campoActual.codigo, [{
+          ...archivoInfo,
+          file: file,
         }]);
 
-        setOcrResult({ 
-          success: true, 
-          message: 'Documento procesado y verificado exitosamente' 
-        });
+        // Mostrar modal de éxito
+        console.log('🎉 Llamando setShowSuccessModal(true)');
+        setShowSuccessModal(true);
       } else {
         // Sin solicitudId - guardar archivo localmente (modo preview/desarrollo)
-        onAnswerChange(campoActual.codigo, [{
+        const archivoInfo = {
           nombre: file.name,
           size: file.size,
-          file: file,
           uploaded_at: new Date().toISOString()
+        };
+        setUploadedFiles(prev => ({
+          ...prev,
+          [campoActual.codigo]: archivoInfo
+        }));
+        
+        onAnswerChange(campoActual.codigo, [{
+          ...archivoInfo,
+          file: file,
         }]);
 
-        setOcrResult({ 
-          success: true, 
-          message: 'Documento cargado exitosamente' 
-        });
+        // Mostrar modal de éxito
+        setShowSuccessModal(true);
       }
-
-      setShowResultModal(true);
     } catch (err: any) {
-      console.error('Error procesando documento:', err);
-      setOcrResult({ 
-        success: false, 
-        message: err.message || 'Error al procesar el documento. Por favor, intente nuevamente.' 
-      });
-      setShowResultModal(true);
+      console.error('❌ Error procesando documento:', err);
+      console.error('❌ Error message:', err?.message);
+      console.error('❌ Error response:', err?.response?.data);
+      
+      // Para errores generales, mostrar modal de error de lectura
+      // Solo si no hay otro modal ya visible
+      if (!showOCRValidationError && !showSuccessModal) {
+        setShowReadErrorModal(true);
+      }
     } finally {
       setIsLoadingOCR(false);
     }
@@ -341,28 +835,51 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
   // Manejar cuando el usuario quiere enviar de todos modos (OCR fallido)
   const handleEnviarDeTodosModos = () => {
     if (pendingUpload) {
-      // Guardar el archivo con flag de OCR fallido
-      onAnswerChange(pendingUpload.campo.codigo, [{
+      const archivoInfo = {
         nombre: pendingUpload.file.name,
         size: pendingUpload.file.size,
-        file: pendingUpload.file,
         uploaded_at: new Date().toISOString(),
         id_documento: pendingUpload.resultado.id_documento,
         ocr_procesado: true,
         ocr_validado: false, // Marcado como no validado
         ocr_fallido: true,   // Flag para revisión manual
         requiere_revision_manual: true
+      };
+
+      // Guardar el archivo con flag de OCR fallido
+      onAnswerChange(pendingUpload.campo.codigo, [{
+        ...archivoInfo,
+        file: pendingUpload.file,
       }]);
 
-      setOcrResult({ 
-        success: true, 
-        message: 'Documento enviado. Será revisado manualmente por un analista.' 
-      });
-      setShowResultModal(true);
+      // Guardar en uploadedFiles para sessionStorage
+      setUploadedFiles(prev => ({
+        ...prev,
+        [pendingUpload.campo.codigo]: archivoInfo
+      }));
+
+      // Guardar resultado OCR en ocrResults para sessionStorage
+      if (ocrComparisonData) {
+        setOcrResults(prev => ({
+          ...prev,
+          [pendingUpload.campo.codigo]: {
+            ...ocrComparisonData,
+            validacion_forzada: true, // Marcar que fue forzado por el usuario
+          }
+        }));
+      }
+
+      // Mostrar modal de éxito (el documento será revisado manualmente)
+      setShowSuccessModal(true);
     }
     
     setPendingUpload(null);
     setShowOCRValidationError(false);
+  };
+
+  // Manejar cierre del modal de éxito (solo cierra el modal, no avanza al siguiente paso)
+  const handleSuccessModalClose = () => {
+    setShowSuccessModal(false);
   };
 
   // Manejar cuando el usuario cierra el modal de error OCR (para subir otro archivo)
@@ -381,6 +898,17 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
+    // Limpiar datos de sessionStorage
+    setUploadedFiles(prev => {
+      const updated = { ...prev };
+      delete updated[campoActual.codigo];
+      return updated;
+    });
+    setOcrResults(prev => {
+      const updated = { ...prev };
+      delete updated[campoActual.codigo];
+      return updated;
+    });
     // Limpiar datos de comparación OCR
     setOcrComparisonData(null);
   };
@@ -403,13 +931,388 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
     return null;
   }
 
-  const currentFileName = getFileName(respuestas[campoActual.codigo]);
+  // ═══════════════════════════════════════════════════════════════════════════
+  // VISTA READONLY - Muestra todos los documentos con comparación OCR
+  // ═══════════════════════════════════════════════════════════════════════════
+  if (readonly) {
+    // Mapeo de campos OCR a nombres legibles
+    const CAMPOS_OCR_LABELS: Record<string, string> = {
+      num_documento: 'Número de Documento',
+      primer_nombre: 'Primer Nombre',
+      segundo_nombre: 'Segundo Nombre',
+      primer_apellido: 'Primer Apellido',
+      segundo_apellido: 'Segundo Apellido',
+      fecha_nacimiento: 'Fecha de Nacimiento',
+      pais_emisor: 'País Emisor',
+    };
+
+    // Función para obtener el valor esperado del solicitante
+    const getValorEsperado = (key: string): string => {
+      if (!datosSolicitante) return '-';
+      switch (key) {
+        case 'num_documento':
+          return datosSolicitante.pasaporte || '-';
+        case 'primer_nombre':
+        case 'segundo_nombre':
+          // Intentar separar nombres si está como string completo
+          const nombres = datosSolicitante.nombres?.split(' ') || [];
+          return key === 'primer_nombre' ? (nombres[0] || '-') : (nombres.slice(1).join(' ') || '-');
+        case 'primer_apellido':
+        case 'segundo_apellido':
+          const apellidos = datosSolicitante.apellidos?.split(' ') || [];
+          return key === 'primer_apellido' ? (apellidos[0] || '-') : (apellidos.slice(1).join(' ') || '-');
+        case 'fecha_nacimiento':
+          return datosSolicitante.fecha_nacimiento || '-';
+        case 'pais_emisor':
+          return datosSolicitante.nacionalidad || '-';
+        default:
+          return '-';
+      }
+    };
+
+    return (
+      <Box>
+        {/* Descripción de la etapa */}
+        {descripcion && (
+          <Typography 
+            sx={{ 
+              fontFamily: 'Roboto, sans-serif',
+              fontWeight: 400,
+              fontSize: '16px',
+              lineHeight: 1.5,
+              color: '#333333',
+              mb: 4,
+              maxWidth: '1167px',
+            }}
+          >
+            {descripcion}
+          </Typography>
+        )}
+
+        {/* Lista de todos los documentos con acordeones */}
+        {camposOrdenados.map((campo, index) => {
+          const archivo = uploadedFiles[campo.codigo];
+          const ocrData = ocrResults[campo.codigo];
+          const tieneArchivo = !!archivo;
+          const validaciones = ocrData?.datos_ocr_raw?.validaciones || {};
+          
+          // Calcular si el OCR tiene errores (menos de 4 campos encontrados)
+          const camposEncontrados = Object.values(validaciones).filter((v: any) => v?.encontrado).length;
+          const ocrFailed = tieneArchivo && campo.requiere_ocr && camposEncontrados < 4;
+
+          return (
+            <Accordion 
+              key={campo.codigo}
+              defaultExpanded={false}
+              sx={{ 
+                mb: 2,
+                borderLeft: `3px solid ${ocrFailed ? '#e90000' : (tieneArchivo ? '#4caf50' : '#9e9e9e')}`,
+                borderRadius: '4px !important',
+                '&:before': { display: 'none' },
+                boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                backgroundColor: ocrFailed ? '#fef6f6' : '#fff',
+              }}
+            >
+              <AccordionSummary
+                expandIcon={<ExpandMoreIcon />}
+                sx={{
+                  backgroundColor: ocrFailed ? '#fef6f6' : '#f9f9f9',
+                  borderRadius: '4px',
+                  minHeight: '56px',
+                  '& .MuiAccordionSummary-content': {
+                    alignItems: 'center',
+                    gap: 2,
+                  },
+                }}
+              >
+                <Box sx={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
+                  <Typography 
+                    sx={{ 
+                      fontFamily: 'Roboto, sans-serif',
+                      fontWeight: 500,
+                      fontSize: '16px',
+                      color: '#333333',
+                    }}
+                  >
+                    {index + 1}. {campo.pregunta}
+                    {campo.es_obligatoria && <span style={{ color: '#d32f2f' }}> *</span>}
+                  </Typography>
+                  {tieneArchivo && (
+                    <Typography 
+                      sx={{ 
+                        fontFamily: 'Roboto, sans-serif',
+                        fontSize: '13px',
+                        color: '#0e5fa6',
+                        mt: 0.5,
+                      }}
+                    >
+                      📎 {archivo.nombre}
+                    </Typography>
+                  )}
+                  {!tieneArchivo && (
+                    <Typography 
+                      sx={{ 
+                        color: '#9e9e9e',
+                        fontFamily: 'Roboto, sans-serif',
+                        fontSize: '13px',
+                        fontStyle: 'italic',
+                        mt: 0.5,
+                      }}
+                    >
+                      No se ha cargado ningún documento
+                    </Typography>
+                  )}
+                </Box>
+                {/* Indicador de estado */}
+                {tieneArchivo && campo.requiere_ocr && (
+                  <Chip 
+                    label={ocrFailed ? 'Revisar' : 'OK'}
+                    size="small"
+                    sx={{ 
+                      backgroundColor: ocrFailed ? '#ffebee' : '#e8f5e9',
+                      color: ocrFailed ? '#c62828' : '#2e7d32',
+                      fontSize: '12px',
+                      fontWeight: 500,
+                    }}
+                  />
+                )}
+              </AccordionSummary>
+              
+              <AccordionDetails sx={{ pt: 2, pb: 2 }}>
+                {!tieneArchivo ? (
+                  <Typography 
+                    sx={{ 
+                      color: '#9e9e9e',
+                      fontFamily: 'Roboto, sans-serif',
+                      fontSize: '14px',
+                      fontStyle: 'italic',
+                    }}
+                  >
+                    No hay información adicional disponible
+                  </Typography>
+                ) : (
+                  <>
+                    {/* Grid de comparación OCR */}
+                    {campo.requiere_ocr && ocrData ? (
+                      <Box sx={{ 
+                        display: 'grid', 
+                        gridTemplateColumns: '1fr 1fr',
+                        gap: 2,
+                      }}>
+                        {/* Card: Datos OCR Encontrados */}
+                        <Card sx={{ backgroundColor: '#f9f9f9' }}>
+                          <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
+                            <Typography 
+                              variant="subtitle2" 
+                              sx={{ 
+                                fontWeight: 600, 
+                                color: ocrFailed ? '#c62828' : '#1e3a5f',
+                                mb: 1.5,
+                                borderBottom: '1px solid #eee',
+                                pb: 0.5,
+                              }}
+                            >
+                              Datos Encontrados por Sistema
+                            </Typography>
+                            
+                            {Object.keys(validaciones).length > 0 ? (
+                              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                                {Object.keys(CAMPOS_OCR_LABELS).map((key) => {
+                                  const validacion = validaciones[key];
+                                  const encontrado = validacion?.encontrado || false;
+                                  const valorOCR = validacion?.valor_esperado || '-';
+                                  
+                                  return (
+                                    <Box 
+                                      key={key} 
+                                      sx={{ 
+                                        display: 'flex', 
+                                        justifyContent: 'space-between',
+                                        py: 0.25,
+                                      }}
+                                    >
+                                      <Typography 
+                                        variant="body2" 
+                                        sx={{ color: '#666', fontSize: '13px' }}
+                                      >
+                                        {CAMPOS_OCR_LABELS[key]}:
+                                      </Typography>
+                                      <Typography 
+                                        variant="body2" 
+                                        sx={{ 
+                                          color: encontrado ? '#333' : '#999', 
+                                          fontWeight: 500,
+                                          fontSize: '13px',
+                                          ml: 1,
+                                          fontStyle: encontrado ? 'normal' : 'italic',
+                                        }}
+                                      >
+                                        {encontrado ? String(valorOCR) : 'No encontrado'}
+                                      </Typography>
+                                    </Box>
+                                  );
+                                })}
+                              </Box>
+                            ) : (
+                              <Typography variant="body2" sx={{ color: '#999', fontStyle: 'italic' }}>
+                                No se encontraron datos estructurados
+                              </Typography>
+                            )}
+                          </CardContent>
+                        </Card>
+
+                        {/* Card: Datos Esperados */}
+                        <Card sx={{ backgroundColor: '#f9f9f9' }}>
+                          <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
+                            <Typography 
+                              variant="subtitle2" 
+                              sx={{ 
+                                fontWeight: 600, 
+                                color: '#1e3a5f',
+                                mb: 1.5,
+                                borderBottom: '1px solid #eee',
+                                pb: 0.5,
+                              }}
+                            >
+                              Datos Esperados
+                            </Typography>
+                            
+                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                              {Object.keys(CAMPOS_OCR_LABELS).map((key) => (
+                                <Box 
+                                  key={key} 
+                                  sx={{ 
+                                    display: 'flex', 
+                                    justifyContent: 'space-between',
+                                    py: 0.25,
+                                  }}
+                                >
+                                  <Typography 
+                                    variant="body2" 
+                                    sx={{ color: '#666', fontSize: '13px' }}
+                                  >
+                                    {CAMPOS_OCR_LABELS[key]}:
+                                  </Typography>
+                                  <Typography 
+                                    variant="body2" 
+                                    sx={{ 
+                                      color: '#333', 
+                                      fontWeight: 500,
+                                      fontSize: '13px',
+                                      ml: 1,
+                                    }}
+                                  >
+                                    {getValorEsperado(key)}
+                                  </Typography>
+                                </Box>
+                              ))}
+                            </Box>
+                          </CardContent>
+                        </Card>
+                      </Box>
+                    ) : (
+                      <Typography 
+                        sx={{ 
+                          color: '#666',
+                          fontFamily: 'Roboto, sans-serif',
+                          fontSize: '14px',
+                        }}
+                      >
+                        Documento cargado correctamente. No requiere validación OCR.
+                      </Typography>
+                    )}
+                  </>
+                )}
+              </AccordionDetails>
+            </Accordion>
+          );
+        })}
+
+        {/* Botón Volver */}
+        <Stack 
+          direction="row" 
+          justifyContent="flex-start" 
+          alignItems="center"
+          sx={{ mt: 4 }}
+        >
+          <Button
+            variant="outlined"
+            onClick={onBack}
+            sx={{
+              width: '124px',
+              height: '40px',
+              borderRadius: '4px',
+              borderColor: '#0e5fa6',
+              color: '#0e5fa6',
+              textTransform: 'none',
+              fontFamily: 'Roboto, sans-serif',
+              fontWeight: 400,
+              fontSize: '16px',
+              '&:hover': {
+                borderColor: '#0d5391',
+                backgroundColor: 'rgba(14, 95, 166, 0.04)',
+              },
+            }}
+          >
+            {buttonLabels.back}
+          </Button>
+        </Stack>
+      </Box>
+    );
+  }
+
+  // Obtener nombre de archivo: primero de sessionStorage, luego de respuestas
+  const storedFile = uploadedFiles[campoActual.codigo];
+  const currentFileName = storedFile?.nombre || getFileName(respuestas[campoActual.codigo]);
+  
+  // Obtener datos OCR del paso actual desde sessionStorage
+  const storedOcrResult = ocrResults[campoActual.codigo];
+  
+  // Si hay OCR guardado y no está en el estado actual, restaurarlo
+  React.useEffect(() => {
+    if (storedOcrResult && !ocrComparisonData) {
+      setOcrComparisonData(storedOcrResult);
+    }
+  }, [storedOcrResult, ocrComparisonData]);
+  
+  // ✨ Efecto para hacer scroll cuando se restaura estado con archivo cargado
+  // NO mostrar modal automáticamente - el usuario ya vio el resultado antes del reload
+  React.useEffect(() => {
+    if (storedState && currentFileName && !hasScrolledToFile.current) {
+      hasScrolledToFile.current = true;
+      
+      // Scroll al contenedor del archivo con un pequeño delay para asegurar que el DOM esté listo
+      setTimeout(() => {
+        if (fileContainerRef.current) {
+          fileContainerRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          // Agregar un breve highlight visual
+          fileContainerRef.current.style.boxShadow = '0 0 0 3px rgba(14, 95, 166, 0.3)';
+          setTimeout(() => {
+            if (fileContainerRef.current) {
+              fileContainerRef.current.style.boxShadow = 'none';
+            }
+          }, 2000);
+        }
+      }, 300);
+      
+      // NO mostrar modal de éxito automáticamente al restaurar estado
+      // El usuario ya lo vio antes del reload, y si el OCR falló no queremos confundirlo
+      hasShownRestoredModal.current = true; // Marcar como mostrado para evitar futuros intentos
+    }
+  }, [storedState, currentFileName, storedOcrResult]);
 
   // Obtener extensiones permitidas para el accept del input
   // Permitir cualquier archivo si no hay restricciones definidas
-  const acceptTypes = campoActual.extensiones_permitidas?.length 
-    ? campoActual.extensiones_permitidas.map(ext => `.${ext.toLowerCase().replace('.', '')}`).join(',')
-    : '*/*';
+  // En móvil, agregar image/* para permitir captura de fotos
+  const getAcceptTypes = () => {
+    if (!campoActual.extensiones_permitidas?.length) return '*/*';
+    const extensiones = campoActual.extensiones_permitidas
+      .map(ext => `.${ext.toLowerCase().replace('.', '')}`)
+      .join(',');
+    // Agregar image/* para permitir captura de fotos en móvil
+    return `${extensiones},image/*`;
+  };
+  const acceptTypes = getAcceptTypes();
 
   return (
     <Box>
@@ -449,6 +1352,7 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
 
         {/* Campo con archivo cargado o vacío */}
         <Box
+          ref={fileContainerRef}
           sx={{
             border: '1px solid #333333',
             borderRadius: '4px',
@@ -460,6 +1364,7 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
             justifyContent: 'space-between',
             px: 2,
             mb: 1,
+            transition: 'box-shadow 0.3s ease',
           }}
         >
           {currentFileName ? (
@@ -501,7 +1406,7 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
           )}
         </Box>
 
-        {/* Botón Cargar archivo */}
+        {/* Input oculto para seleccionar archivo */}
         <input
           type="file"
           ref={fileInputRef}
@@ -510,29 +1415,35 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
           onChange={handleFileSelect}
           disabled={readonly}
         />
-        <Button
-          variant="text"
-          startIcon={<AttachFileIcon sx={{ fontSize: 16 }} />}
-          onClick={triggerFileInput}
-          disabled={readonly}
-          sx={{
-            backgroundColor: '#f1f3f4',
-            borderRadius: '2px',
-            height: '32px',
-            px: 1,
-            ml: 2,
-            textTransform: 'none',
-            fontFamily: 'Roboto, sans-serif',
-            fontWeight: 400,
-            fontSize: '16px',
-            color: '#788093',
-            '&:hover': {
-              backgroundColor: '#e4e6e8',
-            },
-          }}
-        >
-          Cargar archivo
-        </Button>
+        
+
+
+        {/* Contenedor de botones */}
+        <Box sx={{ display: 'flex', gap: 1, ml: 2, flexWrap: 'wrap' }}>
+          {/* Botón Cargar archivo */}
+          <Button
+            variant="text"
+            startIcon={<AttachFileIcon sx={{ fontSize: 16 }} />}
+            onClick={triggerFileInput}
+            disabled={readonly}
+            sx={{
+              backgroundColor: '#f1f3f4',
+              borderRadius: '2px',
+              height: '32px',
+              px: 1,
+              textTransform: 'none',
+              fontFamily: 'Roboto, sans-serif',
+              fontWeight: 400,
+              fontSize: '14px',
+              color: '#788093',
+              '&:hover': {
+                backgroundColor: '#e4e6e8',
+              },
+            }}
+          >
+            Cargar archivo
+          </Button>
+        </Box>
 
         {/* Indicaciones extra */}
         {campoActual.texto_ayuda && (
@@ -608,7 +1519,7 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
                       fontSize: '14px',
                       color: '#333333',
                       borderBottom: '2px solid #e0e0e0',
-                      width: '25%',
+                      width: '35%',
                     }}
                   >
                     Campo
@@ -620,19 +1531,7 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
                       fontSize: '14px',
                       color: '#333333',
                       borderBottom: '2px solid #e0e0e0',
-                      width: '30%',
-                    }}
-                  >
-                    Valor Ingresado
-                  </TableCell>
-                  <TableCell 
-                    sx={{ 
-                      fontFamily: 'Roboto, sans-serif',
-                      fontWeight: 600,
-                      fontSize: '14px',
-                      color: '#333333',
-                      borderBottom: '2px solid #e0e0e0',
-                      width: '30%',
+                      width: '45%',
                     }}
                   >
                     Valor OCR
@@ -644,7 +1543,7 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
                       fontSize: '14px',
                       color: '#333333',
                       borderBottom: '2px solid #e0e0e0',
-                      width: '15%',
+                      width: '20%',
                       textAlign: 'center',
                     }}
                   >
@@ -657,12 +1556,12 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
                 {(() => {
                   // Mapeo de campos del nuevo formato a nombres legibles
                   const camposMapping = [
-                    { key: 'num_documento', label: 'Pasaporte', ingresadoKey: 'pasaporte' },
-                    { key: 'pais_emisor', label: 'Nacionalidad', ingresadoKey: 'nacionalidad' },
-                    { key: 'primer_nombre', label: 'Primer Nombre', ingresadoKey: 'nombres' },
-                    { key: 'segundo_nombre', label: 'Segundo Nombre', ingresadoKey: null },
-                    { key: 'primer_apellido', label: 'Primer Apellido', ingresadoKey: 'apellidos' },
-                    { key: 'fecha_nacimiento', label: 'Fecha Nacimiento', ingresadoKey: 'fecha_nacimiento' },
+                    { key: 'num_documento', label: 'Pasaporte' },
+                    { key: 'pais_emisor', label: 'Nacionalidad' },
+                    { key: 'primer_nombre', label: 'Primer Nombre' },
+                    { key: 'segundo_nombre', label: 'Segundo Nombre' },
+                    { key: 'primer_apellido', label: 'Primer Apellido' },
+                    { key: 'fecha_nacimiento', label: 'Fecha Nacimiento' },
                   ];
                   
                   // Obtener validaciones del nuevo formato (datos_ocr_raw.validaciones)
@@ -670,9 +1569,6 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
                   
                   return camposMapping.map((campo) => {
                     const validacion = validaciones[campo.key];
-                    const valorIngresado = campo.ingresadoKey 
-                      ? ocrComparisonData.datos_ingresados[campo.ingresadoKey] || '-'
-                      : validacion?.valor_esperado || '-';
                     const encontrado = validacion?.encontrado || false;
                     const valorOCR = validacion?.valor_esperado || '-';
                     const tipoCoincidencia = validacion?.tipo_coincidencia;
@@ -681,9 +1577,6 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
                       <TableRow key={campo.key}>
                         <TableCell sx={{ fontFamily: 'Roboto, sans-serif', fontSize: '14px', color: '#666666' }}>
                           {campo.label}
-                        </TableCell>
-                        <TableCell sx={{ fontFamily: 'Roboto, sans-serif', fontSize: '14px', color: '#333333' }}>
-                          {valorIngresado}
                         </TableCell>
                         <TableCell sx={{ fontFamily: 'Roboto, sans-serif', fontSize: '14px', color: '#333333' }}>
                           {encontrado ? `${valorOCR} (${tipoCoincidencia})` : '-'}
@@ -702,68 +1595,6 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
               </TableBody>
             </Table>
           </TableContainer>
-
-          {/* Sección de Debug - SIEMPRE VISIBLE */}
-          <Box sx={{ mt: 3, p: 2, backgroundColor: '#e3f2fd', borderRadius: '8px', border: '2px solid #2196f3' }}>
-            <Typography
-              sx={{
-                fontFamily: 'Roboto, sans-serif',
-                fontWeight: 600,
-                fontSize: '16px',
-                color: '#1565c0',
-                mb: 2,
-              }}
-            >
-              🔍 DEBUG - Datos OCR Recibidos
-            </Typography>
-            
-            {/* Datos del solicitante ingresados */}
-            <Box sx={{ mb: 2 }}>
-              <Typography sx={{ fontWeight: 500, fontSize: '14px', color: '#333', mb: 1 }}>
-                📝 Datos ingresados por el solicitante:
-              </Typography>
-              <Paper elevation={0} sx={{ p: 2, backgroundColor: '#fff', border: '1px solid #ddd' }}>
-                <pre style={{ margin: 0, fontFamily: 'monospace', fontSize: '12px', whiteSpace: 'pre-wrap' }}>
-                  {JSON.stringify(ocrComparisonData.datos_ingresados, null, 2)}
-                </pre>
-              </Paper>
-            </Box>
-
-            {/* Datos estructurados del OCR */}
-            <Box sx={{ mb: 2 }}>
-              <Typography sx={{ fontWeight: 500, fontSize: '14px', color: '#333', mb: 1 }}>
-                📋 Datos estructurados extraídos por OCR (JSON):
-              </Typography>
-              <Paper elevation={0} sx={{ p: 2, backgroundColor: '#f5f5f5', border: '1px solid #ddd' }}>
-                <pre style={{ margin: 0, fontFamily: 'monospace', fontSize: '12px', whiteSpace: 'pre-wrap' }}>
-                  {ocrComparisonData.datos_ocr_raw 
-                    ? JSON.stringify(ocrComparisonData.datos_ocr_raw, null, 2) 
-                    : '(vacío o no disponible)'}
-                </pre>
-              </Paper>
-            </Box>
-
-            {/* Texto completo del OCR */}
-            <Box>
-              <Typography sx={{ fontWeight: 500, fontSize: '14px', color: '#333', mb: 1 }}>
-                📄 Texto completo extraído por OCR (sin filtros):
-              </Typography>
-              <Paper 
-                elevation={0} 
-                sx={{ 
-                  p: 2, 
-                  backgroundColor: '#fffde7', 
-                  border: '1px solid #fff59d',
-                  maxHeight: '400px',
-                  overflow: 'auto',
-                }}
-              >
-                <pre style={{ margin: 0, fontFamily: 'monospace', fontSize: '12px', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-                  {ocrComparisonData.texto_ocr_completo || '(vacío o no disponible)'}
-                </pre>
-              </Paper>
-            </Box>
-          </Box>
         </Box>
       )}
 
@@ -800,25 +1631,28 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
           {buttonLabels.back}
         </Button>
 
-        <Button
-          variant="contained"
-          onClick={handleNext}
-          sx={{
-            width: '124px',
-            height: '40px',
-            borderRadius: '4px',
-            backgroundColor: '#0e5fa6',
-            textTransform: 'none',
-            fontFamily: 'Roboto, sans-serif',
-            fontWeight: 400,
-            fontSize: '16px',
-            '&:hover': {
-              backgroundColor: '#0d5391',
-            },
-          }}
-        >
-          {buttonLabels.next}
-        </Button>
+        {/* Botón Siguiente - Solo mostrar si no es readonly */}
+        {!readonly && (
+          <Button
+            variant="contained"
+            onClick={handleNext}
+            sx={{
+              width: '124px',
+              height: '40px',
+              borderRadius: '4px',
+              backgroundColor: '#0e5fa6',
+              textTransform: 'none',
+              fontFamily: 'Roboto, sans-serif',
+              fontWeight: 400,
+              fontSize: '16px',
+              '&:hover': {
+                backgroundColor: '#0d5391',
+              },
+            }}
+          >
+            {buttonLabels.next}
+          </Button>
+        )}
       </Stack>
 
       {/* Modal de Loading - Procesando OCR */}
@@ -857,66 +1691,17 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
         </DialogContent>
       </Dialog>
 
-      {/* Modal de Resultado - Éxito o Error */}
-      <Dialog
-        open={showResultModal}
-        onClose={() => setShowResultModal(false)}
-        PaperProps={{
-          sx: {
-            borderRadius: '8px',
-            padding: '24px',
-            minWidth: '360px',
-            textAlign: 'center',
-          }
-        }}
-      >
-        <DialogContent sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, pb: 1 }}>
-          {ocrResult.success ? (
-            <CheckCircleIcon sx={{ fontSize: 64, color: '#4caf50' }} />
-          ) : (
-            <ErrorIcon sx={{ fontSize: 64, color: '#f44336' }} />
-          )}
-          <Typography 
-            sx={{ 
-              fontFamily: 'Roboto, sans-serif',
-              fontSize: '18px',
-              fontWeight: 500,
-              color: ocrResult.success ? '#4caf50' : '#f44336',
-            }}
-          >
-            {ocrResult.success ? '¡Éxito!' : 'Error'}
-          </Typography>
-          <Typography 
-            sx={{ 
-              fontFamily: 'Roboto, sans-serif',
-              fontSize: '14px',
-              color: '#333333',
-              lineHeight: 1.5,
-            }}
-          >
-            {ocrResult.message}
-          </Typography>
-        </DialogContent>
-        <DialogActions sx={{ justifyContent: 'center', pt: 0 }}>
-          <Button
-            variant="contained"
-            onClick={() => setShowResultModal(false)}
-            sx={{
-              backgroundColor: ocrResult.success ? '#0e5fa6' : '#f44336',
-              textTransform: 'none',
-              fontFamily: 'Roboto, sans-serif',
-              fontWeight: 400,
-              fontSize: '14px',
-              px: 4,
-              '&:hover': {
-                backgroundColor: ocrResult.success ? '#0d5391' : '#d32f2f',
-              },
-            }}
-          >
-            Aceptar
-          </Button>
-        </DialogActions>
-      </Dialog>
+      {/* Modal de Éxito OCR */}
+      <OCRSuccessModal
+        open={showSuccessModal}
+        onClose={handleSuccessModalClose}
+      />
+
+      {/* Modal de Error de Lectura OCR */}
+      <OCRReadErrorModal
+        open={showReadErrorModal}
+        onClose={() => setShowReadErrorModal(false)}
+      />
 
       {/* Modal de Error de Validación OCR */}
       <OCRValidationErrorModal

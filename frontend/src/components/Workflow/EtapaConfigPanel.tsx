@@ -388,7 +388,6 @@ export const EtapaConfigPanel: React.FC<EtapaConfigPanelProps> = ({
           setPreguntas(updated);
         }
         
-        console.log('Pregunta actualizada con archivo:', opcionesJson);
       }
       
       setUploadedFileName(response.nombre_archivo);
@@ -1202,7 +1201,6 @@ export const EtapaConfigPanel: React.FC<EtapaConfigPanelProps> = ({
                                   const file = e.target.files?.[0];
                                   if (file) {
                                     setUploadedFileName(file.name);
-                                    console.log('Archivo seleccionado:', file.name);
                                   }
                                 }}
                               />

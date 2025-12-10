@@ -111,7 +111,6 @@ const BpmnEditor: React.FC<BpmnEditorProps> = ({
         return;
       }
 
-      console.log('Initializing BPMN Modeler...');
 
       // Crear instancia del modeler con configuración básica
       const modeler = new BpmnModeler({
@@ -122,14 +121,12 @@ const BpmnEditor: React.FC<BpmnEditorProps> = ({
       });
 
       modelerRef.current = modeler;
-      console.log('BpmnModeler created successfully');
 
       // Cargar diagrama inicial
       const xmlToLoad = initialDiagram || initialBpmnXml;
       console.log('Loading initial diagram:', xmlToLoad.substring(0, 200) + '...');
 
       modeler.importXML(xmlToLoad).then(({ warnings }) => {
-        console.log('Diagram imported successfully');
         if (warnings.length) {
           console.warn('Warnings during import:', warnings);
         }
@@ -137,12 +134,10 @@ const BpmnEditor: React.FC<BpmnEditorProps> = ({
         // Ajustar zoom para ver todo el diagrama
         const canvas = modeler.get('canvas') as BpmnCanvas;
         canvas.zoom('fit-viewport');
-        console.log('Zoom adjusted to fit viewport');
 
         // Obtener XML inicial
         modeler.saveXML({ format: true }).then(({ xml }) => {
           setCurrentXml(xml || '');
-          console.log('Initial XML saved');
         });
       }).catch((err) => {
         console.error('Error importing BPMN diagram:', err);
@@ -155,7 +150,6 @@ const BpmnEditor: React.FC<BpmnEditorProps> = ({
 
       // Escuchar cambios
       modeler.on('commandStack.changed', () => {
-        console.log('Command stack changed - diagram modified');
         modeler.saveXML({ format: true }).then(({ xml }) => {
           const newXml = xml || '';
           handleDiagramChange(newXml);
@@ -164,8 +158,6 @@ const BpmnEditor: React.FC<BpmnEditorProps> = ({
 
       // Verificar que el modeler esté listo para edición
       setTimeout(() => {
-        console.log('Modeler ready for editing');
-        console.log('Container dimensions:', containerRef.current?.clientWidth, 'x', containerRef.current?.clientHeight);
       }, 500);
     }
 

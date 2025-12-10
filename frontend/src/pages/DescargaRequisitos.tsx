@@ -36,12 +36,11 @@ export const DescargaRequisitos: React.FC = () => {
 
   const handleDescargar = () => {
     // URL del archivo de requisitos en el backend
-    const API_URL = 'http://localhost:8000';
+    const API_URL = import.meta.env.VITE_API_BASE_URL?.replace('/api/v1', '') || 'http://localhost:8000';
     const archivoUrl = '/static/documentos/requisitos_ppsh.txt';
     
     // Abrir en nueva pestaña para descargar
     window.open(`${API_URL}${archivoUrl}`, '_blank');
-    console.log('Descargando requisitos PPSH...');
   };
 
   const handleSiguiente = async () => {
@@ -60,7 +59,6 @@ export const DescargaRequisitos: React.FC = () => {
       }
 
       // Etapa 1: Descarga de Requisitos
-      console.log('Completando Etapa 1: Descarga de Requisitos');
       await workflowService.completarEtapa(
         workflowInstanciaId,
         instancia.etapa_actual_id,
@@ -70,11 +68,9 @@ export const DescargaRequisitos: React.FC = () => {
 
       // Recargar instancia para obtener nueva etapa actual (etapa 2)
       let instanciaActualizada = await workflowService.getInstancia(workflowInstanciaId);
-      console.log('Etapa actual después de completar etapa 1:', instanciaActualizada.etapa_actual_id);
 
       // Etapa 2: Carga de Poder General - marcar como completada
       if (instanciaActualizada.etapa_actual_id) {
-        console.log('Auto-completando Etapa 2: Carga de Poder General');
         await workflowService.completarEtapa(
           workflowInstanciaId,
           instanciaActualizada.etapa_actual_id,
@@ -84,11 +80,9 @@ export const DescargaRequisitos: React.FC = () => {
 
         // Recargar nuevamente para obtener etapa 3
         instanciaActualizada = await workflowService.getInstancia(workflowInstanciaId);
-        console.log('Etapa actual después de completar etapa 2:', instanciaActualizada.etapa_actual_id);
 
         // Etapa 3: Carga de Solicitud Firmada - marcar como completada
         if (instanciaActualizada.etapa_actual_id) {
-          console.log('Auto-completando Etapa 3: Carga de Solicitud Firmada');
           await workflowService.completarEtapa(
             workflowInstanciaId,
             instanciaActualizada.etapa_actual_id,
@@ -99,7 +93,6 @@ export const DescargaRequisitos: React.FC = () => {
       }
 
       // Al finalizar las 3 etapas, volver a la vista de etapas
-      console.log('Etapas 1-3 completadas, volviendo a vista de etapas');
       navigate(`${basePath}/etapas`);
       
     } catch (err: any) {

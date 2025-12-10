@@ -143,7 +143,6 @@ export function useOCRUpload(options: UseOCRUploadOptions = {}): UseOCRUploadRet
       setIsUploading(true);
 
       // Subir documento
-      console.log('📤 Subiendo documento:', file.name);
       const resultado = await workflowService.subirDocumentoEtapa(
         solicitudId,
         file,
@@ -153,7 +152,6 @@ export function useOCRUpload(options: UseOCRUploadOptions = {}): UseOCRUploadRet
         }
       );
 
-      console.log('✅ Documento subido:', resultado);
       setUploadedFile(file);
       setDocumentoId(resultado.id_documento);
       setOcrResult({

@@ -260,6 +260,195 @@ class WorkflowService:
 
         db.commit()
 
+    @staticmethod
+    def duplicar_workflow(
+        db: Session,
+        workflow_id: int,
+        nuevo_nombre: Optional[str],
+        nuevo_codigo: Optional[str],
+        created_by: str
+    ) -> models.Workflow:
+        """
+        Duplica un workflow completo con todas sus etapas, preguntas y conexiones.
+        Se generan nuevos IDs para todas las entidades.
+        
+        Args:
+            db: Sesión de base de datos
+            workflow_id: ID del workflow a duplicar
+            nuevo_nombre: Nombre para el nuevo workflow (opcional, se genera automáticamente si no se provee)
+            nuevo_codigo: Código para el nuevo workflow (opcional, se genera automáticamente si no se provee)
+            created_by: Usuario que realiza la duplicación
+        
+        Returns:
+            El nuevo workflow creado
+        """
+        logger.info(f"Duplicando workflow ID: {workflow_id} por usuario: {created_by}")
+        
+        # Obtener workflow original con todas sus relaciones
+        workflow_original = WorkflowService.obtener_workflow(db, workflow_id)
+        
+        # Generar código único si no se provee
+        if not nuevo_codigo:
+            timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+            # Limpiar código original: remover sufijos _COPIA_xxx anteriores
+            codigo_base = workflow_original.codigo
+            import re
+            codigo_base = re.sub(r'_COPIA_\d+', '', codigo_base)
+            # Truncar para que el código total no exceda 50 caracteres
+            # _COPIA_ (7) + timestamp (14) = 21 caracteres
+            max_base_length = 50 - 21
+            if len(codigo_base) > max_base_length:
+                codigo_base = codigo_base[:max_base_length]
+            nuevo_codigo = f"{codigo_base}_COPIA_{timestamp}"
+        
+        # Verificar que el nuevo código sea único
+        WorkflowService.verificar_codigo_unico(db, nuevo_codigo)
+        
+        # Generar nombre si no se provee
+        if not nuevo_nombre:
+            nuevo_nombre = f"{workflow_original.nombre} (Copia)"
+        
+        # Crear nuevo workflow (usando campos del modelo Workflow)
+        nuevo_workflow = models.Workflow(
+            codigo=nuevo_codigo,
+            nombre=nuevo_nombre,
+            descripcion=workflow_original.descripcion,
+            version="1.0",
+            estado="BORRADOR",  # El duplicado siempre empieza como borrador
+            color_hex=workflow_original.color_hex,
+            icono=workflow_original.icono,
+            categoria=workflow_original.categoria,
+            requiere_autenticacion=workflow_original.requiere_autenticacion,
+            es_publico=workflow_original.es_publico,
+            perfiles_creadores=workflow_original.perfiles_creadores,
+            activo=True,
+            created_by=created_by
+        )
+        db.add(nuevo_workflow)
+        db.flush()  # Para obtener el ID del nuevo workflow
+        
+        logger.debug(f"Nuevo workflow creado con ID: {nuevo_workflow.id}")
+        
+        # Mapeo de IDs de etapas originales a nuevas
+        etapas_map: Dict[int, int] = {}
+        
+        # Duplicar etapas ordenadas por orden
+        etapas_ordenadas = sorted(workflow_original.etapas, key=lambda e: e.orden or 0)
+        
+        for etapa_original in etapas_ordenadas:
+            if not etapa_original.activo:
+                continue
+                
+            # Crear nueva etapa (usando campos del modelo WorkflowEtapa)
+            nueva_etapa = models.WorkflowEtapa(
+                workflow_id=nuevo_workflow.id,
+                codigo=etapa_original.codigo,
+                nombre=etapa_original.nombre,
+                descripcion=etapa_original.descripcion,
+                tipo_etapa=etapa_original.tipo_etapa,
+                orden=etapa_original.orden,
+                posicion_x=etapa_original.posicion_x,
+                posicion_y=etapa_original.posicion_y,
+                perfiles_permitidos=etapa_original.perfiles_permitidos,
+                titulo_formulario=etapa_original.titulo_formulario,
+                bajada_formulario=etapa_original.bajada_formulario,
+                descripcion_presencial=etapa_original.descripcion_presencial,
+                documento_presencial=etapa_original.documento_presencial,
+                es_etapa_inicial=etapa_original.es_etapa_inicial,
+                es_etapa_final=etapa_original.es_etapa_final,
+                requiere_validacion=etapa_original.requiere_validacion,
+                permite_edicion_posterior=etapa_original.permite_edicion_posterior,
+                tiempo_estimado_minutos=etapa_original.tiempo_estimado_minutos,
+                reglas_transicion=etapa_original.reglas_transicion,
+                activo=True,
+                created_by=created_by
+            )
+            db.add(nueva_etapa)
+            db.flush()
+            
+            # Guardar mapeo de IDs
+            etapas_map[etapa_original.id] = nueva_etapa.id
+            
+            # Duplicar preguntas de la etapa
+            preguntas_ordenadas = sorted(
+                [p for p in etapa_original.preguntas if p.activo],
+                key=lambda p: p.orden or 0
+            )
+            
+            for pregunta_original in preguntas_ordenadas:
+                # Crear nueva pregunta (usando campos del modelo WorkflowPregunta)
+                nueva_pregunta = models.WorkflowPregunta(
+                    etapa_id=nueva_etapa.id,
+                    codigo=pregunta_original.codigo,
+                    pregunta=pregunta_original.pregunta,
+                    tipo_pregunta=pregunta_original.tipo_pregunta,
+                    orden=pregunta_original.orden,
+                    es_obligatoria=pregunta_original.es_obligatoria,
+                    validacion_regex=pregunta_original.validacion_regex,
+                    mensaje_validacion=pregunta_original.mensaje_validacion,
+                    opciones=pregunta_original.opciones,
+                    opciones_datos_caso=pregunta_original.opciones_datos_caso,
+                    permite_multiple=pregunta_original.permite_multiple,
+                    extensiones_permitidas=pregunta_original.extensiones_permitidas,
+                    tamano_maximo_mb=pregunta_original.tamano_maximo_mb,
+                    requiere_ocr=pregunta_original.requiere_ocr,
+                    texto_ayuda=pregunta_original.texto_ayuda,
+                    placeholder=pregunta_original.placeholder,
+                    valor_predeterminado=pregunta_original.valor_predeterminado,
+                    mostrar_si=pregunta_original.mostrar_si,
+                    activo=True,
+                    created_by=created_by
+                )
+                db.add(nueva_pregunta)
+        
+        db.flush()  # Para tener todos los IDs de etapas
+        
+        # Duplicar conexiones usando el mapeo de IDs
+        for conexion_original in workflow_original.conexiones:
+            if not conexion_original.activo:
+                continue
+                
+            # Obtener los nuevos IDs de etapas
+            nueva_etapa_origen_id = etapas_map.get(conexion_original.etapa_origen_id)
+            nueva_etapa_destino_id = etapas_map.get(conexion_original.etapa_destino_id)
+            
+            if nueva_etapa_origen_id and nueva_etapa_destino_id:
+                nueva_conexion = models.WorkflowConexion(
+                    workflow_id=nuevo_workflow.id,
+                    etapa_origen_id=nueva_etapa_origen_id,
+                    etapa_destino_id=nueva_etapa_destino_id,
+                    nombre=conexion_original.nombre,
+                    condicion=conexion_original.condicion,
+                    es_predeterminada=conexion_original.es_predeterminada,
+                    activo=True,
+                    created_by=created_by
+                )
+                db.add(nueva_conexion)
+        
+        # Registrar en historial del nuevo workflow
+        WorkflowCambiosService.registrar_cambio(
+            db=db,
+            workflow_id=nuevo_workflow.id,
+            tipo_cambio="workflow",
+            accion="duplicar",
+            created_by=created_by,
+            descripcion=f"Workflow duplicado desde '{workflow_original.nombre}' (ID: {workflow_id})",
+            datos_adicionales={
+                "workflow_origen_id": workflow_id,
+                "workflow_origen_codigo": workflow_original.codigo,
+                "workflow_origen_nombre": workflow_original.nombre,
+                "total_etapas_duplicadas": len(etapas_map),
+                "total_conexiones_duplicadas": len([c for c in workflow_original.conexiones if c.activo])
+            }
+        )
+        
+        db.commit()
+        db.refresh(nuevo_workflow)
+        
+        logger.info(f"✅ Workflow duplicado exitosamente. Nuevo ID: {nuevo_workflow.id}, Código: {nuevo_codigo}")
+        
+        return nuevo_workflow
+
 
 # ==========================================
 # SERVICIOS DE ETAPA
@@ -757,6 +946,7 @@ class InstanciaService:
         return instancia
 
     @staticmethod
+    @staticmethod
     def _obtener_datos_solicitante_por_expediente(db: Session, num_expediente: str) -> Optional[Dict[str, Any]]:
         """
         Obtiene los datos del solicitante titular de una solicitud PPSH
@@ -770,14 +960,18 @@ class InstanciaService:
             Diccionario con datos del solicitante o None si no se encuentra
         """
         try:
+            logger.info(f"Buscando datos de solicitante para expediente: {num_expediente}")
+            
             # Buscar la solicitud PPSH por num_expediente
             solicitud = db.query(models_ppsh.PPSHSolicitud).filter(
                 models_ppsh.PPSHSolicitud.num_expediente == num_expediente
             ).first()
             
             if not solicitud:
-                logger.debug(f"No se encontró solicitud PPSH con expediente {num_expediente}")
+                logger.warning(f"No se encontró solicitud PPSH con expediente {num_expediente}")
                 return None
+            
+            logger.info(f"Solicitud encontrada: ID={solicitud.id_solicitud}")
             
             # Buscar el solicitante titular
             solicitante = db.query(models_ppsh.PPSHSolicitante).filter(
@@ -801,7 +995,16 @@ class InstanciaService:
             # Formatear fecha de nacimiento
             fecha_nacimiento_str = None
             if solicitante.fecha_nacimiento:
-                fecha_nacimiento_str = solicitante.fecha_nacimiento.strftime("%Y-%m-%d")
+                fecha_nacimiento_str = solicitante.fecha_nacimiento.strftime("%d.%m.%Y")
+            
+            # Determinar sexo
+            sexo_map = {"M": "Masculino", "F": "Femenino"}
+            sexo = sexo_map.get(solicitante.cod_sexo, solicitante.cod_sexo)
+            
+            # URL de la foto (si existe)
+            foto_url = None
+            if solicitante.foto:
+                foto_url = f"/api/v1/ppsh/solicitudes/{solicitud.id_solicitud}/solicitante/foto"
             
             return {
                 "pasaporte": solicitante.num_documento,
@@ -809,7 +1012,11 @@ class InstanciaService:
                 "nombres": nombres,
                 "apellidos": apellidos,
                 "fecha_nacimiento": fecha_nacimiento_str,
-                "id_solicitud": solicitud.id_solicitud
+                "id_solicitud": solicitud.id_solicitud,
+                "tipo_solicitud": solicitud.tipo_solicitud or "PPSH",
+                "num_expediente": solicitud.num_expediente,
+                "sexo": sexo,
+                "foto_url": foto_url
             }
             
         except Exception as e:
@@ -1238,7 +1445,8 @@ class InstanciaService:
             "puede_editar": puede_editar,
             "campos": campos,
             "metadata_instancia": instancia.metadata_adicional,
-            "datos_solicitante": InstanciaService._obtener_datos_solicitante_por_expediente(db, instancia.num_expediente)
+            "datos_solicitante": InstanciaService._obtener_datos_solicitante_por_expediente(db, instancia.num_expediente),
+            "nombre_workflow": instancia.workflow.nombre if instancia.workflow else None
         }
 
     @staticmethod
@@ -1383,7 +1591,9 @@ class InstanciaService:
             "puede_editar": puede_editar,
             "es_etapa_completada": es_etapa_completada,
             "campos": campos,
-            "metadata_instancia": instancia.metadata_adicional
+            "metadata_instancia": instancia.metadata_adicional,
+            "datos_solicitante": InstanciaService._obtener_datos_solicitante_por_expediente(db, instancia.num_expediente),
+            "nombre_workflow": instancia.workflow.nombre if instancia.workflow else None
         }
 
 

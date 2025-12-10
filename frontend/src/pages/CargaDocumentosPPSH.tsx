@@ -124,7 +124,6 @@ export const CargaDocumentosPPSH = () => {
 
   const handleDownloadRequisitos = () => {
     // TODO: Implementar descarga de PDF con requisitos
-    console.log('Descargar requisitos PPSH');
   };
 
   const handleFileSelect = (file: File | null) => {
@@ -226,7 +225,6 @@ export const CargaDocumentosPPSH = () => {
 
   const handleComplete = () => {
     // TODO: Navegar a página de confirmación o dashboard
-    console.log('Todos los documentos cargados');
     navigate('/solicitudes');
   };
 

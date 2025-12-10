@@ -38,6 +38,7 @@ import {
 } from '@mui/icons-material';
 import { DynamicEtapaView } from '../components/Workflow/DynamicEtapaView';
 import { workflowService } from '../services/workflow.service';
+import { getApiBaseUrl } from '../utils/apiUrl';
 
 interface RouteParams {
   instanciaId: string;
@@ -82,7 +83,8 @@ export const WorkflowExecution: React.FC = () => {
       if (instanciaId) {
         numericId = parseInt(instanciaId);
       } else if (solicitudId) {
-        const response = await fetch(`http://localhost:8000/api/v1/ppsh/solicitudes/${solicitudId}`);
+        const apiBaseUrl = getApiBaseUrl();
+        const response = await fetch(`${apiBaseUrl}/ppsh/solicitudes/${solicitudId}`);
         if (!response.ok) {
           throw new Error('No se pudo obtener la información de la solicitud');
         }

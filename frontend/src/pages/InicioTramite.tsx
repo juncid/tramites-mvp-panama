@@ -2,20 +2,25 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Box,
-  Container,
   Typography,
   Card,
   CardContent,
   CardActionArea,
+  Button,
+  Link,
 } from '@mui/material';
 import {
-  PlayArrow as PlayArrowIcon,
+  PlayCircleOutline as PlayCircleOutlineIcon,
   Refresh as RefreshIcon,
+  Home as HomeIcon,
 } from '@mui/icons-material';
+import { LogoMigracion } from '../components/Layout/LogoMigracion';
+import { Header } from '../components/Layout/Header';
 
 /**
- * Página de inicio de trámite
+ * Página de inicio de trámite PPSH
  * Permite al usuario elegir entre iniciar un nuevo proceso o continuar uno existente
+ * Diseño basado en Figma node 2439-1293
  */
 export const InicioTramite: React.FC = () => {
   const navigate = useNavigate();
@@ -28,109 +33,165 @@ export const InicioTramite: React.FC = () => {
     navigate('/acceso-publico');
   };
 
+  const handleVolverClick = () => {
+    navigate('/inicio');
+  };
+
   return (
     <Box
       sx={{
         minHeight: '100vh',
-        bgcolor: '#f9fafb',
+        bgcolor: '#ffffff',
         display: 'flex',
         flexDirection: 'column',
       }}
     >
-      {/* Header azul */}
+      {/* Header con logo */}
+      <Header />
+
+      {/* Hero section azul */}
       <Box
         sx={{
           bgcolor: '#0e5fa6',
-          color: 'white',
-          py: 6,
-          textAlign: 'center',
+          pt: { xs: 3, md: 5 },
+          pb: { xs: 3, md: 5 },
+          px: { xs: 2, sm: 3, md: '7.69rem' },
         }}
       >
-        <Container maxWidth="md">
-          <Typography 
-            variant="h4" 
-            sx={{ 
-              fontWeight: 700, 
-              mb: 2,
+        {/* Título principal */}
+        <Typography
+          sx={{
+            fontFamily: 'Roboto Flex, Roboto, sans-serif',
+            fontWeight: 700,
+            fontSize: { xs: '40px', md: '64px' },
+            lineHeight: 1.1,
+            color: 'white',
+            mb: { xs: 2, md: 4 },
+            maxWidth: '896px',
+          }}
+        >
+          Permiso de Protección de Seguridad Humanitaria
+        </Typography>
+
+        {/* Breadcrumb navigation */}
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1,
+            flexWrap: 'wrap',
+          }}
+        >
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <HomeIcon sx={{ color: 'white', fontSize: 20 }} />
+            <Link
+              component="button"
+              onClick={() => navigate('/inicio')}
+              sx={{
+                fontFamily: 'Roboto, sans-serif',
+                fontWeight: 400,
+                fontSize: '14px',
+                lineHeight: '24px',
+                color: 'white',
+                textDecoration: 'none',
+                '&:hover': {
+                  textDecoration: 'underline',
+                },
+              }}
+            >
+              Inicio
+            </Link>
+          </Box>
+          <Typography
+            sx={{
               fontFamily: 'Roboto, sans-serif',
-              fontSize: { xs: '24px', md: '32px' },
+              fontWeight: 400,
+              fontSize: '14px',
+              lineHeight: '24px',
+              color: 'white',
+            }}
+          >
+            /
+          </Typography>
+          <Link
+            component="button"
+            onClick={() => navigate('/inicio')}
+            sx={{
+              fontFamily: 'Roboto, sans-serif',
+              fontWeight: 400,
+              fontSize: '14px',
+              lineHeight: '24px',
+              color: 'white',
+              textDecoration: 'none',
+              '&:hover': {
+                textDecoration: 'underline',
+              },
+            }}
+          >
+            Trámites
+          </Link>
+          <Typography
+            sx={{
+              fontFamily: 'Roboto, sans-serif',
+              fontWeight: 400,
+              fontSize: '14px',
+              lineHeight: '24px',
+              color: 'white',
+              display: { xs: 'none', md: 'block' },
+            }}
+          >
+            /
+          </Typography>
+          <Typography
+            sx={{
+              fontFamily: 'Roboto, sans-serif',
+              fontWeight: 400,
+              fontSize: '14px',
+              lineHeight: '24px',
+              color: 'white',
+              display: { xs: 'none', md: 'block' },
             }}
           >
             Permiso de Protección de Seguridad Humanitaria
           </Typography>
-          <Typography 
-            variant="body1" 
-            sx={{ 
-              opacity: 0.9,
-              fontFamily: 'Roboto, sans-serif',
-              fontSize: '16px',
-              maxWidth: 600,
-              mx: 'auto',
-            }}
-          >
-            Sistema de Trámites Migratorios de Panamá
-          </Typography>
-        </Container>
+        </Box>
       </Box>
 
-      {/* Contenido principal */}
-      <Container 
-        maxWidth="md" 
-        sx={{ 
-          flex: 1, 
-          display: 'flex', 
+      {/* Contenido principal con las tarjetas */}
+      <Box
+        sx={{
+          flex: 1,
+          py: { xs: 4, md: 7 },
+          px: { xs: '16px', sm: 3, md: '7.69rem' },
+          display: 'flex',
           flexDirection: 'column',
-          justifyContent: 'center',
-          py: 6,
         }}
       >
-        <Box sx={{ textAlign: 'center', mb: 5 }}>
-          <Typography 
-            variant="h5" 
-            sx={{ 
-              fontWeight: 600,
-              color: '#333333',
-              fontFamily: 'Roboto, sans-serif',
-              fontSize: '24px',
-              mb: 2,
-            }}
-          >
-            ¿Qué desea realizar?
-          </Typography>
-          <Typography 
-            sx={{ 
-              color: '#666666',
-              fontFamily: 'Roboto, sans-serif',
-              fontSize: '16px',
-            }}
-          >
-            Seleccione una de las siguientes opciones para continuar
-          </Typography>
-        </Box>
-
         {/* Cards de opciones */}
         <Box 
           sx={{ 
             display: 'flex', 
             flexDirection: { xs: 'column', md: 'row' },
-            gap: 4,
-            justifyContent: 'center',
-            alignItems: 'stretch',
+            gap: '30px',
+            justifyContent: { xs: 'flex-start', md: 'center' },
+            alignItems: { xs: 'center', md: 'stretch' },
+            mb: 6,
           }}
         >
           {/* Card: Iniciar Proceso */}
           <Card 
-            elevation={2}
             sx={{ 
-              flex: 1,
-              maxWidth: { xs: '100%', md: 360 },
-              borderRadius: '12px',
+              width: '100%',
+              maxWidth: { xs: '100%', sm: 378 },
+              minHeight: { xs: 'auto', md: 297 },
+              borderRadius: '8px',
+              backgroundColor: '#f1f3f4',
+              boxShadow: '0px 3px 3px 0px rgba(0,0,0,0.2), 0px 3px 4px 0px rgba(0,0,0,0.14), 0px 1px 8px 0px rgba(0,0,0,0.12)',
+              overflow: 'hidden',
               transition: 'all 0.3s ease',
-              border: '2px solid transparent',
               '&:hover': {
                 transform: 'translateY(-4px)',
-                boxShadow: '0 12px 24px rgba(14, 95, 166, 0.15)',
-                borderColor: '#0e5fa6',
+                boxShadow: '0px 6px 12px 0px rgba(0,0,0,0.25), 0px 6px 8px 0px rgba(0,0,0,0.18), 0px 2px 16px 0px rgba(0,0,0,0.15)',
               },
             }}
           >
@@ -142,48 +203,49 @@ export const InicioTramite: React.FC = () => {
                 flexDirection: 'column',
                 alignItems: 'center',
                 justifyContent: 'center',
-                p: 4,
               }}
             >
-              <CardContent sx={{ textAlign: 'center' }}>
-                <Box
-                  sx={{
-                    width: 80,
-                    height: 80,
-                    borderRadius: '50%',
-                    bgcolor: 'rgba(14, 95, 166, 0.1)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    mx: 'auto',
-                    mb: 3,
-                  }}
-                >
-                  <PlayArrowIcon 
-                    sx={{ 
-                      fontSize: 40, 
-                      color: '#0e5fa6',
-                    }} 
-                  />
-                </Box>
-                <Typography 
-                  variant="h6" 
+              <CardContent 
+                sx={{ 
+                  textAlign: 'center',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  py: { xs: 4, md: 6 },
+                  px: { xs: 2, sm: 3 },
+                  width: '100%',
+                  boxSizing: 'border-box',
+                }}
+              >
+                <PlayCircleOutlineIcon 
                   sx={{ 
-                    fontWeight: 600,
-                    color: '#333333',
+                    fontSize: { xs: 48, md: 64 }, 
+                    color: '#0e5fa6',
+                    mb: { xs: 2, md: 3 },
+                  }} 
+                />
+                <Typography 
+                  sx={{ 
                     fontFamily: 'Roboto, sans-serif',
-                    fontSize: '20px',
-                    mb: 1.5,
+                    fontWeight: 500,
+                    fontSize: { xs: '28px', sm: '32px', md: '36px' },
+                    lineHeight: 1.3,
+                    color: '#333333',
+                    mb: 1,
                   }}
                 >
                   Iniciar Proceso
                 </Typography>
                 <Typography 
                   sx={{ 
-                    color: '#666666',
                     fontFamily: 'Roboto, sans-serif',
-                    fontSize: '14px',
-                    lineHeight: 1.6,
+                    fontWeight: 400,
+                    fontSize: { xs: '14px', sm: '16px' },
+                    lineHeight: 1.5,
+                    color: '#333333',
+                    width: '100%',
+                    maxWidth: 330,
+                    px: 1,
                   }}
                 >
                   Comience una nueva solicitud de Permiso de Protección de Seguridad Humanitaria
@@ -194,17 +256,18 @@ export const InicioTramite: React.FC = () => {
 
           {/* Card: Continuar Proceso */}
           <Card 
-            elevation={2}
             sx={{ 
-              flex: 1,
-              maxWidth: { xs: '100%', md: 360 },
-              borderRadius: '12px',
+              width: '100%',
+              maxWidth: { xs: '100%', sm: 378 },
+              minHeight: { xs: 'auto', md: 297 },
+              borderRadius: '8px',
+              backgroundColor: '#f1f3f4',
+              boxShadow: '0px 3px 3px 0px rgba(0,0,0,0.2), 0px 3px 4px 0px rgba(0,0,0,0.14), 0px 1px 8px 0px rgba(0,0,0,0.12)',
+              overflow: 'hidden',
               transition: 'all 0.3s ease',
-              border: '2px solid transparent',
               '&:hover': {
                 transform: 'translateY(-4px)',
-                boxShadow: '0 12px 24px rgba(14, 95, 166, 0.15)',
-                borderColor: '#0e5fa6',
+                boxShadow: '0px 6px 12px 0px rgba(0,0,0,0.25), 0px 6px 8px 0px rgba(0,0,0,0.18), 0px 2px 16px 0px rgba(0,0,0,0.15)',
               },
             }}
           >
@@ -216,48 +279,49 @@ export const InicioTramite: React.FC = () => {
                 flexDirection: 'column',
                 alignItems: 'center',
                 justifyContent: 'center',
-                p: 4,
               }}
             >
-              <CardContent sx={{ textAlign: 'center' }}>
-                <Box
-                  sx={{
-                    width: 80,
-                    height: 80,
-                    borderRadius: '50%',
-                    bgcolor: 'rgba(76, 175, 80, 0.1)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    mx: 'auto',
-                    mb: 3,
-                  }}
-                >
-                  <RefreshIcon 
-                    sx={{ 
-                      fontSize: 40, 
-                      color: '#4caf50',
-                    }} 
-                  />
-                </Box>
-                <Typography 
-                  variant="h6" 
+              <CardContent 
+                sx={{ 
+                  textAlign: 'center',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  py: { xs: 4, md: 6 },
+                  px: { xs: 2, sm: 3 },
+                  width: '100%',
+                  boxSizing: 'border-box',
+                }}
+              >
+                <RefreshIcon 
                   sx={{ 
-                    fontWeight: 600,
-                    color: '#333333',
+                    fontSize: { xs: 48, md: 64 }, 
+                    color: '#4caf50',
+                    mb: { xs: 2, md: 3 },
+                  }} 
+                />
+                <Typography 
+                  sx={{ 
                     fontFamily: 'Roboto, sans-serif',
-                    fontSize: '20px',
-                    mb: 1.5,
+                    fontWeight: 500,
+                    fontSize: { xs: '28px', sm: '32px', md: '36px' },
+                    lineHeight: 1.3,
+                    color: '#333333',
+                    mb: 1,
                   }}
                 >
                   Continuar Proceso
                 </Typography>
                 <Typography 
                   sx={{ 
-                    color: '#666666',
                     fontFamily: 'Roboto, sans-serif',
-                    fontSize: '14px',
-                    lineHeight: 1.6,
+                    fontWeight: 400,
+                    fontSize: { xs: '14px', sm: '16px' },
+                    lineHeight: 1.5,
+                    color: '#333333',
+                    width: '100%',
+                    maxWidth: 330,
+                    px: 1,
                   }}
                 >
                   Retome un proceso ya iniciado ingresando su número de solicitud
@@ -267,53 +331,34 @@ export const InicioTramite: React.FC = () => {
           </Card>
         </Box>
 
-        {/* Información adicional */}
-        <Box sx={{ textAlign: 'center', mt: 6 }}>
-          <Typography 
-            sx={{ 
-              color: '#999999',
+        {/* Botón Volver */}
+        <Box sx={{ display: 'flex', justifyContent: { xs: 'center', md: 'flex-start' } }}>
+          <Button
+            variant="outlined"
+            onClick={handleVolverClick}
+            sx={{
+              width: { xs: '100%', md: 'auto' },
+              maxWidth: { xs: '328px', md: 'none' },
+              borderColor: '#0e5fa6',
+              color: '#0e5fa6',
+              borderRadius: '4px',
+              px: 2,
+              py: 1,
               fontFamily: 'Roboto, sans-serif',
-              fontSize: '14px',
+              fontWeight: 400,
+              fontSize: '16px',
+              lineHeight: '24px',
+              textTransform: 'none',
+              minWidth: '124px',
+              '&:hover': {
+                borderColor: '#0e5fa6',
+                backgroundColor: 'rgba(14, 95, 166, 0.04)',
+              },
             }}
           >
-            Si tiene dudas sobre el proceso, consulte la{' '}
-            <Box 
-              component="span" 
-              sx={{ 
-                color: '#0e5fa6', 
-                cursor: 'pointer',
-                textDecoration: 'underline',
-                '&:hover': {
-                  textDecoration: 'none',
-                },
-              }}
-            >
-              guía de requisitos
-            </Box>
-          </Typography>
+            Volver
+          </Button>
         </Box>
-      </Container>
-
-      {/* Footer */}
-      <Box
-        sx={{
-          bgcolor: '#f0f0f0',
-          py: 3,
-          textAlign: 'center',
-          borderTop: '1px solid #e0e0e0',
-        }}
-      >
-        <Container maxWidth="md">
-          <Typography 
-            sx={{ 
-              color: '#666666',
-              fontFamily: 'Roboto, sans-serif',
-              fontSize: '12px',
-            }}
-          >
-            © 2025 Servicio Nacional de Migración de Panamá. Todos los derechos reservados.
-          </Typography>
-        </Container>
       </Box>
     </Box>
   );

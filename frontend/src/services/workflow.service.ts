@@ -91,6 +91,19 @@ export const workflowService = {
   },
 
   /**
+   * Duplicar un workflow completo
+   * Crea una copia independiente con nuevos IDs para todas las entidades
+   */
+  async duplicateWorkflow(id: number, nuevoNombre?: string, nuevoCodigo?: string): Promise<Workflow> {
+    const params = new URLSearchParams();
+    if (nuevoNombre) params.append('nuevo_nombre', nuevoNombre);
+    if (nuevoCodigo) params.append('nuevo_codigo', nuevoCodigo);
+    const queryString = params.toString();
+    const url = `/workflow/workflows/${id}/duplicar${queryString ? `?${queryString}` : ''}`;
+    return apiClient.post<Workflow>(url, {});
+  },
+
+  /**
    * Crear una etapa
    */
   async createEtapa(data: Partial<WorkflowEtapa>): Promise<WorkflowEtapa> {

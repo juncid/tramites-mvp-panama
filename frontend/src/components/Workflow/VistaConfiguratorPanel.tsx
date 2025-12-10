@@ -72,7 +72,6 @@ export const VistaConfiguratorPanel: React.FC<VistaConfiguratorPanelProps> = ({
   };
 
   const handlePreviewSubmit = (data: FormData) => {
-    console.log('Preview form data:', data);
     setPreviewOpen(false);
   };
 

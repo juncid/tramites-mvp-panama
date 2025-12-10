@@ -24,6 +24,7 @@ import { FileUploadWizard } from './FileUploadWizard';
 
 interface DynamicEtapaViewProps {
   etapa?: WorkflowEtapa; // Opcional si usamos instanciaId
+  etapaId?: number; // ID de etapa específica para cargar (modo readonly/historial)
   instanciaId?: number; // Para cargar vista dinámica desde API
   userPerfil?: string; // Perfil del usuario actual (ADMIN, FUNCIONARIO, etc.)
   readonly?: boolean; // Vista de solo lectura (fuerza modo vista)
@@ -105,6 +106,7 @@ interface VistaActual {
  */
 export const DynamicEtapaView: React.FC<DynamicEtapaViewProps> = ({
   etapa: etapaProp,
+  etapaId,
   instanciaId,
   userPerfil = 'FUNCIONARIO',
   readonly: readonlyProp = false,
@@ -127,7 +129,7 @@ export const DynamicEtapaView: React.FC<DynamicEtapaViewProps> = ({
     if (instanciaId) {
       loadVistaActual();
     }
-  }, [instanciaId, userPerfil]);
+  }, [instanciaId, etapaId, userPerfil]);
 
   const loadVistaActual = async () => {
     if (!instanciaId) return;
@@ -136,11 +138,16 @@ export const DynamicEtapaView: React.FC<DynamicEtapaViewProps> = ({
     setError(null);
 
     try {
-      const vista = await workflowService.getVistaActual(instanciaId, userPerfil, accessToken);
-      console.log('📋 Vista cargada:', vista);
-      console.log('📋 metadata_instancia:', vista.metadata_instancia);
-      console.log('📋 solicitud_id:', vista.metadata_instancia?.id_solicitud);
-      console.log('📋 datos_solicitante:', vista.datos_solicitante);
+      let vista;
+      
+      // Si hay etapaId, cargar vista de esa etapa específica (para readonly/historial)
+      if (etapaId) {
+        vista = await workflowService.getVistaEtapa(instanciaId, etapaId, userPerfil, accessToken);
+      } else {
+        // Cargar vista de la etapa actual
+        vista = await workflowService.getVistaActual(instanciaId, userPerfil, accessToken);
+      }
+      
       setVistaActual(vista);
 
       // Cargar valores actuales en el estado de respuestas
@@ -197,15 +204,25 @@ export const DynamicEtapaView: React.FC<DynamicEtapaViewProps> = ({
   // Suprimir warning de variable no usada temporalmente
   void _handleSave;
 
-  const handleComplete = async () => {
+  const handleComplete = async (respuestasArchivos?: Record<string, any>) => {
     if (!onComplete || !instanciaId) return;
+
+    // Si vienen respuestas de archivos del wizard, combinarlas con las respuestas actuales
+    const respuestasFinales = respuestasArchivos 
+      ? { ...respuestas, ...respuestasArchivos }
+      : respuestas;
+    
 
     // Validar campos obligatorios
     const camposObligatorios = vistaActual?.campos.filter(c => c.es_obligatoria) || [];
+    console.log('🔍 handleComplete - campos obligatorios:', camposObligatorios.map(c => c.codigo));
+    
     const faltantes = camposObligatorios.filter(campo => {
-      const valor = respuestas[campo.codigo];
+      const valor = respuestasFinales[campo.codigo];
       return !valor || (Array.isArray(valor) && valor.length === 0);
     });
+
+    console.log('🔍 handleComplete - faltantes:', faltantes.map(c => c.codigo));
 
     if (faltantes.length > 0) {
       setError(`Faltan campos obligatorios: ${faltantes.map(c => c.pregunta).join(', ')}`);
@@ -215,7 +232,7 @@ export const DynamicEtapaView: React.FC<DynamicEtapaViewProps> = ({
     setSaving(true);
     setError(null);
     try {
-      await onComplete(respuestas);
+      await onComplete(respuestasFinales);
     } catch (err: any) {
       console.error('Error completando etapa:', err);
       setError(err.response?.data?.detail || 'Error al completar la etapa');
@@ -470,7 +487,10 @@ export const DynamicEtapaView: React.FC<DynamicEtapaViewProps> = ({
           // Si usamos wizard, no mostrar botones aquí
           if (usarWizard) return null;
           
-          return vistaActual.puede_editar && (onBack || onComplete) && (
+          // Mostrar botones si hay onBack (siempre) o si puede editar y hay onComplete
+          const mostrarBotones = onBack || (vistaActual.puede_editar && onComplete);
+          
+          return mostrarBotones && (
           <Stack 
             direction="row" 
             justifyContent="space-between" 
@@ -504,7 +524,7 @@ export const DynamicEtapaView: React.FC<DynamicEtapaViewProps> = ({
             ) : (
               <Box /> // Spacer para mantener el siguiente a la derecha
             )}
-            {onComplete && (
+            {vistaActual.puede_editar && onComplete && (
               <Button
                 variant="contained"
                 onClick={handleComplete}

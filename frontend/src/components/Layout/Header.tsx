@@ -41,7 +41,7 @@ const tabs: TabItem[] = [
 export const Header = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { isAdmin } = useAuth();
+  const { isAdmin, usuario, logout, isAuthenticated } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userMenuAnchor, setUserMenuAnchor] = useState<null | HTMLElement>(null);
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -55,9 +55,11 @@ export const Header = () => {
   // Es ruta pública solo si tiene token JWT (no numérico)
   const isPublicRoute = (location.pathname.startsWith('/solicitudes/') && !esIdNumerico) || 
                         location.pathname === '/acceso-publico' ||
-                        location.pathname.startsWith('/consulta-publica/');
+                        location.pathname.startsWith('/consulta-publica/') ||
+                        location.pathname === '/inicio' ||
+                        location.pathname === '/inicio-tramite';
   
-  // Ocultar tabs solo si es ruta pública
+  // Ocultar tabs en rutas públicas
   const shouldHideTabs = isPublicRoute;
 
   // Actualizar la hora cada segundo
@@ -93,7 +95,7 @@ export const Header = () => {
   };
 
   const handleLogout = () => {
-    // TODO: Implementar lógica de logout
+    logout();
     handleUserMenuClose();
     navigate('/login');
   };
@@ -189,11 +191,16 @@ export const Header = () => {
                   fontWeight: 600,
                 }}
               >
-                JP
+                {usuario?.nombre?.split(' ').map(n => n[0]).join('').slice(0, 2) || 'US'}
               </Avatar>
-              <Typography sx={{ color: 'white', fontSize: '0.875rem' }}>
-                Juan Pérez
-              </Typography>
+              <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+                <Typography sx={{ color: 'white', fontSize: '0.875rem', lineHeight: 1.2 }}>
+                  {usuario?.nombre || 'Usuario'}
+                </Typography>
+                <Typography sx={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.65rem', lineHeight: 1 }}>
+                  {usuario?.perfil || ''}
+                </Typography>
+              </Box>
               <ArrowDownIcon sx={{ color: 'white', fontSize: 18 }} />
             </Box>
           </Box>
@@ -222,10 +229,13 @@ export const Header = () => {
         >
           <Box sx={{ px: 2, py: 1.5 }}>
             <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: '#333333' }}>
-              Juan Pérez
+              {usuario?.nombre || 'Usuario'}
             </Typography>
             <Typography sx={{ fontSize: '0.75rem', color: '#788093' }}>
-              juan.perez@migracion.gob.pa
+              {usuario?.email || ''}
+            </Typography>
+            <Typography sx={{ fontSize: '0.65rem', color: '#0e5fa6', fontWeight: 600, mt: 0.5 }}>
+              {usuario?.perfil || ''}
             </Typography>
           </Box>
           <Divider />

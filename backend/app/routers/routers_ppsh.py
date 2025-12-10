@@ -11,7 +11,7 @@ Siguiendo principios SOLID y best practices de FastAPI:
 """
 
 from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile, File, Form
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from typing import List, Optional
@@ -673,9 +673,9 @@ async def subir_documento(
                 detail={"error": "file_storage_error", "message": f"Error al guardar archivo: {str(e)}"}
             )
 
-        # Encolar OCR automático si está habilitado y es imagen (PNG o JPG)
+        # Encolar OCR automático si está habilitado y es imagen (PNG, JPG) o PDF
         task_id = None
-        if ejecutar_ocr and extension in ['png', 'jpg', 'jpeg']:
+        if ejecutar_ocr and extension in ['png', 'jpg', 'jpeg', 'pdf']:
             try:
                 logger.info(f"🔍 Encolando tarea OCR para documento {documento.id_documento}...")
 
@@ -1259,11 +1259,11 @@ async def validar_ocr_documento(
         if not solicitante:
             raise PPSHNotFoundException(detail="No se encontró el solicitante titular")
         
-        # 2. Obtener resultado OCR del documento
+        # 2. Obtener resultado OCR del documento (el más reciente)
         ocr_result = db.query(PPSHDocumentoOCR).filter(
             PPSHDocumentoOCR.id_documento == request.id_documento,
             PPSHDocumentoOCR.estado_ocr == 'COMPLETADO'
-        ).first()
+        ).order_by(PPSHDocumentoOCR.id_ocr.desc()).first()
         
         if not ocr_result:
             # OCR no completado o no existe
@@ -1286,6 +1286,55 @@ async def validar_ocr_documento(
             except json.JSONDecodeError:
                 pass
         
+        # NUEVO: Si ya tenemos validaciones procesadas por el task OCR, usarlas directamente
+        if datos_ocr.get('validaciones') and datos_ocr.get('resumen_validacion'):
+            validaciones = datos_ocr['validaciones']
+            resumen = datos_ocr['resumen_validacion']
+            
+            # Construir respuesta desde las validaciones ya procesadas
+            campos_validados = {}
+            campos_no_encontrados = []
+            campos_con_discrepancia = []
+            
+            # Iterar sobre las validaciones del OCR task
+            for campo_interno, info in validaciones.items():
+                if info.get('encontrado'):
+                    valor = info.get('valor_esperado', '')
+                    tipo = info.get('tipo_coincidencia', 'exacta')
+                    campos_validados[campo_interno] = f"{valor} ({tipo})"
+                else:
+                    campos_no_encontrados.append(campo_interno)
+            
+            # Usar directamente los valores del resumen (más preciso)
+            campos_encontrados = resumen.get('campos_encontrados', 0)
+            campos_totales = resumen.get('campos_totales', 7)
+            porcentaje = resumen.get('porcentaje', 0)
+            
+            # Validación exitosa si tiene 4+ campos de 7
+            validacion_exitosa = campos_encontrados >= 4
+            
+            # Mensaje basado en el resultado
+            if validacion_exitosa:
+                mensaje = f"Validación exitosa. Se validaron {campos_encontrados}/{campos_totales} campos ({porcentaje:.1f}%)."
+            elif campos_encontrados >= 4:
+                mensaje = f"Validación parcial exitosa. Se validaron {campos_encontrados}/{campos_totales} campos ({porcentaje:.1f}%)."
+            elif campos_encontrados > 0:
+                mensaje = f"Validación incompleta. Solo se encontraron {campos_encontrados}/{campos_totales} campos ({porcentaje:.1f}%)."
+            else:
+                mensaje = "No se pudieron extraer suficientes datos del documento para validar."
+            
+            return ValidarOCRResponse(
+                validacion_exitosa=validacion_exitosa,
+                campos_validados=campos_validados,
+                campos_no_encontrados=campos_no_encontrados,
+                campos_con_discrepancia=campos_con_discrepancia,
+                mensaje=mensaje,
+                puede_continuar=True,
+                datos_ocr_raw=datos_ocr,
+                texto_ocr_completo=ocr_result.texto_extraido
+            )
+        
+        # FALLBACK: Lógica antigua si no hay validaciones procesadas
         # También buscar en el texto extraído si no hay datos estructurados
         texto_ocr = (ocr_result.texto_extraido or "").upper()
         
@@ -1437,4 +1486,61 @@ async def validar_ocr_documento(
             puede_continuar=True,
             datos_ocr_raw=None,
             texto_ocr_completo=None
+        )
+
+
+# ==========================================
+# ENDPOINT: Foto del Solicitante
+# ==========================================
+
+@router.get(
+    "/solicitudes/{id_solicitud}/solicitante/foto",
+    summary="Obtener foto del solicitante titular",
+    description="Devuelve la foto del solicitante titular de la solicitud como imagen",
+    responses={
+        200: {"content": {"image/jpeg": {}}},
+        404: {"description": "Foto no encontrada"}
+    }
+)
+async def obtener_foto_solicitante(
+    id_solicitud: int,
+    db: Session = Depends(get_db)
+):
+    """
+    Obtiene la foto del solicitante titular de una solicitud PPSH.
+    
+    Si no hay foto almacenada, devuelve una imagen placeholder.
+    """
+    try:
+        # Buscar solicitante titular
+        solicitante = db.query(PPSHSolicitante).filter(
+            PPSHSolicitante.id_solicitud == id_solicitud,
+            PPSHSolicitante.es_titular == True
+        ).first()
+        
+        if not solicitante:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No se encontró el solicitante titular"
+            )
+        
+        if not solicitante.foto:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="El solicitante no tiene foto registrada"
+            )
+        
+        # Detectar tipo MIME (asumimos JPEG si no hay otro indicador)
+        return Response(
+            content=solicitante.foto,
+            media_type="image/jpeg"
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error obteniendo foto de solicitante: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error al obtener la foto del solicitante"
         )

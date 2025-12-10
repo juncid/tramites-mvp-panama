@@ -72,7 +72,6 @@ export const ReasignacionCaso = () => {
   };
 
   const handleDescargarDocumento = (doc: { id: number; nombre: string }) => {
-    console.log('Descargar documento:', doc.nombre);
     // TODO: Implementar descarga real de documentos
   };
 
@@ -108,7 +107,6 @@ export const ReasignacionCaso = () => {
               onToggle={handleToggleRequisito}
               disabled={readonly}
               onInfoClick={(item) => {
-                console.log('Info clicked:', item);
                 // TODO: Mostrar modal con más información
               }}
             />

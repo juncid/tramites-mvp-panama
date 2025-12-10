@@ -169,17 +169,25 @@ class TestSolicitudService:
         assert SolicitudService is not None
     
     def test_validar_permiso_estado_admin(self):
-        """Test: Admin tiene permiso para todos los estados"""
+        """Test: Admin tiene permiso para todos los estados (saltando transición)"""
         # Admin debe poder cambiar a cualquier estado
-        estados = ["EN_REVISION", "EN_EVALUACION", "APROBADO", "RECHAZADO", "CANCELADO"]
-        for estado in estados:
-            # No debe lanzar excepción
-            validar_permiso_cambio_estado("ADMIN", estado)
+        # Usamos transiciones válidas para cada estado
+        transiciones_test = [
+            ("RECIBIDO", "EN_REVISION"),
+            ("EN_REVISION", "EN_EVALUACION"),
+            ("EN_APROBACION", "APROBADO"),
+            ("EN_APROBACION", "RECHAZADO"),
+            ("RECIBIDO", "CANCELADO"),
+        ]
+        for estado_actual, estado_nuevo in transiciones_test:
+            # ADMIN puede con motivo
+            es_valido, _ = validar_permiso_cambio_estado(estado_actual, estado_nuevo, "ADMIN", "Motivo válido aquí")
+            assert es_valido is True, f"ADMIN debería poder cambiar de {estado_actual} a {estado_nuevo}"
     
     def test_validar_permiso_estado_jefe_aprobado(self):
-        """Test: Jefe puede aprobar"""
-        # No debe lanzar excepción
-        validar_permiso_cambio_estado("JEFE", "APROBADO")
+        """Test: Jefe puede aprobar con motivo"""
+        es_valido, _ = validar_permiso_cambio_estado("EN_APROBACION", "APROBADO", "JEFE", "Aprobado por cumplir requisitos")
+        assert es_valido is True
 
 
 # ==========================================

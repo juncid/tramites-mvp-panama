@@ -76,7 +76,6 @@ export const CargaPoderGeneral: React.FC = () => {
     let nombreArchivoFinal = uploadedFile?.name || 'documento-dummy.pdf';
 
     if (!uploadedFile || !documentoId) {
-      console.log('⚠️ Modo desarrollo: Creando documento dummy para continuar');
       documentoIdFinal = Math.floor(Math.random() * 9000) + 1000;
     }
 

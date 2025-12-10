@@ -1,6 +1,7 @@
 import { Grid, Paper, Typography, Box } from '@mui/material';
 import { StatCard } from '../components/Dashboard/StatCard';
 import { RecentActivityCard } from '../components/Dashboard/RecentActivityCard';
+import { SolicitudesPorMesChart } from '../components/Dashboard/SolicitudesPorMesChart';
 import {
   TrendingUp,
   TrendingDown,
@@ -68,16 +69,8 @@ export const Dashboard = () => {
             <Typography variant="h6" gutterBottom>
               Solicitudes por Mes
             </Typography>
-            <Box
-              sx={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                height: '300px',
-                color: 'text.secondary',
-              }}
-            >
-              Gráfico - Integrar Chart.js aquí
+            <Box sx={{ height: '320px' }}>
+              <SolicitudesPorMesChart />
             </Box>
           </Paper>
         </Grid>

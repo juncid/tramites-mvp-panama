@@ -6,9 +6,12 @@ import {
   Button,
   CircularProgress,
   Alert,
+  Grid,
 } from '@mui/material';
 import {
   Home as HomeIcon,
+  Visibility as VisibilityIcon,
+  Close as CloseIcon,
 } from '@mui/icons-material';
 import { workflowService } from '../services/workflow.service';
 import { useAuth } from '../context/AuthContext';
@@ -26,6 +29,9 @@ import { SeleccionFechaView } from '../components/Workflow/QuestionViews/Selecci
 import { DescargaArchivoView } from '../components/Workflow/QuestionViews/DescargaArchivoView';
 import { ImpresionView } from '../components/Workflow/QuestionViews/ImpresionView';
 import { ImpresionListaCasosView } from '../components/Workflow/QuestionViews/ImpresionListaCasosView';
+import { SolicitudSummaryCard } from '../components/Solicitudes/SolicitudSummaryCard';
+import { FileUploadWizard } from '../components/Workflow/FileUploadWizard';
+import { getApiBaseUrl, getApiRootUrl } from '../utils/apiUrl';
 
 interface CampoVista {
   id: number;
@@ -75,6 +81,19 @@ interface VistaActual {
   puede_editar: boolean;
   campos: CampoVista[];
   metadata_instancia?: any;
+  datos_solicitante?: {
+    pasaporte?: string;
+    nacionalidad?: string;
+    nombres?: string;
+    apellidos?: string;
+    fecha_nacimiento?: string;
+    id_solicitud?: number;
+    tipo_solicitud?: string;
+    num_expediente?: string;
+    sexo?: string;
+    foto_url?: string;
+  };
+  nombre_workflow?: string;
 }
 
 /**
@@ -107,6 +126,10 @@ export const GenericEtapaPage: React.FC = () => {
   const [respuestas, setRespuestas] = useState<Record<string, any>>({});
   const [workflowInstanciaId, setWorkflowInstanciaId] = useState<number | null>(null);
   const [ppshSolicitudId, setPpshSolicitudId] = useState<number | null>(null);
+  const [showSummaryCard, setShowSummaryCard] = useState(false);
+  const [ocrErrorCount, setOcrErrorCount] = useState<number | null>(null);
+  const [ocrAutoSelectedCode, setOcrAutoSelectedCode] = useState<string | null>(null);
+  const [camposAutoLlenados, setCamposAutoLlenados] = useState<string[]>([]);
 
   useEffect(() => {
     loadVistaActual();
@@ -123,7 +146,8 @@ export const GenericEtapaPage: React.FC = () => {
         numericId = parseInt(instanciaId);
       } else if (solicitudId) {
         // Obtener workflow_instancia_id desde la solicitud
-        const response = await fetch(`http://localhost:8000/api/v1/ppsh/solicitudes/${solicitudId}`);
+        const apiBaseUrl = getApiBaseUrl();
+        const response = await fetch(`${apiBaseUrl}/ppsh/solicitudes/${solicitudId}`);
         if (!response.ok) {
           throw new Error('No se pudo obtener la información de la solicitud');
         }
@@ -170,6 +194,39 @@ export const GenericEtapaPage: React.FC = () => {
           }
         }
       });
+
+      // Auto-llenar fecha y responsable para etapas de cotización
+      const esCotizacion = vista.etapa_actual?.nombre?.toLowerCase().includes('cotización') ||
+                           vista.etapa_actual?.codigo?.toLowerCase().includes('cotizacion');
+      
+      if (esCotizacion) {
+        const camposAutoLlenadosList: string[] = [];
+        
+        // Buscar campo de fecha (PREGUNTA_3 o que contenga "fecha" en el nombre)
+        const campoFecha = vista.campos.find((c: CampoVista) => 
+          c.codigo === 'PREGUNTA_3' || c.pregunta?.toLowerCase().includes('fecha')
+        );
+        
+        // Buscar campo de responsable (PREGUNTA_4 o que contenga "responsable" en el nombre)
+        const campoResponsable = vista.campos.find((c: CampoVista) => 
+          c.codigo === 'PREGUNTA_4' || c.pregunta?.toLowerCase().includes('responsable')
+        );
+        
+        // Auto-llenar fecha con la fecha de hoy si no tiene valor
+        if (campoFecha && !valoresIniciales[campoFecha.codigo]) {
+          valoresIniciales[campoFecha.codigo] = new Date().toLocaleDateString('es-PA');
+          camposAutoLlenadosList.push(campoFecha.codigo);
+        }
+        
+        // Auto-llenar responsable con el nombre del usuario si no tiene valor
+        if (campoResponsable && !valoresIniciales[campoResponsable.codigo] && usuario?.nombre) {
+          valoresIniciales[campoResponsable.codigo] = usuario.nombre;
+          camposAutoLlenadosList.push(campoResponsable.codigo);
+        }
+        
+        setCamposAutoLlenados(camposAutoLlenadosList);
+      }
+
       setRespuestas(valoresIniciales);
 
     } catch (err: any) {
@@ -186,6 +243,71 @@ export const GenericEtapaPage: React.FC = () => {
       [codigo]: valor
     }));
   };
+
+  // Callback para recibir el conteo de errores OCR (solo actualiza el estado)
+  const handleOcrErrorCountChange = React.useCallback((count: number) => {
+    setOcrErrorCount(count);
+  }, []);
+
+  // Efecto para auto-seleccionar la respuesta de OCR cuando tenemos los datos
+  React.useEffect(() => {
+    // Solo ejecutar si tenemos vistaActual, ocrErrorCount y NO se ha auto-seleccionado aún
+    if (!vistaActual || ocrErrorCount === null || ocrAutoSelectedCode) return;
+    
+    const preguntaOcrOpciones = vistaActual.campos.find(
+      campo => campo.tipo_pregunta === 'OPCIONES' && 
+               campo.pregunta.toLowerCase().includes('ocr')
+    );
+    
+    // Solo auto-seleccionar si existe la pregunta y no hay respuesta previa
+    if (!preguntaOcrOpciones || respuestas[preguntaOcrOpciones.codigo]) return;
+    
+    // Buscar las opciones disponibles
+    let opciones: string[] = [];
+    if (preguntaOcrOpciones.opciones) {
+      if (Array.isArray(preguntaOcrOpciones.opciones)) {
+        opciones = preguntaOcrOpciones.opciones;
+      } else if (typeof preguntaOcrOpciones.opciones === 'string') {
+        try {
+          opciones = JSON.parse(preguntaOcrOpciones.opciones);
+        } catch {
+          opciones = preguntaOcrOpciones.opciones.split(',').map((s: string) => s.trim());
+        }
+      }
+    }
+    
+    // Si hay 0 o 1 documentos con errores OCR, auto-seleccionar "Sí"
+    if (ocrErrorCount <= 1) {
+      const opcionSi = opciones.find(opt => 
+        opt.toLowerCase() === 'sí' || 
+        opt.toLowerCase() === 'si' || 
+        opt.toLowerCase() === 'yes'
+      );
+      
+      if (opcionSi) {
+        setRespuestas(prev => ({
+          ...prev,
+          [preguntaOcrOpciones.codigo]: opcionSi
+        }));
+        // Marcar como auto-seleccionado para hacer readonly
+        setOcrAutoSelectedCode(preguntaOcrOpciones.codigo);
+      }
+    } else {
+      // Si hay 2 o más documentos con errores OCR, auto-seleccionar "No"
+      const opcionNo = opciones.find(opt => 
+        opt.toLowerCase() === 'no'
+      );
+      
+      if (opcionNo) {
+        setRespuestas(prev => ({
+          ...prev,
+          [preguntaOcrOpciones.codigo]: opcionNo
+        }));
+        // Marcar como auto-seleccionado para hacer readonly
+        setOcrAutoSelectedCode(preguntaOcrOpciones.codigo);
+      }
+    }
+  }, [vistaActual, ocrErrorCount, ocrAutoSelectedCode, respuestas]);
 
   const getBasePath = () => {
     return solicitudId ? `/solicitudes/${solicitudId}` : `/workflows/${instanciaId}`;
@@ -279,9 +401,17 @@ export const GenericEtapaPage: React.FC = () => {
       campos_caso: campo.opciones_datos_caso,
     };
 
+    // Determinar si este campo debe estar en readonly
+    // - Si la página está en readonly mode
+    // - Si es la pregunta de OCR que fue auto-seleccionada
+    // - Si es un campo auto-llenado (fecha/responsable en cotización)
+    const isFieldReadonly = isReadonly || 
+                           (campo.codigo === ocrAutoSelectedCode) || 
+                           camposAutoLlenados.includes(campo.codigo);
+
     const commonProps = {
       pregunta,
-      readonly: isReadonly,
+      readonly: isFieldReadonly,
       onAnswerChange: (valor: any) => handleAnswerChange(campo.codigo, valor),
       value: respuestas[campo.codigo],
     };
@@ -293,7 +423,10 @@ export const GenericEtapaPage: React.FC = () => {
           return <RespuestaTextoView key={campo.id} {...commonProps} />;
         
         case 'LISTA':
-          return <ListaView key={campo.id} {...commonProps} />;
+          // Permitir selección en readonly si es etapa de cotización
+          const esEtapaCotizacion = vistaActual?.etapa_actual?.nombre?.toLowerCase().includes('cotización') ||
+                                    vistaActual?.etapa_actual?.codigo?.toLowerCase().includes('cotizacion');
+          return <ListaView key={campo.id} {...commonProps} allowSelectionInReadonly={esEtapaCotizacion} />;
         
         case 'OPCIONES':
           return <OpcionesView key={campo.id} {...commonProps} />;
@@ -307,6 +440,7 @@ export const GenericEtapaPage: React.FC = () => {
               key={campo.id} 
               {...commonProps} 
               instanciaId={workflowInstanciaId ?? undefined}
+              onOcrErrorCountChange={handleOcrErrorCountChange}
             />
           );
         
@@ -314,7 +448,16 @@ export const GenericEtapaPage: React.FC = () => {
           return <RevisionOCRView key={campo.id} {...commonProps} instanciaId={workflowInstanciaId ?? undefined} />;
         
         case 'DATOS_CASO':
-          return <DatosCasoView key={campo.id} {...commonProps} instanciaId={workflowInstanciaId ?? undefined} metadataInstancia={vistaActual?.metadata_instancia} />;
+          return (
+            <DatosCasoView 
+              key={campo.id} 
+              {...commonProps} 
+              instanciaId={workflowInstanciaId ?? undefined} 
+              metadataInstancia={vistaActual?.metadata_instancia}
+              datosSolicitante={vistaActual?.datos_solicitante}
+              nombreWorkflow={vistaActual?.nombre_workflow}
+            />
+          );
         
         case 'SELECCION_FECHA':
           return <SeleccionFechaView key={campo.id} {...commonProps} />;
@@ -323,6 +466,83 @@ export const GenericEtapaPage: React.FC = () => {
           return <DescargaArchivoView key={campo.id} {...commonProps} />;
         
         case 'IMPRESION':
+          // Detectar si es una etapa de cotización para pasar datos especiales
+          const esCotizacion = vistaActual?.etapa_actual?.nombre?.toLowerCase().includes('cotización') ||
+                              vistaActual?.etapa_actual?.codigo?.toLowerCase().includes('cotizacion');
+          
+          if (esCotizacion && vistaActual) {
+            // Extraer datos de cotización de los campos
+            const camposData = vistaActual.campos;
+            const datosSolicitante = vistaActual.datos_solicitante;
+            
+            // Buscar los campos de cotización, fecha y responsable
+            const campoCotizacion = camposData.find(c => c.tipo_pregunta === 'LISTA');
+            const campoFecha = camposData.find(c => c.codigo === 'PREGUNTA_3' || c.pregunta?.toLowerCase().includes('fecha'));
+            const campoResponsable = camposData.find(c => c.codigo === 'PREGUNTA_4' || c.pregunta?.toLowerCase().includes('responsable'));
+            
+            // Obtener items de cotización desde las respuestas actuales (prioridad) o el valor guardado
+            // En modo cotización readonly, el usuario puede cambiar la selección antes de imprimir
+            const codigoCotizacion = campoCotizacion?.codigo || '';
+            const itemsSeleccionados = respuestas[codigoCotizacion] !== undefined 
+                                       ? respuestas[codigoCotizacion]
+                                       : (campoCotizacion?.valor_actual?.valores_multiples || []);
+            
+            // Parsear las opciones de cotización para obtener código, descripción y precio
+            const allOptions = campoCotizacion?.opciones || [];
+            const parsedItems = (Array.isArray(allOptions) ? allOptions : []).map((opcion: string, idx: number) => {
+              // Formato esperado: "(832)Carné de Tramite: B/50.00"
+              const match = opcion.match(/^\((\d+)\)(.+?):\s*B\/(\d+\.?\d*)$/);
+              if (match) {
+                return {
+                  id: `item-${idx}`,
+                  codigo: match[1],
+                  descripcion: match[2].trim(),
+                  precio: parseFloat(match[3]),
+                  checked: itemsSeleccionados.includes(opcion),
+                };
+              }
+              // Formato alternativo sin código: "Visa Múltiple 6M: B/50.00"
+              const matchAlt = opcion.match(/^(.+?):\s*B\/(\d+\.?\d*)$/);
+              if (matchAlt) {
+                return {
+                  id: `item-${idx}`,
+                  codigo: '',
+                  descripcion: matchAlt[1].trim(),
+                  precio: parseFloat(matchAlt[2]),
+                  checked: itemsSeleccionados.includes(opcion),
+                };
+              }
+              return {
+                id: `item-${idx}`,
+                codigo: '',
+                descripcion: opcion,
+                precio: 0,
+                checked: itemsSeleccionados.includes(opcion),
+              };
+            });
+            
+            const cotizacionData = {
+              nombre: datosSolicitante?.nombres && datosSolicitante?.apellidos 
+                ? `${datosSolicitante.nombres} ${datosSolicitante.apellidos}`
+                : datosSolicitante?.nombres || 'N/A',
+              nacionalidad: datosSolicitante?.nacionalidad || 'N/A',
+              cotizacionNum: vistaActual.instancia?.num_expediente || 'N/A',
+              tramite: 'PPSH',
+              fecha: campoFecha?.valor_actual?.valor_texto || respuestas[campoFecha?.codigo || ''] || new Date().toLocaleDateString('es-PA'),
+              responsable: campoResponsable?.valor_actual?.valor_texto || respuestas[campoResponsable?.codigo || ''] || 'N/A',
+              items: parsedItems,
+            };
+            
+            return (
+              <ImpresionView 
+                key={campo.id} 
+                {...commonProps} 
+                esCotizacion={true}
+                cotizacionData={cotizacionData}
+              />
+            );
+          }
+          
           return <ImpresionView key={campo.id} {...commonProps} />;
         
         case 'IMPRESION_LISTA_CASOS':
@@ -408,7 +628,7 @@ export const GenericEtapaPage: React.FC = () => {
           variant="h1"
           sx={{
             color: '#ffffff',
-            fontSize: { xs: '32px', md: '64px' },
+            fontSize: { xs: '40px', md: '64px' },
             fontWeight: 700,
             lineHeight: 1.1,
             mb: 2,
@@ -436,8 +656,34 @@ export const GenericEtapaPage: React.FC = () => {
           </Typography>
         )}
 
-        {/* Breadcrumbs - con "/" como separador según Figma */}
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+        {/* Breadcrumbs - En mobile solo muestra los primeros 2 elementos */}
+        {/* Versión Mobile - solo Inicio y Procesos */}
+        <Box sx={{ display: { xs: 'flex', md: 'none' }, alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          <Box 
+            sx={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '8px',
+              cursor: 'pointer',
+              '&:hover': { opacity: 0.8 },
+            }}
+            onClick={() => navigate('/')}
+          >
+            <HomeIcon sx={{ width: 20, height: 20, color: 'white' }} />
+            <Typography sx={{ fontSize: '14px', color: 'white', fontFamily: 'Roboto, sans-serif' }}>
+              Inicio
+            </Typography>
+          </Box>
+          <Typography sx={{ fontSize: '14px', color: 'white', fontFamily: 'Roboto, sans-serif' }}>
+            /
+          </Typography>
+          <Typography sx={{ fontSize: '14px', color: 'white', fontFamily: 'Roboto, sans-serif' }}>
+            Procesos
+          </Typography>
+        </Box>
+
+        {/* Versión Desktop - todos los elementos */}
+        <Box sx={{ display: { xs: 'none', md: 'flex' }, alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
           <Box 
             sx={{ 
               display: 'flex', 
@@ -476,139 +722,272 @@ export const GenericEtapaPage: React.FC = () => {
 
       {/* Contenido principal */}
       <Box sx={{ px: { xs: 2, md: '123px' }, py: '40px', backgroundColor: 'white' }}>
-        {/* Título del formulario desde configuración del nodo */}
-        <Typography
-          variant="h2"
-          sx={{
-            color: '#333333',
-            fontSize: { xs: '32px', md: '48px' },
-            fontWeight: 700,
-            lineHeight: 1.5,
-            mb: 3,
-            fontFamily: '"Roboto Flex", sans-serif',
-          }}
-        >
-          {etapaActual.titulo_formulario || etapaActual.nombre}
-        </Typography>
+        {/* Layout con Grid para panel lateral - desde el inicio */}
+        <Grid container spacing={3}>
+          {/* Contenido principal - Usar ancho completo cuando hay wizard de archivos o en Cotización */}
+          <Grid item xs={12} md={(() => {
+            const camposArchivo = vistaActual.campos.filter(c => c.tipo_pregunta === 'CARGA_ARCHIVO');
+            const usarWizard = camposArchivo.length > 1 && !readonly;
+            // Si usa wizard o no hay datos del solicitante, usar ancho completo
+            if (usarWizard || !vistaActual.datos_solicitante) return 12;
+            // Si es etapa de Cotización, usar ancho completo
+            const esCotizacion = vistaActual.etapa_actual?.codigo?.includes('COTIZACION') || 
+                                 vistaActual.etapa_actual?.nombre?.toLowerCase().includes('cotización') ||
+                                 vistaActual.etapa_actual?.nombre?.toLowerCase().includes('cotizacion');
+            if (esCotizacion) return 12;
+            return 8;
+          })()}>
+            {/* Título y botón para mostrar/ocultar panel */}
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 3 }}>
+              <Typography
+                variant="h2"
+                sx={{
+                  color: '#333333',
+                  fontSize: { xs: '24px', md: '48px' },
+                  fontWeight: 700,
+                  lineHeight: 1.5,
+                  fontFamily: '"Roboto Flex", sans-serif',
+                  flex: 1,
+                }}
+              >
+                {etapaActual.titulo_formulario || etapaActual.nombre}
+              </Typography>
+            </Box>
 
-        {/* Bajada del formulario desde configuración del nodo */}
-        {etapaActual.bajada_formulario && (
-          <Typography
-            sx={{
-              color: '#333333',
-              fontSize: '16px',
-              lineHeight: 1.5,
-              mb: 4,
-              maxWidth: '1167px',
-              fontFamily: 'Roboto, sans-serif',
-            }}
-          >
-            {etapaActual.bajada_formulario}
-          </Typography>
-        )}
+            {/* Bajada del formulario desde configuración del nodo */}
+            {etapaActual.bajada_formulario && (
+              <Typography
+                sx={{
+                  color: '#333333',
+                  fontSize: '16px',
+                  lineHeight: 1.5,
+                  mb: 4,
+                  fontFamily: 'Roboto, sans-serif',
+                }}
+              >
+                {etapaActual.bajada_formulario}
+              </Typography>
+            )}
 
-        {/* Error message */}
-        {error && (
-          <Alert severity="error" sx={{ mb: 3, maxWidth: '1194px' }} onClose={() => setError(null)}>
-            {error}
-          </Alert>
-        )}
+            {/* Error message */}
+            {error && (
+              <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError(null)}>
+                {error}
+              </Alert>
+            )}
 
-        {/* Renderizar campos dinámicamente - layout simple según Figma */}
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0, mb: 4, maxWidth: '1194px' }}>
-          {vistaActual.campos
-            .sort((a, b) => a.orden - b.orden)
-            // Filtrar pregunta de opciones OCR si existe REVISION_MANUAL_DOCUMENTOS
-            .filter(campo => {
-              const hayRevisionManualDocs = vistaActual.campos.some(c => c.tipo_pregunta === 'REVISION_MANUAL_DOCUMENTOS');
-              const esOpcionesOcr = campo.tipo_pregunta === 'OPCIONES' && 
-                campo.pregunta.toLowerCase().includes('revisión ocr');
-              return !(hayRevisionManualDocs && esOpcionesOcr);
-            })
-            .map(campo => renderCampo(campo))}
-        </Box>
+            {/* Renderizar campos dinámicamente - layout simple según Figma */}
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0, mb: 4 }}>
+              {(() => {
+                const camposOrdenados = [...vistaActual.campos].sort((a, b) => {
+                  // Las preguntas de OPCIONES sobre OCR deben ir antes de REVISION_MANUAL_DOCUMENTOS
+                  const aEsOpcionesOcr = a.tipo_pregunta === 'OPCIONES' && 
+                    a.pregunta.toLowerCase().includes('ocr');
+                  const bEsOpcionesOcr = b.tipo_pregunta === 'OPCIONES' && 
+                    b.pregunta.toLowerCase().includes('ocr');
+                  const aEsRevision = a.tipo_pregunta === 'REVISION_MANUAL_DOCUMENTOS';
+                  const bEsRevision = b.tipo_pregunta === 'REVISION_MANUAL_DOCUMENTOS';
+                  
+                  // Si a es OPCIONES OCR y b es REVISION, a va primero
+                  if (aEsOpcionesOcr && bEsRevision) return -1;
+                  // Si b es OPCIONES OCR y a es REVISION, b va primero
+                  if (bEsOpcionesOcr && aEsRevision) return 1;
+                  
+                  // De lo contrario, ordenar por orden normal
+                  return a.orden - b.orden;
+                });
+                
+                const camposArchivo = camposOrdenados.filter(c => c.tipo_pregunta === 'CARGA_ARCHIVO');
+                const camposOtros = camposOrdenados.filter(c => c.tipo_pregunta !== 'CARGA_ARCHIVO');
+                
+                // Si hay múltiples campos de archivo, usar el wizard (tanto en modo edición como readonly)
+                const usarWizard = camposArchivo.length > 1;
+                
+                return (
+                  <>
+                    {/* Renderizar campos que no son de archivo */}
+                    {camposOtros.map(campo => renderCampo(campo))}
+                    
+                    {/* Si hay múltiples archivos y no es readonly, usar wizard */}
+                    {usarWizard ? (
+                      <FileUploadWizard
+                        campos={camposArchivo}
+                        respuestas={respuestas}
+                        onAnswerChange={handleAnswerChange}
+                        solicitudId={ppshSolicitudId || undefined}
+                        readonly={readonly}
+                        onComplete={handleSiguiente}
+                        onBack={handleCancelar}
+                        buttonLabels={{ next: 'Continuar', back: 'Cancelar', complete: 'Guardar' }}
+                        datosSolicitante={vistaActual.datos_solicitante}
+                      />
+                    ) : (
+                      // Si solo hay uno o ningún archivo, o es readonly, renderizar normal
+                      camposArchivo.map(campo => renderCampo(campo))
+                    )}
+                  </>
+                );
+              })()}
+            </Box>
 
-        {/* Botones de navegación */}
-        {readonly ? (
-          <Box sx={{ maxWidth: '1194px' }}>
-            <Button
-              variant="outlined"
-              onClick={handleCancelar}
-              sx={{
-                borderColor: '#0e5fa6',
-                color: '#0e5fa6',
-                px: 2,
-                py: 1,
-                textTransform: 'none',
-                fontSize: '16px',
-                borderRadius: '4px',
-                minWidth: '124px',
-                fontFamily: 'Roboto, sans-serif',
-                '&:hover': {
-                  borderColor: '#0d5494',
-                  backgroundColor: 'rgba(14, 95, 166, 0.04)',
-                },
-              }}
-            >
-              Volver
-            </Button>
-          </Box>
-        ) : (
-          <Box
-            sx={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              maxWidth: '1194px',
-            }}
-          >
-            <Button
-              variant="outlined"
-              onClick={handleCancelar}
-              disabled={completing}
-              sx={{
-                borderColor: '#0e5fa6',
-                color: '#0e5fa6',
-                px: 2,
-                py: 1,
-                textTransform: 'none',
-                fontSize: '16px',
-                borderRadius: '4px',
-                minWidth: '124px',
-                fontFamily: 'Roboto, sans-serif',
-                '&:hover': {
-                  borderColor: '#0d5494',
-                  backgroundColor: 'rgba(14, 95, 166, 0.04)',
-                },
-              }}
-            >
-              Volver
-            </Button>
+            {/* Botones de navegación - Solo mostrar si NO usamos el wizard (el wizard tiene sus propios botones) */}
+            {(() => {
+              const camposArchivo = vistaActual.campos.filter(c => c.tipo_pregunta === 'CARGA_ARCHIVO');
+              const usarWizard = camposArchivo.length > 1;
+              
+              // Si usamos wizard, no mostrar botones aquí
+              if (usarWizard) return null;
+              
+              return readonly ? (
+                <Box sx={{ width: '100%' }}>
+                  <Button
+                    variant="outlined"
+                    onClick={handleCancelar}
+                    sx={{
+                      width: { xs: '100%', sm: 'auto' },
+                      borderColor: '#0e5fa6',
+                      color: '#0e5fa6',
+                      px: 2,
+                      py: 1,
+                      textTransform: 'none',
+                      fontSize: '16px',
+                      borderRadius: '4px',
+                      minWidth: { xs: 'auto', sm: '124px' },
+                      fontFamily: 'Roboto, sans-serif',
+                      '&:hover': {
+                        borderColor: '#0d5494',
+                        backgroundColor: 'rgba(14, 95, 166, 0.04)',
+                      },
+                    }}
+                  >
+                    Volver
+                  </Button>
+                </Box>
+              ) : (
+                <Box
+                  sx={{
+                    display: 'flex',
+                    flexDirection: { xs: 'column', sm: 'row' },
+                    justifyContent: 'space-between',
+                    alignItems: { xs: 'stretch', sm: 'center' },
+                    gap: { xs: 2, sm: 0 },
+                    width: '100%',
+                  }}
+                >
+                  <Button
+                    variant="outlined"
+                    onClick={handleCancelar}
+                    disabled={completing}
+                    sx={{
+                      width: { xs: '100%', sm: 'auto' },
+                      order: { xs: 1, sm: 0 },
+                      borderColor: '#0e5fa6',
+                      color: '#0e5fa6',
+                      px: 2,
+                      py: 1,
+                      textTransform: 'none',
+                      fontSize: '16px',
+                      borderRadius: '4px',
+                      minWidth: { xs: 'auto', sm: '124px' },
+                      fontFamily: 'Roboto, sans-serif',
+                      '&:hover': {
+                        borderColor: '#0d5494',
+                        backgroundColor: 'rgba(14, 95, 166, 0.04)',
+                      },
+                    }}
+                  >
+                    Cancelar
+                  </Button>
 
-            <Button
-              variant="contained"
-              onClick={handleSiguiente}
-              disabled={completing}
-              sx={{
-                backgroundColor: '#0e5fa6',
-                color: '#ffffff',
-                px: 2,
-                py: 1,
-                textTransform: 'none',
-                fontSize: '16px',
-                borderRadius: '4px',
-                minWidth: '124px',
-                fontFamily: 'Roboto, sans-serif',
-                '&:hover': {
-                  backgroundColor: '#0d5494',
-                },
-              }}
-            >
-              {completing ? <CircularProgress size={24} color="inherit" /> : 
-                (etapaActual.es_etapa_final ? 'Finalizar' : 'Siguiente')}
-            </Button>
-          </Box>
-        )}
+                  <Button
+                    variant="contained"
+                    onClick={handleSiguiente}
+                    disabled={completing}
+                    sx={{
+                      width: { xs: '100%', sm: 'auto' },
+                      order: { xs: 0, sm: 1 },
+                      backgroundColor: '#0e5fa6',
+                      color: '#ffffff',
+                      px: 2,
+                      py: 1,
+                      textTransform: 'none',
+                      fontSize: '16px',
+                      borderRadius: '4px',
+                      minWidth: { xs: 'auto', sm: '124px' },
+                      fontFamily: 'Roboto, sans-serif',
+                      '&:hover': {
+                        backgroundColor: '#0d5494',
+                      },
+                    }}
+                  >
+                    {completing ? <CircularProgress size={24} color="inherit" /> : 'Continuar'}
+                  </Button>
+                </Box>
+              );
+            })()}
+          </Grid>
+
+          {/* Panel lateral con datos del solicitante - Ocultar cuando se usa el wizard de archivos o en etapa de Cotización */}
+          {vistaActual.datos_solicitante && (() => {
+            const camposArchivo = vistaActual.campos.filter(c => c.tipo_pregunta === 'CARGA_ARCHIVO');
+            const usarWizard = camposArchivo.length > 1 && !readonly;
+            // No mostrar panel lateral cuando se usa el wizard
+            if (usarWizard) return null;
+            
+            // No mostrar panel lateral en etapa de Cotización
+            const esCotizacion = vistaActual.etapa_actual?.codigo?.includes('COTIZACION') || 
+                                 vistaActual.etapa_actual?.nombre?.toLowerCase().includes('cotización') ||
+                                 vistaActual.etapa_actual?.nombre?.toLowerCase().includes('cotizacion');
+            if (esCotizacion) return null;
+            
+            return (
+            <Grid item xs={12} md={4}>
+              {/* Botón para mostrar/ocultar panel del solicitante */}
+              <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
+                <Box
+                  onClick={() => setShowSummaryCard(!showSummaryCard)}
+                  sx={{
+                    cursor: 'pointer',
+                    p: 1,
+                    borderRadius: '4px',
+                    border: '1px solid #f0f0f0',
+                    boxShadow: '-4px 4px 8px 0px rgba(216,216,216,0.25), 4px 4px 8px 0px rgba(216,216,216,0.25)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    '&:hover': { backgroundColor: '#f5f5f5' },
+                  }}
+                >
+                  {showSummaryCard ? (
+                    <CloseIcon sx={{ color: '#0e5fa6', fontSize: 16 }} />
+                  ) : (
+                    <VisibilityIcon sx={{ color: '#0e5fa6', fontSize: 16 }} />
+                  )}
+                </Box>
+              </Box>
+              
+              {/* Card con datos del solicitante */}
+              {showSummaryCard && (
+                <SolicitudSummaryCard 
+                  data={{
+                    solicitud: vistaActual.datos_solicitante.tipo_solicitud || 'PPSH',
+                    ruex: vistaActual.datos_solicitante.num_expediente || 'N/A',
+                    solicitante: `${vistaActual.datos_solicitante.nombres || ''} ${vistaActual.datos_solicitante.apellidos || ''}`.trim() || 'N/A',
+                    nacionalidad: vistaActual.datos_solicitante.nacionalidad || 'N/A',
+                    pasaporte: vistaActual.datos_solicitante.pasaporte || 'N/A',
+                    sexo: vistaActual.datos_solicitante.sexo || 'N/A',
+                    expediente: vistaActual.datos_solicitante.num_expediente || 'N/A',
+                    fechaNacimiento: vistaActual.datos_solicitante.fecha_nacimiento || 'N/A',
+                    photoUrl: vistaActual.datos_solicitante.foto_url 
+                      ? `${getApiRootUrl()}${vistaActual.datos_solicitante.foto_url}`
+                      : undefined,
+                  }}
+                />
+              )}
+            </Grid>
+            );
+          })()}
+        </Grid>
       </Box>
     </Box>
   );

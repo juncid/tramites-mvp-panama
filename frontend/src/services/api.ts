@@ -3,8 +3,9 @@
  * Cliente HTTP para consumir endpoints del backend
  */
 import { logger } from '../utils/logger';
+import { getApiBaseUrl } from '../utils/apiUrl';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1';
+const API_BASE_URL = getApiBaseUrl();
 
 interface RequestOptions extends RequestInit {
   params?: Record<string, any>;

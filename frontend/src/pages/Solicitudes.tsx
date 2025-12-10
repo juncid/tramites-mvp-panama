@@ -7,6 +7,12 @@ import {
   CircularProgress,
   Alert,
   TablePagination,
+  Card,
+  CardContent,
+  Chip,
+  Button,
+  useMediaQuery,
+  useTheme,
 } from '@mui/material';
 import {
   Home as HomeIcon,
@@ -14,6 +20,7 @@ import {
   Edit as EditIcon,
   Visibility as VisibilityIcon,
   CheckCircleOutline as CheckCircleOutlineIcon,
+  Cancel as CancelIcon,
   ArrowUpward as ArrowUpwardIcon,
   ArrowDownward as ArrowDownwardIcon,
 } from '@mui/icons-material';
@@ -24,6 +31,8 @@ import type { SolicitudListItem } from '../types/ppsh';
 
 export const Solicitudes = () => {
   const navigate = useNavigate();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [solicitudes, setSolicitudes] = useState<SolicitudListItem[]>([]);
   const [totalItems, setTotalItems] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -119,26 +128,27 @@ export const Solicitudes = () => {
         return {
           backgroundColor: '#e1fcef',
           color: '#328056',
-          icon: true,
+          icon: 'check' as const,
         };
       case 'COMPLETADO':
       case 'RESUELTO':
         return {
           backgroundColor: '#e3f2fd',
           color: '#1565c0',
-          icon: true,
+          icon: 'check' as const,
         };
       case 'RECHAZADO':
         return {
           backgroundColor: '#ffebee',
           color: '#c62828',
-          icon: true,
+          icon: 'cancel' as const,
+          fontWeight: 600,
         };
       default:
         return {
           backgroundColor: '#f5f5f5',
           color: '#666666',
-          icon: false,
+          icon: null,
         };
     }
   };
@@ -147,6 +157,20 @@ export const Solicitudes = () => {
   const isEstadoSoloLectura = (estado: string): boolean => {
     const estadoUpper = estado.toUpperCase();
     return estadoUpper === 'RECHAZADO' || estadoUpper === 'RESUELTO';
+  };
+
+  // Función helper para obtener el icono según el tipo
+  const getEstadoIcon = (iconType: 'check' | 'cancel' | null) => {
+    if (iconType === 'check') return <CheckCircleOutlineIcon sx={{ fontSize: 14 }} />;
+    if (iconType === 'cancel') return <CancelIcon sx={{ fontSize: 14 }} />;
+    return undefined;
+  };
+
+  // Función para obtener el label del estado (RECHAZADO siempre en mayúsculas)
+  const getEstadoLabel = (estado: string): string => {
+    if (estado === 'RECIBIDO') return 'Activo';
+    if (estado.toUpperCase() === 'RECHAZADO') return 'RECHAZADO';
+    return estado.toLowerCase();
   };
 
   return (
@@ -181,9 +205,9 @@ export const Solicitudes = () => {
         sx={{ 
           fontWeight: 700, 
           color: '#333333',
-          fontSize: '48px',
+          fontSize: isMobile ? '32px' : '48px',
           fontFamily: 'Roboto Flex, Roboto, sans-serif',
-          mb: 4,
+          mb: isMobile ? 3 : 4,
           lineHeight: 1.5,
         }}
       >
@@ -204,7 +228,7 @@ export const Solicitudes = () => {
             ),
           }}
           sx={{
-            width: '360px',
+            width: isMobile ? '100%' : '360px',
             '& .MuiOutlinedInput-root': {
               backgroundColor: '#f1f3f4',
               borderRadius: '4px',
@@ -250,180 +274,298 @@ export const Solicitudes = () => {
       {/* Tabla de solicitudes - estilo Figma (sin bordes, minimalista) */}
       {!loading && !error && (
         <Box sx={{ width: '100%', maxWidth: '1194px' }}>
-          {/* Headers */}
-          <Box 
-            sx={{ 
-              display: 'grid',
-              gridTemplateColumns: '80px 200px 180px 180px 180px 200px',
-              gap: 2,
-              pb: 1,
-            }}
-          >
-            <Typography sx={{ fontWeight: 500, color: '#333333', fontSize: '16px', fontFamily: 'Roboto, sans-serif' }}>
-              Solicitud
-            </Typography>
-            <Typography sx={{ fontWeight: 500, color: '#333333', fontSize: '16px', fontFamily: 'Roboto, sans-serif' }}>
-              Solicitante
-            </Typography>
-            <Box 
-              sx={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                gap: 0.5, 
-                cursor: 'pointer',
-                userSelect: 'none',
-                '&:hover': { opacity: 0.7 }
-              }}
-              onClick={() => handleSort('ruex')}
-            >
-              <Typography sx={{ fontWeight: 500, color: '#333333', fontSize: '16px', fontFamily: 'Roboto, sans-serif' }}>
-                RUEX
-              </Typography>
-              {sortField === 'ruex' && (
-                sortDirection === 'asc' 
-                  ? <ArrowUpwardIcon sx={{ fontSize: 16, color: '#0e5fa6' }} />
-                  : <ArrowDownwardIcon sx={{ fontSize: 16, color: '#0e5fa6' }} />
-              )}
-            </Box>
-            <Box 
-              sx={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                gap: 0.5, 
-                cursor: 'pointer',
-                userSelect: 'none',
-                '&:hover': { opacity: 0.7 }
-              }}
-              onClick={() => handleSort('fecha')}
-            >
-              <Typography sx={{ fontWeight: 500, color: '#333333', fontSize: '16px', fontFamily: 'Roboto, sans-serif' }}>
-                Fecha solicitud
-              </Typography>
-              {sortField === 'fecha' && (
-                sortDirection === 'asc' 
-                  ? <ArrowUpwardIcon sx={{ fontSize: 16, color: '#0e5fa6' }} />
-                  : <ArrowDownwardIcon sx={{ fontSize: 16, color: '#0e5fa6' }} />
-              )}
-            </Box>
-            <Typography sx={{ fontWeight: 500, color: '#333333', fontSize: '16px', fontFamily: 'Roboto, sans-serif' }}>
-              Estado
-            </Typography>
-            <Typography sx={{ fontWeight: 500, color: '#333333', fontSize: '16px', fontFamily: 'Roboto, sans-serif' }}>
-              Acciones
-            </Typography>
-          </Box>
-
-          {/* Línea separadora - estilo Figma */}
-          <Box sx={{ height: '4px', backgroundColor: '#f3f3f3', mb: 2 }} />
-
-          {/* Filas de datos */}
+          {/* Filas de datos - Mobile: Cards, Desktop: Table */}
           {solicitudes.length === 0 ? (
             <Box sx={{ py: 4, textAlign: 'center', color: '#6B7280' }}>
               No se encontraron solicitudes
             </Box>
+          ) : isMobile ? (
+            // Vista Mobile: Cards
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              {solicitudes.map((solicitud) => {
+                const estadoStyles = getEstadoStyles(solicitud.estado_actual);
+                const soloLectura = isEstadoSoloLectura(solicitud.estado_actual);
+                return (
+                  <Card 
+                    key={solicitud.id_solicitud}
+                    sx={{ 
+                      borderRadius: 2,
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+                      border: '1px solid #e0e0e0',
+                    }}
+                  >
+                    <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
+                      {/* Header: Tipo y Estado */}
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
+                        <Typography 
+                          sx={{ 
+                            color: '#0e5fa6', 
+                            fontSize: '14px', 
+                            fontWeight: 600, 
+                            fontFamily: 'Roboto, sans-serif',
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.5px',
+                          }}
+                        >
+                          PPSH
+                        </Typography>
+                        <Chip
+                          icon={getEstadoIcon(estadoStyles.icon)}
+                          label={getEstadoLabel(solicitud.estado_actual)}
+                          size="small"
+                          sx={{
+                            backgroundColor: estadoStyles.backgroundColor,
+                            color: estadoStyles.color,
+                            fontFamily: 'Roboto, sans-serif',
+                            textTransform: solicitud.estado_actual.toUpperCase() === 'RECHAZADO' ? 'uppercase' : 'capitalize',
+                            fontWeight: solicitud.estado_actual.toUpperCase() === 'RECHAZADO' ? 600 : 400,
+                            '& .MuiChip-icon': {
+                              color: estadoStyles.color,
+                            },
+                          }}
+                        />
+                      </Box>
+                      
+                      {/* Nombre del solicitante */}
+                      <Typography 
+                        sx={{ 
+                          color: '#333333', 
+                          fontSize: '18px', 
+                          fontWeight: 500,
+                          fontFamily: 'Roboto, sans-serif',
+                          mb: 1,
+                        }}
+                      >
+                        {solicitud.nombre_titular || 'N/A'}
+                      </Typography>
+                      
+                      {/* RUEX y Fecha */}
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, mb: 2 }}>
+                        <Typography 
+                          sx={{ 
+                            color: '#666666', 
+                            fontSize: '14px', 
+                            fontFamily: 'Roboto, sans-serif',
+                          }}
+                        >
+                          <strong>RUEX:</strong> {solicitud.num_expediente || 'N/A'}
+                        </Typography>
+                        <Typography 
+                          sx={{ 
+                            color: '#666666', 
+                            fontSize: '14px', 
+                            fontFamily: 'Roboto, sans-serif',
+                          }}
+                        >
+                          <strong>Fecha:</strong> {new Date(solicitud.fecha_solicitud).toLocaleDateString('es-PA', {
+                            day: '2-digit',
+                            month: '2-digit',
+                            year: 'numeric'
+                          }).replace(/\//g, '.')}
+                        </Typography>
+                      </Box>
+                      
+                      {/* Botón de acción */}
+                      <Button
+                        variant="outlined"
+                        fullWidth
+                        startIcon={soloLectura ? <VisibilityIcon /> : <EditIcon />}
+                        onClick={() => navigate(`/solicitudes/${solicitud.id_solicitud}/etapas`)}
+                        sx={{
+                          borderColor: '#0e5fa6',
+                          color: '#0e5fa6',
+                          fontFamily: 'Roboto, sans-serif',
+                          textTransform: 'none',
+                          '&:hover': {
+                            borderColor: '#0e5fa6',
+                            backgroundColor: 'rgba(14, 95, 166, 0.04)',
+                          },
+                        }}
+                      >
+                        {soloLectura ? 'Ver' : 'Ver y editar'}
+                      </Button>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </Box>
           ) : (
-            solicitudes.map((solicitud) => {
-              const estadoStyles = getEstadoStyles(solicitud.estado_actual);
-              return (
+            // Vista Desktop: Tabla
+            <>
+              {/* Headers */}
+              <Box 
+                sx={{ 
+                  display: 'grid',
+                  gridTemplateColumns: '80px 200px 180px 180px 180px 200px',
+                  gap: 2,
+                  pb: 1,
+                }}
+              >
+                <Typography sx={{ fontWeight: 500, color: '#333333', fontSize: '16px', fontFamily: 'Roboto, sans-serif' }}>
+                  Solicitud
+                </Typography>
+                <Typography sx={{ fontWeight: 500, color: '#333333', fontSize: '16px', fontFamily: 'Roboto, sans-serif' }}>
+                  Solicitante
+                </Typography>
                 <Box 
-                  key={solicitud.id_solicitud}
                   sx={{ 
-                    display: 'grid',
-                    gridTemplateColumns: '80px 200px 180px 180px 180px 200px',
-                    gap: 2,
-                    py: 1,
-                    alignItems: 'center',
-                    '&:hover': { backgroundColor: '#fafafa' },
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: 0.5, 
+                    cursor: 'pointer',
+                    userSelect: 'none',
+                    '&:hover': { opacity: 0.7 }
                   }}
+                  onClick={() => handleSort('ruex')}
                 >
-                  {/* Solicitud (tipo) */}
-                  <Typography sx={{ color: '#333333', fontSize: '16px', fontFamily: 'Roboto, sans-serif' }}>
-                    PPSH
+                  <Typography sx={{ fontWeight: 500, color: '#333333', fontSize: '16px', fontFamily: 'Roboto, sans-serif' }}>
+                    RUEX
                   </Typography>
-
-                  {/* Solicitante */}
-                  <Typography sx={{ color: '#333333', fontSize: '16px', fontFamily: 'Roboto, sans-serif' }}>
-                    {solicitud.nombre_titular || 'N/A'}
-                  </Typography>
-
-                  {/* RUEX */}
-                  <Typography sx={{ color: '#333333', fontSize: '16px', fontFamily: 'Roboto, sans-serif' }}>
-                    {solicitud.num_expediente || 'N/A'}
-                  </Typography>
-
-                  {/* Fecha solicitud */}
-                  <Typography sx={{ color: '#333333', fontSize: '16px', fontFamily: 'Roboto, sans-serif' }}>
-                    {new Date(solicitud.fecha_solicitud).toLocaleDateString('es-PA', {
-                      day: '2-digit',
-                      month: '2-digit',
-                      year: 'numeric'
-                    }).replace(/\//g, '.')}
-                  </Typography>
-
-                  {/* Estado - estilo Figma (chip verde con check) */}
-                  <Box 
-                    sx={{ 
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: 1,
-                      backgroundColor: estadoStyles.backgroundColor,
-                      borderRadius: '16px',
-                      px: 1,
-                      py: 0.5,
-                      width: 'fit-content',
-                    }}
-                  >
-                    {estadoStyles.icon && (
-                      <CheckCircleOutlineIcon sx={{ fontSize: 16, color: estadoStyles.color }} />
-                    )}
-                    <Typography sx={{ 
-                      color: estadoStyles.color, 
-                      fontSize: '16px', 
-                      fontFamily: 'Roboto, sans-serif',
-                      textTransform: 'capitalize',
-                    }}>
-                      {solicitud.estado_actual === 'RECIBIDO' ? 'Activo' : solicitud.estado_actual.toLowerCase()}
-                    </Typography>
-                  </Box>
-
-                  {/* Acciones - estilo Figma (Ver y editar o solo Ver según estado) */}
-                  <Box 
-                    sx={{ 
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 1,
-                      cursor: 'pointer',
-                      '&:hover': { opacity: 0.8 }
-                    }}
-                    onClick={() => navigate(`/solicitudes/${solicitud.id_solicitud}/etapas`)}
-                  >
-                    {isEstadoSoloLectura(solicitud.estado_actual) ? (
-                      <>
-                        <VisibilityIcon sx={{ fontSize: 16, color: '#333333' }} />
-                        <Typography sx={{ 
-                          color: '#333333', 
-                          fontSize: '14px', 
-                          fontFamily: 'Roboto, sans-serif',
-                        }}>
-                          Ver
-                        </Typography>
-                      </>
-                    ) : (
-                      <>
-                        <EditIcon sx={{ fontSize: 16, color: '#333333' }} />
-                        <Typography sx={{ 
-                          color: '#333333', 
-                          fontSize: '14px', 
-                          fontFamily: 'Roboto, sans-serif',
-                        }}>
-                          Ver y editar
-                        </Typography>
-                      </>
-                    )}
-                  </Box>
+                  {sortField === 'ruex' && (
+                    sortDirection === 'asc' 
+                      ? <ArrowUpwardIcon sx={{ fontSize: 16, color: '#0e5fa6' }} />
+                      : <ArrowDownwardIcon sx={{ fontSize: 16, color: '#0e5fa6' }} />
+                  )}
                 </Box>
-              );
-            })
+                <Box 
+                  sx={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: 0.5, 
+                    cursor: 'pointer',
+                    userSelect: 'none',
+                    '&:hover': { opacity: 0.7 }
+                  }}
+                  onClick={() => handleSort('fecha')}
+                >
+                  <Typography sx={{ fontWeight: 500, color: '#333333', fontSize: '16px', fontFamily: 'Roboto, sans-serif' }}>
+                    Fecha solicitud
+                  </Typography>
+                  {sortField === 'fecha' && (
+                    sortDirection === 'asc' 
+                      ? <ArrowUpwardIcon sx={{ fontSize: 16, color: '#0e5fa6' }} />
+                      : <ArrowDownwardIcon sx={{ fontSize: 16, color: '#0e5fa6' }} />
+                  )}
+                </Box>
+                <Typography sx={{ fontWeight: 500, color: '#333333', fontSize: '16px', fontFamily: 'Roboto, sans-serif' }}>
+                  Estado
+                </Typography>
+                <Typography sx={{ fontWeight: 500, color: '#333333', fontSize: '16px', fontFamily: 'Roboto, sans-serif' }}>
+                  Acciones
+                </Typography>
+              </Box>
+
+              {/* Línea separadora - estilo Figma */}
+              <Box sx={{ height: '4px', backgroundColor: '#f3f3f3', mb: 2 }} />
+
+              {/* Filas de datos */}
+              {solicitudes.map((solicitud) => {
+                const estadoStyles = getEstadoStyles(solicitud.estado_actual);
+                return (
+                  <Box 
+                    key={solicitud.id_solicitud}
+                    sx={{ 
+                      display: 'grid',
+                      gridTemplateColumns: '80px 200px 180px 180px 180px 200px',
+                      gap: 2,
+                      py: 1,
+                      alignItems: 'center',
+                      '&:hover': { backgroundColor: '#fafafa' },
+                    }}
+                  >
+                    {/* Solicitud (tipo) */}
+                    <Typography sx={{ color: '#333333', fontSize: '16px', fontFamily: 'Roboto, sans-serif' }}>
+                      PPSH
+                    </Typography>
+
+                    {/* Solicitante */}
+                    <Typography sx={{ color: '#333333', fontSize: '16px', fontFamily: 'Roboto, sans-serif' }}>
+                      {solicitud.nombre_titular || 'N/A'}
+                    </Typography>
+
+                    {/* RUEX */}
+                    <Typography sx={{ color: '#333333', fontSize: '16px', fontFamily: 'Roboto, sans-serif' }}>
+                      {solicitud.num_expediente || 'N/A'}
+                    </Typography>
+
+                    {/* Fecha solicitud */}
+                    <Typography sx={{ color: '#333333', fontSize: '16px', fontFamily: 'Roboto, sans-serif' }}>
+                      {new Date(solicitud.fecha_solicitud).toLocaleDateString('es-PA', {
+                        day: '2-digit',
+                        month: '2-digit',
+                        year: 'numeric'
+                      }).replace(/\//g, '.')}
+                    </Typography>
+
+                    {/* Estado - estilo Figma (chip verde con check) */}
+                    <Box 
+                      sx={{ 
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 1,
+                        backgroundColor: estadoStyles.backgroundColor,
+                        borderRadius: '16px',
+                        px: 1,
+                        py: 0.5,
+                        width: 'fit-content',
+                      }}
+                    >
+                      {estadoStyles.icon === 'check' && (
+                        <CheckCircleOutlineIcon sx={{ fontSize: 16, color: estadoStyles.color }} />
+                      )}
+                      {estadoStyles.icon === 'cancel' && (
+                        <CancelIcon sx={{ fontSize: 16, color: estadoStyles.color }} />
+                      )}
+                      <Typography sx={{ 
+                        color: estadoStyles.color, 
+                        fontSize: '16px', 
+                        fontFamily: 'Roboto, sans-serif',
+                        textTransform: solicitud.estado_actual.toUpperCase() === 'RECHAZADO' ? 'uppercase' : 'capitalize',
+                        fontWeight: solicitud.estado_actual.toUpperCase() === 'RECHAZADO' ? 600 : 400,
+                      }}>
+                        {getEstadoLabel(solicitud.estado_actual)}
+                      </Typography>
+                    </Box>
+
+                    {/* Acciones - estilo Figma (Ver y editar o solo Ver según estado) */}
+                    <Box 
+                      sx={{ 
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 1,
+                        cursor: 'pointer',
+                        '&:hover': { opacity: 0.8 }
+                      }}
+                      onClick={() => navigate(`/solicitudes/${solicitud.id_solicitud}/etapas`)}
+                    >
+                      {isEstadoSoloLectura(solicitud.estado_actual) ? (
+                        <>
+                          <VisibilityIcon sx={{ fontSize: 16, color: '#333333' }} />
+                          <Typography sx={{ 
+                            color: '#333333', 
+                            fontSize: '14px', 
+                            fontFamily: 'Roboto, sans-serif',
+                          }}>
+                            Ver
+                          </Typography>
+                        </>
+                      ) : (
+                        <>
+                          <EditIcon sx={{ fontSize: 16, color: '#333333' }} />
+                          <Typography sx={{ 
+                            color: '#333333', 
+                            fontSize: '14px', 
+                            fontFamily: 'Roboto, sans-serif',
+                          }}>
+                            Ver y editar
+                          </Typography>
+                        </>
+                      )}
+                    </Box>
+                  </Box>
+                );
+              })}
+            </>
           )}
 
           {/* Paginación del servidor */}
