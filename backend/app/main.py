@@ -2,7 +2,7 @@ from fastapi import FastAPI, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
-from app.infrastructure.database import engine, Base, SessionLocal
+from app.infrastructure.database import SessionLocal
 from app.routers.routers import router
 from app.utils.middleware import LoggerMiddleware, setup_logging
 from app.infrastructure.config import settings
