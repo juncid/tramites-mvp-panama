@@ -2,19 +2,13 @@
 
 Sistema de gestión de trámites migratorios desarrollado con FastAPI (Python) y React (TypeScript), utilizando MS SQL Server como base de datos principal y Redis para caché.
 
-> **📢 Actualización Reciente (10 de Diciembre de 2025):** 
-> - 🚀 **Despliegue en AWS Lightsail** - Scripts completos para despliegue en instancias de 4GB RAM
-> - 🏗️ **Refactorización de Arquitectura** - Backend más robusto y limpieza de código
-> - 🧹 **Limpieza de Repositorio** - Eliminación de carpetas obsoletas (k8s, nginx)
-> - 🔧 **CI/CD** - Corrección de pipelines y dependencias de testing
+> **📢 Actualización Reciente (1 de Diciembre de 2025):** 
+> - 📄 **Informe N°8 Frontend e Integraciones** - Documentación completa del frontend con 191 tests
+> - 🧹 **Refactorización DRY** - Eliminadas 914 líneas de código duplicado en el frontend
+> - ✅ **191 tests automatizados** pasando (156 unitarios, 69 componentes, 24 E2E)
+> - 📁 **Documentación reorganizada** - Estructura modular por carpetas temáticas
 
 ## 📋 Últimas Actualizaciones
-
-**10 de Diciembre de 2025** - Infraestructura y Arquitectura
-- 🚀 **Despliegue Lightsail** - Configuración optimizada con Swap para SQL Server en 4GB RAM
-- 🏗️ **Refactorización Backend** - Eliminación de imports frágiles y gestión de esquema vía Alembic
-- 🧹 **Limpieza** - Eliminación de carpetas `k8s/` y `nginx/` obsoletas
-- 🔧 **CI Fixes** - Corrección de dependencias de testing (`faker`, `pytest`)
 
 **1 de Diciembre de 2025** - Informe N°8 y Refactorización Frontend
 - 📄 **Informe N°8** - Documentación completa del desarrollo Frontend e Integraciones
@@ -72,6 +66,29 @@ cp .env.example .env
 # Iniciar contenedores
 ./start.sh
 ```
+
+### ⚠️ Solución de Problemas Comunes
+
+**Error: "permission denied while trying to connect to the Docker daemon socket"**
+
+Si al ejecutar `./start.sh` ves un error de permisos con Docker, significa que tu usuario no tiene permisos para ejecutar comandos de Docker en la sesión actual.
+
+**Solución:**
+
+1. Agrega tu usuario al grupo docker:
+   ```bash
+   sudo usermod -aG docker $USER
+   ```
+
+2. Actualiza tu sesión actual:
+   ```bash
+   newgrp docker
+   ```
+
+3. Intenta ejecutar el script nuevamente:
+   ```bash
+   ./start.sh
+   ```
 
 ---
 
