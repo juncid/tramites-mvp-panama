@@ -47,7 +47,7 @@ interface CampoVista {
   texto_ayuda?: string;
   placeholder?: string;
   valor_predeterminado?: string;
-  opciones?: string[] | string; // Puede venir como array o string JSON
+  opciones?: string[] | string | Record<string, any>; // Puede venir como array, string JSON, u objeto
   opciones_datos_caso?: string[];
   permite_multiple?: boolean;
   validacion_regex?: string;

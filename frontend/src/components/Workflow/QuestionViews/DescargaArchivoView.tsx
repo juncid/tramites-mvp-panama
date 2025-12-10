@@ -24,7 +24,7 @@ interface DescargaArchivoViewProps {
   pregunta: WorkflowPregunta;
   readonly?: boolean;
   onAnswerChange?: (descargado: boolean) => void;
-  opcionesOriginales?: ArchivoOpciones | string | string[] | null;  // Opciones directas del campo
+  opcionesOriginales?: ArchivoOpciones | string | string[] | Record<string, any> | null;  // Opciones directas del campo
 }
 
 export const DescargaArchivoView: React.FC<DescargaArchivoViewProps> = ({
@@ -36,7 +36,7 @@ export const DescargaArchivoView: React.FC<DescargaArchivoViewProps> = ({
   // Priorizar opcionesOriginales si están disponibles
   const getArchivoOpciones = (): ArchivoOpciones => {
     // Primero intentar con opcionesOriginales (viene directamente del campo)
-    if (opcionesOriginales) {
+    if (opcionesOriginales && !Array.isArray(opcionesOriginales)) {
       if (typeof opcionesOriginales === 'object') {
         return opcionesOriginales as ArchivoOpciones;
       }
