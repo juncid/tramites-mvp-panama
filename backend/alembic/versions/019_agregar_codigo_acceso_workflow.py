@@ -14,7 +14,7 @@ import sqlalchemy as sa
 
 # revision identifiers
 revision = '019_codigo_acceso'
-down_revision = '018_migrate_tipo_pregunta_values'
+down_revision = '08be95d1d13e'
 branch_labels = None
 depends_on = None
 
