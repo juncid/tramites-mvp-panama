@@ -29,7 +29,7 @@ fi
 
 # Esperar a que SQL Server esté listo
 echo -e "${YELLOW}[1/4] Verificando SQL Server...${NC}"
-MAX_RETRIES=30
+MAX_RETRIES=120
 RETRY=0
 source .env 2>/dev/null || true
 

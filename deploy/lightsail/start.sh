@@ -47,7 +47,7 @@ docker compose -f docker-compose.lightsail.yml up -d
 
 # Esperar a que SQL Server esté listo
 echo -e "${YELLOW}Esperando a que SQL Server esté listo...${NC}"
-MAX_RETRIES=30
+MAX_RETRIES=120
 RETRY=0
 while [ $RETRY -lt $MAX_RETRIES ]; do
     if docker compose -f docker-compose.lightsail.yml exec -T sqlserver /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "${SQL_PASSWORD:-YourStrong@Passw0rd}" -Q "SELECT 1" -C -b > /dev/null 2>&1; then

@@ -43,7 +43,7 @@ DB_PASSWORD="${SQL_PASSWORD:-YourStrong@Passw0rd}"
 
 # Esperar a que SQL Server esté listo
 echo -e "${YELLOW}[1/3] Verificando SQL Server...${NC}"
-MAX_RETRIES=30
+MAX_RETRIES=120
 RETRY=0
 
 while [ $RETRY -lt $MAX_RETRIES ]; do
