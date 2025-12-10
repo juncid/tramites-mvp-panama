@@ -282,8 +282,6 @@ class WorkflowService:
         Returns:
             El nuevo workflow creado
         """
-        import uuid
-        
         logger.info(f"Duplicando workflow ID: {workflow_id} por usuario: {created_by}")
         
         # Obtener workflow original con todas sus relaciones
