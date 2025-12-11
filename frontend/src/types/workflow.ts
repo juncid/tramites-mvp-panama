@@ -99,7 +99,7 @@ export interface WorkflowPregunta {
   min_caracteres?: number;
   max_caracteres?: number;
   // Campos específicos para LISTA
-  opciones?: string;
+  opciones?: string | Record<string, any>;  // Puede ser string (CSV/JSON) u objeto para tipos como REVISION_MANUAL_DOCUMENTOS
   lista_elementos?: string[];
   // Campos específicos para SELECCION_SIMPLE
   permite_multiple?: boolean;
