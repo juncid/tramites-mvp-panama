@@ -119,7 +119,8 @@ export const DynamicEtapaView: React.FC<DynamicEtapaViewProps> = ({
   onComplete,
 }) => {
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);  // Error de carga - bloquea el render
+  const [validationError, setValidationError] = useState<string | null>(null);  // Error de validación - se muestra dentro del formulario
   const [vistaActual, setVistaActual] = useState<VistaActual | null>(null);
   const [respuestas, setRespuestas] = useState<Record<string, any>>({});
   const [saving, setSaving] = useState(false);
@@ -135,7 +136,7 @@ export const DynamicEtapaView: React.FC<DynamicEtapaViewProps> = ({
     if (!instanciaId) return;
 
     setLoading(true);
-    setError(null);
+    setLoadError(null);
 
     try {
       let vista;
@@ -166,7 +167,7 @@ export const DynamicEtapaView: React.FC<DynamicEtapaViewProps> = ({
       setRespuestas(valoresIniciales);
     } catch (err: any) {
       console.error('Error cargando vista actual:', err);
-      setError(err.response?.data?.detail || 'Error al cargar la vista de la etapa');
+      setLoadError(err.response?.data?.detail || 'Error al cargar la vista de la etapa');
     } finally {
       setLoading(false);
     }
@@ -225,17 +226,17 @@ export const DynamicEtapaView: React.FC<DynamicEtapaViewProps> = ({
     console.log('🔍 handleComplete - faltantes:', faltantes.map(c => c.codigo));
 
     if (faltantes.length > 0) {
-      setError(`Faltan campos obligatorios: ${faltantes.map(c => c.pregunta).join(', ')}`);
+      setValidationError(`Faltan campos obligatorios: ${faltantes.map(c => c.pregunta).join(', ')}`);
       return;
     }
 
     setSaving(true);
-    setError(null);
+    setValidationError(null);
     try {
       await onComplete(respuestasFinales);
     } catch (err: any) {
       console.error('Error completando etapa:', err);
-      setError(err.response?.data?.detail || 'Error al completar la etapa');
+      setValidationError(err.response?.data?.detail || 'Error al completar la etapa');
     } finally {
       setSaving(false);
     }
@@ -409,10 +410,11 @@ export const DynamicEtapaView: React.FC<DynamicEtapaViewProps> = ({
       );
     }
 
-    if (error) {
+    // Error de carga - bloquea el render del formulario
+    if (loadError) {
       return (
         <Alert severity="error" sx={{ mt: 2 }}>
-          {error}
+          {loadError}
         </Alert>
       );
     }
@@ -460,10 +462,10 @@ export const DynamicEtapaView: React.FC<DynamicEtapaViewProps> = ({
           </Alert>
         )}
 
-        {/* Error de validación */}
-        {error && (
-          <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError(null)}>
-            {error}
+        {/* Error de validación - se muestra pero no oculta el formulario */}
+        {validationError && (
+          <Alert severity="error" sx={{ mb: 3 }} onClose={() => setValidationError(null)}>
+            {validationError}
           </Alert>
         )}
 
