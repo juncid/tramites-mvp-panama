@@ -372,16 +372,35 @@ export const NuevaSolicitud: React.FC = () => {
                       label="Nacionalidad"
                       notched
                     >
+                      {/* Centroamérica y Caribe */}
                       <MenuItem value="PAN">Panamá</MenuItem>
-                      <MenuItem value="VEN">Venezuela</MenuItem>
-                      <MenuItem value="COL">Colombia</MenuItem>
-                      <MenuItem value="CUB">Cuba</MenuItem>
+                      <MenuItem value="CRI">Costa Rica</MenuItem>
                       <MenuItem value="NIC">Nicaragua</MenuItem>
-                      <MenuItem value="HON">Honduras</MenuItem>
+                      <MenuItem value="HND">Honduras</MenuItem>
                       <MenuItem value="SLV">El Salvador</MenuItem>
                       <MenuItem value="GTM">Guatemala</MenuItem>
+                      <MenuItem value="BLZ">Belice</MenuItem>
+                      <MenuItem value="CUB">Cuba</MenuItem>
                       <MenuItem value="DOM">República Dominicana</MenuItem>
                       <MenuItem value="HTI">Haití</MenuItem>
+                      <MenuItem value="JAM">Jamaica</MenuItem>
+                      <MenuItem value="PRI">Puerto Rico</MenuItem>
+                      {/* México */}
+                      <MenuItem value="MEX">México</MenuItem>
+                      {/* Sudamérica */}
+                      <MenuItem value="VEN">Venezuela</MenuItem>
+                      <MenuItem value="COL">Colombia</MenuItem>
+                      <MenuItem value="ECU">Ecuador</MenuItem>
+                      <MenuItem value="PER">Perú</MenuItem>
+                      <MenuItem value="BOL">Bolivia</MenuItem>
+                      <MenuItem value="BRA">Brasil</MenuItem>
+                      <MenuItem value="CHL">Chile</MenuItem>
+                      <MenuItem value="ARG">Argentina</MenuItem>
+                      <MenuItem value="URY">Uruguay</MenuItem>
+                      <MenuItem value="PRY">Paraguay</MenuItem>
+                      <MenuItem value="GUY">Guyana</MenuItem>
+                      <MenuItem value="SUR">Surinam</MenuItem>
+                      {/* Otra */}
                       <MenuItem value="OTHER">Otra</MenuItem>
                     </Select>
                   </FormControl>
