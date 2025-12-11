@@ -43,7 +43,7 @@ interface CampoVista {
   texto_ayuda?: string;
   placeholder?: string;
   valor_predeterminado?: string;
-  opciones?: string[] | string;  // Puede ser array o string JSON
+  opciones?: string[] | string | Record<string, any>;  // Puede ser array, string JSON u objeto
   opciones_datos_caso?: string[];
   permite_multiple?: boolean;
   validacion_regex?: string;
@@ -463,7 +463,7 @@ export const GenericEtapaPage: React.FC = () => {
           return <SeleccionFechaView key={campo.id} {...commonProps} />;
         
         case 'DESCARGA_ARCHIVO':
-          return <DescargaArchivoView key={campo.id} {...commonProps} />;
+          return <DescargaArchivoView key={campo.id} {...commonProps} opcionesOriginales={campo.opciones} />;
         
         case 'IMPRESION':
           // Detectar si es una etapa de cotización para pasar datos especiales
