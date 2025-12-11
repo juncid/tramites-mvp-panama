@@ -892,43 +892,43 @@ def obtener_documentos_etapa(
                 doc_key = pregunta_codigo
                 if doc_key in docs_por_pregunta:
                     continue
-                    
-                    # Verificar OCR y obtener datos
-                    ocr_exitoso = None
-                    ocr_texto_extraido = None
-                    ocr_datos_estructurados = None
-                    ocr_confianza = None
-                    if doc.ocr_results:
-                        ultimo_ocr = max(doc.ocr_results, key=lambda x: x.fecha_fin_proceso or x.fecha_inicio_proceso or x.created_at, default=None)
-                        if ultimo_ocr:
-                            ocr_exitoso = ultimo_ocr.estado_ocr == 'COMPLETADO'
-                            ocr_texto_extraido = ultimo_ocr.texto_extraido
-                            ocr_confianza = float(ultimo_ocr.texto_confianza) if ultimo_ocr.texto_confianza else None
-                            # Parsear datos estructurados si existen
-                            if ultimo_ocr.datos_estructurados:
-                                try:
-                                    import json
-                                    ocr_datos_estructurados = json.loads(ultimo_ocr.datos_estructurados)
-                                except:
-                                    ocr_datos_estructurados = None
-                    
-                    docs_por_pregunta[doc_key] = {
-                        "id": str(doc.id_documento),
-                        "pregunta_id": pregunta.id if pregunta else None,
-                        "pregunta_codigo": pregunta_codigo or doc.tipo_documento_texto,
-                        "pregunta_texto": pregunta.pregunta if pregunta else (doc.tipo_documento_texto or doc.nombre_archivo),
-                        "nombre": doc.nombre_archivo,
-                        "url": f"/api/v1/ppsh/documentos/{doc.id_documento}/descargar",
-                        "tipo": doc.extension or "",
-                        "es_obligatoria": pregunta.es_obligatoria if pregunta else doc.es_obligatorio,
-                        "requiere_ocr": pregunta.requiere_ocr if pregunta else True,
-                        "ocr_exitoso": ocr_exitoso,
-                        "ocr_texto_extraido": ocr_texto_extraido,
-                        "ocr_datos_estructurados": ocr_datos_estructurados,
-                        "ocr_confianza": ocr_confianza,
-                        "estado_verificacion": doc.estado_verificacion,
-                        "orden": pregunta.orden if pregunta else 999
-                    }
+                
+                # Verificar OCR y obtener datos
+                ocr_exitoso = None
+                ocr_texto_extraido = None
+                ocr_datos_estructurados = None
+                ocr_confianza = None
+                if doc.ocr_results:
+                    ultimo_ocr = max(doc.ocr_results, key=lambda x: x.fecha_fin_proceso or x.fecha_inicio_proceso or x.created_at, default=None)
+                    if ultimo_ocr:
+                        ocr_exitoso = ultimo_ocr.estado_ocr == 'COMPLETADO'
+                        ocr_texto_extraido = ultimo_ocr.texto_extraido
+                        ocr_confianza = float(ultimo_ocr.texto_confianza) if ultimo_ocr.texto_confianza else None
+                        # Parsear datos estructurados si existen
+                        if ultimo_ocr.datos_estructurados:
+                            try:
+                                import json
+                                ocr_datos_estructurados = json.loads(ultimo_ocr.datos_estructurados)
+                            except:
+                                ocr_datos_estructurados = None
+                
+                docs_por_pregunta[doc_key] = {
+                    "id": str(doc.id_documento),
+                    "pregunta_id": pregunta.id if pregunta else None,
+                    "pregunta_codigo": pregunta_codigo or doc.tipo_documento_texto,
+                    "pregunta_texto": pregunta.pregunta if pregunta else (doc.tipo_documento_texto or doc.nombre_archivo),
+                    "nombre": doc.nombre_archivo,
+                    "url": f"/api/v1/ppsh/documentos/{doc.id_documento}/descargar",
+                    "tipo": doc.extension or "",
+                    "es_obligatoria": pregunta.es_obligatoria if pregunta else doc.es_obligatorio,
+                    "requiere_ocr": pregunta.requiere_ocr if pregunta else True,
+                    "ocr_exitoso": ocr_exitoso,
+                    "ocr_texto_extraido": ocr_texto_extraido,
+                    "ocr_datos_estructurados": ocr_datos_estructurados,
+                    "ocr_confianza": ocr_confianza,
+                    "estado_verificacion": doc.estado_verificacion,
+                    "orden": pregunta.orden if pregunta else 999
+                }
             
             # Ordenar documentos por el orden de las preguntas
             documentos = sorted(docs_por_pregunta.values(), key=lambda x: x.get('orden', 999))
