@@ -884,12 +884,14 @@ def obtener_documentos_etapa(
                 # Buscar la pregunta correspondiente
                 pregunta = preguntas_map.get(pregunta_codigo) if pregunta_codigo else None
                 
-                # Solo incluir si la pregunta existe en esta etapa
-                if pregunta or not pregunta_codigo:
-                    # Si ya hay un documento para esta pregunta, saltar (ya tenemos el más reciente)
-                    doc_key = pregunta_codigo or f"doc_{doc.id_documento}"
-                    if doc_key in docs_por_pregunta:
-                        continue
+                # Solo incluir si la pregunta existe en esta etapa (excluir documentos sin código o con código no reconocido)
+                if not pregunta:
+                    continue
+                
+                # Si ya hay un documento para esta pregunta, saltar (ya tenemos el más reciente)
+                doc_key = pregunta_codigo
+                if doc_key in docs_por_pregunta:
+                    continue
                     
                     # Verificar OCR y obtener datos
                     ocr_exitoso = None
