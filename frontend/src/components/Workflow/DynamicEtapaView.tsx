@@ -557,7 +557,7 @@ export const DynamicEtapaView: React.FC<DynamicEtapaViewProps> = ({
             {vistaActual.puede_editar && onComplete && (
               <Button
                 variant="contained"
-                onClick={handleComplete}
+                onClick={() => handleComplete()}
                 disabled={saving}
                 sx={{
                   minWidth: '124px',
