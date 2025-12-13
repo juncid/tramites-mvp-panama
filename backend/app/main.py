@@ -22,6 +22,7 @@ from app.routers.routers_sim_ft import router as sim_ft_router
 from app.routers.routers_ocr import router as ocr_router
 from app.routers.websocket_ocr import router as websocket_ocr_router
 from app.routes.routes_public import router as public_router
+from app.routers.auth import router as auth_router
 
 # Configurar logging
 log_file = os.path.join("logs", "app.log") if os.path.exists("logs") else None
@@ -92,6 +93,9 @@ app.include_router(websocket_ocr_router, prefix="/api/v1")
 logger.info("✅ WebSocket OCR registrado en /api/v1/ws/ocr")
 
 app.include_router(public_router, prefix="/api/v1")
+
+# Router de Autenticación
+app.include_router(auth_router, prefix="/api/v1")
 logger.info("✅ Módulo Solicitudes Públicas registrado en /api/v1/public")
 
 logger.info("🚀 Aplicación FastAPI inicializada")

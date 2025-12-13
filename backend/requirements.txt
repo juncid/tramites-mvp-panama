@@ -30,3 +30,5 @@ pytest==7.4.3
 pytest-cov==4.1.0
 httpx==0.25.1
 faker==20.1.0
+passlib[bcrypt]==1.7.4
+python-jose[cryptography]

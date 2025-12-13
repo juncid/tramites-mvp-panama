@@ -58,25 +58,7 @@ router = APIRouter(
 )
 
 
-# ==========================================
-# DEPENDENCY: Usuario Actual
-# ==========================================
-# TODO: Integrar con sistema de autenticación real
-async def get_current_user(
-    # Authorization: str = Header(...) cuando se implemente JWT
-) -> dict:
-    """
-    Obtiene el usuario actual desde el token de autenticación.
-    Por ahora retorna usuario mock para desarrollo.
-    """
-    # TODO: Decodificar JWT token y validar
-    # TODO: Obtener usuario desde base de datos
-    return {
-        "user_id": "USR001",
-        "username": "admin",
-        "roles": ["ADMIN", "PPSH_ANALISTA"],
-        "es_admin": True
-    }
+from app.dependencies import get_current_user
 
 
 # ==========================================
