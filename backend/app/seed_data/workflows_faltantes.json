@@ -1,0 +1,47 @@
+{
+  "instrucciones": "Completar este archivo con la definición de los 3 trámites faltantes. Usar los códigos exactos definidos aquí.",
+  "tramites_pendientes": [
+    {
+      "codigo": "VISA_PAIS_AMIGO",
+      "nombre": "Permiso de Residente Permanente en calidad de Extranjero Nacional de Países Amigos",
+      "descripcion": "Subcategoría de Residente Permanente para nacionales de países que mantienen relaciones amistosas, profesionales, económicas y de inversión con la República de Panamá.",
+      "flujo_pasos": [
+        {
+          "orden": 1,
+          "nombre_etapa": "Recepción de Documentos",
+          "rol_responsable": "VENTANILLA_RECEPCION",
+          "acciones_permitidas": ["APROBAR", "SUBSANAR", "RECHAZAR"],
+          "requisitos_documentales": [
+            "PASAPORTE_VIGENTE",
+            "RECORD_POLICIVO",
+            "CERTIFICADO_SALUD",
+            "PRUEBA_SOLVENCIA_ECONOMICA"
+          ]
+        },
+        {
+          "orden": 2,
+          "nombre_etapa": "Análisis Legal",
+          "rol_responsable": "ABOGADO_ANALISTA",
+          "acciones_permitidas": ["VISTO_BUENO", "REQUERIMIENTO_ADICIONAL"]
+        }
+        
+      ]
+    },
+    {
+      "codigo": "REGULARIZACION_MIGRATORIA",
+      "nombre": "Permiso Temporal de Protección (Regularización)",
+      "descripcion": "Permiso para extranjeros que se encuentren en situación irregular y cumplan con los requisitos establecidos para su regularización.",
+      "flujo_pasos": [
+          
+      ] 
+    },
+    {
+      "codigo": "TRABAJADORES_DOMESTICOS",
+      "nombre": "Visa de Trabajadores Domésticos",
+      "descripcion": "Permiso para extranjeros contratados para realizar labores domésticas.",
+      "flujo_pasos": [
+          
+      ]
+    }
+  ]
+}
