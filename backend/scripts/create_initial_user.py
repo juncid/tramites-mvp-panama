@@ -9,15 +9,6 @@ from app.models.auth import Usuario
 from app.utils.security import get_password_hash
 
 def create_initial_user():
-    # Alter column size first
-    try:
-        print("Altering PASSWORD column size...")
-        with engine.connect() as connection:
-            connection.execute(text("ALTER TABLE SEG_TB_USUARIOS ALTER COLUMN PASSWORD VARCHAR(255) NULL;"))
-            connection.commit()
-    except Exception as e:
-        print(f"Warning altering table: {e}")
-
     db = SessionLocal()
     try:
         user_id = "admin"
