@@ -219,7 +219,7 @@ services:
       - "80:80"
       - "443:443"
     volumes:
-      - /etc/letsencrypt/live/23.23.20.56.nip.io:/etc/nginx/certs:ro
+      - /etc/letsencrypt/live/23.23.20.56.nip.io:/etc/letsencrypt/live/23.23.20.56.nip.io:ro
       - /etc/letsencrypt/archive:/etc/letsencrypt/archive:ro
     networks:
       - tramites-network
