@@ -1,7 +1,7 @@
 """increase password length
 
-Revision ID: 020
-Revises: 019
+Revision ID: 020_password_len
+Revises: 019_codigo_acceso
 Create Date: 2025-12-13 19:50:00.000000
 
 """
@@ -10,8 +10,8 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '020'
-down_revision = '019'
+revision = '020_password_len'
+down_revision = '019_codigo_acceso'
 branch_labels = None
 depends_on = None
 
