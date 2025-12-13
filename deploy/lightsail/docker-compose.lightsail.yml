@@ -88,8 +88,8 @@ services:
       - IMAGE_MAX_DIMENSION=3000
       - OCR_TIMEOUT_SECONDS=120
     # Puerto solo accesible internamente (a través del proxy Nginx)
-    expose:
-      - "8000"
+    # expose:
+    #   - "8000"
     volumes:
       - backend-logs:/app/logs
       - uploads-data:/app/uploads
