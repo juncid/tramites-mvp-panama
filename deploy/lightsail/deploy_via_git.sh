@@ -4,7 +4,7 @@
 
 KEY_FILE="deploy/lightsail/KeyPairForWSL.pem"
 REMOTE_USER="ubuntu"
-REMOTE_DIR="tramites-mvp-panama" # Directorio del repo en el servidor
+REMOTE_DIR="tramites-panama" # Directorio del repo en el servidor
 BRANCH="main"
 
 if [ -z "$1" ]; then
