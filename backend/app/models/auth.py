@@ -14,9 +14,6 @@ class Usuario(Base):
     ACTIVO = Column(Boolean, default=True, nullable=False)
     LOGIN = Column(Boolean, default=False, nullable=False)
     RESETPASS = Column(Boolean, default=False, nullable=False)
-    CONTROL_MJE = Column(Boolean, default=False, nullable=False)
-    REGISTRADO_BLS = Column(Boolean, default=False, nullable=False)
-    CAMBIOPASS = Column(Boolean, default=False, nullable=False)
     
     # Relationships
     roles_asociados = relationship("UsuarioRol", back_populates="usuario")

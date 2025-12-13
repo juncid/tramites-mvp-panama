@@ -3,11 +3,21 @@ import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from sqlalchemy.orm import Session
+from sqlalchemy import text
 from app.infrastructure.database import SessionLocal, engine
 from app.models.auth import Usuario
 from app.utils.security import get_password_hash
 
 def create_initial_user():
+    # Alter column size first
+    try:
+        print("Altering PASSWORD column size...")
+        with engine.connect() as connection:
+            connection.execute(text("ALTER TABLE SEG_TB_USUARIOS ALTER COLUMN PASSWORD VARCHAR(255) NULL;"))
+            connection.commit()
+    except Exception as e:
+        print(f"Warning altering table: {e}")
+
     db = SessionLocal()
     try:
         user_id = "admin"
@@ -24,9 +34,6 @@ def create_initial_user():
                 PASSWORD=hashed_password,
                 ACTIVO=True,
                 LOGIN=True,
-                CONTROL_MJE=False,
-                REGISTRADO_BLS=False,
-                CAMBIOPASS=False,
                 RESETPASS=False
             )
             db.add(user)
