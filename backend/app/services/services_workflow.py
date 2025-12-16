@@ -597,10 +597,10 @@ class EtapaService:
 
         # Actualizar preguntas si se proporcionan
         if etapa_update.preguntas is not None:
-            # Eliminar preguntas existentes
+            # Desactivar preguntas existentes (soft delete)
             db.query(models.WorkflowPregunta).filter(
                 models.WorkflowPregunta.etapa_id == etapa_id
-            ).delete()
+            ).update({models.WorkflowPregunta.activo: False})
 
             # Crear nuevas preguntas
             for pregunta_data in etapa_update.preguntas:
@@ -821,9 +821,9 @@ class ConexionService:
 
     @staticmethod
     def eliminar_conexion(db: Session, conexion_id: int) -> None:
-        """Elimina una conexión"""
+        """Desactiva una conexión (soft delete)"""
         db_conexion = ConexionService.obtener_conexion(db, conexion_id)
-        db.delete(db_conexion)
+        db_conexion.activo = False
         db.commit()
 
 

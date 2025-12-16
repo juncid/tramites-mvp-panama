@@ -1833,7 +1833,7 @@ def _extract_generic_data(texto: str, texto_upper: str, datos: dict):
 @celery_app.task(name='ocr.cleanup_old_results')
 def cleanup_old_results(dias_antiguedad: int = 30):
     """
-    Limpia resultados OCR antiguos (tarea programada)
+    Archiva resultados OCR antiguos (tarea programada) - Soft Delete
     
     Args:
         dias_antiguedad: Días de antigüedad para considerar un resultado como antiguo
@@ -1843,22 +1843,22 @@ def cleanup_old_results(dias_antiguedad: int = 30):
     try:
         fecha_limite = datetime.now() - timedelta(days=dias_antiguedad)
 
-        # Mover a historial antes de eliminar
+        # Marcar como archivados (soft delete) en lugar de eliminar
         resultados_antiguos = db.query(PPSHDocumentoOCR).filter(
             PPSHDocumentoOCR.created_at < fecha_limite,
             PPSHDocumentoOCR.estado_ocr.in_(['COMPLETADO', 'ERROR', 'CANCELADO'])
         ).all()
 
-        eliminados = 0
+        archivados = 0
         for resultado in resultados_antiguos:
-            # Aquí podrías mover a una tabla de archivo o simplemente eliminar
-            db.delete(resultado)
-            eliminados += 1
+            # Soft delete: marcar como ARCHIVADO en vez de eliminar
+            resultado.estado_ocr = 'ARCHIVADO'
+            archivados += 1
 
         db.commit()
-        logger.info(f"Limpieza completada: {eliminados} resultados eliminados")
+        logger.info(f"Limpieza completada: {archivados} resultados archivados")
 
-        return {'eliminados': eliminados, 'fecha_limite': fecha_limite.isoformat()}
+        return {'archivados': archivados, 'fecha_limite': fecha_limite.isoformat()}
 
     except Exception as e:
         logger.error(f"Error en limpieza: {str(e)}", exc_info=True)

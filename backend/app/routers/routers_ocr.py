@@ -337,8 +337,8 @@ def reprocesar_documento(
         db.add(historial)
         db.commit()
 
-    # Marcar el resultado anterior como obsoleto o eliminarlo
-    db.delete(ocr_anterior)
+    # Marcar el resultado anterior como obsoleto (soft delete)
+    ocr_anterior.estado_ocr = 'OBSOLETO'
     db.commit()
 
     # Procesar como nuevo documento
