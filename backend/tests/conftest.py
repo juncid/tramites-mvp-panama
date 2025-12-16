@@ -31,6 +31,7 @@ os.environ["LOG_LEVEL"] = "WARNING"
 from app.main import app
 from app.infrastructure.database import get_db, Base
 from app.infrastructure.redis_client import get_redis
+from app.dependencies import get_current_user
 
 # Configurar Faker para datos de prueba
 fake = Faker(['es_ES', 'en_US'])
@@ -172,9 +173,21 @@ def client(db_session: Session) -> Generator[TestClient, None, None]:
     def get_test_redis():
         return mock_redis
     
+    # Mock user for authentication
+    def get_test_current_user():
+        return {
+            "user_id": "TEST_USER",
+            "username": "test_user",
+            "roles": ["ADMIN", "PPSH_ANALISTA", "PPSH_SUPERVISOR"],
+            "es_admin": True,
+            "agencia": "AGE01",
+            "seccion": "SEC01"
+        }
+    
     # Sobrescribir dependencias
     app.dependency_overrides[get_db] = get_test_db
     app.dependency_overrides[get_redis] = get_test_redis
+    app.dependency_overrides[get_current_user] = get_test_current_user
     
     # También parchear la función get_redis directamente para casos donde no se usa inyección
     # Only patch modules that actually import get_redis

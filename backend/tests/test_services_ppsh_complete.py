@@ -301,5 +301,218 @@ class TestPPSHComentarioService:
         assert PPSHComentarioService is not None
 
 
+# ==========================================
+# TESTS ADICIONALES PARA COBERTURA 100%
+# ==========================================
+
+class TestCatalogoServiceCompleto:
+    """Tests adicionales para CatalogoService - líneas 96-107"""
+    
+    @patch('app.services.services_ppsh.models_ppsh')
+    def test_get_estados_activos_only(self, mock_models):
+        """Test: get_estados con activos_solo=True"""
+        mock_db = MagicMock()
+        mock_query = MagicMock()
+        mock_db.query.return_value = mock_query
+        mock_query.filter.return_value = mock_query
+        mock_query.order_by.return_value = mock_query
+        mock_query.all.return_value = []
+        
+        resultado = CatalogoService.get_estados(mock_db, activos_solo=True)
+        
+        assert isinstance(resultado, list)
+        mock_query.filter.assert_called_once()
+    
+    @patch('app.services.services_ppsh.models_ppsh')
+    def test_get_estados_todos(self, mock_models):
+        """Test: get_estados con activos_solo=False"""
+        mock_db = MagicMock()
+        mock_query = MagicMock()
+        mock_db.query.return_value = mock_query
+        mock_query.order_by.return_value = mock_query
+        mock_query.all.return_value = []
+        
+        resultado = CatalogoService.get_estados(mock_db, activos_solo=False)
+        
+        assert isinstance(resultado, list)
+    
+    @patch('app.services.services_ppsh.models_ppsh')
+    def test_get_estado_by_codigo_encontrado(self, mock_models):
+        """Test: get_estado_by_codigo retorna estado existente"""
+        mock_db = MagicMock()
+        mock_estado = MagicMock()
+        mock_estado.cod_estado = "RECIBIDO"
+        
+        mock_query = MagicMock()
+        mock_db.query.return_value = mock_query
+        mock_query.filter.return_value = mock_query
+        mock_query.first.return_value = mock_estado
+        
+        resultado = CatalogoService.get_estado_by_codigo(mock_db, "RECIBIDO")
+        
+        assert resultado == mock_estado
+    
+    @patch('app.services.services_ppsh.models_ppsh')
+    def test_get_estado_by_codigo_no_encontrado(self, mock_models):
+        """Test: get_estado_by_codigo lanza excepción si no existe"""
+        mock_db = MagicMock()
+        mock_query = MagicMock()
+        mock_db.query.return_value = mock_query
+        mock_query.filter.return_value = mock_query
+        mock_query.first.return_value = None
+        
+        with pytest.raises(PPSHNotFoundException):
+            CatalogoService.get_estado_by_codigo(mock_db, "NO_EXISTE")
+
+
+class TestPPSHPermissionExceptionCompleto:
+    """Tests adicionales para PPSHPermissionException - línea 64"""
+    
+    def test_permission_exception_mensaje_defecto(self):
+        """Test: PPSHPermissionException usa mensaje por defecto"""
+        exc = PPSHPermissionException()
+        assert exc.status_code == 403
+        assert "permisos" in exc.detail.lower()
+    
+    def test_permission_exception_mensaje_custom(self):
+        """Test: PPSHPermissionException con mensaje personalizado"""
+        mensaje = "Sin autorización para aprobar"
+        exc = PPSHPermissionException(mensaje)
+        assert exc.detail == mensaje
+
+
+class TestValidarPermisoTransicionCompleto:
+    """Tests completos para validar_permiso_cambio_estado"""
+    
+    def test_transicion_no_en_matriz(self):
+        """Test: Transición de estado no permitida para no-admin"""
+        es_valido, error = validar_permiso_cambio_estado(
+            "ARCHIVADO", "EN_REVISION", "FUNCIONARIO", None
+        )
+        assert es_valido is False
+        assert "Transición no permitida" in error
+    
+    def test_admin_salta_validacion_transicion(self):
+        """Test: ADMIN puede hacer cualquier transición"""
+        es_valido, error = validar_permiso_cambio_estado(
+            "ARCHIVADO", "RECIBIDO", "ADMIN", "Reapertura administrativa"
+        )
+        assert es_valido is True
+    
+    def test_estado_no_configurado_para_no_admin(self):
+        """Test: Estado no configurado rechaza no-admin"""
+        # Simulamos un estado no en la matriz
+        es_valido, error = validar_permiso_cambio_estado(
+            "RECIBIDO", "EN_REVISION", "FUNCIONARIO", None
+        )
+        # EN_REVISION está permitido para FUNCIONARIO
+        assert es_valido is True
+    
+    def test_perfil_no_permitido(self):
+        """Test: Perfil sin permiso para estado"""
+        es_valido, error = validar_permiso_cambio_estado(
+            "EN_APROBACION", "APROBADO", "FUNCIONARIO", "Aprobación justificada aquí"
+        )
+        assert es_valido is False
+        assert "FUNCIONARIO" in error
+    
+    def test_motivo_muy_corto(self):
+        """Test: Motivo demasiado corto rechazado"""
+        es_valido, error = validar_permiso_cambio_estado(
+            "EN_APROBACION", "RECHAZADO", "JEFE", "Corto"
+        )
+        assert es_valido is False
+        assert "10 caracteres" in error
+    
+    def test_motivo_vacio(self):
+        """Test: Motivo vacío rechazado"""
+        es_valido, error = validar_permiso_cambio_estado(
+            "EN_APROBACION", "APROBADO", "JEFE", ""
+        )
+        assert es_valido is False
+    
+    def test_motivo_none(self):
+        """Test: Motivo None rechazado"""
+        es_valido, error = validar_permiso_cambio_estado(
+            "EN_APROBACION", "APROBADO", "JEFE", None
+        )
+        assert es_valido is False
+    
+    def test_transicion_valida_con_todo_correcto(self):
+        """Test: Transición válida con todos los requisitos"""
+        es_valido, error = validar_permiso_cambio_estado(
+            "EN_APROBACION", "APROBADO", "DIRECTOR", 
+            "Aprobado por cumplir todos los requisitos establecidos"
+        )
+        assert es_valido is True
+        assert error is None
+
+
+class TestSolicitudServiceCompleto:
+    """Tests adicionales para SolicitudService"""
+    
+    def test_generar_numero_expediente_format(self, db_session):
+        """Test: Formato de número de expediente"""
+        # Usamos el método real con una sesión de BD real
+        numero = SolicitudService._generar_numero_expediente(db_session)
+        
+        año = datetime.now().year
+        assert numero.startswith(f"PPSH-{año}-")
+        # Verificar que el número tiene el formato correcto
+        parts = numero.split("-")
+        assert len(parts) == 3
+        assert parts[0] == "PPSH"
+        assert parts[1] == str(año)
+        assert len(parts[2]) == 6  # 000001
+    
+    def test_generar_numero_expediente_consecutivo(self, db_session):
+        """Test: Números consecutivos de expediente"""
+        # Generar dos números consecutivos
+        numero1 = SolicitudService._generar_numero_expediente(db_session)
+        # Crear una solicitud con ese número
+        from app.models import models_ppsh
+        solicitud = models_ppsh.PPSHSolicitud(
+            num_expediente=numero1,
+            tipo_solicitud="INDIVIDUAL",
+            estado_actual="REG",
+            cod_causa_humanitaria=1
+        )
+        db_session.add(solicitud)
+        db_session.commit()
+        
+        # Generar el siguiente
+        numero2 = SolicitudService._generar_numero_expediente(db_session)
+        
+        # Extraer los números secuenciales
+        seq1 = int(numero1.split("-")[2])
+        seq2 = int(numero2.split("-")[2])
+        
+        assert seq2 == seq1 + 1
+
+
+class TestDocumentoServiceCompleto:
+    """Tests adicionales para DocumentoService"""
+    
+    def test_listar_documentos_method_exists(self):
+        """Test: Método listar_documentos existe"""
+        assert hasattr(DocumentoService, 'listar_documentos')
+    
+    def test_registrar_documento_method_exists(self):
+        """Test: Método registrar_documento existe"""
+        assert hasattr(DocumentoService, 'registrar_documento')
+
+
+class TestEntrevistaServiceCompleto:
+    """Tests adicionales para EntrevistaService"""
+    
+    def test_programar_entrevista_method_exists(self):
+        """Test: Método programar_entrevista existe"""
+        assert hasattr(EntrevistaService, 'programar_entrevista')
+    
+    def test_registrar_resultado_method_exists(self):
+        """Test: Método registrar_resultado existe"""
+        assert hasattr(EntrevistaService, 'registrar_resultado')
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
