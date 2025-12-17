@@ -502,10 +502,39 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
     return false;
   };
 
+  // Verificar si el OCR validó al menos un campo (para campos que requieren OCR)
+  const isOCRValidationComplete = (): boolean => {
+    if (!campoActual) return true;
+    // Si el campo no requiere OCR, siempre es válido
+    if (!campoActual.requiere_ocr) return true;
+    // Si no hay datos de comparación OCR, no está completo
+    if (!ocrComparisonData) return true; // Aún no se ha procesado, permitir continuar temporalmente
+    // Si hay al menos un campo validado, está ok
+    if (Object.keys(ocrComparisonData.campos_validados || {}).length > 0) return true;
+    // Si hay campos con discrepancia (pero al menos encontró datos), está ok
+    if ((ocrComparisonData.campos_con_discrepancia || []).length > 0) return true;
+    // Si todos los campos están en "no encontrados", no está completo
+    if ((ocrComparisonData.campos_no_encontrados || []).length > 0) return false;
+    return true;
+  };
+
+  // Verificar si se puede avanzar (archivo cargado Y OCR válido si aplica)
+  const canProceedToNext = (): boolean => {
+    if (!isCurrentStepComplete()) return false;
+    if (!isOCRValidationComplete()) return false;
+    return true;
+  };
+
   const handleNext = () => {
     // Validar si es obligatorio y no está completo
     if (campoActual?.es_obligatoria && !isCurrentStepComplete()) {
       alert('Debe cargar el documento requerido para continuar');
+      return;
+    }
+
+    // Validar OCR si es requerido
+    if (campoActual?.requiere_ocr && !isOCRValidationComplete()) {
+      alert('El documento cargado no pudo ser validado. Por favor, cargue un documento legible con los datos requeridos.');
       return;
     }
 
@@ -1636,6 +1665,7 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
           <Button
             variant="contained"
             onClick={handleNext}
+            disabled={!canProceedToNext()}
             sx={{
               width: '124px',
               height: '40px',
@@ -1647,6 +1677,10 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
               fontSize: '16px',
               '&:hover': {
                 backgroundColor: '#0d5391',
+              },
+              '&:disabled': {
+                backgroundColor: '#cccccc',
+                color: '#666666',
               },
             }}
           >
