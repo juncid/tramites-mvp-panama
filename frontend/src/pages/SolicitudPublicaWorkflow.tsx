@@ -279,12 +279,6 @@ export const SolicitudPublicaWorkflow: React.FC = () => {
           {etapaAMostrar?.titulo_formulario || etapaAMostrar?.nombre || 'Etapa actual'}
         </Typography>
 
-        {etapaAMostrar?.bajada_formulario && (
-          <Typography variant="body1" sx={{ fontSize: '16px', color: '#333333', mb: 4, lineHeight: 1.5, maxWidth: '1167px' }}>
-            {etapaAMostrar.bajada_formulario}
-          </Typography>
-        )}
-
         {etapaAMostrar && (
           <Box sx={{ mb: 4 }}>
             <DynamicEtapaView 
