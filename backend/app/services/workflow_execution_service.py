@@ -350,7 +350,12 @@ class WorkflowExecutionService:
             ]:
                 respuesta_obj.archivos = archivos_respuesta or []
             else:
-                respuesta_obj.valor_texto = valor_respuesta
+                # Para otros tipos, verificar si es dict/list y guardar en valor_json
+                # o como string en valor_texto
+                if isinstance(valor_respuesta, (dict, list)):
+                    respuesta_obj.valor_json = valor_respuesta
+                else:
+                    respuesta_obj.valor_texto = valor_respuesta
 
             db.add(respuesta_obj)
 
