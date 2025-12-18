@@ -1,4 +1,4 @@
-import React, { useCallback, useState, useEffect, useMemo } from 'react';
+import React, { useCallback, useState, useEffect, useMemo, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import ReactFlow, {
   Node,
@@ -14,6 +14,7 @@ import ReactFlow, {
   useReactFlow,
   ReactFlowProvider,
   ConnectionLineType,
+  ReactFlowInstance,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import {
@@ -133,6 +134,7 @@ const WorkflowEditorFigmaContent: React.FC<WorkflowEditorFigmaContentProps> = ({
   const isEditMode = !!id;
   
   const { zoomIn, zoomOut, setViewport, getViewport, fitView } = useReactFlow();
+  const reactFlowInstance = useRef<ReactFlowInstance | null>(null);
 
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
@@ -141,6 +143,11 @@ const WorkflowEditorFigmaContent: React.FC<WorkflowEditorFigmaContentProps> = ({
   const [currentTab, setCurrentTab] = useState<number>(0); // 0: General, 1: Flujo, 2: Estado, 3: Historial
   const [filterPerfil, setFilterPerfil] = useState<string>('todos'); // Filtro por perfil
   const [lastNodeId, setLastNodeId] = useState<string | null>(null); // ID del último nodo del flujo
+
+  // Callback cuando ReactFlow está inicializado
+  const onInit = useCallback((instance: ReactFlowInstance) => {
+    reactFlowInstance.current = instance;
+  }, []);
 
   // Estado del workflow completo
   const [workflowData, setWorkflowData] = useState<Partial<Workflow>>({
@@ -213,26 +220,92 @@ const WorkflowEditorFigmaContent: React.FC<WorkflowEditorFigmaContentProps> = ({
     );
   }, [edges, filteredNodes]);
 
+  // Función personalizada para ajustar la vista a todos los nodos
+  const handleFitView = useCallback(() => {
+    if (filteredNodes.length === 0) return;
+    
+    // Calcular los bounds de todos los nodos
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    
+    filteredNodes.forEach(node => {
+      const x = node.position.x;
+      const y = node.position.y;
+      // Asumir un tamaño mínimo de nodo si no está definido
+      const width = (node.width || 180);
+      const height = (node.height || 100);
+      
+      minX = Math.min(minX, x);
+      minY = Math.min(minY, y);
+      maxX = Math.max(maxX, x + width);
+      maxY = Math.max(maxY, y + height);
+    });
+    
+    // Obtener el tamaño del contenedor de ReactFlow
+    const reactFlowElement = document.querySelector('.react-flow');
+    if (!reactFlowElement) return;
+    
+    const containerRect = reactFlowElement.getBoundingClientRect();
+    const containerWidth = containerRect.width;
+    const containerHeight = containerRect.height;
+    
+    // Calcular el zoom necesario con padding
+    const padding = 0.1; // 10% de padding
+    const nodesWidth = maxX - minX;
+    const nodesHeight = maxY - minY;
+    
+    const zoomX = (containerWidth * (1 - padding * 2)) / nodesWidth;
+    const zoomY = (containerHeight * (1 - padding * 2)) / nodesHeight;
+    const zoom = Math.min(zoomX, zoomY, 1); // No hacer zoom in más de 100%
+    const finalZoom = Math.max(zoom, 0.1); // Mínimo zoom de 10%
+    
+    // Calcular el centro de los nodos
+    const centerX = (minX + maxX) / 2;
+    const centerY = (minY + maxY) / 2;
+    
+    // Calcular la posición del viewport para centrar
+    const x = containerWidth / 2 - centerX * finalZoom;
+    const y = containerHeight / 2 - centerY * finalZoom;
+    
+    // Usar la instancia directamente si está disponible
+    if (reactFlowInstance.current) {
+      reactFlowInstance.current.setViewport({ x, y, zoom: finalZoom }, { duration: 300 });
+      
+      // Forzar actualización del DOM si setViewport no funciona correctamente
+      setTimeout(() => {
+        const viewport = document.querySelector('.react-flow__viewport') as HTMLElement;
+        if (viewport) {
+          const currentTransform = viewport.style.transform;
+          if (currentTransform.includes('scale(1)')) {
+            viewport.style.transform = `translate(${x}px, ${y}px) scale(${finalZoom})`;
+          }
+        }
+      }, 400);
+    } else {
+      setViewport({ x, y, zoom: finalZoom }, { duration: 300 });
+    }
+    setCurrentZoom(Math.round(finalZoom * 100));
+  }, [filteredNodes, setViewport]);
+
   // Llamar a fitView cuando se cambie a la pestaña de Flujo
   useEffect(() => {
-    if (currentTab === 1) {
-      // Delay para asegurar que el DOM y ReactFlow estén listos
+    if (currentTab === 1 && filteredNodes.length > 0) {
+      // Delay más largo para asegurar que el DOM y ReactFlow estén completamente listos
       const timer = setTimeout(() => {
-        fitView({ padding: 0.15, duration: 300 });
-      }, 200);
+        handleFitView();
+      }, 500);
       return () => clearTimeout(timer);
     }
-  }, [currentTab, fitView]);
+  }, [currentTab, handleFitView, filteredNodes.length]);
 
   // Ajustar vista cuando cambia el filtro de perfil
   useEffect(() => {
     if (currentTab === 1 && filteredNodes.length > 0) {
       const timer = setTimeout(() => {
-        fitView({ padding: 0.15, duration: 300 });
+        handleFitView();
       }, 100);
       return () => clearTimeout(timer);
     }
-  }, [filterPerfil, fitView, currentTab, filteredNodes.length]);
+  }, [filterPerfil, handleFitView, currentTab, filteredNodes.length]);
 
   // Calcular el último nodo del flujo (el más a la derecha que no es placeholder)
   useEffect(() => {
@@ -1531,7 +1604,7 @@ const WorkflowEditorFigmaContent: React.FC<WorkflowEditorFigmaContentProps> = ({
           {/* Botón de Ajustar Vista */}
           <IconButton
             size="small"
-            onClick={() => fitView({ padding: 0.3, minZoom: 0.1, duration: 300 })}
+            onClick={handleFitView}
             sx={{
               border: '1px solid #788093',
               borderRadius: '4px',
@@ -1610,15 +1683,16 @@ const WorkflowEditorFigmaContent: React.FC<WorkflowEditorFigmaContentProps> = ({
           onEdgesChange={readOnly ? undefined : onEdgesChange}
           onConnect={readOnly ? undefined : onConnect}
           onNodeClick={handleNodeClick}
+          onInit={onInit}
           nodeTypes={nodeTypes}
           nodesDraggable={!readOnly}
           nodesConnectable={!readOnly}
           elementsSelectable={true}
-          fitView
+          minZoom={0.1}
+          maxZoom={2}
           snapToGrid={true}
           snapGrid={[20, 20]}
           proOptions={{ hideAttribution: true }}
-          defaultViewport={{ x: 0, y: 0, zoom: 1 }}
           defaultEdgeOptions={{
             type: 'straight',
             animated: false,
