@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Box,
   Typography,
@@ -26,6 +26,9 @@ import {
   Person as PersonIcon,
 } from '@mui/icons-material';
 import { workflowService, WorkflowCambio } from '../../services/workflow.service';
+
+// Constantes para paginación
+const PAGE_SIZE = 15;
 
 // Tipos para el historial del workflow (interno del componente)
 interface WorkflowHistoryEvent {
@@ -91,48 +94,125 @@ const convertApiToHistoryEvent = (cambio: WorkflowCambio): WorkflowHistoryEvent 
 /**
  * Vista de Historial de Cambios del Workflow
  * Muestra una timeline con los cambios realizados al workflow (del más reciente al más antiguo)
+ * Implementa scroll infinito para cargar más elementos a medida que el usuario hace scroll
  */
 export const WorkflowHistoryView = ({ workflowId, workflowData }: WorkflowHistoryViewProps) => {
   const [historial, setHistorial] = useState<WorkflowHistoryEvent[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [usingMockData, setUsingMockData] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  
+  // Refs para el manejo del scroll infinito
+  const observerRef = useRef<IntersectionObserver | null>(null);
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+  const offsetRef = useRef(0);
+  const loadingMoreRef = useRef(false);
 
-  useEffect(() => {
-    const loadHistorial = async () => {
-      setLoading(true);
-      setError(null);
-      setUsingMockData(false);
-      
-      // Si hay workflowId, cargar desde API
-      if (workflowId) {
-        try {
-          const data = await workflowService.getWorkflowHistorialCambios(workflowId);
-          
-          if (data && data.length > 0) {
-            setHistorial(data.map(convertApiToHistoryEvent));
-          } else {
-            // API devolvió vacío - mostrar estado vacío
-            setHistorial([]);
-          }
-          setLoading(false);
-          return;
-        } catch (err) {
-          console.error('Error al cargar historial:', err);
-          setError('No se pudo cargar el historial de cambios');
-          setHistorial([]);
-          setLoading(false);
-          return;
-        }
-      }
-      
-      // Sin workflowId - mostrar estado vacío
+  // Función para cargar historial (inicial o más elementos)
+  const loadHistorial = useCallback(async (isInitialLoad: boolean = false) => {
+    if (!workflowId) {
       setHistorial([]);
       setLoading(false);
-    };
+      return;
+    }
 
-    loadHistorial();
-  }, [workflowId, workflowData?.nombre]);
+    // Evitar cargas duplicadas
+    if (!isInitialLoad && loadingMoreRef.current) {
+      return;
+    }
+
+    if (isInitialLoad) {
+      setLoading(true);
+      offsetRef.current = 0;
+      setHasMore(true);
+    } else {
+      loadingMoreRef.current = true;
+      setLoadingMore(true);
+    }
+    
+    setError(null);
+    setUsingMockData(false);
+    
+    try {
+      const currentOffset = isInitialLoad ? 0 : offsetRef.current;
+      const data = await workflowService.getWorkflowHistorialCambios(workflowId, PAGE_SIZE, currentOffset);
+      
+      if (data && data.length > 0) {
+        const newEvents = data.map(convertApiToHistoryEvent);
+        
+        if (isInitialLoad) {
+          setHistorial(newEvents);
+        } else {
+          setHistorial(prev => [...prev, ...newEvents]);
+        }
+        
+        // Si recibimos menos elementos que PAGE_SIZE, no hay más datos
+        if (data.length < PAGE_SIZE) {
+          setHasMore(false);
+        }
+        
+        offsetRef.current = currentOffset + data.length;
+      } else {
+        if (isInitialLoad) {
+          setHistorial([]);
+        }
+        setHasMore(false);
+      }
+    } catch (err) {
+      console.error('Error al cargar historial:', err);
+      if (isInitialLoad) {
+        setError('No se pudo cargar el historial de cambios');
+        setHistorial([]);
+      }
+      setHasMore(false);
+    } finally {
+      setLoading(false);
+      setLoadingMore(false);
+      loadingMoreRef.current = false;
+    }
+  }, [workflowId]);
+
+  // Carga inicial cuando cambia el workflowId
+  useEffect(() => {
+    loadHistorial(true);
+  }, [workflowId, workflowData?.nombre, loadHistorial]);
+
+  // Configurar el Intersection Observer para scroll infinito
+  useEffect(() => {
+    // Limpiar observador anterior
+    if (observerRef.current) {
+      observerRef.current.disconnect();
+    }
+
+    // Crear nuevo observador - usar el contenedor de scroll como root
+    observerRef.current = new IntersectionObserver(
+      (entries) => {
+        const [entry] = entries;
+        if (entry.isIntersecting && hasMore && !loadingMoreRef.current && !loading) {
+          loadHistorial(false);
+        }
+      },
+      {
+        root: scrollContainerRef.current,
+        rootMargin: '100px',
+        threshold: 0,
+      }
+    );
+
+    // Observar el elemento sentinel
+    if (loadMoreRef.current) {
+      observerRef.current.observe(loadMoreRef.current);
+    }
+
+    return () => {
+      if (observerRef.current) {
+        observerRef.current.disconnect();
+      }
+    };
+  }, [hasMore, loading, loadHistorial]);
 
   const getEventIcon = (tipo: WorkflowHistoryEvent['tipo']) => {
     switch (tipo) {
@@ -242,11 +322,37 @@ export const WorkflowHistoryView = ({ workflowId, workflowData }: WorkflowHistor
       )}
       
       <Typography variant="body2" sx={{ mb: 3, color: '#666' }}>
-        Mostrando {historial.length} cambios ordenados del más reciente al más antiguo
+        Mostrando {historial.length} cambios{hasMore ? ' (desplaza para ver más)' : ''} ordenados del más reciente al más antiguo
       </Typography>
 
-      <Timeline
-        position="right"
+      {/* Contenedor con scroll para el historial */}
+      <Box 
+        ref={scrollContainerRef}
+        sx={{ 
+          maxHeight: 'calc(100vh - 350px)', 
+          minHeight: 400,
+          overflowY: 'auto',
+          overflowX: 'hidden',
+          pr: 1,
+          // Estilo para scrollbar
+          '&::-webkit-scrollbar': {
+            width: '8px',
+          },
+          '&::-webkit-scrollbar-track': {
+            backgroundColor: '#f1f1f1',
+            borderRadius: '4px',
+          },
+          '&::-webkit-scrollbar-thumb': {
+            backgroundColor: '#c1c1c1',
+            borderRadius: '4px',
+            '&:hover': {
+              backgroundColor: '#a8a8a8',
+            },
+          },
+        }}
+      >
+        <Timeline
+          position="right"
         sx={{
           '& .MuiTimelineItem-root:before': {
             flex: 0,
@@ -421,6 +527,32 @@ export const WorkflowHistoryView = ({ workflowId, workflowData }: WorkflowHistor
           </TimelineItem>
         ))}
       </Timeline>
+      
+      {/* Sentinel element para scroll infinito */}
+      <Box 
+        ref={loadMoreRef}
+        sx={{ 
+          py: 2, 
+          display: 'flex', 
+          justifyContent: 'center',
+          minHeight: 60,
+        }}
+      >
+        {loadingMore && (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <CircularProgress size={24} />
+            <Typography variant="body2" color="text.secondary">
+              Cargando más cambios...
+            </Typography>
+          </Box>
+        )}
+        {!loadingMore && !hasMore && historial.length > 0 && (
+          <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+            — Fin del historial —
+          </Typography>
+        )}
+      </Box>
+      </Box>
     </Box>
   );
 };
