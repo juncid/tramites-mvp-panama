@@ -61,7 +61,6 @@ import {
   ZoomIn as ZoomInIcon,
   ZoomOut as ZoomOutIcon,
   PanTool as PanToolIcon,
-  DocumentScanner as ScannerIcon,
   KeyboardArrowDown as ArrowDownIcon,
   CloudUpload as UploadIcon,
   CloudDownload as DownloadIcon,
@@ -117,8 +116,6 @@ const TIPOS_PREGUNTA: { value: TipoPregunta; label: string; icon?: React.ReactNo
   { value: 'DESCARGA_ARCHIVO', label: 'Descarga de archivos', icon: <DownloadIcon /> },
   { value: 'DATOS_CASO', label: 'Data del caso', icon: <DataTableIcon /> },
   { value: 'REVISION_MANUAL_DOCUMENTOS', label: 'Revisión manual de documentos', icon: <DocumentSearchIcon /> },
-  { value: 'REVISION_OCR', label: 'Revisión OCR por parte del sistema', icon: <ScannerIcon /> },
-  { value: 'SELECCION_FECHA', label: 'Selección de fecha', icon: <CalendarIcon /> },
   { value: 'IMPRESION', label: 'Impresión', icon: <PrintIcon /> },
 ];
 

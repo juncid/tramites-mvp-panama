@@ -79,8 +79,6 @@ const TIPOS_PREGUNTA: { value: TipoPregunta; label: string }[] = [
   { value: 'DESCARGA_ARCHIVO', label: 'Descarga de archivos' },
   { value: 'DATOS_CASO', label: 'Data del caso' },
   { value: 'REVISION_MANUAL_DOCUMENTOS', label: 'Revisión manual de documentos' },
-  { value: 'REVISION_OCR', label: 'Revisión OCR por parte del sistema' },
-  { value: 'SELECCION_FECHA', label: 'Selección de fecha' },
   { value: 'IMPRESION', label: 'Impresión' },
   { value: 'IMPRESION_LISTA_CASOS', label: 'Impresión lista de casos' },
 ];
