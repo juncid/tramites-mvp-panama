@@ -9,8 +9,7 @@ Proporciona:
 - Mocks y stubs comunes
 """
 
-import pytest
-from datetime import datetime, date, timedelta
+from datetime import datetime
 from typing import Dict, List, Any, Optional
 from faker import Faker
 import factory
@@ -20,8 +19,7 @@ from sqlalchemy.orm import Session
 from app.models import Tramite
 from app.models.models_ppsh import (
     PPSHSolicitud, PPSHSolicitante, PPSHDocumento,
-    PPSHEntrevista, PPSHComentario, PPSHEstado,
-    PPSHCausaHumanitaria, PPSHTipoDocumento
+    PPSHEntrevista, PPSHComentario
 )
 
 # Configurar Faker

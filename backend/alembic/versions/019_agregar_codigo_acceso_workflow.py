@@ -9,7 +9,6 @@ Revises: 08be95d1d13e
 Create Date: 2025-01-22
 """
 from alembic import op
-import sqlalchemy as sa
 
 
 # revision identifiers

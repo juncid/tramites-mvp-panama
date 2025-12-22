@@ -16,15 +16,14 @@ from pydantic import ValidationError
 
 from app.schemas.schemas_ppsh import (
     SolicitanteCreate, SolicitudCreate, DocumentoCreate,
-    EntrevistaCreate, ComentarioCreate
+    EntrevistaCreate
 )
 from app.schemas.schemas_sim_ft import (
-    SimFtTramitesCreate, SimFtTramiteECreate, SimFtTramiteDCreate,
-    SimFtEstatusCreate, SimFtConclusionCreate, SimFtPrioridadCreate
+    SimFtTramiteECreate, SimFtEstatusCreate, SimFtConclusionCreate, SimFtPrioridadCreate
 )
 from app.schemas.schemas_workflow import (
     WorkflowCreate, WorkflowEtapaCreate, WorkflowPreguntaCreate,
-    WorkflowConexionCreate, WorkflowInstanciaCreate
+    WorkflowConexionCreate
 )
 
 

@@ -6,8 +6,7 @@ Objetivo: Cubrir las líneas faltantes para alcanzar 85%+ de cobertura.
 """
 
 import pytest
-from datetime import datetime
-from unittest.mock import Mock, MagicMock, patch
+from unittest.mock import Mock
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 

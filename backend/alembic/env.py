@@ -6,7 +6,6 @@ from logging.config import fileConfig
 import sys
 from pathlib import Path
 
-from sqlalchemy import engine_from_config
 from sqlalchemy import pool
 
 from alembic import context
@@ -16,8 +15,6 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 # Importar la configuración de la base de datos y los modelos
 from app.infrastructure.database import Base, get_database_url
-from app.models import models  # Modelos originales
-from app.models import models_ppsh  # Modelos PPSH
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

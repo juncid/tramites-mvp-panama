@@ -2,9 +2,7 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from sqlalchemy.orm import Session
-from sqlalchemy import text
-from app.infrastructure.database import SessionLocal, engine
+from app.infrastructure.database import SessionLocal
 from app.models.auth import Usuario
 from app.utils.security import get_password_hash
 

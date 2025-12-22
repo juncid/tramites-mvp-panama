@@ -5,8 +5,6 @@ Sistema de Trámites Migratorios de Panamá
 Objetivo: Cubrir líneas 21-39 para alcanzar 85%+ de cobertura.
 """
 
-import pytest
-from unittest.mock import Mock, patch, MagicMock
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 

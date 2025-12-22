@@ -10,7 +10,6 @@ Uso:
 """
 
 import sys
-import os
 from datetime import datetime
 import logging
 

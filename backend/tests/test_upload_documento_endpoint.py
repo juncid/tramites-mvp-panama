@@ -4,14 +4,11 @@ Prueba la funcionalidad POST /ppsh/solicitudes/{id_solicitud}/documentos
 """
 
 import pytest
-import tempfile
-import os
 from datetime import datetime
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 from io import BytesIO
 
 from app.models import models_ppsh
-from app.schemas import schemas_ppsh
 
 
 class TestUploadDocumentEndpoint:

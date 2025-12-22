@@ -1,4 +1,4 @@
-from typing import Generator, Optional, Dict, Any, List
+from typing import Optional, Dict, Any
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import jwt
@@ -6,7 +6,6 @@ from pydantic import ValidationError
 from sqlalchemy.orm import Session
 
 from app.models.auth import Usuario
-from app.utils import security
 from app.infrastructure.config import settings
 from app.infrastructure.database import get_db
 

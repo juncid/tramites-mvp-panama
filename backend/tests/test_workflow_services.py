@@ -20,10 +20,7 @@ from app.schemas import schemas_workflow as schemas
 from app.services.services_workflow import (
     WorkflowService,
     EtapaService,
-    PreguntaService,
-    ConexionService,
     InstanciaService,
-    RespuestaService,
     HistorialService,
     ComentarioService
 )

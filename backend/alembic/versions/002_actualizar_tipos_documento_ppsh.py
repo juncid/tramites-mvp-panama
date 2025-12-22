@@ -9,8 +9,6 @@ Lista oficial de requisitos para Permiso de Protección de Seguridad Humanitaria
 
 """
 from alembic import op
-import sqlalchemy as sa
-from datetime import datetime
 
 # revision identifiers
 revision = '002_actualizar_tipos_documento_ppsh'

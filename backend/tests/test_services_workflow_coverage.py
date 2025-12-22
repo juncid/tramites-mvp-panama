@@ -6,8 +6,6 @@ Objetivo: Cubrir más líneas del servicio de workflow para alcanzar 85%+ de cob
 """
 
 import pytest
-from datetime import datetime
-from unittest.mock import Mock, patch
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
@@ -21,7 +19,6 @@ from app.services.services_workflow import (
     HistorialService
 )
 from app.models import models_workflow as models
-from app.schemas import schemas_workflow as schemas
 
 
 class TestWorkflowService:

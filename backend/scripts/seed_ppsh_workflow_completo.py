@@ -29,7 +29,6 @@ sys.path.insert(0, str(backend_dir))
 
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker, Session
-from datetime import datetime, date
 import urllib.parse
 
 # Importar modelos

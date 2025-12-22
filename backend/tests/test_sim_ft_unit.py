@@ -11,7 +11,6 @@ Cubre:
 """
 
 import pytest
-from unittest.mock import Mock, patch
 from datetime import datetime
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
@@ -20,10 +19,6 @@ from app.models.models_sim_ft import (
     SimFtTramites, SimFtTramiteE, SimFtTramiteD,
     SimFtEstatus, SimFtConclusion, SimFtPrioridad,
     SimFtPasos, SimFtPasoXTram
-)
-from app.schemas.schemas_sim_ft import (
-    SimFtTramitesCreate, SimFtTramiteECreate, SimFtTramiteDCreate,
-    SimFtEstatusResponse, SimFtConclusionResponse, SimFtPrioridadResponse
 )
 
 

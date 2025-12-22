@@ -11,12 +11,9 @@ import re
 import json
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import List, Dict, Optional
+from typing import List, Dict
 from collections import defaultdict
 import redis
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
 
 
 class LogMonitor:

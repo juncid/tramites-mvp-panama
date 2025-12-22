@@ -3,10 +3,6 @@ Tests para routers PPSH
 Sistema de Trámites Migratorios de Panamá
 """
 
-import pytest
-from unittest.mock import Mock, patch, MagicMock
-from fastapi.testclient import TestClient
-from app.main import app
 
 
 # ==========================================

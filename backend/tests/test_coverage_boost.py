@@ -4,10 +4,6 @@ Sistema de Trámites Migratorios de Panamá
 """
 
 import pytest
-from unittest.mock import Mock, patch, MagicMock
-from datetime import datetime
-from fastapi.testclient import TestClient
-from sqlalchemy.orm import Session
 
 # Tests de modelos
 from app.models import models_ppsh, models_workflow, models_sim_ft

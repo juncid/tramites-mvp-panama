@@ -4,7 +4,6 @@ Script para corregir errores de nombres de modelos y atributos en tests PPSH.
 Fase 1 y Fase 2 del plan de corrección.
 """
 
-import re
 from pathlib import Path
 
 def fix_ppsh_tests_phase_2():

@@ -10,7 +10,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 from app.infrastructure.database import SessionLocal
 from app.models import models_ppsh
-from sqlalchemy import text, inspect
+from sqlalchemy import inspect
 
 def check_if_tables_exist(db) -> bool:
     """Verifica si las tablas PPSH existen en la base de datos"""

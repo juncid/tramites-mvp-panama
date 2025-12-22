@@ -12,10 +12,9 @@ Prueba las clases de servicio:
 """
 
 import pytest
-from unittest.mock import Mock, patch, MagicMock
-from datetime import datetime, date, timedelta
+from unittest.mock import MagicMock
+from datetime import datetime
 from sqlalchemy.orm import Session
-from fastapi import HTTPException
 
 from app.models import models_ppsh
 from app.services.services_ppsh import (
@@ -25,7 +24,6 @@ from app.services.services_ppsh import (
     PERMISOS_CAMBIO_ESTADO, ESTADOS_REQUIEREN_MOTIVO,
     validar_permiso_cambio_estado
 )
-from app.schemas import schemas_ppsh
 
 
 # ==========================================

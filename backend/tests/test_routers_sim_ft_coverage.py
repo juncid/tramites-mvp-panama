@@ -5,10 +5,9 @@ Sistema de Trámites Migratorios de Panamá
 Objetivo: Cubrir más líneas del router SIM FT para alcanzar 85%+ de cobertura.
 """
 
-import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
-from app.models.models_sim_ft import SimFtTramites, SimFtEstatus, SimFtPasos
+from app.models.models_sim_ft import SimFtTramites
 
 
 class TestTramitesTiposRouter:

@@ -11,11 +11,8 @@ y aplica las migraciones de prioridad alta de forma segura.
 import os
 import sys
 import logging
-import time
 from datetime import datetime
-import pyodbc
 from sqlalchemy import create_engine, text
-from sqlalchemy.exc import SQLAlchemyError
 
 # Configurar logging
 logging.basicConfig(

@@ -6,7 +6,7 @@ Objetivo: Cubrir líneas 28-71 para alcanzar 85%+ de cobertura.
 """
 
 import pytest
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 from fastapi import HTTPException
 from jose import jwt
 

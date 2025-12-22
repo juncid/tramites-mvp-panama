@@ -6,11 +6,9 @@ Prueba el middleware HTTP de logging
 """
 
 import pytest
-from unittest.mock import Mock, patch, MagicMock, AsyncMock
-from datetime import datetime
-import json
+from unittest.mock import Mock, patch, MagicMock
 
-from app.utils.middleware import LoggerMiddleware, RequestLoggingMiddleware
+from app.utils.middleware import LoggerMiddleware
 
 
 # ==========================================

@@ -10,8 +10,6 @@ Create Date: 2025-11-10 21:19:36.479885
 """
 from typing import Sequence, Union
 from alembic import op
-import sqlalchemy as sa
-from datetime import datetime
 
 
 # revision identifiers, used by Alembic.

@@ -4,15 +4,13 @@ Sistema de Trámites Migratorios de Panamá
 """
 
 import pytest
-from unittest.mock import Mock, patch, MagicMock
-from datetime import datetime, date
-from sqlalchemy.orm import Session
+from unittest.mock import patch, MagicMock
+from datetime import datetime
 
 from app.services.services_ppsh import (
     PPSHNotFoundException, PPSHBusinessException, PPSHPermissionException,
     validar_permiso_cambio_estado,
-    PERMISOS_CAMBIO_ESTADO, ESTADOS_REQUIEREN_MOTIVO, TRANSICIONES_VALIDAS,
-    CatalogoService, SolicitudService, DocumentoService, EntrevistaService,
+    PERMISOS_CAMBIO_ESTADO, ESTADOS_REQUIEREN_MOTIVO, CatalogoService, SolicitudService, DocumentoService, EntrevistaService,
     PPSHComentarioService
 )
 

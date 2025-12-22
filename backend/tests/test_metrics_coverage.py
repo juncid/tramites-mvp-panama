@@ -11,8 +11,7 @@ Cubre las líneas faltantes del módulo de métricas:
 """
 
 import pytest
-from unittest.mock import Mock, MagicMock, patch
-from datetime import datetime
+from unittest.mock import MagicMock
 import json
 
 from app.utils.metrics import MetricsCollector, init_metrics, get_metrics

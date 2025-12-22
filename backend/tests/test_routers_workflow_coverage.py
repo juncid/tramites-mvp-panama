@@ -5,11 +5,9 @@ Sistema de Trámites Migratorios de Panamá
 Objetivo: Cubrir más líneas del router de workflow para alcanzar 85%+ de cobertura.
 """
 
-import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
-from app.models import models_workflow as models
 
 
 class TestWorkflowRouter:

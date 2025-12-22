@@ -6,14 +6,10 @@ Para aumentar cobertura de 61% a 75%
 import pytest
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
-from datetime import datetime
-from unittest.mock import MagicMock, patch
 
 from app.services.services_workflow import (
     WorkflowService,
     EtapaService,
-    PreguntaService,
-    ConexionService,
     InstanciaService,
     ComentarioService,
     HistorialService,

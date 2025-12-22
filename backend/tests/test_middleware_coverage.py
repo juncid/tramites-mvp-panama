@@ -10,13 +10,9 @@ Cubre las líneas faltantes del middleware:
 """
 
 import pytest
-from unittest.mock import Mock, MagicMock, patch, AsyncMock
-from fastapi import FastAPI, Request, Response
+from unittest.mock import MagicMock, patch
+from fastapi import FastAPI, Request
 from fastapi.testclient import TestClient
-from starlette.middleware.base import BaseHTTPMiddleware
-import time
-import json
-import asyncio
 
 
 # ==========================================

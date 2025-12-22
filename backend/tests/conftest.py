@@ -11,12 +11,10 @@ Este módulo configura:
 
 import os
 import pytest
-import tempfile
 from datetime import datetime, date
 from typing import Generator, Dict, Any
 from unittest.mock import Mock, patch
 
-import pytest_asyncio
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, StaticPool
 from sqlalchemy.orm import sessionmaker, Session

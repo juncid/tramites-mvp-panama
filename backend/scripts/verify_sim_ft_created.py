@@ -9,7 +9,6 @@ import os
 sys.path.append(os.path.join(os.path.dirname(__file__), 'app'))
 
 from sqlalchemy import create_engine, text
-from sqlalchemy.exc import SQLAlchemyError
 import urllib
 
 def main():

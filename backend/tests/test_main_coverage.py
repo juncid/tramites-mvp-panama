@@ -4,10 +4,6 @@ Sistema de Trámites Migratorios de Panamá
 """
 
 import pytest
-from unittest.mock import Mock, patch, MagicMock, AsyncMock
-from fastapi import FastAPI, Request
-from fastapi.testclient import TestClient
-import time
 
 
 # ==========================================

@@ -4,7 +4,6 @@ Sistema de Trámites Migratorios de Panamá
 """
 
 import pytest
-from fastapi.testclient import TestClient
 
 
 # ==========================================

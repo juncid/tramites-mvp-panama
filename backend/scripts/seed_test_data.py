@@ -29,7 +29,6 @@ import sys
 import argparse
 import pyodbc
 from pathlib import Path
-from typing import Optional
 
 
 class DatabaseSeeder:

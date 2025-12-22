@@ -8,8 +8,6 @@ Sistema de acceso público para ciudadanos y abogados sin contraseña.
 Permite consultar solicitudes mediante número de solicitud + documento de identidad.
 """
 from alembic import op
-import sqlalchemy as sa
-from sqlalchemy.dialects import mssql
 
 # revision identifiers, used by Alembic.
 revision = '016_crear_sistema_acceso_publico'

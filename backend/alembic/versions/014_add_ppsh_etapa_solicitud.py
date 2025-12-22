@@ -7,7 +7,6 @@ Create Date: 2025-11-03 14:00:00.000000
 """
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.dialects import mssql
 
 # revision identifiers, used by Alembic.
 revision = '014_add_ppsh_etapa_solicitud'

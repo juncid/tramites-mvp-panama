@@ -4,7 +4,6 @@ Incluye catálogos PPSH, workflows, y datos de ejemplo para testing completo.
 """
 import os
 import sys
-from datetime import datetime, timedelta
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 

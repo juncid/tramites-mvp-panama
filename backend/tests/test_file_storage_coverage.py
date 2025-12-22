@@ -8,7 +8,7 @@ Objetivo: Cubrir las líneas faltantes para alcanzar 85%+ de cobertura.
 import pytest
 import os
 import tempfile
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import patch
 from io import BytesIO
 from PIL import Image
 

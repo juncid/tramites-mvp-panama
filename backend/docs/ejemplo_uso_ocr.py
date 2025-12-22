@@ -7,7 +7,6 @@ Este script demuestra cómo utilizar el servicio OCR desde código Python.
 
 import requests
 import time
-import json
 from typing import Dict, Any
 
 # Configuración

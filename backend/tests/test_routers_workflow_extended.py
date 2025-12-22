@@ -3,9 +3,7 @@ Tests extendidos para routers_workflow.py
 Para aumentar cobertura de 43% a 85%
 """
 
-import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy.orm import Session
 
 
 class TestWorkflowsRouter:

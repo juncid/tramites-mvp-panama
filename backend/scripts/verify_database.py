@@ -11,7 +11,6 @@ from datetime import datetime
 sys.path.append(os.path.join(os.path.dirname(__file__), 'app'))
 
 from sqlalchemy import create_engine, text, inspect
-from sqlalchemy.exc import SQLAlchemyError
 import urllib
 
 def print_section(title):

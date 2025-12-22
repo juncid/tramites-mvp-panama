@@ -12,10 +12,8 @@ Cubre las líneas faltantes de routes_ppsh:
 """
 
 import pytest
-from unittest.mock import Mock, MagicMock, patch
-from fastapi.testclient import TestClient
-from datetime import date, datetime
-import json
+from unittest.mock import MagicMock, patch
+from datetime import datetime
 
 
 # ==========================================

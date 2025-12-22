@@ -4,8 +4,6 @@ Sistema de Trámites Migratorios de Panamá
 """
 
 import pytest
-from unittest.mock import Mock, patch, MagicMock
-import time
 
 
 # ==========================================

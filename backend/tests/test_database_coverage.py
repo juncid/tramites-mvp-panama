@@ -5,8 +5,6 @@ Sistema de Trámites Migratorios de Panamá
 Objetivo: Cubrir líneas 32, 35-39 para alcanzar 85%+ de cobertura.
 """
 
-import pytest
-from unittest.mock import Mock, patch, MagicMock
 from sqlalchemy.orm import Session
 
 
@@ -45,7 +43,7 @@ class TestDatabaseFunctions:
     
     def test_get_db_closes_on_exception(self):
         """Test: get_db cierra la sesión incluso con excepciones"""
-        from app.infrastructure.database import get_db, SessionLocal
+        from app.infrastructure.database import get_db
         
         db_generator = get_db()
         session = next(db_generator)

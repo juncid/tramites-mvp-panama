@@ -4,11 +4,7 @@ Sistema de almacenamiento de archivos para PPSH
 """
 
 import pytest
-import tempfile
-import os
-from io import BytesIO
-from unittest.mock import Mock, patch, MagicMock, mock_open
-from pathlib import Path
+from unittest.mock import patch
 
 from app.services.file_storage_service import (
     FileStorageService, 

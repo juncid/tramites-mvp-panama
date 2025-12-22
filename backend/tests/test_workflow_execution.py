@@ -9,7 +9,6 @@ Date: 2025-11-18
 """
 
 import pytest
-from datetime import datetime
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
