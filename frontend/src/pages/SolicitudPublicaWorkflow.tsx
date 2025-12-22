@@ -213,10 +213,10 @@ export const SolicitudPublicaWorkflow: React.FC = () => {
   }
 
   // ============================================================================
-  // RENDER: WORKFLOW COMPLETADO
+  // RENDER: WORKFLOW COMPLETADO (solo si NO estamos en modo readonly viendo una etapa)
   // ============================================================================
 
-  if (instancia?.estado === 'COMPLETADO') {
+  if (instancia?.estado === 'COMPLETADO' && !isReadonly) {
     return (
       <Container maxWidth="lg" sx={{ py: 4 }}>
         <Alert severity="success" icon={<CheckCircleIcon fontSize="large" />}>
