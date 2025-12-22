@@ -69,7 +69,6 @@ docs/
 | Documento | Descripción |
 |-----------|-------------|
 | [Manuales/MANUAL_DE_USUARIO.md](Manuales/MANUAL_DE_USUARIO.md) | Guía completa de uso |
-| [Manuales/GUIA_CAPACITACION.md](Manuales/GUIA_CAPACITACION.md) | Material de capacitación |
 
 ### Para Administradores
 
@@ -154,7 +153,6 @@ Pruebas automatizadas y manuales.
 | [Manuales/MANUAL_DE_USUARIO.md](Manuales/MANUAL_DE_USUARIO.md) | 👤 Usuario final | Guía de uso del sistema |
 | [Manuales/MANUAL_TECNICO.md](Manuales/MANUAL_TECNICO.md) | 🔧 Técnico | Documentación técnica Parte 1 |
 | [Manuales/MANUAL_TECNICO_PARTE2.md](Manuales/MANUAL_TECNICO_PARTE2.md) | 🔧 Técnico | Documentación técnica Parte 2 |
-| [Manuales/GUIA_CAPACITACION.md](Manuales/GUIA_CAPACITACION.md) | 📚 Capacitación | Material de capacitación |
 
 ---
 

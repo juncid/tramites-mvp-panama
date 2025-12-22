@@ -409,11 +409,12 @@ El firewall está gestionado por AWS Lightsail. Para verificar:
 
 ```bash
 # Desde fuera del servidor (tu máquina local)
-curl --max-time 5 http://23.23.20.56:8000/docs
+
+curl --max-time 5 http://permisosmigratorios.online:8000/docs
 # Debe dar timeout o connection refused
 
 # Verificar que SÍ funciona vía proxy
-curl http://23.23.20.56/api/v1/tramites | head -20
+curl http://permisosmigratorios.online/api/v1/tramites | head -20
 # Debe responder con JSON
 ```
 

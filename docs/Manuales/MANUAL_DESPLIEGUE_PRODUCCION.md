@@ -29,20 +29,14 @@
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                    ARQUITECTURA DE AMBIENTES                    │
+│                    ARQUITECTURA DEL AMBIENTE                    │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
-│   🟢 PRODUCCIÓN (UMCE)                                         │
-│   ├─ Dominio: http://permisosmigratorios.online                │
-│   ├─ IP: 3.94.174.109                                          │
-│   ├─ SSH Key: umce.pem                                         │
-│   └─ Usuario: ubuntu                                           │
-│                                                                 │
-│   🟡 PREPRODUCTIVO (AWS Lightsail)                             │
-│   ├─ URL: http://23.23.20.56                                   │
-│   ├─ IP: 23.23.20.56                                           │
-│   ├─ SSH Key: KeyPairForWSL.pem                                │
-│   └─ Usuario: ubuntu                                           │
+│   PRODUCCIÓN                                                    │
+│   ├─ Dominio: http://permisosmigratorios.online                 │
+│   ├─ IP: 3.94.174.109                                           │
+│   ├─ SSH Key: umce.pem                                          │
+│   └─ Usuario: ubuntu                                            │
 │                                                                 │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -100,7 +94,7 @@
 
 ---
 
-## 3. Despliegue en Servidor de Producción (UMCE)
+## 3. Despliegue en Servidor de Producción 
 
 ### 3.1 Conexión SSH
 
@@ -176,6 +170,9 @@ LOG_LEVEL=INFO
 
 # CORS
 CORS_ORIGINS=http://permisosmigratorios.online,http://3.94.174.109
+
+# Frontend URL (IMPORTANTE: para generar links de acceso público)
+FRONTEND_URL=http://permisosmigratorios.online
 EOF
 ```
 
@@ -218,57 +215,27 @@ docker compose ps
 # Verificar contenedores
 docker ps
 
-# Verificar health
-curl -s http://localhost:8000/api/v1/health | jq
+
+ubuntu@ip-172-26-0-29:~$ docker ps
+CONTAINER ID   IMAGE                                        COMMAND                  CREATED        STATUS                  PORTS                                         NAMES
+15252fa09983   lightsail-frontend                           "/sbin/tini -- nginx…"   19 hours ago   Up 19 hours (healthy)   0.0.0.0:80->80/tcp, [::]:80->80/tcp           tramites-frontend
+3a843373b0f3   lightsail-celery-worker                      "celery -A celery_ap…"   19 hours ago   Up 19 hours             8000/tcp                                      tramites-celery-worker
+2679b0a4ba42   lightsail-backend                            "uvicorn app.main:ap…"   19 hours ago   Up 19 hours (healthy)   8000/tcp                                      tramites-backend
+1f5ade2fd5fb   lightsail-celery-beat                        "celery -A celery_ap…"   19 hours ago   Up 19 hours             8000/tcp                                      tramites-celery-beat
+c35198d195f1   redis:7-alpine                               "docker-entrypoint.s…"   19 hours ago   Up 19 hours (healthy)   0.0.0.0:6379->6379/tcp, [::]:6379->6379/tcp   tramites-redis
+a2b388edd04a   mcr.microsoft.com/mssql/server:2022-latest   "/opt/mssql/bin/laun…"   19 hours ago   Up 19 hours (healthy)   0.0.0.0:1433->1433/tcp, [::]:1433->1433/tcp   tramites-sqlserver
+
+
+# Verificar health (a través de Nginx)
+curl -s http://localhost/health
+
+# O directamente al contenedor backend
+docker exec tramites-backend curl -s http://localhost:8000/health
 
 # Verificar desde exterior
-curl -s http://permisosmigratorios.online/api/v1/health
+curl -s http://permisosmigratorios.online/health
 ```
 
----
-
-## 4. Despliegue en Servidor Preproductivo (Lightsail)
-
-### 4.1 Conexión SSH
-
-```bash
-# Desde máquina local
-chmod 600 ~/.ssh/KeyPairForWSL.pem
-ssh -i ~/.ssh/KeyPairForWSL.pem ubuntu@23.23.20.56
-```
-
-### 4.2 Configurar Firewall en Lightsail
-
-1. Ir a [Consola AWS Lightsail](https://lightsail.aws.amazon.com)
-2. Seleccionar instancia → **Networking**
-3. En **IPv4 Firewall**, configurar:
-
-| Puerto | Protocolo | Permitir |
-|--------|-----------|----------|
-| 22 | SSH | ✅ |
-| 80 | HTTP | ✅ |
-| 443 | HTTPS | ✅ |
-
-⚠️ **NO agregar** puertos 8000, 1433, 6379
-
-### 4.3 Despliegue
-
-```bash
-# Conectar
-ssh -i ~/.ssh/KeyPairForWSL.pem ubuntu@23.23.20.56
-
-# Actualizar
-cd ~/tramites-mvp-panama
-git pull origin main
-
-# Reconstruir
-docker compose down
-docker compose up -d --build
-
-# Verificar
-docker compose ps
-curl -s http://localhost:8000/api/v1/health
-```
 
 ---
 
@@ -396,7 +363,7 @@ docker exec tramites-sqlserver /opt/mssql-tools18/bin/sqlcmd \
 
 ```bash
 # 1. Crear backup en Preproductivo (Lightsail)
-ssh -i ~/.ssh/KeyPairForWSL.pem ubuntu@23.23.20.56
+ssh -i ~/.ssh/KeyPairXXX.pem ubuntu@xx.xx.xx.xx
 FECHA=$(date +%Y%m%d)
 docker exec tramites-sqlserver /opt/mssql-tools18/bin/sqlcmd \
   -S localhost -U sa -P "Password" -C \
@@ -405,7 +372,7 @@ docker cp tramites-sqlserver:/var/opt/mssql/backup/sim_panama_${FECHA}.bak ~/
 exit
 
 # 2. Descargar a máquina local
-scp -i ~/.ssh/KeyPairForWSL.pem ubuntu@23.23.20.56:~/sim_panama_${FECHA}.bak ./
+scp -i ~/.ssh/KeyPairXXX.pem ubuntu@xx.xx.xx.xx:~/sim_panama_${FECHA}.bak ./
 
 # 3. Subir a Producción (UMCE)
 scp -i ~/.ssh/umce.pem ./sim_panama_${FECHA}.bak ubuntu@permisosmigratorios.online:~/
@@ -427,7 +394,7 @@ mkdir -p /tmp/uploads_sync
 
 # 2. Descargar archivos de Preproductivo
 scp -i ~/.ssh/KeyPairForWSL.pem -r \
-  ubuntu@23.23.20.56:~/tramites-mvp-panama/backend/uploads/solicitudes/* \
+  ubuntu@xx.xx.xx.xx:~/tramites-mvp-panama/backend/uploads/solicitudes/* \
   /tmp/uploads_sync/
 
 # 3. Subir a Producción
@@ -602,7 +569,7 @@ docker volume prune
 docker compose logs backend --tail=50
 
 # Verificar que Nginx enruta correctamente
-curl -v http://localhost/api/v1/health
+curl -v http://localhost/health
 
 # Reiniciar backend
 docker compose restart backend
@@ -621,7 +588,7 @@ docker compose restart backend
 - [ ] Archivo .env configurado
 - [ ] Contenedores iniciados con `docker compose up -d`
 - [ ] Base de datos inicializada
-- [ ] API respondiendo en /api/v1/health
+- [ ] API respondiendo en /health
 
 ### Actualización
 - [ ] `git pull origin main`

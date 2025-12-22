@@ -180,7 +180,6 @@ docker compose up backend
 - **Swagger UI:** http://localhost:8001/api/docs
 - **ReDoc:** http://localhost:8001/api/redoc
 - **Manual Técnico:** `/docs/MANUAL_TECNICO.md`
-- **Guía de Capacitación:** `/docs/GUIA_CAPACITACION.md`
 
 ---
 

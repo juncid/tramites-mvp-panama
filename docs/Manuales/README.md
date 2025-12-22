@@ -35,12 +35,6 @@
 | [MANUAL_TECNICO.md](MANUAL_TECNICO.md) | 🔧 Desarrollador | Arquitectura, BD, APIs (Parte 1) |
 | [MANUAL_TECNICO_PARTE2.md](MANUAL_TECNICO_PARTE2.md) | 🔧 Desarrollador | Infraestructura, Seguridad, Monitoreo (Parte 2) |
 
-### 📚 Capacitación
-
-| Manual | Audiencia | Descripción |
-|--------|-----------|-------------|
-| [GUIA_CAPACITACION.md](GUIA_CAPACITACION.md) | 📚 Capacitador | Material de capacitación y ejercicios |
-
 ---
 
 ## � Manual de Instalación (NUEVO)

@@ -229,15 +229,109 @@ docker cp tramites-sqlserver:/var/opt/mssql/backup/sim_panama.bak ./backup/
 tar -czf uploads_backup.tar.gz /var/lib/docker/volumes/tramites-uploads-data/
 ```
 
+## Configuración SSL (HTTPS)
+
+Para habilitar SSL/HTTPS en producción, sigue estos pasos:
+
+### Requisitos Previos
+
+1. Un dominio apuntando a la IP pública del servidor
+2. Puerto 80 y 443 abiertos en el firewall de Lightsail
+
+### Opción 1: SSL con Let's Encrypt (Recomendado)
+
+```bash
+# Ejecutar script de configuración SSL
+cd ~/tramites-panama/deploy/lightsail
+sudo ./setup-ssl.sh tu-dominio.com
+
+# Iniciar con SSL
+docker compose -f docker-compose.ssl.yml up -d
+```
+
+El script:
+- Instala Certbot
+- Obtiene un certificado SSL gratuito de Let's Encrypt
+- Configura renovación automática cada 60 días
+- Crea los archivos en `./certs/`
+
+### Opción 2: SSL con Certificado Propio
+
+Si ya tienes un certificado SSL:
+
+```bash
+# Crear directorio de certificados
+mkdir -p certs
+
+# Copiar tus certificados
+cp /ruta/a/tu/fullchain.pem certs/
+cp /ruta/a/tu/privkey.pem certs/
+
+# Ajustar permisos
+chmod 644 certs/fullchain.pem
+chmod 600 certs/privkey.pem
+
+# Iniciar con SSL
+docker compose -f docker-compose.ssl.yml up -d
+```
+
+### Verificar SSL
+
+```bash
+# Verificar que el certificado está funcionando
+curl -I https://tu-dominio.com
+
+# Ver fecha de expiración
+openssl s_client -connect tu-dominio.com:443 -servername tu-dominio.com 2>/dev/null | openssl x509 -noout -dates
+```
+
+### Renovación de Certificados
+
+Los certificados de Let's Encrypt se renuevan automáticamente. Para renovar manualmente:
+
+```bash
+sudo certbot renew
+docker compose -f docker-compose.ssl.yml exec frontend nginx -s reload
+```
+
+---
+
 ## Seguridad (Producción)
 
 Para un entorno más seguro:
 
 1. **Cambiar contraseñas** por defecto en `.env`
-2. **Configurar SSL** con Let's Encrypt
-3. **Cerrar puerto 8000** y usar Nginx como reverse proxy
-4. **Habilitar Redis password**
-5. **Configurar backups automáticos**
+2. **Configurar SSL** con Let's Encrypt (ver sección anterior)
+3. **Cerrar puerto 8000** - Ya configurado en `docker-compose.ssl.yml`
+4. **Habilitar Redis password** - Agregar `REDIS_PASSWORD` en `.env`
+5. **Configurar backups automáticos** - Ver sección de Backup
+
+---
+
+## Archivos de Configuración
+
+| Archivo | Descripción |
+|---------|-------------|
+| `docker-compose.lightsail.yml` | Configuración sin SSL (desarrollo/pruebas) |
+| `docker-compose.ssl.yml` | Configuración con SSL (producción) |
+| `setup-ssl.sh` | Script para configurar Let's Encrypt |
+| `.env` | Variables de entorno (crear desde `.env.example`) |
+| `certs/` | Directorio para certificados SSL |
+
+---
+
+## Conexión SSH al Servidor
+
+La clave SSH para acceder al servidor está en:
+- `deploy/lightsail/umce.pem`
+
+```bash
+# Conectar al servidor
+ssh -i deploy/lightsail/umce.pem ubuntu@YOUR_PUBLIC_IP
+
+# Asegurar permisos correctos de la clave
+chmod 600 deploy/lightsail/umce.pem
+```
 
 ---
 

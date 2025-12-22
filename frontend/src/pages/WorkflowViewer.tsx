@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import ReactFlow, {
   Node,
@@ -11,6 +11,7 @@ import ReactFlow, {
   BackgroundVariant,
   useReactFlow,
   ReactFlowProvider,
+  ReactFlowInstance,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import {
@@ -30,6 +31,7 @@ import {
   TextFields as TextIcon,
   RadioButtonChecked as RadioIcon,
   CheckBox as CheckBoxIcon,
+  FitScreen as FitScreenIcon,
 } from '@mui/icons-material';
 import { workflowService } from '../services/workflow.service';
 import type { Workflow, WorkflowEtapa } from '../types/workflow';
@@ -44,13 +46,15 @@ const nodeTypes: NodeTypes = {
 const WorkflowViewerContent: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { zoomIn, zoomOut, getViewport } = useReactFlow();
+  const { zoomIn, zoomOut, getViewport, fitView } = useReactFlow();
+  const reactFlowInstance = useRef<ReactFlowInstance | null>(null);
   
   const [workflow, setWorkflow] = useState<Workflow | null>(null);
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
   const [currentZoom, setCurrentZoom] = useState<number>(100);
+  const [nodesLoaded, setNodesLoaded] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -58,7 +62,44 @@ const WorkflowViewerContent: React.FC = () => {
     }
   }, [id]);
 
+  // Ajustar la vista cuando los nodos estén cargados y la instancia de ReactFlow esté lista
   useEffect(() => {
+    console.log('[FitView Debug] nodesLoaded:', nodesLoaded, 'nodes.length:', nodes.length, 'instance:', !!reactFlowInstance.current);
+    if (nodesLoaded && nodes.length > 0) {
+      // Esperar a que los nodos se rendericen completamente y que la instancia esté disponible
+      const timer = setTimeout(() => {
+        if (reactFlowInstance.current) {
+          console.log('[FitView Debug] Calling fitView...');
+          reactFlowInstance.current.fitView({ 
+            padding: 0.1, 
+            duration: 300, 
+            minZoom: 0.05,
+            includeHiddenNodes: true 
+          });
+          // Actualizar el indicador de zoom después de la animación
+          setTimeout(() => {
+            const viewport = reactFlowInstance.current?.getViewport();
+            console.log('[FitView Debug] Viewport after fitView:', viewport);
+            if (viewport) {
+              setCurrentZoom(Math.round(viewport.zoom * 100));
+            }
+          }, 350);
+        } else {
+          console.log('[FitView Debug] Instance not ready yet');
+        }
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [nodesLoaded, nodes.length]);
+
+  // Callback cuando ReactFlow está inicializado
+  const onInit = useCallback((instance: ReactFlowInstance) => {
+    reactFlowInstance.current = instance;
+    logger.component('WorkflowViewer', 'ReactFlow initialized');
+  }, []);
+
+  // Actualizar zoom cuando el viewport cambie
+  const handleMove = useCallback(() => {
     const viewport = getViewport();
     setCurrentZoom(Math.round(viewport.zoom * 100));
   }, [getViewport]);
@@ -109,6 +150,10 @@ const WorkflowViewerContent: React.FC = () => {
         
         setNodes(layoutedNodes);
         setEdges(layoutedEdges);
+        
+        // Marcar que los nodos están cargados para trigger el fitView
+        console.log('[WORKFLOW] Setting nodesLoaded to true, nodes count:', layoutedNodes.length);
+        setNodesLoaded(true);
       }
     } catch (error) {
       logger.error('Error loading workflow', error, 'WORKFLOW');
@@ -154,7 +199,25 @@ const WorkflowViewerContent: React.FC = () => {
     
     setNodes(layoutedNodes);
     setEdges(layoutedEdges);
-  }, [nodes, edges, setNodes, setEdges]);
+    
+    // Ajustar vista después del auto-layout
+    setTimeout(() => {
+      fitView({ padding: 0.05, duration: 300, minZoom: 0.05, includeHiddenNodes: true });
+    }, 100);
+  }, [nodes, edges, setNodes, setEdges, fitView]);
+
+  const handleFitView = useCallback(() => {
+    console.log('[FitView] handleFitView called, nodes:', nodes.length);
+    logger.component('WorkflowViewer', 'Fit view triggered');
+    const result = fitView({ padding: 0.05, duration: 300, minZoom: 0.05, includeHiddenNodes: true });
+    console.log('[FitView] fitView result:', result);
+    // Actualizar indicador de zoom después
+    setTimeout(() => {
+      const vp = getViewport();
+      console.log('[FitView] Viewport after:', vp);
+      setCurrentZoom(Math.round(vp.zoom * 100));
+    }, 350);
+  }, [fitView, nodes.length, getViewport]);
 
   const convertEtapasToNodes = (etapas: WorkflowEtapa[]): Node[] => {
     return etapas.map((etapa) => ({
@@ -253,14 +316,16 @@ const WorkflowViewerContent: React.FC = () => {
               nodesConnectable={false}
               elementsSelectable={true}
               onNodeClick={handleNodeClick}
+              onMove={handleMove}
+              onInit={onInit}
               snapToGrid={true}
               snapGrid={[20, 20]}
               panOnScroll={true}
               zoomOnScroll={true}
               panOnDrag={true}
               fitView
-              fitViewOptions={{ padding: 0.2 }}
-              minZoom={0.1}
+              fitViewOptions={{ padding: 0.1, minZoom: 0.05, includeHiddenNodes: true }}
+              minZoom={0.05}
               maxZoom={2}
               defaultEdgeOptions={{
                 type: 'smoothstep',
@@ -308,6 +373,29 @@ const WorkflowViewerContent: React.FC = () => {
                     </Typography>
                     <ArrowDownIcon sx={{ fontSize: 8, color: '#788093' }} />
                   </Box>
+                </Box>
+
+                {/* Botón de ajustar a la vista */}
+                <Box
+                  sx={{
+                    border: '1px solid #788093',
+                    borderRadius: '4px',
+                    bgcolor: 'white',
+                    width: 24,
+                    height: 24,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <IconButton
+                    size="small"
+                    onClick={handleFitView}
+                    sx={{ p: 0, color: '#788093' }}
+                    title="Ajustar a la vista"
+                  >
+                    <FitScreenIcon sx={{ fontSize: 16 }} />
+                  </IconButton>
                 </Box>
 
                 {/* Botón de auto-layout */}
