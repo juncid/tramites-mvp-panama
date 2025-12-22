@@ -11,7 +11,7 @@ from app.infrastructure.database import get_db
 
 # OAuth2 scheme - auto_error=False allows optional auth for MVP mode
 reusable_oauth2 = OAuth2PasswordBearer(
-    tokenUrl=f"/api/v1/login/access-token",
+    tokenUrl="/api/v1/login/access-token",
     auto_error=False  # Don't auto-raise 401, allow None token
 )
 
